@@ -650,6 +650,55 @@
             color: #fff;
         }
 
+        .chat-staged-preview {
+            background: rgba(255, 255, 255, 0.02);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            animation: slideDown var(--dur-fast) var(--ease-out);
+            border-radius: var(--r-sm) var(--r-sm) 0 0;
+        }
+
+        .staged-image-container {
+            position: relative;
+            width: 50px;
+            height: 50px;
+            border-radius: var(--r-sm);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .staged-preview-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .staged-preview-close {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            cursor: pointer;
+            line-height: 1;
+            transition: background 0.15s ease;
+        }
+
+        .staged-preview-close:hover {
+            background: #ef4444;
+        }
+
         .chat-image-wrapper {
             margin-top: 0.35rem;
             margin-bottom: 0.35rem;
@@ -2683,6 +2732,12 @@
                                 </div>
                             </div>
                         </div>
+                        <div id="chat-staged-preview" class="chat-staged-preview" style="display: none;">
+                            <div class="staged-image-container">
+                                <img id="staged-preview-img" src="" class="staged-preview-img">
+                                <button type="button" class="staged-preview-close" onclick="clearStagedImage(event)" title="Discard image">&times;</button>
+                            </div>
+                        </div>
 
                         <form id="chat-form" onsubmit="handleSendChat(event)" class="chat-input-container">
                             <button type="button" class="chat-emoji-btn" onclick="toggleEmojiPicker(event)" aria-label="Emoji Menu" style="background: transparent; border: none; padding: 0; color: var(--bone-300); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color var(--dur-fast); outline: none;">
@@ -3650,23 +3705,75 @@
             appendChatMessage('System', `Connected to party lobby. Welcome to "${room.name}"!`, 'system');
         }
 
-        // Chat helpers
-        function handleSendChat(e) {
+        // Chat staging states & helpers
+        let stagedImageBase64 = null;
+
+        async function uploadBase64ToStorage(base64Str) {
+            try {
+                // Convert base64 to Blob using browser fetch API
+                const res = await fetch(base64Str);
+                const blob = await res.blob();
+                
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
+                const { data, error } = await supabaseClient.storage
+                    .from('chat-images')
+                    .upload(fileName, blob, {
+                        contentType: 'image/jpeg',
+                        cacheControl: '3600'
+                    });
+
+                if (error) {
+                    console.warn('Storage upload error, using Base64 fallback:', error);
+                    return base64Str;
+                }
+
+                const { data: { publicUrl } } = supabaseClient.storage
+                    .from('chat-images')
+                    .getPublicUrl(fileName);
+                return publicUrl;
+            } catch (err) {
+                console.warn('Storage exception, using Base64 fallback:', err);
+                return base64Str;
+            }
+        }
+
+        async function handleSendChat(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input');
             const val = input.value.trim();
-            if (!val) return;
+            
+            if (!val && !stagedImageBase64) return;
 
+            const textToSend = val;
+            const imageToSend = stagedImageBase64;
+
+            // Clear input and staged image preview instantly for instant responsiveness
+            input.value = '';
+            if (imageToSend) {
+                clearStagedImage();
+            }
+
+            // Render local message instantly
+            appendChatMessage(currentUserName, textToSend, 'me', imageToSend);
+
+            // Upload image to Supabase Storage in the background if present
+            let finalImage = null;
+            if (imageToSend) {
+                finalImage = await uploadBase64ToStorage(imageToSend);
+            }
+
+            // Broadcast to the room
             if (channel) {
                 channel.send({
                     type: 'broadcast',
                     event: 'chat',
-                    payload: { user: currentUserName, message: val }
+                    payload: { 
+                        user: currentUserName, 
+                        message: textToSend, 
+                        image: finalImage 
+                    }
                 });
             }
-
-            appendChatMessage(currentUserName, val, 'me');
-            input.value = '';
         }
 
         function appendChatMessage(user, msg, type, imageUrl) {
@@ -3708,10 +3815,10 @@
             // Reset selector so same file can be re-selected
             event.target.value = '';
 
-            compressAndSendFile(file);
+            compressAndStageFile(file);
         }
 
-        function compressAndSendFile(file) {
+        function compressAndStageFile(file) {
             const reader = new FileReader();
             reader.onload = function (e) {
                 const img = new Image();
@@ -3740,76 +3847,33 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Pre-render the Base64 fallback string in case of storage upload failures
+                    // Compress to JPEG with 0.6 quality (looks excellent but very small, typically ~20-40KB)
                     const base64Data = canvas.toDataURL('image/jpeg', 0.6);
 
-                    // Inline helper to broadcast and render Base64 fallback stream directly
-                    const fallbackBroadcast = () => {
-                        if (channel) {
-                            channel.send({
-                                type: 'broadcast',
-                                event: 'chat',
-                                payload: { 
-                                    user: currentUserName, 
-                                    message: '', 
-                                    image: base64Data 
-                                }
-                            });
-                        }
-                        appendChatMessage(currentUserName, '', 'me', base64Data);
-                    };
+                    // Stage the image
+                    stagedImageBase64 = base64Data;
 
-                    // Try converting to binary Blob and uploading to Supabase Storage bucket 'chat-images'
-                    canvas.toBlob(async function (blob) {
-                        if (!blob) {
-                            fallbackBroadcast();
-                            return;
-                        }
+                    // Display staging preview
+                    const previewContainer = document.getElementById('chat-staged-preview');
+                    const previewImg = document.getElementById('staged-preview-img');
+                    previewImg.src = base64Data;
+                    previewContainer.style.display = 'flex';
 
-                        try {
-                            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
-                            
-                            const { data, error } = await supabaseClient.storage
-                                .from('chat-images')
-                                .upload(fileName, blob, {
-                                    contentType: 'image/jpeg',
-                                    cacheControl: '3600'
-                                });
-
-                            if (error) {
-                                console.warn('Supabase storage upload failed. Falling back to direct Base64 broadcast:', error);
-                                fallbackBroadcast();
-                                return;
-                            }
-
-                            // Retrieve public URL of the uploaded image
-                            const { data: { publicUrl } } = supabaseClient.storage
-                                .from('chat-images')
-                                .getPublicUrl(fileName);
-
-                            // Broadcast the uploaded public image URL in real-time
-                            if (channel) {
-                                channel.send({
-                                    type: 'broadcast',
-                                    event: 'chat',
-                                    payload: { 
-                                        user: currentUserName, 
-                                        message: '', 
-                                        image: publicUrl 
-                                    }
-                                });
-                            }
-                            appendChatMessage(currentUserName, '', 'me', publicUrl);
-
-                        } catch (err) {
-                            console.warn('Error during Supabase Storage upload, using direct Base64 fallback:', err);
-                            fallbackBroadcast();
-                        }
-                    }, 'image/jpeg', 0.6);
+                    // Auto-focus chat input to type a message/caption
+                    document.getElementById('chat-input').focus();
                 };
                 img.src = e.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        function clearStagedImage(event) {
+            if (event) event.preventDefault();
+            stagedImageBase64 = null;
+            const previewContainer = document.getElementById('chat-staged-preview');
+            const previewImg = document.getElementById('staged-preview-img');
+            previewImg.src = '';
+            previewContainer.style.display = 'none';
         }
 
         // Clipboard pasting for screenshotted images (Ctrl+V / Cmd+V)
@@ -3819,7 +3883,7 @@
                 if (items[i].type.indexOf('image') !== -1) {
                     const file = items[i].getAsFile();
                     if (file) {
-                        compressAndSendFile(file);
+                        compressAndStageFile(file);
                     }
                 }
             }

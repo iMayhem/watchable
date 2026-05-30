@@ -650,6 +650,168 @@
             color: #fff;
         }
 
+        .voice-btn {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.35);
+            color: var(--bone-200);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.45rem 0.85rem;
+            border-radius: var(--r-pill);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: all var(--dur-fast);
+        }
+
+        .voice-btn.voice-inactive:hover {
+            background: rgba(139, 92, 246, 0.2);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+        }
+
+        .voice-btn.voice-active {
+            background: linear-gradient(135deg, var(--ember), #ff0055);
+            border-color: transparent;
+            color: #fff;
+            font-weight: 700;
+            animation: voice-pulse 1.8s infinite alternate;
+        }
+
+        .voice-mute-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--bone-200);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.45rem 0.85rem;
+            border-radius: var(--r-pill);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: all var(--dur-fast);
+        }
+
+        .voice-mute-btn.voice-unmuted:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+
+        .voice-mute-btn.voice-muted {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .voice-mute-btn.voice-muted:hover {
+            background: rgba(239, 68, 68, 0.25);
+            color: #f87171;
+        }
+
+        @keyframes voice-pulse {
+            0% { box-shadow: 0 0 4px rgba(255, 90, 31, 0.4); }
+            100% { box-shadow: 0 0 16px rgba(255, 90, 31, 0.8); }
+        }
+
+        .voice-peers-panel {
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 0.75rem 1rem;
+            backdrop-filter: blur(12px);
+            animation: slideDown var(--dur-fast) var(--ease-out);
+        }
+
+        .voice-panel-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--bone-400);
+            margin-bottom: 0.5rem;
+        }
+
+        .voice-peers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .voice-peer-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: var(--r-sm);
+            padding: 0.35rem 0.6rem;
+            font-size: 0.8rem;
+            transition: all var(--dur-fast);
+        }
+
+        .voice-peer-row:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .peer-name {
+            color: var(--bone-200);
+            font-weight: 600;
+            max-width: 12ch;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .peer-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .peer-mute-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.2rem;
+            font-size: 0.85rem;
+            opacity: 0.7;
+            transition: opacity var(--dur-fast);
+        }
+
+        .peer-mute-btn:hover {
+            opacity: 1;
+        }
+
+        .peer-volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 70px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: var(--r-pill);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .peer-volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--violet);
+            box-shadow: 0 0 4px var(--violet);
+            transition: transform 0.15s ease;
+        }
+
+        .peer-volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+
         /* Room Progress Bar Banner */
         .workspace-banner {
             display: flex;
@@ -2487,6 +2649,12 @@
                             <span id="banner-playing-text">🍿 Loading feature stream...</span>
                         </div>
                         <div class="banner-actions" style="display: flex; align-items: center; gap: 1rem;">
+                            <button id="voice-call-btn" class="voice-btn voice-inactive" onclick="toggleVoiceCall()">
+                                🎤 Join Voice
+                            </button>
+                            <button id="voice-mute-btn" class="voice-mute-btn voice-unmuted" onclick="toggleLocalMute()" style="display: none;">
+                                🔊 Mute Mic
+                            </button>
                             <button class="lights-out-btn" onclick="toggleLightsOut()">
                                 💡 Lights Out
                             </button>
@@ -2543,6 +2711,14 @@
                     </div>
 
                     <div class="sidebar-content" style="position: relative;">
+                        <!-- Connected Voice Peers Panel (only visible when in voice call) -->
+                        <div id="voice-peers-panel" class="voice-peers-panel" style="display: none;">
+                            <div class="voice-panel-title">🔊 Voice Room members</div>
+                            <div id="voice-peers-list" class="voice-peers-list">
+                                <!-- Populated dynamically with each peer's volume slider -->
+                            </div>
+                        </div>
+
                         <div id="chat-box" class="chat-messages">
                             <!-- Messages injected dynamically -->
                         </div>
@@ -2715,6 +2891,26 @@
         let activeRoom = null;
         let channel = null;
         let isHost = false;
+
+        // WebRTC P2P Voice Call states
+        let localStream = null;
+        let peerConnections = {}; // username -> RTCPeerConnection
+        let inVoiceCall = false;
+        let isVoiceMuted = false;
+        const peerConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        };
+
+        let peerVolumePreferences = {};
+        try {
+            peerVolumePreferences = JSON.parse(localStorage.getItem('lobby_user_volumes')) || {};
+        } catch (e) {
+            peerVolumePreferences = {};
+        }
 
         // Update Header user badge
         function updateHeaderBadge() {
@@ -3527,6 +3723,9 @@
                     switchStreamProvider(activeProvider);
                     appendChatMessage('System', `The host advanced the watch party to Episode ${nextEp}!`, 'system');
                 })
+                .on('broadcast', { event: 'voice_sig' }, (payload) => {
+                    handleVoiceSignaling(payload.payload);
+                })
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
                     updateUsersCount(state);
@@ -3536,6 +3735,7 @@
                 })
                 .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
                     appendChatMessage('System', `${key} left the watch party.`, 'system');
+                    cleanupPeer(key); // Auto-teardown WebRTC connection if participant closes tab!
                 });
 
             channel.subscribe(async (status) => {
@@ -3594,6 +3794,304 @@
             const onlineCountEl = document.getElementById('chat-online-count');
             const count = Object.keys(presenceState).length;
             onlineCountEl.textContent = count;
+        }
+
+        // WebRTC P2P Voice Call signaling, setup, and teardown handlers
+        async function toggleVoiceCall() {
+            const btn = document.getElementById('voice-call-btn');
+            const muteBtn = document.getElementById('voice-mute-btn');
+            
+            if (inVoiceCall) {
+                leaveVoiceCall();
+                btn.className = 'voice-btn voice-inactive';
+                btn.innerHTML = '🎤 Join Voice';
+                muteBtn.style.display = 'none';
+                appendChatMessage('System', 'You left the voice call.', 'system');
+                renderVoicePeers();
+            } else {
+                try {
+                    btn.innerHTML = '⚡ Connecting mic…';
+                    btn.disabled = true;
+                    
+                    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    inVoiceCall = true;
+                    isVoiceMuted = false;
+                    
+                    btn.disabled = false;
+                    btn.className = 'voice-btn voice-active';
+                    btn.innerHTML = '🎤 Leave Voice';
+                    muteBtn.style.display = 'inline-flex';
+                    muteBtn.innerHTML = '🔊 Mute Mic';
+                    muteBtn.className = 'voice-mute-btn voice-unmuted';
+                    
+                    // Broadcast join to existing room members
+                    sendVoiceSignal({ type: 'join', sender: currentUserName });
+                    
+                    appendChatMessage('System', 'You joined the voice call!', 'system');
+                    renderVoicePeers();
+                } catch (err) {
+                    console.error('Failed to get local stream:', err);
+                    btn.disabled = false;
+                    btn.innerHTML = '🎤 Join Voice';
+                    alert('Could not access microphone. Please check permissions and try again.');
+                }
+            }
+        }
+
+        function toggleLocalMute() {
+            if (!localStream) return;
+            const muteBtn = document.getElementById('voice-mute-btn');
+            const audioTrack = localStream.getAudioTracks()[0];
+            
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                isVoiceMuted = !audioTrack.enabled;
+                
+                if (isVoiceMuted) {
+                    muteBtn.className = 'voice-mute-btn voice-muted';
+                    muteBtn.innerHTML = '🔇 Unmute Mic';
+                    appendChatMessage('System', 'Your microphone is muted.', 'system');
+                } else {
+                    muteBtn.className = 'voice-mute-btn voice-unmuted';
+                    muteBtn.innerHTML = '🔊 Mute Mic';
+                    appendChatMessage('System', 'Your microphone is unmuted.', 'system');
+                }
+            }
+        }
+
+        function sendVoiceSignal(payload) {
+            if (channel) {
+                channel.send({
+                    type: 'broadcast',
+                    event: 'voice_sig',
+                    payload: payload
+                });
+            }
+        }
+
+        function createPeerConnection(otherUser, isInitiator) {
+            if (peerConnections[otherUser]) {
+                peerConnections[otherUser].close();
+            }
+            
+            const pc = new RTCPeerConnection(peerConfig);
+            peerConnections[otherUser] = pc;
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    pc.addTrack(track, localStream);
+                });
+            }
+            
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendVoiceSignal({
+                        type: 'ice',
+                        candidate: event.candidate,
+                        sender: currentUserName,
+                        receiver: otherUser
+                    });
+                }
+            };
+            
+            pc.ontrack = (event) => {
+                console.log(`[Voice] Received audio track from ${otherUser}`);
+                
+                const existingAudio = document.getElementById(`audio-voice-${otherUser}`);
+                if (existingAudio) {
+                    existingAudio.remove();
+                }
+                
+                const audio = document.createElement('audio');
+                audio.id = `audio-voice-${otherUser}`;
+                audio.srcObject = event.streams[0];
+                audio.autoplay = true;
+                audio.style.display = 'none';
+                
+                // Restore individual volume preference automatically
+                const pref = peerVolumePreferences[otherUser];
+                if (pref !== undefined) {
+                    audio.volume = parseFloat(pref);
+                }
+                
+                document.body.appendChild(audio);
+                
+                appendChatMessage('System', `${otherUser} connected in voice call.`, 'system');
+                renderVoicePeers();
+            };
+            
+            pc.onconnectionstatechange = () => {
+                if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+                    cleanupPeer(otherUser);
+                }
+            };
+            
+            if (isInitiator) {
+                pc.createOffer().then(offer => {
+                    return pc.setLocalDescription(offer);
+                }).then(() => {
+                    sendVoiceSignal({
+                        type: 'offer',
+                        sdp: pc.localDescription,
+                        sender: currentUserName,
+                        receiver: otherUser
+                    });
+                }).catch(err => {
+                    console.error(`Failed to create offer for ${otherUser}:`, err);
+                });
+            }
+            
+            return pc;
+        }
+
+        function handleVoiceSignaling(data) {
+            if (!inVoiceCall) return;
+            
+            const { type, sender, receiver, sdp, candidate } = data;
+            if (sender === currentUserName) return;
+            
+            if (type === 'join') {
+                console.log(`[Voice] ${sender} joined voice call. Initiating connection...`);
+                createPeerConnection(sender, true);
+                return;
+            }
+            
+            if (receiver !== currentUserName) return;
+            
+            if (type === 'offer') {
+                console.log(`[Voice] Received WebRTC offer from ${sender}`);
+                const pc = createPeerConnection(sender, false);
+                pc.setRemoteDescription(new RTCSessionDescription(sdp)).then(() => {
+                    return pc.createAnswer();
+                }).then(answer => {
+                    return pc.setLocalDescription(answer);
+                }).then(() => {
+                    sendVoiceSignal({
+                        type: 'answer',
+                        sdp: pc.localDescription,
+                        sender: currentUserName,
+                        receiver: sender
+                    });
+                }).catch(err => {
+                    console.error(`Failed to answer offer from ${sender}:`, err);
+                });
+            } else if (type === 'answer') {
+                console.log(`[Voice] Received WebRTC answer from ${sender}`);
+                const pc = peerConnections[sender];
+                if (pc) {
+                    pc.setRemoteDescription(new RTCSessionDescription(sdp)).catch(err => {
+                        console.error(`Failed to set remote description answer from ${sender}:`, err);
+                    });
+                }
+            } else if (type === 'ice') {
+                const pc = peerConnections[sender];
+                if (pc) {
+                    pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(err => {
+                        console.error(`Failed to add ICE candidate from ${sender}:`, err);
+                    });
+                }
+            } else if (type === 'leave') {
+                cleanupPeer(sender);
+            }
+        }
+
+        function cleanupPeer(user) {
+            const pc = peerConnections[user];
+            if (pc) {
+                pc.close();
+                delete peerConnections[user];
+            }
+            const audio = document.getElementById(`audio-voice-${user}`);
+            if (audio) {
+                audio.remove();
+            }
+            renderVoicePeers();
+        }
+
+        function leaveVoiceCall() {
+            inVoiceCall = false;
+            sendVoiceSignal({ type: 'leave', sender: currentUserName });
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            Object.keys(peerConnections).forEach(user => {
+                cleanupPeer(user);
+            });
+            peerConnections = {};
+            renderVoicePeers();
+        }
+
+        // Render, adjust, and store individual voice peer parameters
+        function renderVoicePeers() {
+            const panel = document.getElementById('voice-peers-panel');
+            const list = document.getElementById('voice-peers-list');
+            const peers = Object.keys(peerConnections);
+            
+            if (inVoiceCall && peers.length > 0) {
+                panel.style.display = 'block';
+                list.innerHTML = '';
+                
+                peers.forEach(user => {
+                    // Read saved preference or default to 1 (full volume)
+                    const savedVol = peerVolumePreferences[user] !== undefined ? parseFloat(peerVolumePreferences[user]) : 1.0;
+                    const isMuted = savedVol === 0;
+                    
+                    const row = document.createElement('div');
+                    row.className = 'voice-peer-row';
+                    row.id = `voice-peer-row-${user}`;
+                    row.innerHTML = `
+                        <span class="peer-name">👤 ${user}</span>
+                        <div class="peer-controls">
+                            <button class="peer-mute-btn" id="peer-mute-btn-${user}" onclick="togglePeerMute('${user}')">
+                                ${isMuted ? '🔇' : '🔊'}
+                            </button>
+                            <input type="range" class="peer-volume-slider" id="peer-volume-slider-${user}" 
+                                min="0" max="1" step="0.05" value="${savedVol}" 
+                                oninput="adjustPeerVolume('${user}', this.value)">
+                        </div>
+                    `;
+                    list.appendChild(row);
+                });
+            } else {
+                panel.style.display = 'none';
+                list.innerHTML = '';
+            }
+        }
+
+        function adjustPeerVolume(username, val) {
+            const audio = document.getElementById(`audio-voice-${username}`);
+            if (audio) {
+                audio.volume = parseFloat(val);
+            }
+            
+            // Save local preference
+            peerVolumePreferences[username] = parseFloat(val);
+            localStorage.setItem('lobby_user_volumes', JSON.stringify(peerVolumePreferences));
+            
+            // Update Mute/Unmute Icon in UI
+            const muteBtn = document.getElementById(`peer-mute-btn-${username}`);
+            if (muteBtn) {
+                muteBtn.innerHTML = parseFloat(val) === 0 ? '🔇' : '🔊';
+            }
+        }
+
+        function togglePeerMute(username) {
+            const slider = document.getElementById(`peer-volume-slider-${username}`);
+            if (!slider) return;
+            
+            const currentVal = parseFloat(slider.value);
+            if (currentVal > 0) {
+                // Mute: set to 0
+                slider.value = 0;
+                adjustPeerVolume(username, 0);
+            } else {
+                // Unmute: set to 1.0 (or full preference if saved previously)
+                slider.value = 1.0;
+                adjustPeerVolume(username, 1.0);
+            }
         }
 
         // Page Init logic
@@ -3669,6 +4167,10 @@
                 // No room parameter - show lobby
                 showLobbyView();
             }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            leaveVoiceCall();
         });
     </script>
 </body>

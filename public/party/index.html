@@ -2256,6 +2256,124 @@
                 padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px)) !important;
             }
         }
+
+        /* Emoji Picker Styling */
+        .chat-emoji-picker {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 10px;
+            right: 10px;
+            background: rgba(10, 10, 12, 0.98);
+            backdrop-filter: blur(24px);
+            border: 1px solid var(--rule-strong);
+            border-radius: var(--r-md);
+            box-shadow: var(--shadow-xl);
+            z-index: 1000;
+            padding: 0.75rem;
+            animation: slideUpEmoji 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .chat-emoji-picker.active {
+            display: block;
+        }
+
+        @keyframes slideUpEmoji {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .emoji-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.6rem;
+            border-bottom: 1px solid var(--rule);
+            padding-bottom: 0.4rem;
+        }
+
+        .emoji-picker-header span {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            color: var(--violet);
+        }
+
+        .emoji-picker-close {
+            background: transparent;
+            border: none;
+            color: var(--bone-400);
+            font-size: 1.1rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 0.25rem;
+            transition: color 0.15s ease;
+        }
+
+        .emoji-picker-close:hover {
+            color: #fff;
+        }
+
+        .emoji-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            max-height: 180px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        /* Customize scrollbar for emoji picker */
+        .emoji-grid::-webkit-scrollbar {
+            width: 4px;
+        }
+        .emoji-grid::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+        }
+
+        .emoji-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .emoji-category {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--bone-400);
+            text-transform: uppercase;
+        }
+
+        .emoji-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .emoji-item {
+            font-size: 1.25rem;
+            padding: 0.2rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: transform 0.12s ease, background 0.12s ease;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+
+        .emoji-item:hover {
+            transform: scale(1.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .chat-emoji-btn:hover {
+            color: var(--violet) !important;
+        }
     </style>
 </head>
 <body>
@@ -2424,13 +2542,68 @@
                         </div>
                     </div>
 
-                    <div class="sidebar-content">
+                    <div class="sidebar-content" style="position: relative;">
                         <div id="chat-box" class="chat-messages">
                             <!-- Messages injected dynamically -->
                         </div>
                         
+                        <!-- Emoji Picker panel -->
+                        <div id="chat-emoji-picker" class="chat-emoji-picker">
+                            <div class="emoji-picker-header">
+                                <span>Express Yourself</span>
+                                <button type="button" class="emoji-picker-close" onclick="toggleEmojiPicker(event)">&times;</button>
+                            </div>
+                            <div class="emoji-grid">
+                                <div class="emoji-group">
+                                    <span class="emoji-category">React</span>
+                                    <div class="emoji-items">
+                                        <span class="emoji-item" onclick="insertEmoji('🍿')">🍿</span>
+                                        <span class="emoji-item" onclick="insertEmoji('😮')">😮</span>
+                                        <span class="emoji-item" onclick="insertEmoji('😂')">😂</span>
+                                        <span class="emoji-item" onclick="insertEmoji('🔥')">🔥</span>
+                                        <span class="emoji-item" onclick="insertEmoji('😍')">😍</span>
+                                        <span class="emoji-item" onclick="insertEmoji('💯')">💯</span>
+                                    </div>
+                                </div>
+                                <div class="emoji-group">
+                                    <span class="emoji-category">Faces</span>
+                                    <div class="emoji-items">
+                                        <span class="emoji-item" onclick="insertEmoji('😀')">😀</span>
+                                        <span class="emoji-item" onclick="insertEmoji('😎')">😎</span>
+                                        <span class="emoji-item" onclick="insertEmoji('😱')">😱</span>
+                                        <span class="emoji-item" onclick="insertEmoji('🥺')">🥺</span>
+                                        <span class="emoji-item" onclick="insertEmoji('🥳')">🥳</span>
+                                        <span class="emoji-item" onclick="insertEmoji('🤔')">🤔</span>
+                                        <span class="emoji-item" onclick="insertEmoji('😴')">😴</span>
+                                        <span class="emoji-item" onclick="insertEmoji('😡')">😡</span>
+                                    </div>
+                                </div>
+                                <div class="emoji-group">
+                                    <span class="emoji-category">Gestures</span>
+                                    <div class="emoji-items">
+                                        <span class="emoji-item" onclick="insertEmoji('👍')">👍</span>
+                                        <span class="emoji-item" onclick="insertEmoji('👎')">👎</span>
+                                        <span class="emoji-item" onclick="insertEmoji('🙌')">🙌</span>
+                                        <span class="emoji-item" onclick="insertEmoji('👏')">👏</span>
+                                        <span class="emoji-item" onclick="insertEmoji('👋')">👋</span>
+                                        <span class="emoji-item" onclick="insertEmoji('💖')">💖</span>
+                                        <span class="emoji-item" onclick="insertEmoji('🎉')">🎉</span>
+                                        <span class="emoji-item" onclick="insertEmoji('✨')">✨</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <form id="chat-form" onsubmit="handleSendChat(event)" class="chat-input-container">
-                            <input type="text" id="chat-input" class="chat-text-input" placeholder="Say something to the group..." autocomplete="off" required>
+                            <button type="button" class="chat-emoji-btn" onclick="toggleEmojiPicker(event)" aria-label="Emoji Menu" style="background: transparent; border: none; padding: 0; color: var(--bone-300); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color var(--dur-fast); outline: none;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                                </svg>
+                            </button>
+                            <input type="text" id="chat-input" class="chat-text-input" placeholder="Say something to the group..." autocomplete="off" required style="margin-left: 0.25rem;">
                             <button type="submit" class="chat-send-btn" aria-label="Send message">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -3171,6 +3344,41 @@
                 alert('Copy this URL to invite friends:\n' + shareUrl);
             });
         }
+
+        // Emoji Picker functions
+        function toggleEmojiPicker(e) {
+            if (e) e.stopPropagation();
+            const picker = document.getElementById('chat-emoji-picker');
+            if (picker) picker.classList.toggle('active');
+        }
+
+        function insertEmoji(emoji) {
+            const input = document.getElementById('chat-input');
+            if (input) {
+                const start = input.selectionStart || 0;
+                const end = input.selectionEnd || 0;
+                const text = input.value;
+                input.value = text.substring(0, start) + emoji + text.substring(end);
+                
+                // Position cursor after inserted emoji
+                const newPos = start + emoji.length;
+                input.setSelectionRange(newPos, newPos);
+                input.focus();
+                
+                input.required = false;
+            }
+        }
+
+        // Close emoji picker when clicking outside
+        window.addEventListener('click', (e) => {
+            const picker = document.getElementById('chat-emoji-picker');
+            const emojiBtn = document.querySelector('.chat-emoji-btn');
+            if (picker && picker.classList.contains('active')) {
+                if (!picker.contains(e.target) && (!emojiBtn || !emojiBtn.contains(e.target))) {
+                    picker.classList.remove('active');
+                }
+            }
+        });
 
         // Database Rooms queries
         async function loadActiveRooms() {

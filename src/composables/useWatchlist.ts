@@ -78,7 +78,7 @@ if (typeof window !== 'undefined') {
       
       localWatchlist.forEach(localItem => {
         const existsInCloud = cloudWatchlist.some(
-          cloudItem => cloudItem.id === localItem.id && cloudItem.type === localItem.type
+          cloudItem => String(cloudItem.id) === String(localItem.id) && cloudItem.type === localItem.type
         );
         if (!existsInCloud) {
           merged.push(localItem);
@@ -100,10 +100,16 @@ if (typeof window !== 'undefined') {
 
   window.addEventListener('movora_auth_change', handleAuthChange);
   window.addEventListener('movora_userdata_change', handleAuthOrDataChange);
+
+  // Sync on startup if user is already logged in
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    syncUserDataWithSupabase(currentUser);
+  }
 }
 
 export function isInWatchlist(id: number | string, type: 'movie' | 'tv' | 'anime'): boolean {
-  return watchlist.value.some(item => item.id === id && item.type === type);
+  return watchlist.value.some(item => String(item.id) === String(id) && item.type === type);
 }
 
 export function addToWatchlist(item: WatchlistItem): void {
@@ -119,7 +125,7 @@ export function addToWatchlist(item: WatchlistItem): void {
 }
 
 export function removeFromWatchlist(id: number | string, type: 'movie' | 'tv' | 'anime'): void {
-  watchlist.value = watchlist.value.filter(item => !(item.id === id && item.type === type));
+  watchlist.value = watchlist.value.filter(item => !(String(item.id) === String(id) && item.type === type));
 }
 
 export function toggleWatchlistItem(item: WatchlistItem): void {
@@ -135,7 +141,7 @@ export function setWatched(
   type: 'movie' | 'tv' | 'anime',
   watched: boolean
 ): void {
-  const idx = watchlist.value.findIndex(i => i.id === id && i.type === type);
+  const idx = watchlist.value.findIndex(i => String(i.id) === String(id) && i.type === type);
   if (idx === -1) return;
   const next = [...watchlist.value];
   next[idx] = {
@@ -147,7 +153,7 @@ export function setWatched(
 }
 
 export function isWatched(id: number | string, type: 'movie' | 'tv' | 'anime'): boolean {
-  return watchlist.value.some(i => i.id === id && i.type === type && i.watched === true);
+  return watchlist.value.some(i => String(i.id) === String(id) && i.type === type && i.watched === true);
 }
 
 export function clearWatchlist(): void {

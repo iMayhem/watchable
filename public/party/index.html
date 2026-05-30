@@ -2487,6 +2487,10 @@
                             <span id="banner-playing-text">🍿 Loading feature stream...</span>
                         </div>
                         <div class="banner-actions" style="display: flex; align-items: center; gap: 1rem;">
+                            <!-- Download Button (Visible only for Moovie Direct) -->
+                            <button id="party-download-btn" class="lights-out-btn" onclick="downloadPartyDirectStream()" style="display: none; border-color: rgba(16, 185, 129, 0.4); color: #10b981;">
+                                📥 Download
+                            </button>
                             <button class="lights-out-btn" onclick="toggleLightsOut()">
                                 💡 Lights Out
                             </button>
@@ -2916,6 +2920,12 @@
                 src: fixPartySubtitleUrl(sub.url),
                 default: idx === 0 || (sub.language || '').toLowerCase() === 'english'
             }));
+
+            // Show download button once stream URL is resolved
+            const dlBtn = document.getElementById('party-download-btn');
+            if (dlBtn && activeProvider === 'cinestream') {
+                dlBtn.style.display = 'inline-flex';
+            }
         }
 
         function initPartyArtplayer() {
@@ -3174,6 +3184,10 @@
                 iframe.style.display = 'block';
                 iframe.src = embedUrl;
             }
+            
+            // Hide download button
+            const dlBtn = document.getElementById('party-download-btn');
+            if (dlBtn) dlBtn.style.display = 'none';
         }
 
         function showNativePlayer(nativeUrl) {
@@ -3208,6 +3222,12 @@
         // Switch stream server locally
         function switchStreamProvider(providerId) {
             activeProvider = providerId;
+
+            // Toggle download button visibility
+            const dlBtn = document.getElementById('party-download-btn');
+            if (dlBtn) {
+                dlBtn.style.display = (providerId === 'cinestream' && partyVideoUrl) ? 'inline-flex' : 'none';
+            }
 
             // Update trigger active text
             if (isAnime) {
@@ -3245,6 +3265,31 @@
         // Lights Out toggler
         function toggleLightsOut() {
             document.body.classList.toggle('lights-out-mode');
+        }
+
+        // Direct Stream Downloader
+        function downloadPartyDirectStream() {
+            if (!partyVideoUrl) {
+                alert('No stream link available for download yet!');
+                return;
+            }
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(partyVideoUrl).then(() => {
+                const dlBtn = document.getElementById('party-download-btn');
+                if (dlBtn) {
+                    const oldHTML = dlBtn.innerHTML;
+                    dlBtn.innerHTML = '✨ Link Copied!';
+                    dlBtn.style.borderColor = '#10b981';
+                    setTimeout(() => {
+                        dlBtn.innerHTML = oldHTML;
+                        dlBtn.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    }, 2000);
+                }
+            }).catch(() => {});
+
+            // Open stream in new tab to initiate direct download
+            window.open(partyVideoUrl, '_blank');
         }
 
         // Watch Together Controls Helper methods

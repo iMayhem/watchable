@@ -2364,9 +2364,14 @@
                         <div class="banner-progress">
                             <span id="banner-playing-text">🍿 Loading feature stream...</span>
                         </div>
-                        <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">
-                            🔗 Invite Friends (Copy Link)
-                        </button>
+                        <div class="banner-actions" style="display: flex; align-items: center; gap: 1rem;">
+                            <button class="lights-out-btn" onclick="toggleLightsOut()">
+                                💡 Lights Out
+                            </button>
+                            <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">
+                                🔗 Invite Friends (Copy Link)
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Video: Artplayer (CineStream) or iframe embed -->
@@ -2385,13 +2390,6 @@
                             <div id="party-native-player"></div>
                         </div>
                         <iframe id="video-player-iframe" class="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
-                    </div>
-
-                    <!-- Lights Out Button (moved below video) -->
-                    <div style="margin-top: 0.75rem; display: flex; justify-content: center;">
-                        <button class="lights-out-btn" onclick="toggleLightsOut()">
-                            💡 Lights Out
-                        </button>
                     </div>
 
                     <!-- Autoplay and Navigation Controls -->

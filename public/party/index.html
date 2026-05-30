@@ -3069,6 +3069,11 @@
         }
 
         async function loadPartyCinestream(nativeUrl, retryCount = 0) {
+            if (activeProvider !== 'cinestream') {
+                console.log(`[Party Moovie] Aborting native load: active provider has switched to ${activeProvider}`);
+                return;
+            }
+
             partyNativeUrl = nativeUrl;
             const nativeStage = document.getElementById('party-native-stage');
             if (nativeStage) nativeStage.style.display = 'block';
@@ -3094,6 +3099,11 @@
                 });
                 clearTimeout(timeoutId);
                 
+                if (activeProvider !== 'cinestream') {
+                    console.log('[Party Moovie] Aborting post-fetch action: active provider has switched');
+                    return;
+                }
+
                 if (!res.ok) {
                     // For 404, it's likely a cold start - definitely retry
                     if (res.status === 404) {
@@ -3104,6 +3114,8 @@
                 
                 const data = await res.json();
                 
+                if (activeProvider !== 'cinestream') return;
+
                 // Check if we got valid data
                 if (!data || (!data.stream && (!data.options || data.options.length === 0))) {
                     throw new Error('No streams available');
@@ -3114,6 +3126,11 @@
                 initPartyArtplayer();
                 console.log('[Party Moovie] Successfully loaded stream');
             } catch (err) {
+                if (activeProvider !== 'cinestream') {
+                    console.log('[Party Moovie] Aborting catch block: active provider has switched');
+                    return;
+                }
+
                 console.error(`[Party Moovie] Error on attempt ${retryCount + 1}:`, err);
                 
                 // Auto-retry if we haven't exceeded max retries

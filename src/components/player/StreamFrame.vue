@@ -68,6 +68,65 @@
                 </div>
             </div>
         </div>
+
+        <!-- Premium Direct Downloader Modal -->
+        <div v-if="showDownloadModal" class="dl-modal" role="dialog" aria-modal="true" @click.self="closeDownloadModal">
+            <div class="dl-modal__content">
+                <header class="dl-modal__header">
+                    <h3>📥 Premium Direct Downloader</h3>
+                    <button class="dl-modal__close" @click="closeDownloadModal" aria-label="Close modal">×</button>
+                </header>
+
+                <!-- Scrape / Loading State -->
+                <div v-if="isScraping" class="dl-modal__loading">
+                    <div class="dl-modal__spinner"></div>
+                    <p>Scraping high-speed direct MP4 mirrors...</p>
+                    <p class="sub">Scanning global video servers & file sizes...</p>
+                </div>
+
+                <!-- Error State -->
+                <div v-else-if="scrapeError" class="dl-modal__error">
+                    <p class="error-title">Failed to scrape MP4 servers</p>
+                    <p>{{ scrapeError }}</p>
+                    <button class="dl-modal__retry-btn" @click="startFreshScrape">Try Again</button>
+                </div>
+
+                <!-- Empty State (No MP4s) -->
+                <div v-else-if="filteredMp4Servers.length === 0" class="dl-modal__error">
+                    <p class="error-title">No Direct MP4 Streams Available</p>
+                    <p>Only HLS (.m3u8) streams are online for this title at the moment.</p>
+                </div>
+
+                <!-- Servers Grid -->
+                <div v-else class="dl-modal__body">
+                    <p class="dl-modal__intro">Choose a direct MP4 server mirror below to download. Direct links are pre-loaded for high-speed download managers.</p>
+                    <div class="dl-servers-list">
+                        <div v-for="(srv, idx) in filteredMp4Servers" :key="idx" class="dl-server-card">
+                            <div class="dl-server-card__meta">
+                                <span class="badge quality">{{ srv.quality }}</span>
+                                <span class="badge format">MP4</span>
+                                <h4 class="server-name">{{ srv.server || 'Direct Stream Mirror' }}</h4>
+                            </div>
+                            
+                            <div class="dl-server-card__actions">
+                                <span class="size-label">
+                                    <template v-if="srv.loadingSize">⏳ Scanning size...</template>
+                                    <template v-else>📦 {{ srv.size || 'Direct Stream' }}</template>
+                                </span>
+                                <div class="btn-group">
+                                    <button class="dl-action-btn copy" @click="copyServerUrl(srv, idx)" :title="srv.copied ? 'Copied!' : 'Copy Direct URL'">
+                                        {{ srv.copied ? '✨ Copied!' : '🔗 Copy' }}
+                                    </button>
+                                    <button class="dl-action-btn download" @click="downloadServerUrl(srv)">
+                                        📥 Download
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -114,6 +173,12 @@ export default defineComponent({
         const autoRetryCount = ref(0);
         const MAX_AUTO_RETRIES = 5;
         let autoRetryTimer: ReturnType<typeof setTimeout> | null = null;
+
+        // Direct MP4 Downloader state
+        const showDownloadModal = ref(false);
+        const isScraping = ref(false);
+        const scrapeError = ref('');
+        const filteredMp4Servers = ref<any[]>([]);
 
         // Auto-fallback mechanism
         const currentStreamIndex = ref(0);
@@ -486,6 +551,15 @@ export default defineComponent({
                 miniProgressBar: false,
                 theme: '#E50914', // Premium Netflix Red theme
                 quality: finalQualityList,
+                controls: [
+                    {
+                        position: 'right',
+                        html: '<span class="art-icon" style="cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 100%; opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8" title="Download Moovie Stream"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #10b981;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></span>',
+                        click: function () {
+                            openDownloadModal();
+                        }
+                    }
+                ],
                 customType: {
                     m3u8: function (video: HTMLVideoElement, url: string, art: any) {
                         if (Hls.isSupported()) {
@@ -688,6 +762,129 @@ export default defineComponent({
             { immediate: true }
         );
 
+        // Downloader modal handlers
+        const openDownloadModal = () => {
+            showDownloadModal.value = true;
+            startFreshScrape();
+        };
+
+        const closeDownloadModal = () => {
+            showDownloadModal.value = false;
+        };
+
+        const resolveServerSize = async (url: string, index: number) => {
+            try {
+                // Fire rapid lightweight HEAD request to read content length
+                const response = await fetch(url, { method: 'HEAD' });
+                const contentLength = response.headers.get('content-length');
+                if (contentLength) {
+                    const bytes = parseInt(contentLength, 10);
+                    if (!isNaN(bytes) && bytes > 0) {
+                        const mb = bytes / (1024 * 1024);
+                        if (mb >= 1000) {
+                            const gb = mb / 1024;
+                            filteredMp4Servers.value[index].size = `${gb.toFixed(2)} GB`;
+                        } else {
+                            filteredMp4Servers.value[index].size = `${Math.round(mb)} MB`;
+                        }
+                    } else {
+                        filteredMp4Servers.value[index].size = 'Direct MP4';
+                    }
+                } else {
+                    filteredMp4Servers.value[index].size = 'Direct MP4';
+                }
+            } catch (e) {
+                filteredMp4Servers.value[index].size = 'Direct MP4';
+            } finally {
+                filteredMp4Servers.value[index].loadingSize = false;
+            }
+        };
+
+        const startFreshScrape = async () => {
+            isScraping.value = true;
+            scrapeError.value = '';
+            filteredMp4Servers.value = [];
+
+            try {
+                let cleanUrl = props.embedUrl;
+                if (cleanUrl.startsWith('NATIVE:')) {
+                    cleanUrl = cleanUrl.substring(7);
+                }
+
+                let resolveUrl = '';
+                if (cleanUrl.startsWith('/api/cinestream')) {
+                    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+                        resolveUrl = `http://localhost:3000/api/cinestream/resolve${cleanUrl.substring(15)}`;
+                    } else if (typeof window !== 'undefined') {
+                        resolveUrl = `${window.location.origin}${cleanUrl}`;
+                    }
+                } else {
+                    const type = props.mediaType;
+                    const id = props.mediaId;
+                    const base = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                        ? 'http://localhost:3000/api/cinestream/resolve'
+                        : `${window.location.origin}/api/cinestream/resolve`;
+
+                    resolveUrl = `${base}?type=${type}&id=${id}&title=${encodeURIComponent(props.title)}`;
+                    if (props.mediaType === 'tv') {
+                        resolveUrl += `&season=${props.season}&episode=${props.episode}`;
+                    }
+                }
+
+                // Append cache buster to guarantee fresh scraping
+                const freshUrl = `${resolveUrl}${resolveUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+                console.log(`[Direct MP4 Scrape] fresh scraping url: ${freshUrl}`);
+
+                const res = await fetch(freshUrl);
+                if (!res.ok) throw new Error('Scraper service returned an offline status');
+
+                const data = await res.json();
+                const allOptions = data.options || [];
+
+                // Filter strictly for direct MP4 mirrors (not m3u8 playlists)
+                const mp4Options = allOptions.filter((opt: any) => {
+                    const urlLower = (opt.url || '').toLowerCase();
+                    const formatLower = (opt.format || '').toLowerCase();
+                    return !urlLower.includes('.m3u8') && !urlLower.includes('.hls') && !urlLower.includes('type=hls') && formatLower !== 'm3u8';
+                });
+
+                filteredMp4Servers.value = mp4Options.map((opt: any) => ({
+                    server: opt.server || 'Direct MP4 Mirror',
+                    quality: opt.quality || 'Auto',
+                    url: opt.url,
+                    size: '',
+                    loadingSize: true,
+                    copied: false
+                }));
+
+                // Fetch sizes in parallel asynchronously
+                filteredMp4Servers.value.forEach((srv: any, idx: number) => {
+                    resolveServerSize(srv.url, idx);
+                });
+
+            } catch (err: any) {
+                console.error('[Fresh MP4 Scrape Failed]', err);
+                scrapeError.value = err.message || 'Scraper failed to retrieve direct links';
+            } finally {
+                isScraping.value = false;
+            }
+        };
+
+        const copyServerUrl = (srv: any, index: number) => {
+            navigator.clipboard.writeText(srv.url).then(() => {
+                filteredMp4Servers.value[index].copied = true;
+                setTimeout(() => {
+                    if (filteredMp4Servers.value[index]) {
+                        filteredMp4Servers.value[index].copied = false;
+                    }
+                }, 2000);
+            }).catch(() => {});
+        };
+
+        const downloadServerUrl = (srv: any) => {
+            window.open(srv.url, '_blank');
+        };
+
         onMounted(() => {
             if (isNative.value) {
                 resolveStream();
@@ -739,7 +936,15 @@ export default defineComponent({
             onLoad,
             onError,
             retry,
-            resolveStream
+            resolveStream,
+            showDownloadModal,
+            closeDownloadModal,
+            isScraping,
+            scrapeError,
+            filteredMp4Servers,
+            startFreshScrape,
+            copyServerUrl,
+            downloadServerUrl
         };
     }
 });
@@ -990,4 +1195,280 @@ export default defineComponent({
 }
 
 @import url('/artplayer-compact.css');
+
+/* Direct Downloader Modal Styles */
+.dl-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(11, 10, 8, 0.85);
+    backdrop-filter: blur(12px);
+    display: grid;
+    place-items: center;
+    padding: var(--s-4);
+    animation: fadeIn 0.25s var(--ease-out);
+
+    &__content {
+        background: linear-gradient(135deg, rgba(23, 22, 20, 0.95) 0%, rgba(15, 14, 12, 0.98) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--r-xl);
+        width: 100%;
+        max-width: 600px;
+        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        animation: scaleUp 0.3s var(--ease-out);
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--s-4) var(--s-5);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+        h3 {
+            margin: 0;
+            font-family: var(--font-display);
+            font-size: var(--fs-lg);
+            font-weight: 600;
+            color: var(--bone-50);
+            display: flex;
+            align-items: center;
+            gap: var(--s-2);
+        }
+    }
+
+    &__close {
+        all: unset;
+        font-size: var(--fs-3xl);
+        color: var(--bone-400);
+        cursor: pointer;
+        line-height: 1;
+        transition: color 0.15s;
+
+        &:hover {
+            color: var(--ember);
+        }
+    }
+
+    &__body {
+        padding: var(--s-5);
+        overflow-y: auto;
+        max-height: 60vh;
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-4);
+    }
+
+    &__intro {
+        margin: 0;
+        font-size: var(--fs-sm);
+        color: var(--bone-300);
+        line-height: var(--lh-base);
+    }
+
+    &__loading {
+        padding: var(--s-8) var(--s-5);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: var(--s-4);
+
+        p {
+            margin: 0;
+            font-size: var(--fs-base);
+            font-weight: 500;
+            color: var(--bone-100);
+        }
+
+        .sub {
+            font-size: var(--fs-sm);
+            color: var(--bone-400);
+        }
+    }
+
+    &__spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255, 255, 255, 0.08);
+        border-top-color: var(--ember);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    &__error {
+        padding: var(--s-8) var(--s-5);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: var(--s-3);
+        color: var(--bone-300);
+
+        .error-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-lg);
+            font-weight: 500;
+            color: var(--bone-100);
+        }
+    }
+
+    &__retry-btn {
+        all: unset;
+        background: var(--surface-tint);
+        color: var(--bone-50);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: var(--s-2) var(--s-4);
+        border-radius: var(--r-pill);
+        font-weight: 600;
+        font-size: var(--fs-sm);
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
+
+        &:hover {
+            background: var(--ember);
+            color: var(--ink-900);
+        }
+    }
+}
+
+.dl-servers-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.dl-server-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: var(--r-lg);
+    padding: var(--s-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    transition: background 0.2s, border-color 0.2s;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    @media (min-width: 480px) {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+        flex-wrap: wrap;
+
+        .server-name {
+            margin: 0;
+            font-size: var(--fs-base);
+            font-weight: 500;
+            color: var(--bone-100);
+        }
+
+        .badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+
+            &.quality {
+                background: rgba(139, 92, 246, 0.15);
+                color: #a78bfa;
+                border: 1px solid rgba(139, 92, 246, 0.3);
+            }
+
+            &.format {
+                background: rgba(16, 185, 129, 0.15);
+                color: #34d399;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+            }
+        }
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--s-3);
+        flex-shrink: 0;
+
+        @media (min-width: 480px) {
+            justify-content: flex-end;
+        }
+
+        .size-label {
+            font-size: var(--fs-sm);
+            color: var(--bone-300);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .btn-group {
+            display: flex;
+            align-items: center;
+            gap: var(--s-2);
+        }
+    }
+}
+
+.dl-action-btn {
+    all: unset;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-out);
+
+    &.copy {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--bone-200);
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--bone-50);
+        }
+    }
+
+    &.download {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: #34d399;
+
+        &:hover {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            transform: translateY(-1px);
+        }
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+    from { transform: scale(0.96); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
 </style>

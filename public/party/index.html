@@ -650,9 +650,94 @@
             color: #fff;
         }
 
+        .chat-image-wrapper {
+            margin-top: 0.35rem;
+            margin-bottom: 0.35rem;
+            border-radius: var(--r-md);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            max-width: 100%;
+            width: 220px;
+            height: 140px;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.2);
+            transition: transform var(--dur-fast), border-color var(--dur-fast);
+        }
 
+        .chat-image-wrapper:hover {
+            transform: translateY(-2px);
+            border-color: var(--violet);
+        }
 
+        .chat-msg-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
 
+        .chat-image-btn:hover {
+            color: #fff !important;
+            transform: scale(1.1);
+        }
+        
+        .chat-image-btn {
+            transition: all var(--dur-fast) ease !important;
+        }
+
+        /* Fullscreen Image Lightbox Modal */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(10, 10, 12, 0.95);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .image-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .image-modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 85%;
+            border-radius: var(--r-md);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transform: scale(0.9);
+            transition: transform 0.25s var(--ease-out);
+        }
+
+        .image-modal.active .image-modal-content {
+            transform: scale(1);
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: var(--bone-300);
+            font-size: 40px;
+            font-weight: 300;
+            cursor: pointer;
+            transition: color var(--dur-fast);
+            line-height: 1;
+        }
+
+        .image-modal-close:hover {
+            color: #fff;
+        }
 
         /* Room Progress Bar Banner */
         .workspace-banner {
@@ -2608,7 +2693,15 @@
                                     <line x1="15" y1="9" x2="15.01" y2="9"></line>
                                 </svg>
                             </button>
-                            <input type="text" id="chat-input" class="chat-text-input" placeholder="Say something to the group..." autocomplete="off" required style="margin-left: 0.25rem;">
+                            <button type="button" class="chat-image-btn" onclick="triggerImageUpload()" aria-label="Attach Photo" style="background: transparent; border: none; padding: 0; color: var(--bone-300); cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 0.5rem; outline: none;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                            </button>
+                            <input type="file" id="chat-image-input" accept="image/*" style="display: none;" onchange="handleImageSelected(event)">
+                            <input type="text" id="chat-input" class="chat-text-input" placeholder="Say something to the group..." autocomplete="off" style="margin-left: 0.5rem;">
                             <button type="submit" class="chat-send-btn" aria-label="Send message">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -3523,7 +3616,7 @@
             // Listen for system Broadcast events (Realtime Lobby Chat)
             channel
                 .on('broadcast', { event: 'chat' }, (payload) => {
-                    appendChatMessage(payload.payload.user, payload.payload.message, 'other');
+                    appendChatMessage(payload.payload.user, payload.payload.message, 'other', payload.payload.image);
                 })
                 .on('broadcast', { event: 'next_episode' }, (payload) => {
                     const nextEp = payload.payload.episode;
@@ -3576,7 +3669,7 @@
             input.value = '';
         }
 
-        function appendChatMessage(user, msg, type) {
+        function appendChatMessage(user, msg, type, imageUrl) {
             const box = document.getElementById('chat-box');
             const bubble = document.createElement('div');
             bubble.className = `chat-bubble ${type}`;
@@ -3584,15 +3677,185 @@
             if (type === 'system') {
                 bubble.textContent = msg;
             } else {
+                let imgHtml = '';
+                if (imageUrl) {
+                    imgHtml = `
+                        <div class="chat-image-wrapper">
+                            <img src="${imageUrl}" class="chat-msg-image" onclick="viewChatImageFull(this.src)" title="Click to view full size">
+                        </div>
+                    `;
+                }
                 bubble.innerHTML = `
                     <span class="chat-sender">${user}</span>
-                    <span>${msg}</span>
+                    ${imgHtml}
+                    ${msg ? `<span>${msg}</span>` : ''}
                 `;
             }
             
             box.appendChild(bubble);
             box.scrollTop = box.scrollHeight;
         }
+
+        // Image Sending & Lightbox View Helpers
+        function triggerImageUpload() {
+            document.getElementById('chat-image-input').click();
+        }
+
+        function handleImageSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Reset selector so same file can be re-selected
+            event.target.value = '';
+
+            compressAndSendFile(file);
+        }
+
+        function compressAndSendFile(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    // Maximum boundaries to restrict payload bandwidth size
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Pre-render the Base64 fallback string in case of storage upload failures
+                    const base64Data = canvas.toDataURL('image/jpeg', 0.6);
+
+                    // Inline helper to broadcast and render Base64 fallback stream directly
+                    const fallbackBroadcast = () => {
+                        if (channel) {
+                            channel.send({
+                                type: 'broadcast',
+                                event: 'chat',
+                                payload: { 
+                                    user: currentUserName, 
+                                    message: '', 
+                                    image: base64Data 
+                                }
+                            });
+                        }
+                        appendChatMessage(currentUserName, '', 'me', base64Data);
+                    };
+
+                    // Try converting to binary Blob and uploading to Supabase Storage bucket 'chat-images'
+                    canvas.toBlob(async function (blob) {
+                        if (!blob) {
+                            fallbackBroadcast();
+                            return;
+                        }
+
+                        try {
+                            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
+                            
+                            const { data, error } = await supabaseClient.storage
+                                .from('chat-images')
+                                .upload(fileName, blob, {
+                                    contentType: 'image/jpeg',
+                                    cacheControl: '3600'
+                                });
+
+                            if (error) {
+                                console.warn('Supabase storage upload failed. Falling back to direct Base64 broadcast:', error);
+                                fallbackBroadcast();
+                                return;
+                            }
+
+                            // Retrieve public URL of the uploaded image
+                            const { data: { publicUrl } } = supabaseClient.storage
+                                .from('chat-images')
+                                .getPublicUrl(fileName);
+
+                            // Broadcast the uploaded public image URL in real-time
+                            if (channel) {
+                                channel.send({
+                                    type: 'broadcast',
+                                    event: 'chat',
+                                    payload: { 
+                                        user: currentUserName, 
+                                        message: '', 
+                                        image: publicUrl 
+                                    }
+                                });
+                            }
+                            appendChatMessage(currentUserName, '', 'me', publicUrl);
+
+                        } catch (err) {
+                            console.warn('Error during Supabase Storage upload, using direct Base64 fallback:', err);
+                            fallbackBroadcast();
+                        }
+                    }, 'image/jpeg', 0.6);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Clipboard pasting for screenshotted images (Ctrl+V / Cmd+V)
+        window.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || window.clipboardData).items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        compressAndSendFile(file);
+                    }
+                }
+            }
+        });
+
+        function viewChatImageFull(src) {
+            const modal = document.getElementById('image-view-modal');
+            const img = document.getElementById('image-modal-img');
+            img.src = src;
+            modal.style.display = 'flex';
+            
+            // Allow DOM display layout render before applying active visibility transform
+            setTimeout(() => {
+                modal.classList.add('active');
+            }, 10);
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('image-view-modal');
+            modal.classList.remove('active');
+            
+            // Wait for smooth opacity fade transition
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 250);
+        }
+
+        // Close full size image modal on Escape key press
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('image-view-modal');
+                if (modal && modal.classList.contains('active')) {
+                    closeImageModal();
+                }
+            }
+        });
 
         // Participants count status helper
         function updateUsersCount(presenceState) {
@@ -3678,5 +3941,11 @@
             }
         });
     </script>
+    
+    <!-- Beautiful Image View Modal -->
+    <div id="image-view-modal" class="image-modal" onclick="closeImageModal()">
+        <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+        <img class="image-modal-content" id="image-modal-img">
+    </div>
 </body>
 </html>

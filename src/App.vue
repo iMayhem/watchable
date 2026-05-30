@@ -28,12 +28,19 @@ import { startReveal, stopReveal } from './composables/useReveal';
 import { installAntiInspect, uninstallAntiInspect } from './composables/useAntiInspect';
 
 onMounted(() => {
-    // Use requestIdleCallback for non-critical initialization
+    // Use requestIdleCallback for non-critical initialization & dynamic route prefetching
     if ('requestIdleCallback' in window) {
         requestIdleCallback(() => {
             bindCommandPaletteHotkey();
             startReveal();
             installAntiInspect();
+            
+            // Prefetch main pages asynchronously in the background during idle time
+            import('./pages/Movies.vue');
+            import('./pages/TVShows.vue');
+            import('./pages/Anime.vue');
+            import('./pages/Search.vue');
+            import('./pages/Watchlist.vue');
         });
     } else {
         // Fallback for browsers without requestIdleCallback
@@ -41,6 +48,13 @@ onMounted(() => {
             bindCommandPaletteHotkey();
             startReveal();
             installAntiInspect();
+            
+            // Prefetch main pages asynchronously in the background
+            import('./pages/Movies.vue');
+            import('./pages/TVShows.vue');
+            import('./pages/Anime.vue');
+            import('./pages/Search.vue');
+            import('./pages/Watchlist.vue');
         }, 100);
     }
 });

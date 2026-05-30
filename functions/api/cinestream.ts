@@ -364,7 +364,10 @@ export async function onRequest(context) {
       headers: {
         'content-type': 'application/json',
         'access-control-allow-origin': '*',
-        'cache-control': 'public, max-age=1800' // Cache for 30 minutes
+        // Cache for 30 days (2592000 seconds)
+        'cache-control': 'public, max-age=2592000, s-maxage=2592000, stale-while-revalidate=86400',
+        'cdn-cache-control': 'max-age=2592000',
+        'cloudflare-cdn-cache-control': 'max-age=2592000'
       }
     });
   }
@@ -424,22 +427,22 @@ export async function onRequest(context) {
     captions: captions
   };
 
-  // Create response with aggressive caching (2 days)
+  // Create response with aggressive caching (30 days / 1 month)
   const response = new Response(JSON.stringify(responseData), {
     headers: {
       'content-type': 'application/json',
       'access-control-allow-origin': '*',
       'X-Cache': 'MISS',
-      // Cache for 2 days (172800 seconds)
-      'cache-control': 'public, max-age=172800, s-maxage=172800, stale-while-revalidate=86400',
-      'cdn-cache-control': 'max-age=172800',
-      'cloudflare-cdn-cache-control': 'max-age=172800'
+      // Cache for 30 days (2592000 seconds)
+      'cache-control': 'public, max-age=2592000, s-maxage=2592000, stale-while-revalidate=86400',
+      'cdn-cache-control': 'max-age=2592000',
+      'cloudflare-cdn-cache-control': 'max-age=2592000'
     }
   });
 
   // Store in Cloudflare cache
   context.waitUntil(cache.put(cacheKey, response.clone()));
-  console.log('[CineStream Cache] Stored in cache for 2 days');
+  console.log('[CineStream Cache] Stored in cache for 30 days');
 
   return response;
 }

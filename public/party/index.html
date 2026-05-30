@@ -736,7 +736,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.4rem;
-            max-height: 120px;
+            max-height: 140px;
             overflow-y: auto;
         }
 
@@ -747,7 +747,7 @@
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid rgba(255, 255, 255, 0.04);
             border-radius: var(--r-sm);
-            padding: 0.35rem 0.6rem;
+            padding: 0.45rem 0.6rem;
             font-size: 0.8rem;
             transition: all var(--dur-fast);
         }
@@ -757,19 +757,107 @@
             border-color: rgba(255, 255, 255, 0.08);
         }
 
+        .peer-info-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
         .peer-name {
             color: var(--bone-200);
             font-weight: 600;
-            max-width: 12ch;
+            max-width: 10ch;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
+        .status-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.1rem 0.35rem;
+            border-radius: var(--r-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        .status-badge.muted {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .status-badge.active {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+        }
+
+        .status-badge.connected {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+
+        .status-badge.connecting {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            animation: pulse-connecting 1s infinite alternate;
+        }
+
+        .status-badge.pending {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--bone-400);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .status-badge.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        @keyframes pulse-connecting {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        .voice-visualizer {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 14px;
+            width: 16px;
+            margin-left: 0.25rem;
+        }
+
+        .voice-visualizer .bar {
+            width: 2px;
+            height: 3px;
+            background-color: rgba(255, 255, 255, 0.25);
+            border-radius: 1px;
+            transition: height 0.05s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
         .peer-controls {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
+            gap: 0.5rem;
+        }
+
+        .me-label {
+            font-size: 0.7rem;
+            color: var(--violet);
+            font-weight: 700;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            padding: 0.15rem 0.45rem;
+            border-radius: var(--r-pill);
+            text-transform: uppercase;
         }
 
         .peer-mute-btn {
@@ -780,6 +868,7 @@
             font-size: 0.85rem;
             opacity: 0.7;
             transition: opacity var(--dur-fast);
+            line-height: 1;
         }
 
         .peer-mute-btn:hover {
@@ -789,7 +878,7 @@
         .peer-volume-slider {
             -webkit-appearance: none;
             appearance: none;
-            width: 70px;
+            width: 50px;
             height: 3px;
             background: rgba(255, 255, 255, 0.15);
             border-radius: var(--r-pill);
@@ -2905,6 +2994,12 @@
             ]
         };
 
+        // Pitch & Equalizer Visualizer variables
+        let voiceAudioContext = null;
+        let localAnalyser = null;
+        let remoteAnalysers = {}; // username -> AnalyserNode
+        let visualizerInterval = null;
+
         let peerVolumePreferences = {};
         try {
             peerVolumePreferences = JSON.parse(localStorage.getItem('lobby_user_volumes')) || {};
@@ -2930,9 +3025,7 @@
                 currentUserName = next.trim();
                 localStorage.setItem('movora_username', currentUserName);
                 updateHeaderBadge();
-                if (channel) {
-                    channel.track({ user: currentUserName, joinedAt: new Date().toISOString() });
-                }
+                updatePresenceState();
             }
         }
 
@@ -3729,6 +3822,26 @@
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
                     updateUsersCount(state);
+                    
+                    // Auto-initiate WebRTC signaling for users who entered voice call
+                    if (inVoiceCall) {
+                        Object.keys(state).forEach(key => {
+                            if (key === currentUserName) return;
+                            
+                            const presences = state[key];
+                            if (presences && presences.length > 0) {
+                                const pres = presences[0];
+                                if (pres.voiceJoined && !peerConnections[key]) {
+                                    // Lexicographical ordering decides who initiates the peer connection (Glare Resolution)
+                                    const isInitiator = currentUserName < key;
+                                    console.log(`[Voice] Discovery sync: Auto-initiating with ${key}. Initiator: ${isInitiator}`);
+                                    createPeerConnection(key, isInitiator);
+                                }
+                            }
+                        });
+                    }
+                    
+                    renderVoicePeers();
                 })
                 .on('presence', { event: 'join' }, ({ key, newPresences }) => {
                     appendChatMessage('System', `${key} joined the watch party!`, 'system');
@@ -3740,11 +3853,13 @@
 
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    // Track user presence
+                    // Track user presence with initial voice calling states
                     await channel.track({
                         user: currentUserName,
                         joinedAt: new Date().toISOString(),
-                        isHost: isHost
+                        isHost: isHost,
+                        voiceJoined: inVoiceCall,
+                        isMuted: isVoiceMuted
                     });
                 }
             });
@@ -3824,8 +3939,30 @@
                     muteBtn.innerHTML = '🔊 Mute Mic';
                     muteBtn.className = 'voice-mute-btn voice-unmuted';
                     
+                    // Initialize local AudioContext for visualizer
+                    try {
+                        if (!voiceAudioContext) {
+                            voiceAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        }
+                        if (voiceAudioContext.state === 'suspended') {
+                            await voiceAudioContext.resume();
+                        }
+                        
+                        const source = voiceAudioContext.createMediaStreamSource(localStream);
+                        localAnalyser = voiceAudioContext.createAnalyser();
+                        localAnalyser.fftSize = 64;
+                        source.connect(localAnalyser);
+                        
+                        startVoiceVisualizers();
+                    } catch (ae) {
+                        console.warn('[Voice] Failed to initialize local visualizer:', ae);
+                    }
+                    
                     // Broadcast join to existing room members
                     sendVoiceSignal({ type: 'join', sender: currentUserName });
+                    
+                    // Update Supabase Presence state
+                    await updatePresenceState();
                     
                     appendChatMessage('System', 'You joined the voice call!', 'system');
                     renderVoicePeers();
@@ -3856,6 +3993,26 @@
                     muteBtn.innerHTML = '🔊 Mute Mic';
                     appendChatMessage('System', 'Your microphone is unmuted.', 'system');
                 }
+                
+                // Sync updated mute state
+                updatePresenceState();
+                renderVoicePeers();
+            }
+        }
+
+        async function updatePresenceState() {
+            if (channel) {
+                try {
+                    await channel.track({
+                        user: currentUserName,
+                        joinedAt: new Date().toISOString(),
+                        isHost: isHost,
+                        voiceJoined: inVoiceCall,
+                        isMuted: isVoiceMuted
+                    });
+                } catch (e) {
+                    console.error('[Voice] Failed to track presence state:', e);
+                }
             }
         }
 
@@ -3876,6 +4033,7 @@
             
             const pc = new RTCPeerConnection(peerConfig);
             peerConnections[otherUser] = pc;
+            pc.iceQueue = []; // Queue for candidates
             
             if (localStream) {
                 localStream.getTracks().forEach(track => {
@@ -3902,9 +4060,10 @@
                     existingAudio.remove();
                 }
                 
+                const stream = event.streams[0];
                 const audio = document.createElement('audio');
                 audio.id = `audio-voice-${otherUser}`;
-                audio.srcObject = event.streams[0];
+                audio.srcObject = stream;
                 audio.autoplay = true;
                 audio.style.display = 'none';
                 
@@ -3916,13 +4075,29 @@
                 
                 document.body.appendChild(audio);
                 
+                // Attach remote analyzer for equalizer visualizer
+                try {
+                    if (voiceAudioContext) {
+                        const source = voiceAudioContext.createMediaStreamSource(stream);
+                        const analyser = voiceAudioContext.createAnalyser();
+                        analyser.fftSize = 64;
+                        source.connect(analyser);
+                        remoteAnalysers[otherUser] = analyser;
+                    }
+                } catch (ae) {
+                    console.warn(`[Voice] Failed to attach remote visualizer for ${otherUser}:`, ae);
+                }
+                
                 appendChatMessage('System', `${otherUser} connected in voice call.`, 'system');
                 renderVoicePeers();
             };
             
             pc.onconnectionstatechange = () => {
+                console.log(`[Voice] Connection state with ${otherUser}: ${pc.connectionState}`);
                 if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
                     cleanupPeer(otherUser);
+                } else {
+                    renderVoicePeers();
                 }
             };
             
@@ -3951,8 +4126,13 @@
             if (sender === currentUserName) return;
             
             if (type === 'join') {
-                console.log(`[Voice] ${sender} joined voice call. Initiating connection...`);
-                createPeerConnection(sender, true);
+                console.log(`[Voice] ${sender} joined voice call broadcast. Checking connection...`);
+                // Lexicographical ordering decides who initiates the peer connection (Glare Resolution)
+                if (!peerConnections[sender]) {
+                    const isInitiator = currentUserName < sender;
+                    console.log(`[Voice] Glare check: ${currentUserName} vs ${sender}. Initiator: ${isInitiator}`);
+                    createPeerConnection(sender, isInitiator);
+                }
                 return;
             }
             
@@ -3960,8 +4140,21 @@
             
             if (type === 'offer') {
                 console.log(`[Voice] Received WebRTC offer from ${sender}`);
-                const pc = createPeerConnection(sender, false);
+                let pc = peerConnections[sender];
+                if (!pc) {
+                    pc = createPeerConnection(sender, false);
+                }
                 pc.setRemoteDescription(new RTCSessionDescription(sdp)).then(() => {
+                    // Process queued ICE candidates
+                    if (pc.iceQueue && pc.iceQueue.length > 0) {
+                        console.log(`[Voice] Processing ${pc.iceQueue.length} queued ICE candidates for ${sender}`);
+                        pc.iceQueue.forEach(cand => {
+                            pc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => {
+                                console.log('[Voice] Failed to add queued candidate:', e);
+                            });
+                        });
+                        pc.iceQueue = [];
+                    }
                     return pc.createAnswer();
                 }).then(answer => {
                     return pc.setLocalDescription(answer);
@@ -3986,9 +4179,15 @@
             } else if (type === 'ice') {
                 const pc = peerConnections[sender];
                 if (pc) {
-                    pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(err => {
-                        console.error(`Failed to add ICE candidate from ${sender}:`, err);
-                    });
+                    if (pc.remoteDescription && pc.remoteDescription.type) {
+                        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(err => {
+                            console.error(`Failed to add ICE candidate from ${sender}:`, err);
+                        });
+                    } else {
+                        // Queue candidate if remote description not set yet
+                        if (!pc.iceQueue) pc.iceQueue = [];
+                        pc.iceQueue.push(candidate);
+                    }
                 }
             } else if (type === 'leave') {
                 cleanupPeer(sender);
@@ -3998,8 +4197,11 @@
         function cleanupPeer(user) {
             const pc = peerConnections[user];
             if (pc) {
-                pc.close();
+                try { pc.close(); } catch (e) {}
                 delete peerConnections[user];
+            }
+            if (remoteAnalysers[user]) {
+                delete remoteAnalysers[user];
             }
             const audio = document.getElementById(`audio-voice-${user}`);
             if (audio) {
@@ -4012,53 +4214,225 @@
             inVoiceCall = false;
             sendVoiceSignal({ type: 'leave', sender: currentUserName });
             
+            if (visualizerInterval) {
+                cancelAnimationFrame(visualizerInterval);
+                visualizerInterval = null;
+            }
+            
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
             }
             
+            localAnalyser = null;
+            remoteAnalysers = {};
+            
             Object.keys(peerConnections).forEach(user => {
                 cleanupPeer(user);
             });
             peerConnections = {};
+            
+            // Sync updated leave presence state
+            updatePresenceState();
             renderVoicePeers();
+        }
+
+        function startVoiceVisualizers() {
+            if (visualizerInterval) return;
+            
+            const updateVisuals = () => {
+                if (!inVoiceCall) {
+                    visualizerInterval = null;
+                    return;
+                }
+                
+                // 1. Update local user visualizer
+                if (localAnalyser && !isVoiceMuted) {
+                    updateUserBarHeights(currentUserName, localAnalyser);
+                } else {
+                    flattenUserBars(currentUserName);
+                }
+                
+                // 2. Update remote users visualizers
+                const presenceState = channel ? channel.presenceState() : {};
+                Object.keys(remoteAnalysers).forEach(user => {
+                    // Check if peer is muted in presence state
+                    const presences = presenceState[user];
+                    const peerMuted = presences && presences.length > 0 && presences[0].isMuted;
+                    
+                    if (remoteAnalysers[user] && !peerMuted) {
+                        updateUserBarHeights(user, remoteAnalysers[user]);
+                    } else {
+                        flattenUserBars(user);
+                    }
+                });
+                
+                visualizerInterval = requestAnimationFrame(updateVisuals);
+            };
+            
+            visualizerInterval = requestAnimationFrame(updateVisuals);
+        }
+
+        function updateUserBarHeights(username, analyser) {
+            const visualizer = document.getElementById(`visualizer-${username}`);
+            if (!visualizer) return;
+            
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Calculate average volume
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / dataArray.length;
+            
+            // Scale factor (average is 0-255)
+            const normalizedVol = Math.min(Math.max(average / 90, 0), 1); // sensitive speaking threshold
+            
+            const bars = visualizer.querySelectorAll('.bar');
+            bars.forEach((bar, index) => {
+                const multipliers = [0.6, 1.3, 0.9, 0.5];
+                const multiplier = multipliers[index % multipliers.length];
+                const height = Math.max(3, Math.round(normalizedVol * 14 * multiplier));
+                bar.style.height = `${height}px`;
+                
+                // Bouncing colors & neon glow when actively speaking
+                if (normalizedVol > 0.05) {
+                    bar.style.backgroundColor = 'var(--violet)';
+                    bar.style.boxShadow = '0 0 4px var(--violet)';
+                } else {
+                    bar.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+                    bar.style.boxShadow = 'none';
+                }
+            });
+        }
+
+        function flattenUserBars(username) {
+            const visualizer = document.getElementById(`visualizer-${username}`);
+            if (!visualizer) return;
+            const bars = visualizer.querySelectorAll('.bar');
+            bars.forEach(bar => {
+                bar.style.height = '3px';
+                bar.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+                bar.style.boxShadow = 'none';
+            });
         }
 
         // Render, adjust, and store individual voice peer parameters
         function renderVoicePeers() {
             const panel = document.getElementById('voice-peers-panel');
             const list = document.getElementById('voice-peers-list');
-            const peers = Object.keys(peerConnections);
             
-            if (inVoiceCall && peers.length > 0) {
-                panel.style.display = 'block';
-                list.innerHTML = '';
-                
-                peers.forEach(user => {
-                    // Read saved preference or default to 1 (full volume)
-                    const savedVol = peerVolumePreferences[user] !== undefined ? parseFloat(peerVolumePreferences[user]) : 1.0;
-                    const isMuted = savedVol === 0;
-                    
-                    const row = document.createElement('div');
-                    row.className = 'voice-peer-row';
-                    row.id = `voice-peer-row-${user}`;
-                    row.innerHTML = `
-                        <span class="peer-name">👤 ${user}</span>
-                        <div class="peer-controls">
-                            <button class="peer-mute-btn" id="peer-mute-btn-${user}" onclick="togglePeerMute('${user}')">
-                                ${isMuted ? '🔇' : '🔊'}
-                            </button>
-                            <input type="range" class="peer-volume-slider" id="peer-volume-slider-${user}" 
-                                min="0" max="1" step="0.05" value="${savedVol}" 
-                                oninput="adjustPeerVolume('${user}', this.value)">
-                        </div>
-                    `;
-                    list.appendChild(row);
-                });
-            } else {
+            if (!inVoiceCall) {
                 panel.style.display = 'none';
                 list.innerHTML = '';
+                return;
             }
+            
+            panel.style.display = 'block';
+            list.innerHTML = '';
+            
+            // Find all voice users from Supabase presence
+            const presenceState = channel ? channel.presenceState() : {};
+            const voiceUsers = [];
+            let localIncluded = false;
+            
+            Object.keys(presenceState).forEach(key => {
+                const presences = presenceState[key];
+                if (presences && presences.length > 0) {
+                    const pres = presences[0];
+                    if (pres.voiceJoined) {
+                        voiceUsers.push({
+                            username: key,
+                            isMe: key === currentUserName,
+                            isMuted: pres.isMuted || false,
+                            isHost: pres.isHost || false
+                        });
+                        if (key === currentUserName) {
+                            localIncluded = true;
+                        }
+                    }
+                }
+            });
+            
+            // Ensure local user is represented even if presence sync is in progress
+            if (!localIncluded && inVoiceCall) {
+                voiceUsers.push({
+                    username: currentUserName,
+                    isMe: true,
+                    isMuted: isVoiceMuted,
+                    isHost: isHost
+                });
+            }
+            
+            voiceUsers.forEach(user => {
+                const row = document.createElement('div');
+                row.className = 'voice-peer-row';
+                row.id = `voice-peer-row-${user.username}`;
+                
+                // Mute status text or WebRTC connection state
+                let statusBadge = '';
+                if (user.isMuted) {
+                    statusBadge = '<span class="status-badge muted">🔇 Muted</span>';
+                } else {
+                    if (user.isMe) {
+                        statusBadge = '<span class="status-badge active">🎙️ Active</span>';
+                    } else {
+                        const pc = peerConnections[user.username];
+                        if (pc) {
+                            if (pc.connectionState === 'connected') {
+                                statusBadge = '<span class="status-badge connected">🔊 Connected</span>';
+                            } else if (pc.connectionState === 'connecting' || pc.connectionState === 'new' || pc.connectionState === 'checking') {
+                                statusBadge = '<span class="status-badge connecting">⚡ Connecting</span>';
+                            } else {
+                                statusBadge = `<span class="status-badge error">${pc.connectionState}</span>`;
+                            }
+                        } else {
+                            statusBadge = '<span class="status-badge pending">⏳ Waiting</span>';
+                        }
+                    }
+                }
+                
+                // Local control sliders for other voice users
+                let controlsHtml = '';
+                if (!user.isMe) {
+                    const savedVol = peerVolumePreferences[user.username] !== undefined ? parseFloat(peerVolumePreferences[user.username]) : 1.0;
+                    const isLocalMuted = savedVol === 0;
+                    controlsHtml = `
+                        <div class="peer-controls">
+                            <button class="peer-mute-btn" id="peer-mute-btn-${user.username}" onclick="togglePeerMute('${user.username}')" title="Mute/Unmute locally">
+                                ${isLocalMuted ? '🔇' : '🔊'}
+                            </button>
+                            <input type="range" class="peer-volume-slider" id="peer-volume-slider-${user.username}" 
+                                min="0" max="1" step="0.05" value="${savedVol}" 
+                                oninput="adjustPeerVolume('${user.username}', this.value)" title="Adjust user volume">
+                        </div>
+                    `;
+                } else {
+                    controlsHtml = `
+                        <div class="peer-controls me-badge">
+                            <span class="me-label">You</span>
+                        </div>
+                    `;
+                }
+                
+                row.innerHTML = `
+                    <div class="peer-info-group">
+                        <span class="peer-name" title="${user.username}">👤 ${user.username}</span>
+                        ${statusBadge}
+                        <div class="voice-visualizer" id="visualizer-${user.username}">
+                            <div class="bar bar-1"></div>
+                            <div class="bar bar-2"></div>
+                            <div class="bar bar-3"></div>
+                            <div class="bar bar-4"></div>
+                        </div>
+                    </div>
+                    ${controlsHtml}
+                `;
+                
+                list.appendChild(row);
+            });
         }
 
         function adjustPeerVolume(username, val) {

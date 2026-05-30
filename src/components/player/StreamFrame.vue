@@ -836,7 +836,16 @@ export default defineComponent({
                 console.log(`[Direct MP4 Scrape] fresh scraping url: ${freshUrl}`);
 
                 const res = await fetch(freshUrl);
-                if (!res.ok) throw new Error('Scraper service returned an offline status');
+                if (!res.ok) {
+                    let errMsg = 'Scraper service returned an offline status';
+                    try {
+                        const errData = await res.json();
+                        if (errData && errData.error) {
+                            errMsg = errData.error;
+                        }
+                    } catch (e) {}
+                    throw new Error(errMsg);
+                }
 
                 const data = await res.json();
                 const allOptions = data.options || [];
@@ -1198,23 +1207,23 @@ export default defineComponent({
 
 /* Direct Downloader Modal Styles */
 .dl-modal {
-    position: fixed;
+    position: absolute;
     inset: 0;
-    z-index: 99999;
-    background: rgba(11, 10, 8, 0.85);
-    backdrop-filter: blur(12px);
+    z-index: 100;
+    background: rgba(11, 10, 8, 0.94);
+    backdrop-filter: blur(16px);
     display: grid;
     place-items: center;
     padding: var(--s-4);
     animation: fadeIn 0.25s var(--ease-out);
 
     &__content {
-        background: linear-gradient(135deg, rgba(23, 22, 20, 0.95) 0%, rgba(15, 14, 12, 0.98) 100%);
+        background: linear-gradient(135deg, rgba(23, 22, 20, 0.96) 0%, rgba(15, 14, 12, 0.99) 100%);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: var(--r-xl);
         width: 100%;
-        max-width: 600px;
-        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        max-width: 480px; /* Slim and elegant to sit centered on the video player stage */
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -1225,13 +1234,13 @@ export default defineComponent({
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: var(--s-4) var(--s-5);
+        padding: var(--s-3) var(--s-4);
         border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 
         h3 {
             margin: 0;
             font-family: var(--font-display);
-            font-size: var(--fs-lg);
+            font-size: var(--fs-base);
             font-weight: 600;
             color: var(--bone-50);
             display: flex;
@@ -1242,7 +1251,7 @@ export default defineComponent({
 
     &__close {
         all: unset;
-        font-size: var(--fs-3xl);
+        font-size: var(--fs-2xl);
         color: var(--bone-400);
         cursor: pointer;
         line-height: 1;
@@ -1254,46 +1263,46 @@ export default defineComponent({
     }
 
     &__body {
-        padding: var(--s-5);
+        padding: var(--s-4);
         overflow-y: auto;
-        max-height: 60vh;
+        max-height: 240px; /* Scrollable list, stays compact */
         display: flex;
         flex-direction: column;
-        gap: var(--s-4);
+        gap: var(--s-2);
     }
 
     &__intro {
-        margin: 0;
-        font-size: var(--fs-sm);
+        margin: 0 0 var(--s-2) 0;
+        font-size: var(--fs-xs);
         color: var(--bone-300);
         line-height: var(--lh-base);
     }
 
     &__loading {
-        padding: var(--s-8) var(--s-5);
+        padding: var(--s-8) var(--s-4);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
-        gap: var(--s-4);
+        gap: var(--s-3);
 
         p {
             margin: 0;
-            font-size: var(--fs-base);
+            font-size: var(--fs-sm);
             font-weight: 500;
             color: var(--bone-100);
         }
 
         .sub {
-            font-size: var(--fs-sm);
+            font-size: var(--fs-xs);
             color: var(--bone-400);
         }
     }
 
     &__spinner {
-        width: 40px;
-        height: 40px;
+        width: 32px;
+        height: 32px;
         border: 3px solid rgba(255, 255, 255, 0.08);
         border-top-color: var(--ember);
         border-radius: 50%;
@@ -1301,7 +1310,7 @@ export default defineComponent({
     }
 
     &__error {
-        padding: var(--s-8) var(--s-5);
+        padding: var(--s-8) var(--s-4);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -1312,9 +1321,15 @@ export default defineComponent({
 
         .error-title {
             font-family: var(--font-display);
-            font-size: var(--fs-lg);
+            font-size: var(--fs-base);
             font-weight: 500;
             color: var(--bone-100);
+        }
+
+        p:not(.error-title) {
+            font-size: var(--fs-xs);
+            margin: 0;
+            max-width: 280px;
         }
     }
 
@@ -1326,7 +1341,7 @@ export default defineComponent({
         padding: var(--s-2) var(--s-4);
         border-radius: var(--r-pill);
         font-weight: 600;
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
         cursor: pointer;
         transition: background 0.2s, border-color 0.2s;
 
@@ -1340,16 +1355,17 @@ export default defineComponent({
 .dl-servers-list {
     display: flex;
     flex-direction: column;
-    gap: var(--s-3);
+    gap: var(--s-2);
 }
 
 .dl-server-card {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: var(--r-lg);
-    padding: var(--s-4);
+    border-radius: var(--r-md);
+    padding: var(--s-2) var(--s-3);
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--s-3);
     transition: background 0.2s, border-color 0.2s;
 
@@ -1358,32 +1374,30 @@ export default defineComponent({
         border-color: rgba(255, 255, 255, 0.08);
     }
 
-    @media (min-width: 480px) {
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-    }
-
     &__meta {
         display: flex;
         align-items: center;
         gap: var(--s-2);
-        flex-wrap: wrap;
+        min-width: 0;
 
         .server-name {
             margin: 0;
-            font-size: var(--fs-base);
+            font-size: var(--fs-sm);
             font-weight: 500;
             color: var(--bone-100);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .badge {
-            font-size: 10px;
+            font-size: 8px;
             font-weight: 700;
             text-transform: uppercase;
-            padding: 2px 6px;
-            border-radius: 4px;
+            padding: 1px 4px;
+            border-radius: 3px;
             letter-spacing: 0.5px;
+            flex-shrink: 0;
 
             &.quality {
                 background: rgba(139, 92, 246, 0.15);
@@ -1402,16 +1416,11 @@ export default defineComponent({
     &__actions {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: var(--s-3);
+        gap: var(--s-2);
         flex-shrink: 0;
 
-        @media (min-width: 480px) {
-            justify-content: flex-end;
-        }
-
         .size-label {
-            font-size: var(--fs-sm);
+            font-size: var(--fs-xs);
             color: var(--bone-300);
             font-weight: 500;
             white-space: nowrap;
@@ -1420,16 +1429,16 @@ export default defineComponent({
         .btn-group {
             display: flex;
             align-items: center;
-            gap: var(--s-2);
+            gap: var(--s-1);
         }
     }
 }
 
 .dl-action-btn {
     all: unset;
-    padding: var(--s-2) var(--s-3);
+    padding: var(--s-1) var(--s-2);
     border-radius: var(--r-pill);
-    font-size: var(--fs-xs);
+    font-size: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s var(--ease-out);

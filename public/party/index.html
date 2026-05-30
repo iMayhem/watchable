@@ -3928,6 +3928,10 @@
                     btn.innerHTML = '⚡ Connecting mic…';
                     btn.disabled = true;
                     
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new TypeError("SecureContextRequired");
+                    }
+                    
                     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                     inVoiceCall = true;
                     isVoiceMuted = false;
@@ -3970,7 +3974,20 @@
                     console.error('Failed to get local stream:', err);
                     btn.disabled = false;
                     btn.innerHTML = '🎤 Join Voice';
-                    alert('Could not access microphone. Please check permissions and try again.');
+                    
+                    let friendlyMsg = 'Could not access microphone. Please check permissions and try again.';
+                    
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        friendlyMsg = '🔒 Microphone permission was denied.\n\nPlease click the Page Settings icon (with horizontal sliders) on the left side of your browser address bar, set Microphone permission to "Allow", and reload the page!';
+                    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                        friendlyMsg = '🎙️ No microphone was detected.\n\nPlease connect a working microphone or headset to your device and try again.';
+                    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                        friendlyMsg = '⚠️ Your microphone is busy or already in use by another application.\n\nPlease close other tabs or applications (like Discord or Zoom) that are using the microphone and try again.';
+                    } else if (err.message === 'SecureContextRequired' || err.name === 'TypeError') {
+                        friendlyMsg = '🔒 Secure Connection Required.\n\nBrowsers restrict microphone access to secure contexts. Please make sure the website URL starts with "https://" (not "http://") and try again!';
+                    }
+                    
+                    alert(friendlyMsg);
                 }
             }
         }

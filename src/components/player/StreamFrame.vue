@@ -359,12 +359,12 @@ export default defineComponent({
                     console.error('[STREAM_RESOLVER_ERROR] All retries exhausted', err);
                     autoRetryCount.value = 0;
                     
-                    // Auto-switch to VidKing for movies and TV shows (not anime)
+                    // Auto-switch to Cinemaos for movies and TV shows (not anime)
                     if (props.mediaType === 'movie' || props.mediaType === 'tv') {
-                        console.log('[StreamFrame] Switching to VidKing after failed retries...');
-                        resolveError.value = 'Switching to VidKing...';
+                        console.log('[StreamFrame] Switching to Cinemaos after failed retries...');
+                        resolveError.value = 'Switching to Cinemaos...';
                         
-                        // Switch to VidKing (server index 0) after a short delay
+                        // Switch to Cinemaos (server index 0) after a short delay
                         setTimeout(() => {
                             emit('switch-to-server', 0);
                         }, 1500);
@@ -387,15 +387,15 @@ export default defineComponent({
             if (!resolveData.stream && (!resolveData.options || resolveData.options.length === 0)) {
                 // Check if this is a Moovie request
                 if (props.embedUrl.includes('cinestream') || props.embedUrl.includes('NATIVE:')) {
-                    console.log('[StreamFrame] Moovie returned no videos, switching to VidKing...');
+                    console.log('[StreamFrame] Moovie returned no videos, switching to Cinemaos...');
                     
-                    // Auto-switch to VidKing (server index 0) after a short delay
+                    // Auto-switch to Cinemaos (server index 0) after a short delay
                     setTimeout(() => {
-                        emit('switch-to-server', 0); // VidKing is at index 0
+                        emit('switch-to-server', 0); // Cinemaos is at index 0
                     }, 1500);
                     
                     // Throw error to be caught and displayed
-                    throw new Error('No videos found. Switching to VidKing...');
+                    throw new Error('No videos found. Switching to Cinemaos...');
                 }
                 throw new Error('Streaming resource is currently offline for this item');
             }

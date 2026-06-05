@@ -25,9 +25,9 @@ const defaultStreamData: StreamData = {
 export const streamData = useStorage<StreamData>('streamData', defaultStreamData);
 
 export const movieServers = ref<Server[]>([
+  { name: 'Cinemaos', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
   { name: 'VidKing', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
   { name: 'VidEasy', urlTemplate: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff' },
-  { name: 'Cinemaos', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
   { name: 'VidSrc RU', urlTemplate: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}' },
   { name: 'Moovie (Direct)', urlTemplate: 'NATIVE:/api/cinestream?type=movie&id={tmdbId}' },
   { name: 'VidSrc SU', urlTemplate: 'https://vidsrc-embed.su/embed/movie/{tmdbId}' },
@@ -43,9 +43,9 @@ export const movieServers = ref<Server[]>([
 ]);
 
 export const tvServers = ref<Server[]>([
+  { name: 'Cinemaos', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
   { name: 'VidKing', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
   { name: 'VidEasy', urlTemplate: 'https://player.videasy.net/tv/{externalId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
-  { name: 'Cinemaos', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
   { name: 'VidSrc RU', urlTemplate: 'https://vidsrc-embed.ru/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Moovie (Direct)', urlTemplate: 'NATIVE:/api/cinestream?type=tv&id={externalId}&season={season}&episode={episode}' },
   { name: 'VidSrc SU', urlTemplate: 'https://vidsrc-embed.su/embed/tv/{externalId}/{season}/{episode}' },

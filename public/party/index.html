@@ -17,7 +17,7 @@
     <!-- CineStream native player (Watch Together) -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.16/dist/hls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/artplayer@5.4.0/dist/artplayer.js"></script>
-    <link rel="stylesheet" href="/artplayer-compact.css">
+    <link rel="stylesheet" href="../artplayer-compact.css">
 
     <style>
         :root {
@@ -2521,14 +2521,14 @@
     <header id="main-header">
         <div class="header-inner">
             <div class="header-left">
-                <a href="/" class="back-btn" title="Back to Home">
+                <a href="../index.html" class="back-btn" title="Back to Home">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="19" y1="12" x2="5" y2="12"></line>
                         <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
                     Home
                 </a>
-                <a href="/" class="logo">
+                <a href="../index.html" class="logo">
                     moovie <span>✦</span>
                 </a>
             </div>
@@ -2773,9 +2773,28 @@
 
     <!-- REAL-TIME SYNC & SOCIAL ENGINE -->
     <script>
+        // Safe localStorage wrapper to prevent crashes when opened via file:// protocol
+        const safeLocalStorage = {
+            getItem(key) {
+                try {
+                    return localStorage.getItem(key);
+                } catch (e) {
+                    console.warn('localStorage getItem failed, falling back:', e);
+                    return null;
+                }
+            },
+            setItem(key, value) {
+                try {
+                    localStorage.setItem(key, value);
+                } catch (e) {
+                    console.warn('localStorage setItem failed:', e);
+                }
+            }
+        };
+
         // Supabase Dynamic configuration
         const defaultUrl = 'https://eeyiragtylotiwozbgqp.supabase.co';
-        const defaultKey = localStorage.getItem('supabase_anon_key') || ''; // Overrides can be in localStorage
+        const defaultKey = safeLocalStorage.getItem('supabase_anon_key') || ''; // Overrides can be in localStorage
 
         // Parse query params (Direct Join or Stream details transfer)
         const urlParams = new URLSearchParams(window.location.search);
@@ -2845,7 +2864,7 @@
         let partyBufferingTimer = null;
 
         // Session Setup
-        let currentUserName = localStorage.getItem('movora_username');
+        let currentUserName = safeLocalStorage.getItem('movora_username');
         if (!currentUserName) {
             const funnyPrefixes = [
                 'butter', 'bread', 'popcorn', 'jelly', 'cheese', 'chilli', 'garlic', 'honey',
@@ -2886,7 +2905,7 @@
             const next = prompt('Enter a new display name:', currentUserName);
             if (next && next.trim()) {
                 currentUserName = next.trim();
-                localStorage.setItem('movora_username', currentUserName);
+                safeLocalStorage.setItem('movora_username', currentUserName);
                 updateHeaderBadge();
                 if (channel) {
                     channel.track({ user: currentUserName, joinedAt: new Date().toISOString() });

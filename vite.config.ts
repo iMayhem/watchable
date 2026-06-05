@@ -11,7 +11,21 @@ export default defineConfig({
           whitespace: 'condense'
         }
       }
-    })
+    }),
+    {
+      name: 'party-dev-server-middleware',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url) {
+            const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+            if (url.pathname === '/party' || url.pathname === '/party/') {
+              req.url = '/party/index.html' + url.search;
+            }
+          }
+          next();
+        });
+      }
+    }
   ],
   
   build: {

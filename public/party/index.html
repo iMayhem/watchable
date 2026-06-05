@@ -7,10 +7,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>moovie · Watch Together Lobby</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <!-- Premium Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -40,7 +41,7 @@
             --r-md: 12px;
             --r-lg: 20px;
             --r-pill: 9999px;
-            --font-display: 'Outfit', sans-serif;
+            --font-display: 'Fraunces', 'Times New Roman', Georgia, serif;
             --font-ui: 'Outfit', sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
             --dur-fast: 0.2s;
@@ -220,23 +221,48 @@
         }
 
         .logo {
-            font-family: var(--font-display);
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--bone-50);
             text-decoration: none;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            color: var(--bone-50);
+        }
+
+        .logo-wordmark {
+            display: flex;
+            flex-direction: column;
+            line-height: 1;
+        }
+
+        .logo-mark-text {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 2.15rem;
+            letter-spacing: -0.07em;
+            line-height: 0.85;
+            color: var(--bone-50);
             background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            text-transform: lowercase;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            transition: transform var(--dur-fast) var(--ease-out);
         }
 
-        .logo span {
-            font-size: 1.1rem;
-            color: var(--ember);
-            -webkit-text-fill-color: var(--ember);
+        .logo:hover .logo-mark-text {
+            transform: scale(1.05);
+        }
+
+        .logo-kicker {
+            margin-top: 3px;
+            color: var(--bone-400);
+            font-size: 0.625rem;
+            font-family: var(--font-ui);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            line-height: 1;
         }
 
         .btn {
@@ -1232,8 +1258,8 @@
                 padding: 0.85rem 1rem;
             }
 
-            .logo {
-                font-size: 1.35rem;
+            .logo-mark-text {
+                font-size: 1.8rem;
             }
 
             /* Adjust room cards for tablet */
@@ -1336,11 +1362,11 @@
                 height: 12px;
             }
 
-            .logo {
-                font-size: 1.1rem;
+            .logo-mark-text {
+                font-size: 1.5rem;
             }
 
-            .logo span {
+            .logo-kicker {
                 display: none; /* Hide tagline on mobile */
             }
 
@@ -1700,8 +1726,8 @@
                 padding: 0.4rem 0.6rem;
             }
 
-            .logo {
-                font-size: 1rem;
+            .logo-mark-text {
+                font-size: 1.35rem;
             }
 
             .lobby-hero h1 {
@@ -1801,11 +1827,11 @@
                 padding: 0.35rem 0.65rem;
             }
 
-            .logo {
-                font-size: 0.95rem;
+            .logo-mark-text {
+                font-size: 1.35rem;
             }
 
-            .logo span {
+            .logo-kicker {
                 display: none;
             }
 
@@ -2528,8 +2554,11 @@
                     </svg>
                     Home
                 </a>
-                <a href="../index.html" class="logo">
-                    moovie <span>✦</span>
+                <a href="../index.html" class="logo" aria-label="moovie home">
+                    <div class="logo-wordmark">
+                        <span class="logo-mark-text">moovie</span>
+                        <span class="logo-kicker">A Cinema Periodical</span>
+                    </div>
                 </a>
             </div>
             <div id="header-user">
@@ -2792,6 +2821,41 @@
             }
         };
 
+        // Adjust links for file:// protocol vs http:// protocol dynamically
+        if (window.location.protocol !== 'file:') {
+            document.querySelectorAll('a[href="../index.html"]').forEach(link => {
+                link.setAttribute('href', '/');
+            });
+        }
+
+        // Short code codec for clean room URLs (e.g. ?room=AS840)
+        function generateShortCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = '';
+            for (let i = 0; i < 5; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        function shortCodeToUuid(code) {
+            if (!code) return null;
+            const clean = code.trim().toUpperCase();
+            const num = parseInt(clean, 36);
+            if (isNaN(num)) return null;
+            const hex = num.toString(16).padStart(8, '0');
+            return `${hex}-74be-4961-9b03-8afd980da989`;
+        }
+
+        function uuidToShortCode(uuid) {
+            if (!uuid || typeof uuid !== 'string') return null;
+            if (!uuid.endsWith('-74be-4961-9b03-8afd980da989')) return null;
+            const hex = uuid.split('-')[0];
+            const num = parseInt(hex, 16);
+            if (isNaN(num)) return null;
+            return num.toString(36).toUpperCase();
+        }
+
         // Supabase Dynamic configuration
         const defaultUrl = 'https://eeyiragtylotiwozbgqp.supabase.co';
         const defaultKey = safeLocalStorage.getItem('supabase_anon_key') || ''; // Overrides can be in localStorage
@@ -2944,9 +3008,14 @@
             loadActiveRooms();
         }
 
-        function showCreateView() {
+        function showCreateView(title = '', embedUrl = '') {
             document.body.classList.remove('room-view-active');
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            
+            document.getElementById('form-room-name').value = `${currentUserName}'s Watch Lounge`;
+            document.getElementById('form-movie-title').value = title;
+            document.getElementById('form-embed-url').value = embedUrl;
+            
             document.getElementById('create-view').classList.add('active');
         }
 
@@ -2972,8 +3041,9 @@
             }
             switchStreamProvider(activeProvider);
 
-            // Update URL to the shareable room UUID link
-            window.history.pushState({}, '', `?room=${room.id}`);
+            // Update URL to the shareable room short code link
+            const displayId = uuidToShortCode(room.id) || room.id;
+            window.history.pushState({}, '', `?room=${displayId}`);
             
             // Connect to real-time chat & presence channel
             connectToRealtimeRoom(room);
@@ -3523,7 +3593,8 @@
         // Copy shared link
         function copyShareLink() {
             if (!activeRoom) return;
-            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${activeRoom.id}`;
+            const displayId = uuidToShortCode(activeRoom.id) || activeRoom.id;
+            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${displayId}`;
             navigator.clipboard.writeText(shareUrl).then(() => {
                 const btn = document.getElementById('share-link-btn');
                 const oldText = btn.innerHTML;
@@ -3585,9 +3656,11 @@
                     .delete()
                     .lt('created_at', twentyFourHoursAgo);
 
+                const activeThreshold = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
                 const { data: rooms, error } = await supabaseClient
                     .from('rooms')
                     .select('*')
+                    .gt('created_at', activeThreshold)
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
@@ -3650,10 +3723,14 @@
             const movieTitle = document.getElementById('form-movie-title').value.trim();
             const embedUrl = document.getElementById('form-embed-url').value.trim();
 
+            const shortCode = generateShortCode();
+            const uuid = shortCodeToUuid(shortCode);
+
             try {
                 const { data: room, error } = await supabaseClient
                     .from('rooms')
                     .insert([{
+                        id: uuid,
                         name: name,
                         movie_title: movieTitle,
                         embed_sources: embedUrl,
@@ -3974,13 +4051,35 @@
             });
 
             if (joinRoomId) {
-                // Check if it is a UUID (UUID validation regex)
                 const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
+                const isShortCode = /^[a-z0-9]{5,6}$/i.test(joinRoomId);
                 
                 if (isUuid) {
                     joinExistingRoom(joinRoomId);
+                } else if (isShortCode) {
+                    // It's a short code! Try to find the corresponding UUID room
+                    const codeUuid = shortCodeToUuid(joinRoomId);
+                    try {
+                        const { data: room, error } = await supabaseClient
+                            .from('rooms')
+                            .select('*')
+                            .eq('id', codeUuid)
+                            .single();
+                        
+                        if (!error && room) {
+                            activeRoom = room;
+                            isHost = false;
+                            showRoomView(room);
+                        } else {
+                            alert('Party room not found or has been closed.');
+                            showLobbyView();
+                        }
+                    } catch (err) {
+                        alert('Party room not found or has been closed.');
+                        showLobbyView();
+                    }
                 } else {
-                    // TMDb ID. Let's automatically check if a room already exists or create one!
+                    // TMDb ID. Let's automatically check if a room already exists.
                     try {
                         const { data: existingRooms, error } = await supabaseClient
                             .from('rooms')
@@ -3994,28 +4093,37 @@
                             isHost = false;
                             showRoomView(room);
                         } else {
-                            // Create automatically
-                            const roomName = `${currentUserName}'s Watch Lounge`;
-                            const { data: newRoom, error: createError } = await supabaseClient
-                                .from('rooms')
-                                .insert([{
-                                    name: roomName,
-                                    movie_title: prefillTitle || 'Feature Title',
-                                    embed_sources: joinRoomId,
-                                    scheduled_start_time: new Date().toISOString()
-                                }])
-                                .select()
-                                .single();
+                            // Check if bot/crawler to prevent automated room insertion
+                            const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse/i.test(navigator.userAgent) || navigator.webdriver;
+                            if (isBot) {
+                                console.log('Bot detected. Skipping automatic room creation.');
+                                showLobbyView();
+                            } else {
+                                // Real user! Auto-create the room instantly with zero resistance
+                                const roomName = `${currentUserName}'s Watch Lounge`;
+                                const shortCode = generateShortCode();
+                                const uuid = shortCodeToUuid(shortCode);
+                                const { data: newRoom, error: createError } = await supabaseClient
+                                    .from('rooms')
+                                    .insert([{
+                                        id: uuid,
+                                        name: roomName,
+                                        movie_title: prefillTitle || 'Feature Title',
+                                        embed_sources: joinRoomId,
+                                        scheduled_start_time: new Date().toISOString()
+                                    }])
+                                    .select()
+                                    .single();
 
-                            if (createError) throw createError;
+                                if (createError) throw createError;
 
-                            activeRoom = newRoom;
-                            isHost = true;
-                            showRoomView(newRoom);
+                                activeRoom = newRoom;
+                                isHost = true;
+                                showRoomView(newRoom);
+                            }
                         }
                     } catch (err) {
                         console.error('Error auto-resolving watch party room:', err);
-                        alert('Could not auto-create watch room. Loading active lobbies.');
                         showLobbyView();
                     }
                 }

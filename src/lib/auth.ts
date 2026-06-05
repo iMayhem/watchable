@@ -6,14 +6,11 @@ export interface UserAccount {
     createdAt: string;
 }
 
-// Password Hashing helper (SHA-256)
+// Password Hashing helper (SHA-256) - Disabled to use plain text passwords
 async function hashPassword(password: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return password;
 }
+
 
 // Register Account
 export async function registerUser(username: string, password: string): Promise<{ success: boolean; error?: string }> {

@@ -1,15 +1,35 @@
 <template>
     <header ref="rootRef" class="masthead" :class="{ 'trailer-playing': trailerLive }" :aria-label="`${title} — masthead`">
         <div class="masthead__stage">
-            <img
-                v-if="backdropUrl"
-                class="masthead__art"
-                :src="backdropUrl"
-                :alt="title"
-                fetchpriority="high"
-                decoding="async"
-                loading="eager"
-            />
+            <template v-if="backdropUrl">
+                <div v-if="isVerticalBackdrop" class="masthead__art-fallback-container">
+                    <img
+                        class="masthead__art--blurred"
+                        :src="backdropUrl"
+                        alt=""
+                        fetchpriority="low"
+                        decoding="async"
+                        loading="eager"
+                    />
+                    <img
+                        class="masthead__art--contained"
+                        :src="backdropUrl"
+                        :alt="title"
+                        fetchpriority="high"
+                        decoding="async"
+                        loading="eager"
+                    />
+                </div>
+                <img
+                    v-else
+                    class="masthead__art"
+                    :src="backdropUrl"
+                    :alt="title"
+                    fetchpriority="high"
+                    decoding="async"
+                    loading="eager"
+                />
+            </template>
             <div v-else class="masthead__art masthead__art--placeholder" aria-hidden="true" />
 
             <TrailerIframe
@@ -211,6 +231,13 @@ export default defineComponent({
             return `https://wsrv.nl/?url=${encodeURIComponent(tmdbUrl)}&w=1280&output=webp&q=85`;
         });
 
+        const isVerticalBackdrop = computed(() => {
+            if (!props.backdropPath) return false;
+            if (props.backdropPath === props.posterPath) return true;
+            if (props.backdropPath.includes('coverImage')) return true;
+            return false;
+        });
+
         const year = computed(() => {
             if (!props.releaseDate) return null;
             const parsed = parseInt(props.releaseDate);
@@ -266,6 +293,7 @@ export default defineComponent({
             homePath,
             rootRef,
             backdropUrl,
+            isVerticalBackdrop,
             year,
             ratingLabel,
             inWatchlist,
@@ -316,7 +344,45 @@ export default defineComponent({
         }
     }
 
-    &.trailer-playing &__art { opacity: 0; }
+    &.trailer-playing &__art,
+    &.trailer-playing &__art-fallback-container { opacity: 0; }
+
+    &__art-fallback-container {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--ink-950);
+        transition: opacity var(--dur-slow) var(--ease-out);
+    }
+
+    &__art--blurred {
+        position: absolute;
+        inset: -40px;
+        width: calc(100% + 80px);
+        height: calc(100% + 80px);
+        object-fit: cover;
+        filter: blur(30px) brightness(0.2) saturate(1.2);
+        opacity: 0.9;
+        z-index: 1;
+    }
+
+    &__art--contained {
+        position: relative;
+        z-index: 2;
+        max-width: 90%;
+        max-height: 95%;
+        width: auto;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
+        border-radius: var(--r-md, 8px);
+        box-shadow: 0 12px 60px rgba(0, 0, 0, 0.95);
+    }
 
     &__scrim {
         position: absolute;

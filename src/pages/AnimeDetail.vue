@@ -10,7 +10,7 @@
                     :title="anime.title.english || anime.title.romaji || anime.title.native"
                     :tagline="anime.title.native"
                     :eyebrow="mastheadEyebrow"
-                    :backdrop-path="anime.bannerImage || anime.coverImage.large"
+                    :backdrop-path="backdropPath"
                     :poster-path="anime.coverImage.large"
                     :rating="anime.averageScore ? anime.averageScore / 10 : 0"
                     :release-date="String(anime.seasonYear || '')"
@@ -160,6 +160,11 @@ export default defineComponent({
 
         const anime = ref<any | null>(null);
         const loading = ref(true);
+        const tmdbBackdrop = ref<string | null>(null);
+
+        const backdropPath = computed(() => {
+            return anime.value?.bannerImage || tmdbBackdrop.value || anime.value?.coverImage?.large || null;
+        });
 
         const cleanDescription = computed(() => {
             if (!anime.value?.description) return '';
@@ -296,10 +301,13 @@ export default defineComponent({
 
         const loadTmdbEpisodes = async (anilistMedia: any) => {
             tmdbEpisodes.value = [];
+            tmdbBackdrop.value = null;
             if (!anilistMedia) return;
 
             const englishTitle = anilistMedia.title.english;
             const romajiTitle = anilistMedia.title.romaji;
+            const isMovie = anilistMedia.format === 'MOVIE';
+            const searchType = isMovie ? 'movie' : 'tv';
 
             try {
                 let show = null;
@@ -308,7 +316,7 @@ export default defineComponent({
                 if (englishTitle) {
                     const cleanTitle = englishTitle.replace(/Season \d+|Part \d+/gi, '').trim();
                     const searchRes = await useAxios().get(
-                        `https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(cleanTitle)}`
+                        `https://api.themoviedb.org/3/search/${searchType}?query=${encodeURIComponent(cleanTitle)}`
                     );
                     show = searchRes?.data?.results?.[0];
                 }
@@ -317,14 +325,27 @@ export default defineComponent({
                 if (!show && romajiTitle) {
                     const cleanTitle = romajiTitle.replace(/Season \d+|Part \d+/gi, '').trim();
                     const searchRes = await useAxios().get(
-                        `https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(cleanTitle)}`
+                        `https://api.themoviedb.org/3/search/${searchType}?query=${encodeURIComponent(cleanTitle)}`
                     );
                     show = searchRes?.data?.results?.[0];
                 }
                 
                 if (show) {
-                    // Fetch full TV show details to get list of all seasons
-                    const showRes = await useAxios().get(`https://api.themoviedb.org/3/tv/${show.id}`);
+                    if (show.backdrop_path) {
+                        tmdbBackdrop.value = show.backdrop_path;
+                    }
+                    
+                    if (isMovie) {
+                        const movieRes = await useAxios().get(`https://api.themoviedb.org/3/movie/${show.id}`);
+                        if (movieRes?.data?.backdrop_path) {
+                            tmdbBackdrop.value = movieRes.data.backdrop_path;
+                        }
+                    } else {
+                        // Fetch full TV show details to get list of all seasons
+                        const showRes = await useAxios().get(`https://api.themoviedb.org/3/tv/${show.id}`);
+                        if (showRes?.data?.backdrop_path) {
+                            tmdbBackdrop.value = showRes.data.backdrop_path;
+                        }
                     const tmdbSeasons = showRes?.data?.seasons || [];
                     
                     // Match current AniList media to correct TMDB season
@@ -379,10 +400,11 @@ export default defineComponent({
                         tmdbEpisodes.value = seasonRes.data.episodes;
                     }
                 }
-            } catch (err) {
-                console.warn('Failed to load TMDb episode metadata:', err);
             }
-        };
+        } catch (err) {
+            console.warn('Failed to load TMDb episode metadata:', err);
+        }
+    };
 
         const getEpisodeStill = (epNum: number) => {
             const match = tmdbEpisodes.value.find(e => e.episode_number === epNum);
@@ -417,6 +439,7 @@ export default defineComponent({
         const loadAnime = async (id: number) => {
             loading.value = true;
             anime.value = null;
+            tmdbBackdrop.value = null;
             currentPage.value = 1;
 
             try {
@@ -465,6 +488,7 @@ export default defineComponent({
         return {
             anime,
             loading,
+            backdropPath,
             cleanDescription,
             mastheadEyebrow,
             metaItems,

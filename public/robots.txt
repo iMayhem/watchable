@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /party/
+Disallow: /party

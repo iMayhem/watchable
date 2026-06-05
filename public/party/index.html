@@ -76,12 +76,12 @@
             overflow: hidden;
         }
 
-        body.lights-out-mode {
+        body.cinema-mode {
             background-color: #000 !important;
         }
         
-        /* Dim and push header off-screen in lights out mode to maximize vertical space */
-        body.lights-out-mode header {
+        /* Dim and push header off-screen in cinema mode to maximize vertical space */
+        body.cinema-mode header {
             position: absolute;
             width: 100%;
             top: -65px;
@@ -90,15 +90,15 @@
             transition: top 0.3s ease, opacity 0.3s ease;
         }
         
-        body.lights-out-mode header:hover {
+        body.cinema-mode header:hover {
             top: 0;
             opacity: 1;
             pointer-events: auto;
         }
         
-        /* Collapse controls in lights out mode to maximize vertical height, restore on hover */
-        body.lights-out-mode .workspace-header,
-        body.lights-out-mode .workspace-banner {
+        /* Collapse controls in cinema mode to maximize vertical height, restore on hover */
+        body.cinema-mode .workspace-header,
+        body.cinema-mode .workspace-banner {
             opacity: 0;
             pointer-events: none;
             height: 0;
@@ -111,8 +111,8 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        body.lights-out-mode .workspace-header:hover,
-        body.lights-out-mode .workspace-banner:hover {
+        body.cinema-mode .workspace-header:hover,
+        body.cinema-mode .workspace-banner:hover {
             opacity: 1;
             pointer-events: auto;
             height: auto;
@@ -122,14 +122,14 @@
         }
         
         /* Restore fully on container hover */
-        body.lights-out-mode .player-container:hover .workspace-header {
+        body.cinema-mode .player-container:hover .workspace-header {
             opacity: 1;
             pointer-events: auto;
             height: auto;
             overflow: visible !important;
             z-index: 50 !important;
         }
-        body.lights-out-mode .player-container:hover .workspace-banner {
+        body.cinema-mode .player-container:hover .workspace-banner {
             opacity: 1;
             pointer-events: auto;
             height: auto;
@@ -166,13 +166,13 @@
             transition: opacity 0.5s ease, transform 0.5s ease;
         }
 
-        body.lights-out-mode header {
+        body.cinema-mode header {
             opacity: 0.05;
             pointer-events: none;
             transform: translateY(-5px);
         }
 
-        body.lights-out-mode header:hover {
+        body.cinema-mode header:hover {
             opacity: 1;
             pointer-events: auto;
             transform: translateY(0);
@@ -528,8 +528,8 @@
             }
         }
 
-        /* Keep the two-column layout in lights-out so chat stays visible */
-        body.lights-out-mode .room-workspace {
+        /* Keep the two-column layout in cinema mode so chat stays visible */
+        body.cinema-mode .room-workspace {
             grid-template-columns: 1fr 380px;
         }
 
@@ -656,7 +656,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .lights-out-btn {
+        .cinema-mode-btn {
             background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.12);
             color: var(--bone-200);
@@ -671,7 +671,7 @@
             transition: all var(--dur-fast);
         }
 
-        .lights-out-btn:hover {
+        .cinema-mode-btn:hover {
             background: rgba(255,255,255,0.06);
             color: #fff;
         }
@@ -1247,7 +1247,7 @@
 
             /* Larger touch targets for controls */
             .server-dropdown-trigger,
-            .lights-out-btn {
+            .cinema-mode-btn {
                 min-height: 44px;
                 padding: 0.6rem 1rem;
                 font-size: 0.9rem;
@@ -1540,7 +1540,7 @@
                 padding: 0.5rem 0.6rem;
             }
 
-            .lights-out-btn {
+            .cinema-mode-btn {
                 padding: 0.35rem 0.6rem;
                 font-size: 0.7rem;
                 min-height: 32px;
@@ -1668,14 +1668,14 @@
                 font-size: 0.8rem;
             }
 
-            /* Lights out mode adjustments for mobile */
-            body.lights-out-mode .workspace-header {
+            /* Cinema mode adjustments for mobile */
+            body.cinema-mode .workspace-header {
                 opacity: 0.15;
                 transition: opacity 0.3s ease;
             }
 
-            body.lights-out-mode .player-container:active .workspace-header,
-            body.lights-out-mode .workspace-header:active {
+            body.cinema-mode .player-container:active .workspace-header,
+            body.cinema-mode .workspace-header:active {
                 opacity: 1;
             }
 
@@ -1743,7 +1743,7 @@
             }
 
             .server-dropdown-trigger,
-            .lights-out-btn {
+            .cinema-mode-btn {
                 font-size: 0.65rem;
                 padding: 0.3rem 0.5rem;
                 min-height: 30px;
@@ -1878,7 +1878,7 @@
             }
 
             .server-dropdown-trigger,
-            .lights-out-btn {
+            .cinema-mode-btn {
                 font-size: 0.65rem;
                 padding: 0.25rem 0.45rem;
                 min-height: 28px;
@@ -2131,7 +2131,7 @@
             }
 
             .server-dropdown-trigger,
-            .lights-out-btn {
+            .cinema-mode-btn {
                 font-size: 0.7rem;
                 padding: 0.35rem 0.6rem;
             }
@@ -2298,7 +2298,7 @@
 
             /* Make all workspace buttons ultra-compact and aligned */
             body.room-view-active .server-dropdown-trigger,
-            body.room-view-active .lights-out-btn {
+            body.room-view-active .cinema-mode-btn {
                 font-size: 0.65rem !important;
                 padding: 0.25rem 0.45rem !important;
                 min-height: 28px !important;
@@ -2655,8 +2655,8 @@
                             <span id="banner-playing-text">🍿 Loading feature stream...</span>
                         </div>
                         <div class="banner-actions" style="display: flex; align-items: center; gap: 1rem;">
-                            <button class="lights-out-btn" onclick="toggleLightsOut()">
-                                💡 Lights Out
+                            <button class="cinema-mode-btn" onclick="toggleCinemaMode()">
+                                🎬 Cinema Mode
                             </button>
                             <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">
                                 🔗 Invite Friends (Copy Link)
@@ -2979,9 +2979,9 @@
 
         // View Toggling
         function showLobbyView() {
-            // Cancel Lights Out & active view height locks
+            // Cancel Cinema Mode & active view height locks
             document.body.classList.remove('room-view-active');
-            document.body.classList.remove('lights-out-mode');
+            document.body.classList.remove('cinema-mode');
 
             destroyPartyArtplayer();
             const iframe = document.getElementById('video-player-iframe');
@@ -3485,9 +3485,9 @@
             }
         }
 
-        // Lights Out toggler
-        function toggleLightsOut() {
-            document.body.classList.toggle('lights-out-mode');
+        // Cinema Mode toggler
+        function toggleCinemaMode() {
+            document.body.classList.toggle('cinema-mode');
         }
 
         // Direct Stream Downloader

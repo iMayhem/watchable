@@ -25,26 +25,20 @@ const defaultStreamData: StreamData = {
 
 export const streamData = useStorage<StreamData>('streamData', defaultStreamData);
 
-// Migrate legacy local storage preferences to new server index order (Cinemaos = 0)
+// Migrate legacy local storage preferences — force Cinemaos (index 0) as default
 if (streamData.value) {
-  if (!streamData.value.version || streamData.value.version < 2) {
+  if (!streamData.value.version || streamData.value.version < 3) {
+    // v3: Hard-reset ALL saved server preferences to Cinemaos (index 0).
+    // This clears any stale entries pointing to Moovie Direct or other servers
+    // from previous sessions, regardless of what index they were at.
     const map = streamData.value.movieServerMap || {};
     for (const key in map) {
       const entry = map[key];
       if (entry && typeof entry.serverIndex === 'number') {
-        if (entry.serverIndex === 2) {
-          // Old Cinemaos index was 2 -> migrate to new Cinemaos index 0
-          entry.serverIndex = 0;
-        } else if (entry.serverIndex === 0) {
-          // Old default/VidKing was 0 -> migrate to new default Cinemaos index 0
-          entry.serverIndex = 0;
-        } else if (entry.serverIndex === 1) {
-          // Old VidEasy was 1 -> migrate to new VidEasy index 2
-          entry.serverIndex = 2;
-        }
+        entry.serverIndex = 0; // Always reset to Cinemaos
       }
     }
-    streamData.value.version = 2;
+    streamData.value.version = 3;
   }
 }
 

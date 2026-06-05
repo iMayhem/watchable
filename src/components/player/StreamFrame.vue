@@ -364,9 +364,9 @@ export default defineComponent({
                         console.log('[StreamFrame] Switching to VidKing after failed retries...');
                         resolveError.value = 'Switching to VidKing...';
                         
-                        // Switch to VidKing (server index 1) after a short delay
+                        // Switch to VidKing (server index 0) after a short delay
                         setTimeout(() => {
-                            emit('switch-to-server', 1);
+                            emit('switch-to-server', 0);
                         }, 1500);
                     } else {
                         // For anime, just show error
@@ -389,9 +389,9 @@ export default defineComponent({
                 if (props.embedUrl.includes('cinestream') || props.embedUrl.includes('NATIVE:')) {
                     console.log('[StreamFrame] Moovie returned no videos, switching to VidKing...');
                     
-                    // Auto-switch to VidKing (server index 1) after a short delay
+                    // Auto-switch to VidKing (server index 0) after a short delay
                     setTimeout(() => {
-                        emit('switch-to-server', 1); // VidKing is at index 1
+                        emit('switch-to-server', 0); // VidKing is at index 0
                     }, 1500);
                     
                     // Throw error to be caught and displayed

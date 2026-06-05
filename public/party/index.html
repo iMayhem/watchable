@@ -2610,7 +2610,7 @@
                             <!-- Premium Select Dropdown for all 16 servers -->
                             <div class="server-select-dropdown">
                                 <button class="server-dropdown-trigger" onclick="toggleServerDropdown(event)">
-                                    <span>SERVER: <strong id="active-server-name">Moovie (Direct)</strong></span>
+                                    <span>SERVER: <strong id="active-server-name">VidKing</strong></span>
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                 </button>
                                 <div id="server-dropdown-menu" class="server-dropdown-menu">
@@ -2816,11 +2816,11 @@
 
         // Available Stream Servers
         const serversList = [
-            { id: 'cinestream', name: 'Moovie (Direct)', movie: 'NATIVE:/api/cinestream?type=movie&id={tmdbId}', tv: 'NATIVE:/api/cinestream?type=tv&id={tmdbId}&season={season}&episode={episode}' },
+            { id: 'vidking', name: 'VidKing', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true' },
             { id: 'vidlink', name: 'VidLink', movie: 'https://vidlink.pro/movie/{tmdbId}?primaryColor=6366f1', tv: 'https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?primaryColor=6366f1' },
             { id: 'videasy', name: 'VidEasy', movie: 'https://player.videasy.net/movie/{tmdbId}?color=6366f1', tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}?color=6366f1' },
             { id: 'vidsrc', name: 'VidSrc (to)', movie: 'https://vidsrc.to/embed/movie/{tmdbId}', tv: 'https://vidsrc.to/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidking', name: 'VidKing', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true' },
+            { id: 'cinestream', name: 'Moovie (Direct)', movie: 'NATIVE:/api/cinestream?type=movie&id={tmdbId}', tv: 'NATIVE:/api/cinestream?type=tv&id={tmdbId}&season={season}&episode={episode}' },
             { id: 'cinemaos', name: 'Cinemaos', movie: 'https://cinemaos.tech/player/{tmdbId}', tv: 'https://cinemaos.tech/player/{tmdbId}/{season}/{episode}' },
             { id: 'vidsrc_ru', name: 'VidSrc RU', movie: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.ru/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'vidsrc_su', name: 'VidSrc SU', movie: 'https://vidsrc-embed.su/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.su/embed/tv/{tmdbId}/{season}/{episode}' },
@@ -2834,7 +2834,7 @@
             { id: 'smashy', name: 'Smashy', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' }
         ];
 
-        let activeProvider = 'cinestream';
+        let activeProvider = 'vidking';
         let partyArtplayer = null;
         let partyNativeUrl = '';
         let partyVideoUrl = '';
@@ -2949,7 +2949,7 @@
             if (isAnime) {
                 activeProvider = 'animeplay_sub';
             } else {
-                activeProvider = 'cinestream';
+                activeProvider = 'vidking';
             }
             switchStreamProvider(activeProvider);
 

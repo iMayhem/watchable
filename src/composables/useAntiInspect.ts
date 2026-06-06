@@ -138,9 +138,9 @@ const detectDevTools = () => {
     let timingOpen = false;
     const start = performance.now();
     // eslint-disable-next-line no-console
-    console.profile?.('check');
+    (console as any).profile?.('check');
     // eslint-disable-next-line no-console
-    console.profileEnd?.('check');
+    (console as any).profileEnd?.('check');
     const elapsed = performance.now() - start;
     if (elapsed > 100) timingOpen = true;
     

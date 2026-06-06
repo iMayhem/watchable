@@ -351,6 +351,17 @@ export default defineComponent({
             }
         );
 
+        watch(loading, (newVal) => {
+            if (!newVal) {
+                setTimeout(() => {
+                    const container = document.querySelector('.tv-detail');
+                    if (container && container.scrollTop < 20) {
+                        container.scrollTo({ top: 120, behavior: 'smooth' });
+                    }
+                }, 150);
+            }
+        });
+
         return {
             show,
             cast,

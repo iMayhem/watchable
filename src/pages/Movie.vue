@@ -352,6 +352,17 @@ export default defineComponent({
             }
         );
 
+        watch(loading, (newVal) => {
+            if (!newVal) {
+                setTimeout(() => {
+                    const container = document.querySelector('.movie-detail');
+                    if (container && container.scrollTop < 20) {
+                        container.scrollTo({ top: 120, behavior: 'smooth' });
+                    }
+                }, 150);
+            }
+        });
+
         return {
             movie,
             cast,

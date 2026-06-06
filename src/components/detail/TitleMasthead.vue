@@ -259,7 +259,7 @@ export default defineComponent({
         const isVerticalBackdrop = computed(() => {
             if (!props.backdropPath) return false;
             if (props.backdropPath === props.posterPath) return true;
-            if (props.backdropPath.includes('coverImage')) return true;
+            if (props.backdropPath.toLowerCase().includes('cover')) return true;
             return false;
         });
 

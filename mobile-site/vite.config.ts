@@ -14,10 +14,19 @@ export default defineConfig({
     })
   ],
 
-  // Allow importing files from the parent directory
   resolve: {
     alias: {
-      '@': resolve(__dirname, '../src')
+      '@': resolve(__dirname, '../src'),
+      'vue': resolve(__dirname, 'node_modules/vue'),
+      'vue-router': resolve(__dirname, 'node_modules/vue-router'),
+      '@vueuse/core': resolve(__dirname, 'node_modules/@vueuse/core'),
+      '@supabase/supabase-js': resolve(__dirname, 'node_modules/@supabase/supabase-js'),
+      'axios': resolve(__dirname, 'node_modules/axios'),
+      'artplayer': resolve(__dirname, 'node_modules/artplayer'),
+      'hls.js': resolve(__dirname, 'node_modules/hls.js'),
+      'lodash': resolve(__dirname, 'node_modules/lodash'),
+      'lodash.debounce': resolve(__dirname, 'node_modules/lodash.debounce'),
+      'swiper': resolve(__dirname, 'node_modules/swiper')
     }
   },
   server: {

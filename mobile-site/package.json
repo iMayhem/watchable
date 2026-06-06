@@ -25,6 +25,7 @@
     "@types/lodash.debounce": "^4.0.9",
     "@vitejs/plugin-vue": "^5.2.0",
     "sass": "^1.64.1",
+    "terser": "^5.36.0",
     "typescript": "^5.0.2",
     "vite": "^6.0.0",
     "vue-tsc": "^2.2.0"

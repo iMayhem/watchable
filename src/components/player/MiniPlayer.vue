@@ -15,6 +15,7 @@
                         allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                         allowfullscreen
                         frameborder="0"
+                        sandbox="allow-scripts allow-same-origin allow-forms"
                     />
                     <div class="mini-player__veil" aria-hidden="true" />
                 </div>

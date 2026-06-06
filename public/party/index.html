@@ -2680,7 +2680,7 @@
                             </div>
                             <div id="party-native-player"></div>
                         </div>
-                        <iframe id="video-player-iframe" class="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+                        <iframe id="video-player-iframe" class="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
                     </div>
 
                     <!-- Autoplay and Navigation Controls -->
@@ -2901,6 +2901,7 @@
         // Available Stream Servers
         const serversList = [
             { id: 'cinemaos', name: 'Cinemaos', movie: 'https://cinemaos.tech/player/{tmdbId}', tv: 'https://cinemaos.tech/player/{tmdbId}/{season}/{episode}' },
+            { id: 'smashy', name: 'Smashy', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },
             { id: 'vidking', name: 'VidKing', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true' },
             { id: 'vidlink', name: 'VidLink', movie: 'https://vidlink.pro/movie/{tmdbId}?primaryColor=6366f1', tv: 'https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?primaryColor=6366f1' },
             { id: 'videasy', name: 'VidEasy', movie: 'https://player.videasy.net/movie/{tmdbId}?color=6366f1', tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}?color=6366f1' },
@@ -2914,8 +2915,7 @@
             { id: 'autoembed', name: 'AutoEmbed', movie: 'https://player.autoembed.app/embed/movie/{tmdbId}', tv: 'https://player.autoembed.app/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'vidfast', name: 'VidFast', movie: 'https://vidfast.pro/movie/{tmdbId}', tv: 'https://vidfast.pro/tv/{tmdbId}/{season}/{episode}' },
             { id: 'movies111', name: '111Movies', movie: 'https://111movies.com/movie/{tmdbId}', tv: 'https://111movies.com/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidora', name: 'Vidora', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' },
-            { id: 'smashy', name: 'Smashy', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' }
+            { id: 'vidora', name: 'Vidora', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' }
         ];
 
         let activeProvider = 'cinemaos';
@@ -3417,6 +3417,12 @@
             if (nativeStage) nativeStage.style.display = 'none';
             if (iframe) {
                 iframe.style.display = 'block';
+                const lowerUrl = embedUrl.toLowerCase();
+                if (lowerUrl.includes('cinemaos.tech') || lowerUrl.includes('smashystream.com')) {
+                    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
+                } else {
+                    iframe.removeAttribute('sandbox');
+                }
                 iframe.src = embedUrl;
             }
         }

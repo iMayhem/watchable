@@ -26,7 +26,6 @@
                     </div>
                 </div>
 
-                <!-- If not native: Render standard iframe -->
                 <iframe
                     v-else-if="embedUrl && !isNative && !hasError"
                     ref="frameEl"
@@ -36,7 +35,7 @@
                     allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                     allowfullscreen
                     frameborder="0"
-                    sandbox="allow-scripts allow-same-origin allow-forms"
+                    :sandbox="sandboxAttribute"
                     @load="onLoad"
                     @error="onError"
                 />
@@ -166,6 +165,14 @@ export default defineComponent({
 
         // Native streaming states
         const isNative = computed(() => props.embedUrl && (props.embedUrl.startsWith('https://api.moovie.fun') || props.embedUrl.startsWith('NATIVE:')));
+        const sandboxAttribute = computed(() => {
+            if (!props.embedUrl) return undefined;
+            const url = props.embedUrl.toLowerCase();
+            if (url.includes('cinemaos.tech') || url.includes('smashystream.com')) {
+                return 'allow-scripts allow-same-origin allow-forms';
+            }
+            return undefined;
+        });
         const videoUrl = ref('');
         const subtitles = ref<Array<{ label: string; src: string; srclang: string; default: boolean }>>([]);
         const resolutions = ref<Array<{ label: string; url: string }>>([]);
@@ -936,6 +943,7 @@ export default defineComponent({
             loadingLabel,
             ambientImage,
             isNative,
+            sandboxAttribute,
             videoUrl,
             subtitles,
             resolutions,

@@ -11,7 +11,6 @@
         </router-view>
 
         <CommandPalette />
-        <MiniPlayer />
         <Toast />
     </div>
 </template>
@@ -20,7 +19,6 @@
 import { onMounted, onBeforeUnmount } from 'vue';
 import Toast from '@/components/feedback/Toast.vue';
 import CommandPalette from '@/components/navigation/CommandPalette.vue';
-import MiniPlayer from '@/components/player/MiniPlayer.vue';
 import { bindCommandPaletteHotkey } from '@/composables/useCommandPalette';
 import { startReveal, stopReveal } from '@/composables/useReveal';
 import { installAntiInspect, uninstallAntiInspect } from '@/composables/useAntiInspect';

@@ -50,6 +50,7 @@ if (streamData.value) {
 
 export const movieServers = ref<Server[]>([
   { name: 'Cinemaos', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
+  { name: 'Smashy', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
   { name: 'VidKing', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
   { name: 'VidEasy', urlTemplate: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff' },
   { name: 'VidSrc RU', urlTemplate: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}' },
@@ -62,12 +63,12 @@ export const movieServers = ref<Server[]>([
   { name: 'AutoEmbed', urlTemplate: 'https://player.autoembed.app/embed/movie/{tmdbId}' },
   { name: 'VidFast', urlTemplate: 'https://vidfast.pro/movie/{tmdbId}' },
   { name: '111Movies', urlTemplate: 'https://111movies.com/movie/{tmdbId}' },
-  { name: 'Vidora', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' },
-  { name: 'Smashy', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' }
+  { name: 'Vidora', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' }
 ]);
 
 export const tvServers = ref<Server[]>([
   { name: 'Cinemaos', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
+  { name: 'Smashy', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
   { name: 'VidKing', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
   { name: 'VidEasy', urlTemplate: 'https://player.videasy.net/tv/{externalId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
   { name: 'VidSrc RU', urlTemplate: 'https://vidsrc-embed.ru/embed/tv/{externalId}/{season}/{episode}' },
@@ -80,8 +81,7 @@ export const tvServers = ref<Server[]>([
   { name: 'AutoEmbed', urlTemplate: 'https://player.autoembed.app/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'VidFast', urlTemplate: 'https://vidfast.pro/tv/{externalId}/{season}/{episode}' },
   { name: '111Movies', urlTemplate: 'https://111movies.com/tv/{externalId}/{season}/{episode}' },
-  { name: 'Vidora', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Smashy', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' }
+  { name: 'Vidora', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' }
 ]);
 
 export const currentStreamData = ref({

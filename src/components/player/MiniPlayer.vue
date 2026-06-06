@@ -15,7 +15,7 @@
                         allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                         allowfullscreen
                         frameborder="0"
-                        sandbox="allow-scripts allow-same-origin allow-forms"
+                        :sandbox="sandboxAttribute"
                     />
                     <div class="mini-player__veil" aria-hidden="true" />
                 </div>
@@ -69,6 +69,15 @@ export default defineComponent({
 
         const isMobile = ref(false);
         let mediaQuery: MediaQueryList | null = null;
+
+        const sandboxAttribute = computed(() => {
+            if (!state.value?.embedUrl) return undefined;
+            const url = state.value.embedUrl.toLowerCase();
+            if (url.includes('cinemaos.tech') || url.includes('smashystream.com')) {
+                return 'allow-scripts allow-same-origin allow-forms';
+            }
+            return undefined;
+        });
 
         const updateMobile = (e: MediaQueryListEvent | MediaQueryList) => {
             isMobile.value = e.matches;
@@ -127,7 +136,8 @@ export default defineComponent({
             isMobile,
             subtitle,
             resume,
-            dismiss
+            dismiss,
+            sandboxAttribute
         };
     }
 });

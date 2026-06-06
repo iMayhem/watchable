@@ -3022,6 +3022,7 @@
 
         function showRoomView(room) {
             document.body.classList.add('room-view-active');
+            document.body.classList.add('cinema-mode'); // Auto-enable Cinema Mode on room entry
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('room-view').classList.add('active');
             

@@ -27,10 +27,11 @@ export const streamData = useStorage<StreamData>('streamData', defaultStreamData
 
 // Migrate legacy local storage preferences — force Cinemaos (index 0) as default
 if (streamData.value) {
-  if (!streamData.value.version || streamData.value.version < 3) {
-    // v3: Hard-reset ALL saved server preferences to Cinemaos (index 0).
-    // This clears any stale entries pointing to Moovie Direct or other servers
-    // from previous sessions, regardless of what index they were at.
+  if (!streamData.value.version || streamData.value.version < 4) {
+    // v4: Hard-reset ALL saved server preferences to Cinemaos (index 0).
+    // This clears any stale entries from previous sessions where server list
+    // was reordered, causing old indices to point to Moovie (Direct) on
+    // mobile/tablet devices that already had version=3 in localStorage.
     const map = streamData.value.movieServerMap || {};
     for (const key in map) {
       const entry = map[key];
@@ -38,7 +39,7 @@ if (streamData.value) {
         entry.serverIndex = 0; // Always reset to Cinemaos
       }
     }
-    streamData.value.version = 3;
+    streamData.value.version = 4;
   }
 }
 

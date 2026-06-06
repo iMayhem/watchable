@@ -29,17 +29,22 @@ export const streamData = useStorage<StreamData>('streamData', defaultStreamData
 if (streamData.value) {
   if (!streamData.value.version || streamData.value.version < 4) {
     // v4: Hard-reset ALL saved server preferences to Cinemaos (index 0).
-    // This clears any stale entries from previous sessions where server list
-    // was reordered, causing old indices to point to Moovie (Direct) on
-    // mobile/tablet devices that already had version=3 in localStorage.
-    const map = streamData.value.movieServerMap || {};
-    for (const key in map) {
-      const entry = map[key];
-      if (entry && typeof entry.serverIndex === 'number') {
-        entry.serverIndex = 0; // Always reset to Cinemaos
+    // IMPORTANT: We must reassign the entire object — NOT mutate nested properties.
+    // VueUse's useStorage only tracks top-level ref reassignments; direct deep
+    // mutations (entry.serverIndex = 0) are silently lost and never written to localStorage.
+    const oldMap = streamData.value.movieServerMap || {};
+    const resetMap: Record<string, any> = {};
+    for (const key in oldMap) {
+      const entry = oldMap[key];
+      if (entry && typeof entry === 'object') {
+        resetMap[key] = { ...entry, serverIndex: 0 };
       }
     }
-    streamData.value.version = 4;
+    // Reassign the entire value so useStorage detects and persists the change
+    streamData.value = {
+      movieServerMap: resetMap,
+      version: 4
+    };
   }
 }
 

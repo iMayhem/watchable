@@ -641,6 +641,7 @@ export default defineComponent({
             scroll-snap-align: none;
             align-content: start;
             padding: var(--s-5) var(--s-3) var(--s-4);
+            grid-template-columns: 1fr;
         }
 
         // Snap slide 2 (desktop): full viewport, content centered
@@ -653,7 +654,7 @@ export default defineComponent({
         }
 
         @media (min-width: 768px) and (max-width: 1023px) {
-            grid-template-columns: 200px 1fr;
+            grid-template-columns: 1fr;
             align-items: start;
         }
 
@@ -671,6 +672,10 @@ export default defineComponent({
         overflow: hidden;
         box-shadow: var(--shadow-lg);
         margin: 0 auto;
+
+        @media (max-width: 1023px) {
+            display: none !important;
+        }
 
         img {
             width: 100%;

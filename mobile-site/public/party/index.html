@@ -114,19 +114,6 @@
                         <div class="workspace-title-area">
                             <h2 id="room-playing-title" class="workspace-title">Feature Title</h2>
                         </div>
-                        
-                        <div class="workspace-controls">
-                            <!-- Premium Select Dropdown for all 16 servers -->
-                            <div class="server-select-dropdown">
-                                <button class="server-dropdown-trigger" onclick="toggleServerDropdown(event)">
-                                    <span>SERVER: <strong id="active-server-name">Cinemaos</strong></span>
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                                </button>
-                                <div id="server-dropdown-menu" class="server-dropdown-menu">
-                                    <!-- Populated dynamically -->
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Info Banner -->
@@ -138,9 +125,6 @@
                             <button class="cinema-mode-btn" onclick="toggleCinemaMode()">
                                 🎬 Cinema Mode
                             </button>
-                            <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">
-                                🔗 Invite Friends (Copy Link)
-                            </button>
                         </div>
                     </div>
 
@@ -151,13 +135,27 @@
 
                     <!-- Autoplay and Navigation Controls -->
                     <div class="player-controls-bar" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--r-md); border: 1px solid var(--rule); display: none;">
-                        <div class="controls-left" style="display: flex; gap: 1rem;">
+                        <div class="controls-left" style="display: flex; gap: 1rem; align-items: center;">
                             <button id="party-auto-next-btn" class="btn" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(139, 92, 246, 0.4); color: var(--bone-200); padding: 0.4rem 0.85rem; border-radius: var(--r-pill); font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s;" onclick="togglePartyAutoNext()">
                                 <span class="indicator-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 6px var(--violet); display: inline-block;"></span>
                                 AutoNext
                             </button>
+
+                            <!-- Premium Select Dropdown for all 16 servers -->
+                            <div class="server-select-dropdown">
+                                <button class="server-dropdown-trigger" onclick="toggleServerDropdown(event)">
+                                    <span>SERVER: <strong id="active-server-name">Cinemaos</strong></span>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                                <div id="server-dropdown-menu" class="server-dropdown-menu">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
                         </div>
-                        <div class="controls-right" style="display: flex; gap: 0.5rem;">
+                        <div class="controls-right" style="display: flex; gap: 1rem; align-items: center;">
+                            <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">
+                                🔗 Invite Friends (Copy Link)
+                            </button>
                             <button id="party-prev-btn" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.75rem;" onclick="handlePrevEpisode()">Prev Ep</button>
                             <button id="party-next-btn" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.75rem;" onclick="handleNextEpisode()">Next Ep</button>
                         </div>

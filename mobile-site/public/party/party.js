@@ -423,13 +423,20 @@
 
         function updateControlsVisibility() {
             const controlsBar = document.querySelector('.player-controls-bar');
+            controlsBar.style.display = 'flex';
+            
+            const autoNextBtn = document.getElementById('party-auto-next-btn');
+            const prevBtn = document.getElementById('party-prev-btn');
+            const nextBtn = document.getElementById('party-next-btn');
+            
             if (isAnime || isTv) {
-                controlsBar.style.display = 'flex';
-                document.getElementById('party-auto-next-btn').style.display = 'flex';
-                document.getElementById('party-prev-btn').style.display = 'inline-block';
-                document.getElementById('party-next-btn').style.display = 'inline-block';
+                autoNextBtn.style.display = 'flex';
+                prevBtn.style.display = 'inline-block';
+                nextBtn.style.display = 'inline-block';
             } else {
-                controlsBar.style.display = 'none';
+                autoNextBtn.style.display = 'none';
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
             }
         }
 

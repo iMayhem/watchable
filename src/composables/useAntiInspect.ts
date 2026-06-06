@@ -15,12 +15,18 @@
 // ============================================================================
 
 const THRESHOLD = 160;
-const TICK_MS = 1000;
+const TICK_MS = 3000;
 const NOOP = () => {};
 
 let installed = false;
 let intervalId: number | null = null;
 let listeners: Array<{ target: EventTarget; type: string; handler: any; opts?: any }> = [];
+
+const isPlayerPage = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname;
+    return path.includes('/movie/') || path.includes('/tv/') || path.includes('/anime/') || path.includes('/party/');
+};
 
 const shouldGuard = () => {
     // Always guard in production
@@ -30,6 +36,7 @@ const shouldGuard = () => {
 };
 
 const swallow = (e: Event) => {
+    if (!isPlayerPage()) return;
     e.preventDefault();
     e.stopPropagation();
     return false;
@@ -81,6 +88,7 @@ const isBlockedKey = (e: KeyboardEvent): boolean => {
 };
 
 const onKeyDown = (e: KeyboardEvent) => {
+    if (!isPlayerPage()) return;
     if (isBlockedKey(e)) {
         e.preventDefault();
         e.stopPropagation();
@@ -283,6 +291,7 @@ export function installAntiInspect() {
 
     // Main detection interval
     intervalId = window.setInterval(() => {
+        if (!isPlayerPage()) return;
         try { console.clear(); } catch { /* ignore */ }
         detectDevTools();
         debuggerTrap();
@@ -291,14 +300,16 @@ export function installAntiInspect() {
     
     // Additional rapid detection for faster response
     const rapidInterval = window.setInterval(() => {
+        if (!isPlayerPage()) return;
         debuggerTrap();
-    }, 100);
+    }, 1000);
     
     // Store rapid interval for cleanup
     (window as any).__rapidAntiInspectInterval = rapidInterval;
     
     // Detect DevTools via performance timing
     const checkPerformance = () => {
+        if (!isPlayerPage()) return;
         const start = performance.now();
         // eslint-disable-next-line no-debugger
         debugger;
@@ -309,7 +320,7 @@ export function installAntiInspect() {
     };
     
     // Run performance check periodically
-    const perfInterval = window.setInterval(checkPerformance, 2000);
+    const perfInterval = window.setInterval(checkPerformance, 5000);
     (window as any).__perfAntiInspectInterval = perfInterval;
 }
 

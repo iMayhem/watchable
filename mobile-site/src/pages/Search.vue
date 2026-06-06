@@ -37,7 +37,7 @@
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
-import debounce from 'lodash.debounce';
+import { debounce } from '@/utils/memoization';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
 import LmTabs from '@/components/primitives/Tabs.vue';

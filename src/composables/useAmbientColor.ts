@@ -38,15 +38,22 @@ const writeSession = (key: string, value: string): void => {
     }
 };
 
+let memoizedCanvas: HTMLCanvasElement | null = null;
+let memoizedCtx: CanvasRenderingContext2D | null = null;
+
 const sampleImage = (img: HTMLImageElement, opts: ExtractOptions): string => {
-    const W = 32;
-    const H = 32;
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const W = 16;
+    const H = 16;
+    if (!memoizedCanvas) {
+        memoizedCanvas = document.createElement('canvas');
+        memoizedCanvas.width = W;
+        memoizedCanvas.height = H;
+        memoizedCtx = memoizedCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const ctx = memoizedCtx;
     if (!ctx) return FALLBACK;
 
+    ctx.clearRect(0, 0, W, H);
     ctx.drawImage(img, 0, 0, W, H);
 
     let data: Uint8ClampedArray;

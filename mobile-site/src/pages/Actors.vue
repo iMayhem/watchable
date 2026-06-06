@@ -36,7 +36,7 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import debounce from 'lodash.debounce';
+import { debounce } from '@/utils/memoization';
 import MobileShell from '../layout/MobileShell.vue';
 import PersonCard from '@/components/cards/PersonCard.vue';
 import useAxios from '@/composables/useAxios';

@@ -179,7 +179,7 @@
 <script lang="ts">
 import { computed, defineComponent, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import debounce from 'lodash.debounce';
+import { debounce } from '../utils/memoization';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import LmTabs, { TabDef } from '../components/primitives/Tabs.vue';

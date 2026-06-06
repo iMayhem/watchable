@@ -57,8 +57,7 @@ export default defineConfig({
           // Vendor chunks
           'vue-vendor': ['vue', 'vue-router'],
           'ui-vendor': ['@vueuse/core'],
-          'utils-vendor': ['axios', 'lodash', 'lodash.debounce'],
-          'swiper-vendor': ['swiper']
+          'utils-vendor': ['axios']
         },
         
         // Optimize chunk file names
@@ -96,10 +95,7 @@ export default defineConfig({
       'vue',
       'vue-router',
       '@vueuse/core',
-      'axios',
-      'lodash',
-      'lodash.debounce',
-      'swiper'
+      'axios'
     ],
     exclude: ['@supabase/supabase-js'] // Exclude large deps that are lazy-loaded
   },

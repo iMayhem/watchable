@@ -39,7 +39,7 @@ const props = defineProps<{
 
 const displayItems = computed(() => {
     if (props.items.length > 0) return props.items;
-    return Array.from({ length: 4 }, (_, i) => ({
+    return Array.from({ length: 12 }, (_, i) => ({
         id: i,
         type: 'movie' as const,
         title: '',

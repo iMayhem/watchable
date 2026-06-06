@@ -19,11 +19,7 @@
                 />
             </details>
 
-            <div v-if="isLoading && !results.length" class="m-discover__loading" role="status">
-                <div class="m-discover__spinner" aria-hidden="true" />
-            </div>
-
-            <MobileMediaGrid v-else-if="results.length" :items="gridItems" />
+            <MobileMediaGrid v-if="results.length || (isLoading && !results.length)" :items="isLoading && !results.length ? [] : gridItems" />
 
             <div v-if="hasMore" class="m-discover__more">
                 <button type="button" :disabled="isLoadingMore" @click="loadMore">Load more</button>

@@ -42,9 +42,20 @@
                         </button>
                     </div>
 
-                    <div v-if="isLoading && !results.length" class="discover__loading" role="status">
-                        <div class="discover__spinner" aria-hidden="true" />
-                        <span class="meta">Pulling the reel…</span>
+                    <div v-if="isLoading && !results.length" class="discover__grid">
+                        <PosterCard
+                            v-for="n in 20"
+                            :key="n"
+                            loading
+                            id=""
+                            type="movie"
+                            title=""
+                            poster-path=""
+                            :rating="0"
+                            release-date=""
+                            :genre-ids="[]"
+                            :adult="false"
+                        />
                     </div>
 
                     <div v-else-if="!results.length" class="discover__empty">

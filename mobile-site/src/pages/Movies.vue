@@ -21,12 +21,7 @@
 
             <p v-if="totalResults" class="m-discover__count meta">{{ totalResults.toLocaleString() }} results</p>
 
-            <div v-if="isLoading && !results.length" class="m-discover__loading" role="status">
-                <div class="m-discover__spinner" aria-hidden="true" />
-                <span class="meta">Loading…</span>
-            </div>
-
-            <MobileMediaGrid v-else-if="results.length" :items="gridItems" />
+            <MobileMediaGrid v-if="results.length || (isLoading && !results.length)" :items="isLoading && !results.length ? [] : gridItems" />
 
             <div v-else class="m-discover__empty">
                 <p class="meta">No movies match these filters.</p>

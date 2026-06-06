@@ -23,6 +23,29 @@
                 </div>
 
                 <div class="watch-stage__actions">
+                    <!-- Mobile Server Selector -->
+                    <div class="watch-stage__server-picker">
+                        <span>{{ availableServers[currentStreamData.currentServer]?.name || 'Select Server' }}</span>
+                        <select
+                            :value="currentStreamData.currentServer"
+                            @change="changeServer(Number(($event.target as HTMLSelectElement).value))"
+                            class="watch-stage__server-select"
+                        >
+                            <option
+                                v-for="(server, index) in availableServers"
+                                :key="server.name + index"
+                                :value="index"
+                            >
+                                {{ server.name }}
+                            </option>
+                        </select>
+                        <span class="watch-stage__server-select-arrow" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                    </div>
+
                     <a
                         :href="`/party/?room=${showId}_s${currentSeason}e${currentEpisode}&title=${encodeURIComponent((show?.name || '') + ' - S' + currentSeason + 'E' + currentEpisode)}`"
                         class="watch-stage__party-btn"
@@ -772,8 +795,7 @@ export default defineComponent({
         flex-shrink: 0;
 
         @media (max-width: 1023px) {
-            padding: 0;
-            width: 100%;
+            display: none !important;
         }
 
         @media (min-width: 1024px) {
@@ -824,6 +846,70 @@ export default defineComponent({
                     border-radius: var(--r-pill);
                 }
             }
+        }
+    }
+
+    &__server-picker {
+        display: none;
+
+        @media (max-width: 1023px) {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--rule-strong);
+            border-radius: var(--r-pill);
+            padding: 0.5rem 2.25rem 0.5rem 1rem;
+            min-height: 38px;
+            font-family: var(--font-ui);
+            font-size: var(--fs-sm);
+            font-weight: 600;
+            color: var(--bone-50);
+            cursor: pointer;
+            transition: background-color var(--dur-fast), border-color var(--dur-fast);
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.12);
+                border-color: var(--bone-400);
+            }
+
+            @media (max-width: 640px) {
+                min-height: 36px;
+                padding: 0.4rem 2rem 0.4rem 0.85rem;
+            }
+        }
+    }
+
+    &__server-select {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        -webkit-appearance: none;
+    }
+
+    &__server-select-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        color: var(--bone-300);
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        @media (max-width: 640px) {
+            right: 8px;
         }
     }
 

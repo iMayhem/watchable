@@ -6,7 +6,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted, onBeforeUnmount } from 'vue';
+import { defineComponent, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useActiveVehicle } from '../../composables/useActiveVehicle';
 
 interface Spark {
@@ -43,6 +43,9 @@ export default defineComponent({
         let lastScrollY = 0;
         let scrollTimeout = 0;
 
+        const isAnimating = ref(false);
+        let ctx: CanvasRenderingContext2D | null = null;
+
         // Scroll listener to update targets
         const handleScroll = () => {
             const currentScroll = window.scrollY;
@@ -76,6 +79,10 @@ export default defineComponent({
             scrollTimeout = window.setTimeout(() => {
                 scrollSpeed.value = 0;
             }, 120);
+
+            if (isScrolled.value) {
+                startAnimating();
+            }
         };
 
         // Emitter for scroll speed spark trails
@@ -460,18 +467,51 @@ export default defineComponent({
             drawVehicle(ctx, carX.value, carY.value, scrollDirection.value, scrollSpeed.value);
         };
 
-        const initCanvas = () => {
-            const canvas = canvasRef.value;
-            if (!canvas) return;
+        const animLoop = () => {
+            if (!isAnimating.value || !canvasRef.value || !ctx) return;
 
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
+            updatePhysics(canvasRef.value.width);
+            renderCanvas(ctx, canvasRef.value.width, canvasRef.value.height);
 
-            const handleResize = () => {
-                canvas.width = window.innerWidth;
-                canvas.height = 56;
-            };
+            const hasMovement =
+                Math.abs(carVx.value) > 0.05 ||
+                scrollSpeed.value > 0.1 ||
+                sparks.value.length > 0;
 
+            if (!isScrolled.value || !hasMovement) {
+                isAnimating.value = false;
+                return;
+            }
+
+            animationFrameId = requestAnimationFrame(animLoop);
+        };
+
+        const startAnimating = () => {
+            if (isAnimating.value) return;
+            isAnimating.value = true;
+            animLoop();
+        };
+
+        const handleResize = () => {
+            if (canvasRef.value) {
+                canvasRef.value.width = window.innerWidth;
+                canvasRef.value.height = 56;
+                if (ctx) {
+                    renderCanvas(ctx, canvasRef.value.width, canvasRef.value.height);
+                }
+            }
+        };
+
+        watch(activeVehicle, () => {
+            if (!isAnimating.value && canvasRef.value && ctx) {
+                renderCanvas(ctx, canvasRef.value.width, canvasRef.value.height);
+            }
+        });
+
+        onMounted(() => {
+            if (canvasRef.value) {
+                ctx = canvasRef.value.getContext('2d');
+            }
             handleResize();
             window.addEventListener('resize', handleResize);
             window.addEventListener('scroll', handleScroll, { passive: true });
@@ -480,30 +520,20 @@ export default defineComponent({
             carX.value = 40;
             carVx.value = 0;
             sparks.value = [];
-
-            const animLoop = () => {
-                updatePhysics(canvas.width);
-                renderCanvas(ctx, canvas.width, canvas.height);
-                animationFrameId = requestAnimationFrame(animLoop);
-            };
-
-            animLoop();
-        };
-
-        const stopCanvas = () => {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
+            
+            if (ctx && canvasRef.value) {
+                renderCanvas(ctx, canvasRef.value.width, canvasRef.value.height);
             }
-            window.removeEventListener('scroll', handleScroll);
-            window.clearTimeout(scrollTimeout);
-        };
-
-        onMounted(() => {
-            initCanvas();
         });
 
         onBeforeUnmount(() => {
-            stopCanvas();
+            isAnimating.value = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('scroll', handleScroll);
+            window.clearTimeout(scrollTimeout);
         });
 
         return {

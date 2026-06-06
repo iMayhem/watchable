@@ -2,7 +2,7 @@
     <Teleport to="body">
         <div v-if="isOpen" class="auth-modal-overlay" @click.self="close" ref="overlayRef">
         <!-- HTML5 Interactive Neon Car & Particles Canvas -->
-        <canvas ref="canvasRef" class="auth-canvas"></canvas>
+        <canvas v-show="mode === 'signup'" ref="canvasRef" class="auth-canvas"></canvas>
 
         <!-- Dynamic 3D Spring-Physics Jelly Login Card -->
         <div 
@@ -711,7 +711,7 @@ export default defineComponent({
             }
         };
 
-        // Form Submit interception -> Trigger Car Hyperdrive
+        // Form Submit interception -> Trigger Car Hyperdrive on signup
         const handleSubmit = async () => {
             error.value = '';
             success.value = '';
@@ -722,9 +722,13 @@ export default defineComponent({
             }
 
             loading.value = true;
-            isCrashing.value = true;
-            carState.value = 'REVERSING';
-            carTimer.value = 0;
+            if (mode.value === 'signup') {
+                isCrashing.value = true;
+                carState.value = 'REVERSING';
+                carTimer.value = 0;
+            } else {
+                executeAuthRequest();
+            }
         };
 
         // Actual auth execution after crash impact
@@ -809,19 +813,35 @@ export default defineComponent({
         watch(() => props.isOpen, (newVal) => {
             if (newVal) {
                 document.body.style.overflow = 'hidden';
-                nextTick(() => {
-                    initAnimation();
-                });
+                if (mode.value === 'signup') {
+                    nextTick(() => {
+                        initAnimation();
+                    });
+                }
             } else {
                 document.body.style.overflow = '';
                 stopAnimation();
             }
         });
 
+        watch(mode, (newMode) => {
+            if (props.isOpen) {
+                if (newMode === 'signup') {
+                    nextTick(() => {
+                        initAnimation();
+                    });
+                } else {
+                    stopAnimation();
+                }
+            }
+        });
+
         onMounted(() => {
             if (props.isOpen) {
                 document.body.style.overflow = 'hidden';
-                initAnimation();
+                if (mode.value === 'signup') {
+                    initAnimation();
+                }
             }
         });
 

@@ -27,10 +27,12 @@
                 <!-- Loading placeholder -->
                 <div v-if="iframeLoading && !hasError" class="stream-frame__loading">
                     <div class="stream-frame__loading-pulse">
-                        <svg class="stream-frame__loading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="12" cy="12" r="10" />
-                            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
-                        </svg>
+                        <div class="stream-frame__loading-spinner">
+                            <div class="spinner-dot" />
+                            <div class="spinner-ring spinner-ring--1" />
+                            <div class="spinner-ring spinner-ring--2" />
+                            <div class="spinner-ring spinner-ring--3" />
+                        </div>
                         <p class="eyebrow loading-text">Configuring projector...</p>
                     </div>
                 </div>
@@ -261,10 +263,57 @@ export default defineComponent({
         animation: stream-pulse-anim 1.8s infinite ease-in-out;
     }
 
-    &__loading-icon {
-        width: var(--s-7);
-        height: var(--s-7);
-        color: var(--ember);
+    &__loading-spinner {
+        position: relative;
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: var(--s-2);
+
+        .spinner-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--bone-300);
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 8px rgba(245, 239, 228, 0.4);
+        }
+
+        .spinner-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            
+            &--1 {
+                width: 28px;
+                height: 28px;
+                border-width: 1.5px;
+                border-top-color: rgba(245, 239, 228, 0.3);
+                animation: stream-spin-clockwise 1.2s linear infinite;
+            }
+
+            &--2 {
+                width: 44px;
+                height: 44px;
+                border-width: 2px;
+                border-top-color: rgba(245, 239, 228, 0.55);
+                border-right-color: rgba(245, 239, 228, 0.55);
+                animation: stream-spin-counter 1.6s linear infinite;
+            }
+
+            &--3 {
+                width: 60px;
+                height: 60px;
+                border-width: 2.5px;
+                border-top-color: var(--bone-100);
+                border-right-color: var(--bone-100);
+                border-left-color: var(--bone-100);
+                animation: stream-spin-clockwise 2.2s linear infinite;
+                box-shadow: 0 0 10px rgba(245, 239, 228, 0.05);
+            }
+        }
     }
 
     .loading-text {
@@ -278,12 +327,28 @@ export default defineComponent({
 
     @keyframes stream-pulse-anim {
         0%, 100% {
-            opacity: 0.6;
-            transform: scale(0.98);
+            opacity: 0.7;
         }
         50% {
             opacity: 1;
-            transform: scale(1.02);
+        }
+    }
+
+    @keyframes stream-spin-clockwise {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes stream-spin-counter {
+        from {
+            transform: rotate(360deg);
+        }
+        to {
+            transform: rotate(0deg);
         }
     }
 

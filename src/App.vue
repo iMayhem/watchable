@@ -10,7 +10,6 @@
 
         <CommandPalette />
         <Toast />
-        <ScrollCar />
     </div>
 </template>
 
@@ -19,7 +18,6 @@ import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 
 const Toast = defineAsyncComponent(() => import('./components/feedback/Toast.vue'));
 const CommandPalette = defineAsyncComponent(() => import('./components/navigation/CommandPalette.vue'));
-const ScrollCar = defineAsyncComponent(() => import('./components/navigation/ScrollCar.vue'));
 
 // Lazy refs to cleanup functions — populated after dynamic import resolves
 let _stopReveal: (() => void) | null = null;

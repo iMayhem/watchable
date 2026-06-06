@@ -24,6 +24,17 @@
                     @error="onError"
                 />
 
+                <!-- Loading placeholder -->
+                <div v-if="iframeLoading && !hasError" class="stream-frame__loading">
+                    <div class="stream-frame__loading-pulse">
+                        <svg class="stream-frame__loading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10" />
+                            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
+                        </svg>
+                        <p class="eyebrow loading-text">Configuring projector...</p>
+                    </div>
+                </div>
+
                 <!-- Error state -->
                 <div v-if="hasError" class="stream-frame__error" role="alert">
                     <p class="eyebrow">Reel jam</p>
@@ -61,6 +72,7 @@ export default defineComponent({
         const rootRef = ref<HTMLElement | null>(null);
         const frameEl = ref<HTMLIFrameElement | null>(null);
         const hasError = ref(false);
+        const iframeLoading = ref(true);
 
         const sandboxAttribute = computed(() => {
             if (!props.embedUrl) return undefined;
@@ -103,6 +115,7 @@ export default defineComponent({
 
         const onLoad = () => {
             hasError.value = false;
+            iframeLoading.value = false;
         };
 
         const onError = () => {
@@ -111,6 +124,7 @@ export default defineComponent({
 
         const retry = () => {
             hasError.value = false;
+            iframeLoading.value = true;
             if (frameEl.value && props.embedUrl) {
                 const src = frameEl.value.src;
                 frameEl.value.src = '';
@@ -125,6 +139,7 @@ export default defineComponent({
             (next, prev) => {
                 if (next && next !== prev) {
                     hasError.value = false;
+                    iframeLoading.value = true;
                     startTrackingIfNeeded();
                 }
             }
@@ -151,6 +166,7 @@ export default defineComponent({
             rootRef,
             frameEl,
             hasError,
+            iframeLoading,
             ambientImage,
             sandboxAttribute,
             onLoad,
@@ -225,6 +241,50 @@ export default defineComponent({
         width: 100%;
         height: 100%;
         border: 0;
+    }
+
+    &__loading {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        text-align: center;
+        background: linear-gradient(135deg, var(--ink-950) 0%, var(--ink-900) 100%);
+        z-index: 4;
+    }
+
+    &__loading-pulse {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--s-3);
+        animation: stream-pulse-anim 1.8s infinite ease-in-out;
+    }
+
+    &__loading-icon {
+        width: var(--s-12);
+        height: var(--s-12);
+        color: var(--ember);
+    }
+
+    .loading-text {
+        font-family: var(--font-mono);
+        color: var(--bone-400);
+        font-size: var(--fs-xs);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+    @keyframes stream-pulse-anim {
+        0%, 100% {
+            opacity: 0.6;
+            transform: scale(0.98);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.02);
+        }
     }
 
     &__error {

@@ -1,7 +1,8 @@
 <template>
-    <article class="keyart-tile" :class="{ 'is-large': size === 'lg' }">
-        <router-link :to="routeTo" class="keyart-tile__link" :aria-label="title">
-            <div class="keyart-tile__frame">
+    <article class="keyart-tile" :class="{ 'is-large': size === 'lg', 'is-loading': loading }">
+        <div v-if="loading" class="keyart-tile__frame keyart-tile__skeleton-shimmer" />
+        <router-link v-else :to="routeTo" class="keyart-tile__link" :aria-label="title">
+            <div class="keyart-tile__frame" :class="{ 'keyart-tile__skeleton-shimmer': !imageLoaded && imageUrl }">
                 <img
                     v-if="imageUrl"
                     :src="imageUrl"
@@ -9,6 +10,8 @@
                     loading="lazy"
                     decoding="async"
                     class="keyart-tile__img"
+                    :class="{ 'is-loaded': imageLoaded }"
+                    @load="imageLoaded = true"
                 />
                 <div v-else class="keyart-tile__placeholder">
                     <span class="display">{{ initial }}</span>
@@ -37,7 +40,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, PropType, ref } from 'vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { useAppPaths } from '../../composables/useAppPaths';
 
@@ -58,10 +61,12 @@ export default defineComponent({
         size: {
             type: String as PropType<'md' | 'lg'>,
             default: 'md'
-        }
+        },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const { detailPath } = useAppPaths();
+        const imageLoaded = ref(false);
 
         const imageUrl = computed(() => {
             const path = props.backdropPath || props.posterPath;
@@ -79,7 +84,7 @@ export default defineComponent({
             detailPath(props.type === 'tv' ? 'tv' : 'movie', props.id)
         );
 
-        return { imageUrl, initial, year, routeTo };
+        return { imageUrl, initial, year, routeTo, imageLoaded };
     }
 });
 </script>
@@ -121,7 +126,32 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center;
-        transition: transform var(--dur-slow) var(--ease-out);
+        opacity: 0;
+        transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+
+        &.is-loaded {
+            opacity: 1;
+        }
+    }
+
+    &__skeleton-shimmer {
+        position: relative;
+        overflow: hidden;
+        background: var(--ink-750);
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.04),
+                transparent
+            );
+            transform: translateX(-100%);
+            animation: keyart-skeleton-shimmer 1.6s infinite ease-in-out;
+        }
     }
 
     &__placeholder {
@@ -200,6 +230,12 @@ export default defineComponent({
         .keyart-tile__overlay {
             padding: var(--s-5) var(--s-6);
         }
+    }
+}
+
+@keyframes keyart-skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
     }
 }
 

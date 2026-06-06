@@ -21,7 +21,6 @@
         <MobileContinueShelf class="m-home__continue" />
 
         <MobileSection
-            v-if="topTenItems.length"
             title="Top 10 Today"
             eyebrow="Trending"
             :more-to="movies"
@@ -30,7 +29,6 @@
         </MobileSection>
 
         <MobileSection
-            v-if="nowPlayingItems.length"
             title="Now Playing"
             eyebrow="New"
             :more-to="movies"
@@ -39,7 +37,6 @@
         </MobileSection>
 
         <MobileSection
-            v-if="seriesItems.length"
             title="Series in rotation"
             eyebrow="TV"
             :more-to="tvShows"

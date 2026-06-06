@@ -1,8 +1,8 @@
 <template>
     <div class="m-grid" :class="{ 'm-grid--compact': compact }">
         <MobilePosterCard
-            v-for="item in items"
-            :key="`${item.type}-${item.id}`"
+            v-for="item in displayItems"
+            :key="item.isMock ? `mock-m-${item.id}` : `m-${item.type}-${item.id}`"
             :id="item.id"
             :type="item.type"
             :title="item.title"
@@ -11,11 +11,13 @@
             :release-date="item.releaseDate ?? ''"
             :genre-ids="item.genreIds ?? []"
             :adult="item.adult ?? false"
+            :loading="item.isMock"
         />
     </div>
 </template>
 
 <script lang="ts" setup>
+import { computed } from 'vue';
 import MobilePosterCard from './MobilePosterCard.vue';
 
 export interface MobileGridItem {
@@ -27,12 +29,28 @@ export interface MobileGridItem {
     releaseDate?: string;
     genreIds?: number[];
     adult?: boolean;
+    isMock?: boolean;
 }
 
-defineProps<{
+const props = defineProps<{
     items: MobileGridItem[];
     compact?: boolean;
 }>();
+
+const displayItems = computed(() => {
+    if (props.items.length > 0) return props.items;
+    return Array.from({ length: 4 }, (_, i) => ({
+        id: i,
+        type: 'movie' as const,
+        title: '',
+        posterPath: null,
+        rating: 0,
+        releaseDate: '',
+        genreIds: [],
+        adult: false,
+        isMock: true
+    })) as MobileGridItem[];
+});
 </script>
 
 <style lang="scss" scoped>

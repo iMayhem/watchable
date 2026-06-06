@@ -22,7 +22,6 @@
             <ContinueShelf class="home__section" />
 
             <TopTenRail
-                v-if="topTenItems.length"
                 class="home__section"
                 :items="topTenItems"
                 title="Top 10 Today"
@@ -48,7 +47,6 @@
             />
 
             <CuratedRail
-                v-if="nowPlayingItems.length"
                 class="home__section"
                 :items="nowPlayingItems"
                 title="New to the marquee"
@@ -58,7 +56,6 @@
             />
 
             <UpcomingRail
-                v-if="upcomingItems.length"
                 class="home__section"
                 :items="upcomingItems"
                 title="Airing this week"
@@ -69,7 +66,6 @@
             />
 
             <CuratedRail
-                v-if="seriesItems.length"
                 class="home__section"
                 :items="seriesItems"
                 title="Series in rotation"
@@ -79,7 +75,6 @@
             />
 
             <CuratedRail
-                v-if="pantheonItems.length"
                 class="home__section"
                 :items="pantheonItems"
                 title="The Pantheon"

@@ -7,8 +7,8 @@
         density="poster"
     >
         <PosterCard
-            v-for="item in items"
-            :key="`curated-${item.type ?? defaultType}-${item.id}`"
+            v-for="item in displayItems"
+            :key="item.isMock ? `mock-curated-${item.id}` : `curated-${item.type ?? defaultType}-${item.id}`"
             :id="item.id"
             :type="item.type ?? defaultType"
             :title="item.title"
@@ -17,12 +17,13 @@
             :release-date="item.releaseDate"
             :genre-ids="item.genreIds ?? []"
             :adult="item.adult ?? false"
+            :loading="item.isMock"
         />
     </LmRail>
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue';
+import { computed, defineComponent, PropType } from 'vue';
 import LmRail from './Rail.vue';
 import PosterCard from '../cards/PosterCard.vue';
 
@@ -35,6 +36,7 @@ export interface CuratedItem {
     genreIds?: number[];
     adult?: boolean;
     type?: 'movie' | 'tv';
+    isMock?: boolean;
 }
 
 export default defineComponent({
@@ -47,6 +49,23 @@ export default defineComponent({
         description: { type: String, default: '' },
         moreTo: { type: [String, Object], default: null },
         defaultType: { type: String as PropType<'movie' | 'tv'>, default: 'movie' }
+    },
+    setup(props) {
+        const displayItems = computed(() => {
+            if (props.items.length > 0) return props.items;
+            return Array.from({ length: 8 }, (_, i) => ({
+                id: i,
+                title: '',
+                posterPath: null,
+                rating: 0,
+                releaseDate: '',
+                genreIds: [],
+                adult: false,
+                type: 'movie' as const,
+                isMock: true
+            })) as CuratedItem[];
+        });
+        return { displayItems };
     }
 });
 </script>

@@ -10,11 +10,14 @@
     >
         <article
             v-for="(item, idx) in displayItems"
-            :key="`top-${item.id}`"
+            :key="item.isMock ? `mock-top-${item.id}` : `top-${item.id}`"
             class="topten"
+            :class="{ 'is-loading': item.isMock }"
         >
             <span class="topten__numeral" aria-hidden="true">{{ idx + 1 }}</span>
+            <div v-if="item.isMock" class="topten__poster topten__skeleton-shimmer" />
             <router-link
+                v-else
                 :to="routeFor(item)"
                 class="topten__poster"
                 :aria-label="`${idx + 1}. ${item.title}`"
@@ -25,6 +28,9 @@
                     :alt="item.title"
                     loading="lazy"
                     decoding="async"
+                    class="topten__img"
+                    :class="{ 'is-loaded': loadedImages[item.id] }"
+                    @load="loadedImages[item.id] = true"
                 />
                 <div v-else class="topten__placeholder" aria-hidden="true">
                     <span>{{ (item.title?.[0] || '·').toUpperCase() }}</span>
@@ -35,7 +41,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, PropType, ref } from 'vue';
 import LmRail from './Rail.vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { useAppPaths } from '../../composables/useAppPaths';
@@ -45,6 +51,7 @@ export interface TopItem {
     title: string;
     posterPath: string | null;
     type?: 'movie' | 'tv';
+    isMock?: boolean;
 }
 
 export default defineComponent({
@@ -59,7 +66,19 @@ export default defineComponent({
     },
     setup(props) {
         const { detailPath } = useAppPaths();
-        const displayItems = computed(() => props.items.slice(0, 10));
+        const loadedImages = ref<Record<string | number, boolean>>({});
+
+        const displayItems = computed(() => {
+            if (props.items.length > 0) {
+                return props.items.slice(0, 10);
+            }
+            return Array.from({ length: 10 }, (_, i) => ({
+                id: i,
+                title: '',
+                posterPath: null,
+                isMock: true
+            }));
+        });
 
         const posterFor = (item: TopItem) =>
             item.posterPath ? useWebImage(item.posterPath, 'medium') : '';
@@ -67,7 +86,7 @@ export default defineComponent({
         const routeFor = (item: TopItem) =>
             detailPath(item.type === 'tv' ? 'tv' : 'movie', item.id);
 
-        return { displayItems, posterFor, routeFor };
+        return { displayItems, posterFor, routeFor, loadedImages };
     }
 });
 </script>
@@ -120,14 +139,6 @@ export default defineComponent({
             transform var(--dur-base) var(--ease-out),
             box-shadow var(--dur-base) var(--ease-out);
 
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-            transition: transform var(--dur-slow) var(--ease-out);
-        }
-
         &:hover,
         &:focus-visible {
             transform: translateY(-4px);
@@ -135,7 +146,40 @@ export default defineComponent({
                 var(--shadow-lg),
                 0 0 0 1px rgba(255, 90, 31, 0.28);
 
-            img { transform: scale(1.04); }
+            .topten__img { transform: scale(1.04); }
+        }
+    }
+
+    &__img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        opacity: 0;
+        transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+
+        &.is-loaded {
+            opacity: 1;
+        }
+    }
+
+    &__skeleton-shimmer {
+        position: relative;
+        overflow: hidden;
+        background: var(--ink-750);
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.04),
+                transparent
+            );
+            transform: translateX(-100%);
+            animation: topten-skeleton-shimmer 1.6s infinite ease-in-out;
         }
     }
 
@@ -159,8 +203,14 @@ export default defineComponent({
     }
 }
 
+@keyframes topten-skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .topten__poster, .topten__poster img {
+    .topten__poster, .topten__img {
         transition: none;
         transform: none !important;
     }

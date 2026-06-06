@@ -7,8 +7,15 @@
         @focusin="handleEnter"
         @focusout="handleLeaveFocus"
     >
-        <router-link :to="routeTo" class="poster-card__link" :aria-label="title">
-            <div class="poster-card__poster">
+        <div v-if="loading" class="poster-card__skeleton-wrapper">
+            <div class="poster-card__poster poster-card__skeleton-shimmer" />
+            <div class="poster-card__caption">
+                <div class="poster-card__skeleton-line poster-card__skeleton-shimmer" style="width: 85%" />
+                <div class="poster-card__skeleton-line poster-card__skeleton-shimmer" style="width: 50%; margin-top: 6px" />
+            </div>
+        </div>
+        <router-link v-else :to="routeTo" class="poster-card__link" :aria-label="title">
+            <div class="poster-card__poster" :class="{ 'poster-card__skeleton-shimmer': !imageLoaded && imageUrl }">
                 <img
                     v-if="imageUrl"
                     :src="imageUrl"
@@ -16,6 +23,8 @@
                     loading="lazy"
                     decoding="async"
                     class="poster-card__img"
+                    :class="{ 'is-loaded': imageLoaded }"
+                    @load="imageLoaded = true"
                 />
                 <div v-else class="poster-card__img poster-card__img--empty">
                     <span class="display display--italic">{{ initial }}</span>
@@ -101,9 +110,11 @@ export default defineComponent({
         size: {
             type: String as PropType<'sm' | 'md' | 'lg'>,
             default: 'md'
-        }
+        },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
+        const imageLoaded = ref(false);
         const router = useRouter();
         const { detailPath } = useAppPaths();
         const peeking = ref(false);
@@ -219,7 +230,8 @@ export default defineComponent({
             goToStream,
             handleEnter,
             handleLeave,
-            handleLeaveFocus
+            handleLeaveFocus,
+            imageLoaded
         };
     }
 });
@@ -269,7 +281,12 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center;
-        transition: transform var(--dur-slow) var(--ease-out);
+        opacity: 0;
+        transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+
+        &.is-loaded {
+            opacity: 1;
+        }
 
         .is-peeking & {
             transform: scale(1.04);
@@ -284,6 +301,7 @@ export default defineComponent({
                 radial-gradient(80% 80% at 50% 30%, var(--ink-600), var(--ink-800));
             font-size: clamp(2rem, 8cqi, 5rem);
             line-height: 1;
+            opacity: 1; /* empty icon doesn't need to load */
         }
     }
 
@@ -483,6 +501,44 @@ export default defineComponent({
             transition: none;
             transform: none !important;
         }
+    }
+}
+
+.poster-card__skeleton-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.poster-card__skeleton-line {
+    height: 12px;
+    border-radius: var(--r-xs);
+    background: var(--ink-750);
+}
+
+.poster-card__skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--ink-750);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: poster-skeleton-shimmer 1.6s infinite ease-in-out;
+    }
+}
+
+@keyframes poster-skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
     }
 }
 </style>

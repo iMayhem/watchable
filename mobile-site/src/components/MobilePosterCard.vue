@@ -1,7 +1,14 @@
 <template>
-    <article class="m-poster-card" :class="`m-poster-card--${size}`">
-        <router-link :to="routeTo" class="m-poster-card__link" :aria-label="title">
-            <div class="m-poster-card__poster">
+    <article class="m-poster-card" :class="[`m-poster-card--${size}`, { 'is-loading': loading }]">
+        <div v-if="loading" class="m-poster-card__skeleton-wrapper">
+            <div class="m-poster-card__poster m-poster-card__skeleton-shimmer" />
+            <div class="m-poster-card__caption">
+                <div class="m-poster-card__skeleton-line m-poster-card__skeleton-shimmer" style="width: 85%" />
+                <div class="m-poster-card__skeleton-line m-poster-card__skeleton-shimmer" style="width: 50%; margin-top: 6px" />
+            </div>
+        </div>
+        <router-link v-else :to="routeTo" class="m-poster-card__link" :aria-label="title">
+            <div class="m-poster-card__poster" :class="{ 'm-poster-card__skeleton-shimmer': !imageLoaded && imageUrl }">
                 <img
                     v-if="imageUrl"
                     :src="imageUrl"
@@ -9,6 +16,8 @@
                     loading="lazy"
                     decoding="async"
                     class="m-poster-card__img"
+                    :class="{ 'is-loaded': imageLoaded }"
+                    @load="imageLoaded = true"
                 />
                 <div v-else class="m-poster-card__img m-poster-card__img--empty">
                     <span class="display display--italic">{{ initial }}</span>
@@ -38,7 +47,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, PropType, ref } from 'vue';
 import { useWebImage } from '@/utils/useWebImage';
 import { genreName } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
@@ -60,10 +69,12 @@ export default defineComponent({
         size: {
             type: String as PropType<'sm' | 'md' | 'lg'>,
             default: 'md'
-        }
+        },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const { detailPath } = useAppPaths();
+        const imageLoaded = ref(false);
 
         const imageUrl = computed(() => {
             if (!props.posterPath) return '';
@@ -98,7 +109,8 @@ export default defineComponent({
             ratingLabel,
             year: yearLabel,
             genreLabel,
-            routeTo
+            routeTo,
+            imageLoaded
         };
     }
 });
@@ -143,6 +155,12 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center;
+        opacity: 0;
+        transition: opacity var(--dur-base) var(--ease-out);
+
+        &.is-loaded {
+            opacity: 1;
+        }
 
         &--empty {
             display: flex;
@@ -152,6 +170,7 @@ export default defineComponent({
             background: radial-gradient(80% 80% at 50% 30%, var(--ink-700), var(--ink-900));
             font-size: 2.5rem;
             line-height: 1;
+            opacity: 1;
         }
     }
 
@@ -240,6 +259,44 @@ export default defineComponent({
 
     &--lg &__title {
         font-size: var(--fs-sm);
+    }
+}
+
+.m-poster-card__skeleton-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.m-poster-card__skeleton-line {
+    height: 10px;
+    border-radius: var(--r-xs);
+    background: var(--ink-750);
+}
+
+.m-poster-card__skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--ink-750);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: m-poster-skeleton-shimmer 1.6s infinite ease-in-out;
+    }
+}
+
+@keyframes m-poster-skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
     }
 }
 </style>

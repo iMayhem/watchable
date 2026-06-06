@@ -455,7 +455,10 @@
             }
             
             document.getElementById('banner-playing-text').textContent = `🍿 Watching: ${updatedTitle}`;
-            document.getElementById('room-playing-title').textContent = updatedTitle;
+            const titleEl = document.getElementById('room-playing-title');
+            if (titleEl) {
+                titleEl.textContent = updatedTitle;
+            }
         }
 
         // Copy shared link

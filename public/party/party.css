@@ -585,7 +585,7 @@
         .server-dropdown-menu {
             display: none;
             position: absolute;
-            top: calc(100% + 6px);
+            bottom: calc(100% + 6px);
             right: 0;
             background: rgba(10, 10, 12, 0.96);
             backdrop-filter: blur(20px);
@@ -597,7 +597,7 @@
             z-index: 1000;
             box-shadow: var(--shadow-lg);
             padding: 0.4rem;
-            animation: slideDown 0.15s var(--ease-out);
+            animation: slideUp 0.15s var(--ease-out);
         }
 
         .server-dropdown-menu.active {
@@ -631,6 +631,11 @@
 
         @keyframes slideDown {
             from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(4px); }
             to { opacity: 1; transform: translateY(0); }
         }
 

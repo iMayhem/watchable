@@ -110,21 +110,10 @@
                 <!-- Left Column: Video Embed Stream & Headers -->
                 <div class="player-container">
                     
-                    <div class="workspace-header">
-                        <div class="workspace-title-area">
-                            <h2 id="room-playing-title" class="workspace-title">Feature Title</h2>
-                        </div>
-                    </div>
-
                     <!-- Info Banner -->
                     <div class="workspace-banner">
                         <div class="banner-progress">
                             <span id="banner-playing-text">🍿 Loading feature stream...</span>
-                        </div>
-                        <div class="banner-actions" style="display: flex; align-items: center; gap: 1rem;">
-                            <button class="cinema-mode-btn" onclick="toggleCinemaMode()">
-                                🎬 Cinema Mode
-                            </button>
                         </div>
                     </div>
 
@@ -153,8 +142,11 @@
                             </div>
                         </div>
                         <div class="controls-right" style="display: flex; gap: 1rem; align-items: center;">
+                            <button class="cinema-mode-btn" onclick="toggleCinemaMode()">
+                                Cinema Mode
+                            </button>
                             <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">
-                                🔗 Invite Friends (Copy Link)
+                                Invite Friends
                             </button>
                             <button id="party-prev-btn" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.75rem;" onclick="handlePrevEpisode()">Prev Ep</button>
                             <button id="party-next-btn" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.75rem;" onclick="handleNextEpisode()">Next Ep</button>

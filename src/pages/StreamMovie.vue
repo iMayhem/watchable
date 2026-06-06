@@ -232,7 +232,13 @@ export default defineComponent({
             reloadKey.value = Date.now();
         };
 
-        const goBack = () => router.push(paths.movie(movieId.value));
+        const goBack = () => {
+            if (window.history.state && window.history.state.back) {
+                router.back();
+            } else {
+                router.push(paths.movie(movieId.value));
+            }
+        };
 
         watch(
             () => route.params.id,

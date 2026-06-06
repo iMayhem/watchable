@@ -282,7 +282,11 @@
             if (iframe) {
                 iframe.style.display = 'block';
                 const lowerUrl = embedUrl.toLowerCase();
-                if (lowerUrl.includes('cinemaos.tech') || lowerUrl.includes('smashystream.com')) {
+                if (
+                    lowerUrl.includes('cinemaos.tech') ||
+                    lowerUrl.includes('smashystream.com') ||
+                    lowerUrl.includes('animeplay.cfd')
+                ) {
                     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
                 } else {
                     iframe.removeAttribute('sandbox');

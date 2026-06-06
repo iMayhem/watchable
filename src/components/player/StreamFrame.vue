@@ -262,8 +262,8 @@ export default defineComponent({
     }
 
     &__loading-icon {
-        width: var(--s-12);
-        height: var(--s-12);
+        width: var(--s-7);
+        height: var(--s-7);
         color: var(--ember);
     }
 

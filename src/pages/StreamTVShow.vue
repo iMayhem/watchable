@@ -483,13 +483,17 @@ export default defineComponent({
         };
 
         const goBack = () => {
-            router.push({
-                path: paths.tvShow(showId.value),
-                query: {
-                    season: String(currentSeason.value),
-                    episode: String(currentEpisode.value)
-                }
-            });
+            if (window.history.state && window.history.state.back) {
+                router.back();
+            } else {
+                router.push({
+                    path: paths.tvShow(showId.value),
+                    query: {
+                        season: String(currentSeason.value),
+                        episode: String(currentEpisode.value)
+                    }
+                });
+            }
         };
 
         watch(

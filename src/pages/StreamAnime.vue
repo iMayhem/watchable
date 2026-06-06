@@ -490,7 +490,11 @@ export default defineComponent({
         };
 
         const goBack = () => {
-            router.push(paths.anime(animeId.value));
+            if (window.history.state && window.history.state.back) {
+                router.back();
+            } else {
+                router.push(paths.anime(animeId.value));
+            }
         };
 
         const goToEpisode = (ep: number) => {

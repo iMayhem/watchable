@@ -1,7 +1,8 @@
 <template>
     <MobileShell>
-        <section v-if="hero" class="m-home__hero">
-            <router-link :to="movie(hero.id)" class="m-home__hero-link">
+        <section class="m-home__hero" :class="{ 'is-loading': !hero }">
+            <div v-if="!hero" class="m-home__hero-skeleton m-home__hero-skeleton-shimmer" />
+            <router-link v-else :to="movie(hero.id)" class="m-home__hero-link">
                 <img
                     v-if="heroBackdrop"
                     :src="heroBackdrop"
@@ -124,6 +125,31 @@ onMounted(async () => {
         overflow: hidden;
     }
 
+    &__hero-skeleton {
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        background: var(--ink-800);
+    }
+
+    &__hero-skeleton-shimmer {
+        position: relative;
+        overflow: hidden;
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.04),
+                transparent
+            );
+            transform: translateX(-100%);
+            animation: mobile-hero-shimmer 1.6s infinite ease-in-out;
+        }
+    }
+
     &__hero-link {
         position: relative;
         display: block;
@@ -175,6 +201,12 @@ onMounted(async () => {
 
     &__continue {
         margin: 0 var(--s-4) var(--s-2);
+    }
+}
+
+@keyframes mobile-hero-shimmer {
+    100% {
+        transform: translateX(100%);
     }
 }
 </style>

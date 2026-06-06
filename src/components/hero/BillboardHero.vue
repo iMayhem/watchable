@@ -1,102 +1,120 @@
 <template>
-    <section ref="rootRef" class="billboard" :class="{ 'trailer-playing': trailerLive }" aria-label="Featured title">
-        <div class="billboard__stage">
-            <img
-                v-if="backdropUrl"
-                class="billboard__backdrop"
-                :src="backdropUrl"
-                :alt="title"
-                fetchpriority="high"
-                decoding="async"
-            />
-            <div v-else class="billboard__backdrop billboard__backdrop--placeholder" aria-hidden="true" />
-
-            <TrailerIframe
-                :bind-ref="setIframe"
-                :src="trailerSrc"
-                :visible="trailerVisible"
-                :live="trailerLive"
-                @load="onIframeLoad"
-            />
-
-            <div class="billboard__scrim" aria-hidden="true" />
-            <div class="billboard__bloom" aria-hidden="true" />
-            <div class="billboard__grain grain" aria-hidden="true" />
-        </div>
-
-        <TrailerControls
-            :visible="trailerLive"
-            :paused="userPaused"
-            :muted="userMuted"
-            @toggle-pause="togglePause"
-            @toggle-mute="toggleMute"
-        />
-
-        <div class="container-lm billboard__content">
-            <span class="eyebrow billboard__eyebrow">{{ eyebrow }}</span>
-
-            <h1 class="billboard__title display" data-reveal>
-                {{ title }}
-            </h1>
-
-            <p v-if="tagline" class="billboard__tagline">{{ tagline }}</p>
-
-            <ul class="billboard__meta meta">
-                <li v-if="year">{{ year }}</li>
-                <li v-if="ratingLabel" class="billboard__rating">
-                    <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
-                        <path fill="currentColor" d="M12 2l2.9 6.88L22 9.82l-5.34 4.94L18.18 22 12 18.27 5.82 22l1.52-7.24L2 9.82l7.1-.94z"/>
-                    </svg>
-                    {{ ratingLabel }}
-                </li>
-                <li v-for="g in genreNames" :key="g">{{ g }}</li>
-                <li v-if="adult" class="billboard__cert">18+</li>
-            </ul>
-
-            <p v-if="overview" class="billboard__overview">{{ truncatedOverview }}</p>
-
-            <div class="billboard__actions">
-                <LmButton
-                    variant="primary"
-                    size="lg"
-                    :to="playRoute"
-                    aria-label="Play"
-                >
-                    <template #leading>
-                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                            <path fill="currentColor" d="M8 5v14l11-7z"/>
-                        </svg>
-                    </template>
-                    Play
-                </LmButton>
-
-                <LmButton
-                    variant="outline"
-                    size="lg"
-                    @click="onWatchlist"
-                    :aria-pressed="inWatchlist"
-                >
-                    <template #leading>
-                        <svg v-if="inWatchlist" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                            <path fill="currentColor" d="M5 5h14v16l-7-4-7 4z"/>
-                        </svg>
-                        <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 5h14v16l-7-4-7 4z"/>
-                        </svg>
-                    </template>
-                    {{ inWatchlist ? 'On your list' : 'Watchlist' }}
-                </LmButton>
-
-                <LmButton
-                    variant="ghost"
-                    size="lg"
-                    :to="detailRoute"
-                    aria-label="More info"
-                >
-                    More info
-                </LmButton>
+    <section ref="rootRef" class="billboard" :class="{ 'trailer-playing': trailerLive, 'is-loading': loading }" aria-label="Featured title">
+        <!-- Skeleton Loading state -->
+        <div v-if="loading" class="billboard__skeleton-wrapper">
+            <div class="billboard__stage billboard__skeleton-shimmer" />
+            <div class="container-lm billboard__content">
+                <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 120px; height: 16px; margin-bottom: 24px; border-radius: 4px" />
+                <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 60%; height: 5rem; margin-bottom: 24px; border-radius: 8px" />
+                <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 40%; height: 24px; margin-bottom: 16px; border-radius: 4px" />
+                <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 50%; height: 60px; margin-bottom: 32px; border-radius: 6px" />
+                <div class="billboard__actions">
+                    <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 140px; height: 48px; border-radius: 24px" />
+                    <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 140px; height: 48px; border-radius: 24px" />
+                </div>
             </div>
         </div>
+
+        <!-- Normal Content -->
+        <template v-else>
+            <div class="billboard__stage">
+                <img
+                    v-if="backdropUrl"
+                    class="billboard__backdrop"
+                    :src="backdropUrl"
+                    :alt="title"
+                    fetchpriority="high"
+                    decoding="async"
+                />
+                <div v-else class="billboard__backdrop billboard__backdrop--placeholder" aria-hidden="true" />
+
+                <TrailerIframe
+                    :bind-ref="setIframe"
+                    :src="trailerSrc"
+                    :visible="trailerVisible"
+                    :live="trailerLive"
+                    @load="onIframeLoad"
+                />
+
+                <div class="billboard__scrim" aria-hidden="true" />
+                <div class="billboard__bloom" aria-hidden="true" />
+                <div class="billboard__grain grain" aria-hidden="true" />
+            </div>
+
+            <TrailerControls
+                :visible="trailerLive"
+                :paused="userPaused"
+                :muted="userMuted"
+                @toggle-pause="togglePause"
+                @toggle-mute="toggleMute"
+            />
+
+            <div class="container-lm billboard__content">
+                <span class="eyebrow billboard__eyebrow">{{ eyebrow }}</span>
+
+                <h1 class="billboard__title display" data-reveal>
+                    {{ title }}
+                </h1>
+
+                <p v-if="tagline" class="billboard__tagline">{{ tagline }}</p>
+
+                <ul class="billboard__meta meta">
+                    <li v-if="year">{{ year }}</li>
+                    <li v-if="ratingLabel" class="billboard__rating">
+                        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                            <path fill="currentColor" d="M12 2l2.9 6.88L22 9.82l-5.34 4.94L18.18 22 12 18.27 5.82 22l1.52-7.24L2 9.82l7.1-.94z"/>
+                        </svg>
+                        {{ ratingLabel }}
+                    </li>
+                    <li v-for="g in genreNames" :key="g">{{ g }}</li>
+                    <li v-if="adult" class="billboard__cert">18+</li>
+                </ul>
+
+                <p v-if="overview" class="billboard__overview">{{ truncatedOverview }}</p>
+
+                <div class="billboard__actions">
+                    <LmButton
+                        variant="primary"
+                        size="lg"
+                        :to="playRoute"
+                        aria-label="Play"
+                    >
+                        <template #leading>
+                            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                <path fill="currentColor" d="M8 5v14l11-7z"/>
+                            </svg>
+                        </template>
+                        Play
+                    </LmButton>
+
+                    <LmButton
+                        variant="outline"
+                        size="lg"
+                        @click="onWatchlist"
+                        :aria-pressed="inWatchlist"
+                    >
+                        <template #leading>
+                            <svg v-if="inWatchlist" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <path fill="currentColor" d="M5 5h14v16l-7-4-7 4z"/>
+                            </svg>
+                            <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 5h14v16l-7-4-7 4z"/>
+                            </svg>
+                        </template>
+                        {{ inWatchlist ? 'On your list' : 'Watchlist' }}
+                    </LmButton>
+
+                    <LmButton
+                        variant="ghost"
+                        size="lg"
+                        :to="detailRoute"
+                        aria-label="More info"
+                    >
+                        More info
+                    </LmButton>
+                </div>
+            </div>
+        </template>
     </section>
 </template>
 
@@ -115,9 +133,9 @@ export default defineComponent({
     name: 'BillboardHero',
     components: { LmButton, TrailerControls, TrailerIframe },
     props: {
-        id: { type: [Number, String], required: true },
+        id: { type: [Number, String], default: '' },
         type: { type: String as PropType<'movie' | 'tv'>, default: 'movie' },
-        title: { type: String, required: true },
+        title: { type: String, default: '' },
         tagline: { type: String, default: '' },
         overview: { type: String, default: '' },
         backdropPath: { type: String as PropType<string | null>, default: null },
@@ -127,7 +145,8 @@ export default defineComponent({
         genreIds: { type: Array as PropType<number[]>, default: () => [] },
         adult: { type: Boolean, default: false },
         eyebrow: { type: String, default: 'This week’s feature' },
-        dwellMs: { type: Number, default: 2000 }
+        dwellMs: { type: Number, default: 2000 },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const IMAGE_BASEURL = (import.meta as any).env.VITE_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/';
@@ -407,5 +426,43 @@ export default defineComponent({
 
 @media (prefers-reduced-motion: reduce) {
     .billboard__backdrop { transition: none; }
+}
+
+.billboard__skeleton-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.billboard__skeleton-line {
+    background: var(--ink-750);
+}
+
+.billboard__skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--ink-750);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: billboard-skeleton-shimmer-anim 1.6s infinite ease-in-out;
+    }
+}
+
+@keyframes billboard-skeleton-shimmer-anim {
+    100% {
+        transform: translateX(100%);
+    }
 }
 </style>

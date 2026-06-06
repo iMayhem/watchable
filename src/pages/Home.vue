@@ -4,19 +4,19 @@
 
         <main id="main" class="home__main" role="main">
             <BillboardHero
-                v-if="hero"
-                :id="hero.id"
+                :id="hero ? hero.id : ''"
                 type="movie"
-                :title="hero.title"
+                :title="hero ? hero.title : ''"
                 :tagline="heroTagline"
-                :overview="hero.overview"
-                :backdrop-path="hero.backdrop_path"
-                :poster-path="hero.poster_path"
-                :rating="hero.vote_average"
-                :release-date="hero.release_date"
-                :genre-ids="hero.genre_ids"
-                :adult="hero.adult"
+                :overview="hero ? hero.overview : ''"
+                :backdrop-path="hero ? hero.backdrop_path : null"
+                :poster-path="hero ? hero.poster_path : null"
+                :rating="hero ? hero.vote_average : 0"
+                :release-date="hero ? hero.release_date : ''"
+                :genre-ids="hero ? hero.genre_ids : []"
+                :adult="hero ? hero.adult : false"
                 eyebrow="This week’s feature"
+                :loading="!hero"
             />
 
             <ContinueShelf class="home__section" />

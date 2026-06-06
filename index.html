@@ -124,6 +124,7 @@
           var host = location.hostname;
           if (host === 'localhost' || host === '127.0.0.1') return;
           
+          var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
           var path = location.pathname;
           if (path.indexOf('/api/') === 0 || path.indexOf('/party') === 0 || /\.[a-z0-9]+$/i.test(path)) return;
           
@@ -136,7 +137,7 @@
           var narrow = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
           var tablet = touch && narrow;
           if (mobileQ || mobileUa || tablet) {
-            var targetHost = host.indexOf('m.') === 0 ? host : 'm.' + host;
+            var targetHost = cleanHost.indexOf('m.') === 0 ? cleanHost : 'm.' + cleanHost;
             var targetUrl = 'https://' + targetHost + path + location.search + location.hash;
             location.replace(targetUrl);
           }

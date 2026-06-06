@@ -104,6 +104,7 @@
           var host = location.hostname;
           if (host === 'localhost' || host === '127.0.0.1') return;
           
+          var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
           var q = location.search || '';
           if (/\bmobile=1\b/.test(q) || q.indexOf('mobile') !== -1) return;
           
@@ -116,9 +117,9 @@
           
           // If NOT mobile/tablet, redirect to the desktop site
           if (desktopQ || (!mobileUa && !tablet)) {
-            var targetHost = host;
-            if (host.indexOf('m.') === 0) {
-              targetHost = host.substring(2);
+            var targetHost = cleanHost;
+            if (cleanHost.indexOf('m.') === 0) {
+              targetHost = cleanHost.substring(2);
             }
             var targetUrl = 'https://' + targetHost + location.pathname + location.search + location.hash;
             location.replace(targetUrl);

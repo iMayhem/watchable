@@ -18,7 +18,7 @@
             </router-link>
         </section>
 
-        <ContinueShelf class="m-home__continue" />
+        <MobileContinueShelf class="m-home__continue" />
 
         <MobileSection
             v-if="topTenItems.length"
@@ -54,7 +54,7 @@ import { computed, onMounted } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileSection from '../components/MobileSection.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
-import ContinueShelf from '../../components/rails/ContinueShelf.vue';
+import MobileContinueShelf from '../components/MobileContinueShelf.vue';
 import { useHighlights, highLightOptions } from '../../composables/useHighlights';
 import { useTvShows, newShows } from '../../composables/useTvShows';
 import { primeGenres } from '../../composables/useGenreLookup';

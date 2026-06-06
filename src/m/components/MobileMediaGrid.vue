@@ -1,6 +1,6 @@
 <template>
     <div class="m-grid" :class="{ 'm-grid--compact': compact }">
-        <PosterCard
+        <MobilePosterCard
             v-for="item in items"
             :key="`${item.type}-${item.id}`"
             :id="item.id"
@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts" setup>
-import PosterCard from '../../components/cards/PosterCard.vue';
+import MobilePosterCard from './MobilePosterCard.vue';
 
 export interface MobileGridItem {
     id: number | string;

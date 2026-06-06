@@ -75,7 +75,11 @@ export default defineComponent({
         const sandboxAttribute = computed(() => {
             if (!props.embedUrl) return undefined;
             const url = props.embedUrl.toLowerCase();
-            if (url.includes('cinemaos.tech') || url.includes('smashystream.com')) {
+            if (
+                url.includes('cinemaos.tech') ||
+                url.includes('smashystream.com') ||
+                url.includes('animeplay.cfd')
+            ) {
                 return 'allow-scripts allow-same-origin allow-forms';
             }
             return undefined;

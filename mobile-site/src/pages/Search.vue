@@ -27,8 +27,8 @@
                 <div class="m-discover__spinner" aria-hidden="true" />
             </div>
 
-            <MobileMediaGrid v-else-if="activeTab === 'movies' && movies.value.length" :items="movieItems" />
-            <MobileMediaGrid v-else-if="activeTab === 'shows' && shows.value.length" :items="showItems" />
+            <MobileMediaGrid v-else-if="activeTab === 'movies' && movies.length" :items="movieItems" />
+            <MobileMediaGrid v-else-if="activeTab === 'shows' && shows.length" :items="showItems" />
 
             <div v-else-if="searchTerm && !isLoading" class="m-search__empty meta">No results.</div>
         </div>
@@ -60,7 +60,7 @@ const tabs = [
 ];
 
 const movieItems = computed(() =>
-    movies.value.map(m => ({
+    movies.value.map((m: any) => ({
         id: m.id,
         title: m.title || m.original_title || '',
         posterPath: m.poster_path,
@@ -73,7 +73,7 @@ const movieItems = computed(() =>
 );
 
 const showItems = computed(() =>
-    shows.value.map(s => ({
+    shows.value.map((s: any) => ({
         id: s.id,
         title: s.name || '',
         posterPath: s.poster_path,

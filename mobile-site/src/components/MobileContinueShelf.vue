@@ -82,7 +82,7 @@ export default defineComponent({
         const paths = useAppPaths();
 
         const entries = computed<Entry[]>(() => {
-            return viewHistory.value.map(item => {
+            return viewHistory.value.map((item: any) => {
                 const id = String(item.id);
                 const state = streamData.value.movieServerMap[id];
                 const image = item.image ? useWebImage(item.image, 'medium') : '';

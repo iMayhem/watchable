@@ -5,9 +5,9 @@
                 <h1 class="m-watchlist__title">Watchlist</h1>
             </header>
 
-            <div v-if="!watchlist.value.length" class="m-watchlist__empty">
+            <div v-if="!watchlist.length" class="m-watchlist__empty">
                 <p class="meta">Your watchlist is empty.</p>
-                <router-link :to="movies.value" class="m-watchlist__cta">Browse movies</router-link>
+                <router-link :to="movies" class="m-watchlist__cta">Browse movies</router-link>
             </div>
 
             <MobileMediaGrid v-else :items="gridItems" />
@@ -26,7 +26,7 @@ const { movies } = useAppPaths();
 const { watchlist } = useWatchlist();
 
 const gridItems = computed(() =>
-    watchlist.value.map(item => ({
+    watchlist.value.map((item: any) => ({
         id: item.id,
         title: item.title,
         posterPath: item.image,

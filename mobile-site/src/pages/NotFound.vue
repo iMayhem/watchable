@@ -3,7 +3,7 @@
         <div class="m-404">
             <h1 class="m-404__title">404</h1>
             <p class="meta">This page isn’t in the program.</p>
-            <router-link :to="home.value" class="m-404__link">Back home</router-link>
+            <router-link :to="home" class="m-404__link">Back home</router-link>
         </div>
     </MobileShell>
 </template>

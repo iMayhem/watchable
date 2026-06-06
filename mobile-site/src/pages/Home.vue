@@ -24,7 +24,7 @@
             v-if="topTenItems.length"
             title="Top 10 Today"
             eyebrow="Trending"
-            :more-to="movies.value"
+            :more-to="movies"
         >
             <MobileMediaGrid :items="topTenItems" />
         </MobileSection>
@@ -33,7 +33,7 @@
             v-if="nowPlayingItems.length"
             title="Now Playing"
             eyebrow="New"
-            :more-to="movies.value"
+            :more-to="movies"
         >
             <MobileMediaGrid :items="nowPlayingItems" />
         </MobileSection>
@@ -42,7 +42,7 @@
             v-if="seriesItems.length"
             title="Series in rotation"
             eyebrow="TV"
-            :more-to="tvShows.value"
+            :more-to="tvShows"
         >
             <MobileMediaGrid :items="seriesItems" />
         </MobileSection>
@@ -78,7 +78,7 @@ const heroOverview = computed(() => {
 });
 
 const topTenItems = computed(() =>
-    (highLightOptions.popular.data ?? []).slice(0, 10).map(m => ({
+    (highLightOptions.popular.data ?? []).slice(0, 10).map((m: any) => ({
         id: m.id,
         title: m.title,
         posterPath: m.poster_path,
@@ -87,7 +87,7 @@ const topTenItems = computed(() =>
 );
 
 const nowPlayingItems = computed(() =>
-    (highLightOptions.new.data ?? []).slice(0, 12).map(m => ({
+    (highLightOptions.new.data ?? []).slice(0, 12).map((m: any) => ({
         id: m.id,
         title: m.title,
         posterPath: m.poster_path,
@@ -100,7 +100,7 @@ const nowPlayingItems = computed(() =>
 );
 
 const seriesItems = computed(() =>
-    (newShows.value ?? []).slice(0, 12).map(s => ({
+    (newShows.value ?? []).slice(0, 12).map((s: any) => ({
         id: s.id,
         title: s.name,
         posterPath: s.poster_path,

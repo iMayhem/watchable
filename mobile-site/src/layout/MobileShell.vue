@@ -1,18 +1,18 @@
 <template>
     <div class="m-app">
         <header class="m-app__header">
-            <router-link :to="home.value" class="m-app__logo" aria-label="moovie home">
+            <router-link :to="home" class="m-app__logo" aria-label="moovie home">
                 <span class="m-app__mark">moovie</span>
             </router-link>
 
             <div class="m-app__header-actions">
-                <router-link :to="search.value" class="m-app__icon-btn" aria-label="Search">
+                <router-link :to="search" class="m-app__icon-btn" aria-label="Search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <circle cx="11" cy="11" r="7" />
                         <path d="m20 20-3.5-3.5" />
                     </svg>
                 </router-link>
-                <router-link :to="watchlist.value" class="m-app__icon-btn" aria-label="Watchlist">
+                <router-link :to="watchlist" class="m-app__icon-btn" aria-label="Watchlist">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                     </svg>

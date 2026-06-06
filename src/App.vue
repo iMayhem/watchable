@@ -5,9 +5,7 @@
         <span class="grain" aria-hidden="true" />
 
         <router-view v-slot="{ Component, route }">
-            <Transition name="page" mode="out-in">
-                <component :is="Component" :key="route.path" />
-            </Transition>
+            <component :is="Component" :key="route.path" />
         </router-view>
 
         <CommandPalette />

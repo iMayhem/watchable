@@ -13,8 +13,6 @@
                     v-if="imageUrl"
                     :src="imageUrl"
                     :alt="title"
-                    loading="lazy"
-                    decoding="async"
                     class="m-poster-card__img"
                     :class="{ 'is-loaded': imageLoaded }"
                     @load="imageLoaded = true"

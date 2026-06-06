@@ -1,4 +1,8 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router';
+import Movie from './pages/Movie.vue';
+import TVShow from './pages/TVShow.vue';
+import AnimeDetail from './pages/AnimeDetail.vue';
+import Actor from './pages/Actor.vue';
 
 const routes: Array<RouteRecordRaw> = [
     {
@@ -47,26 +51,26 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/movie/:id',
         name: 'Movie',
-        component: () => import('./pages/Movie.vue'),
+        component: Movie,
         meta: { title: 'Movie' }
     },
     {
         path: '/tv-show/:id',
         alias: '/tv/:id',
         name: 'TVShow',
-        component: () => import('./pages/TVShow.vue'),
+        component: TVShow,
         meta: { title: 'TV Show' }
     },
     {
         path: '/actor/:id',
         name: 'Actor',
-        component: () => import('./pages/Actor.vue'),
+        component: Actor,
         meta: { title: 'Actor' }
     },
     {
         path: '/anime/:id',
         name: 'AnimeDetail',
-        component: () => import('./pages/AnimeDetail.vue'),
+        component: AnimeDetail,
         meta: { title: 'Anime' }
     },
     {

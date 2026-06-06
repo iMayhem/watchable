@@ -2529,4 +2529,31 @@
         .chat-emoji-btn:hover {
             color: var(--violet) !important;
         }
+
+        body.room-view-active #main-header .back-btn {
+            display: none !important;
+        }
+
+        .workspace-banner .back-btn {
+            padding: 0.3rem 0.65rem;
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.08);
+            border-radius: var(--r-sm);
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+            line-height: 1.2;
+            transform: none !important;
+        }
+
+        .workspace-banner .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .workspace-banner .back-btn svg {
+            width: 12px;
+            height: 12px;
+        }
     

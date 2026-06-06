@@ -8,19 +8,7 @@
                 </div>
             </router-link>
             
-            <!-- Dynamic Neon Theme/Vehicle Selector -->
-            <div class="vehicle-selector">
-                <button 
-                    v-for="v in vehicles" 
-                    :key="v.type" 
-                    @click="activeVehicle = v.type"
-                    class="vehicle-btn"
-                    :class="{ 'is-active': activeVehicle === v.type }"
-                    :title="`Active Theme: ${v.label}`"
-                >
-                    <span class="vehicle-icon">{{ v.emoji }}</span>
-                </button>
-            </div>
+
 
 
             <nav class="site-header__nav" aria-label="Primary">
@@ -168,7 +156,6 @@ import AuthModal from './AuthModal.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
-import { useActiveVehicle } from '../../composables/useActiveVehicle';
 
 interface NavItem {
     label: string;
@@ -213,15 +200,6 @@ export default defineComponent({
         const route = useRoute();
         const scrolled = ref(false);
         const drawerOpen = ref(false);
-
-        const { activeVehicle } = useActiveVehicle();
-
-        const vehicles = [
-            { type: 'car' as const, emoji: '🚗', label: 'Sports Car' },
-            { type: 'plane' as const, emoji: '✈️', label: 'Jet Fighter' },
-            { type: 'boat' as const, emoji: '🚤', label: 'Speedboat' },
-            { type: 'superman' as const, emoji: '🦸', label: 'Superman' }
-        ];
 
         const isAuthModalOpen = ref(false);
 
@@ -272,9 +250,7 @@ export default defineComponent({
             isAuthModalOpen,
 
             currentUser,
-            handleLogout,
-            activeVehicle,
-            vehicles
+            handleLogout
         };
     }
 });

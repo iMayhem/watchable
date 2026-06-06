@@ -24,18 +24,6 @@
                     @error="onError"
                 />
 
-                <!-- Loading placeholder -->
-                <div v-if="iframeLoading && !hasError" class="stream-frame__loading">
-                    <div class="stream-frame__loading-pulse">
-                        <div class="stream-frame__loading-spinner">
-                            <div class="spinner-dot" />
-                            <div class="spinner-ring spinner-ring--1" />
-                            <div class="spinner-ring spinner-ring--2" />
-                            <div class="spinner-ring spinner-ring--3" />
-                        </div>
-                        <p class="eyebrow loading-text">Configuring projector...</p>
-                    </div>
-                </div>
 
                 <!-- Error state -->
                 <div v-if="hasError" class="stream-frame__error" role="alert">

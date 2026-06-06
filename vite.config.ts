@@ -57,7 +57,6 @@ export default defineConfig({
           // Vendor chunks
           'vue-vendor': ['vue', 'vue-router'],
           'ui-vendor': ['@vueuse/core'],
-          'player-vendor': ['artplayer', 'hls.js'],
           'utils-vendor': ['axios', 'lodash', 'lodash.debounce'],
           'swiper-vendor': ['swiper']
         },
@@ -97,8 +96,6 @@ export default defineConfig({
       'vue',
       'vue-router',
       '@vueuse/core',
-      'artplayer',
-      'hls.js',
       'axios',
       'lodash',
       'lodash.debounce',

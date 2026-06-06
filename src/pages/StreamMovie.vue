@@ -131,7 +131,6 @@
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMovies, MovieDetails } from '../composables/useMovies';
-import { useMiniPlayer } from '../composables/useMiniPlayer';
 import {
     currentStreamData,
     getPreferredStreamData,
@@ -154,8 +153,6 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const paths = useAppPaths();
-        const miniPlayer = useMiniPlayer();
-
         const movieId = ref<string>(route.params.id as string);
         const movie = ref<MovieDetails | null>(null);
         const error = ref<string | null>(null);
@@ -222,26 +219,10 @@ export default defineComponent({
                     savePreferredServer(movieId.value, 0, 'movie');
                     getPreferredStreamData(movieId.value, 'movie');
                 }
-
-                registerMiniPlayer();
             } catch (err) {
                 error.value = err instanceof Error ? err.message : 'Failed to load movie';
                 console.error(err);
             }
-        };
-
-        const registerMiniPlayer = () => {
-            if (!movie.value || !currentEmbedUrl.value) return;
-            miniPlayer.setStream({
-                mediaId: movieId.value,
-                mediaType: 'movie',
-                title: movie.value.title,
-                embedUrl: currentEmbedUrl.value,
-                posterPath: movie.value.poster_path,
-                backdropPath: movie.value.backdrop_path,
-                routeName: 'StreamMovie',
-                routeParams: { id: movieId.value }
-            });
         };
 
         const changeServer = (index: number) => {
@@ -249,7 +230,6 @@ export default defineComponent({
             savePreferredServer(movieId.value, index, 'movie');
             getPreferredStreamData(movieId.value, 'movie');
             reloadKey.value = Date.now();
-            registerMiniPlayer();
         };
 
         const goBack = () => router.push(paths.movie(movieId.value));
@@ -263,8 +243,6 @@ export default defineComponent({
                 }
             }
         );
-
-        watch(currentEmbedUrl, registerMiniPlayer);
 
         onMounted(() => {
             loadMovie();

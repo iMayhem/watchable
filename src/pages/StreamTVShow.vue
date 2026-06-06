@@ -223,7 +223,6 @@ import {
     Episode,
     TVShowSeasonDetails
 } from '../composables/useTvShows';
-import { useMiniPlayer } from '../composables/useMiniPlayer';
 import {
     currentStreamData,
     getPreferredStreamData,
@@ -255,7 +254,6 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const paths = useAppPaths();
-        const miniPlayer = useMiniPlayer();
         const { fetchTvShow, fetchTvShowBySeason } = useTvShows();
 
         const showId = ref<string>(route.params.id as string);
@@ -336,26 +334,6 @@ export default defineComponent({
             }
         };
 
-        const registerMiniPlayer = () => {
-            if (!show.value || !currentEmbedUrl.value) return;
-            miniPlayer.setStream({
-                mediaId: showId.value,
-                mediaType: 'tv',
-                title: show.value.name,
-                embedUrl: currentEmbedUrl.value,
-                posterPath: show.value.poster_path,
-                backdropPath: show.value.backdrop_path,
-                season: currentSeason.value,
-                episode: currentEpisode.value,
-                routeName: 'StreamTVShow',
-                routeParams: {
-                    id: showId.value,
-                    season: currentSeason.value,
-                    episode: currentEpisode.value
-                }
-            });
-        };
-
         const loadShow = async () => {
             if (!showId.value) return;
             try {
@@ -377,7 +355,6 @@ export default defineComponent({
 
                 await loadSeason();
                 updateDocumentTitle();
-                registerMiniPlayer();
                 nextTick(() => { resumeTimestamp.value = 0; });
             } catch (err) {
                 console.error('Failed to load show:', err);
@@ -434,7 +411,6 @@ export default defineComponent({
                     episode: currentEpisode.value
                 });
                 updateDocumentTitle();
-                registerMiniPlayer();
             } catch (err) {
                 console.error('Failed to update route:', err);
             }
@@ -504,7 +480,6 @@ export default defineComponent({
         const changeServer = (index: number) => {
             savePreferredServer(showId.value, index, 'tv');
             getPreferredStreamData(showId.value, 'tv');
-            registerMiniPlayer();
         };
 
         const goBack = () => {
@@ -532,13 +507,10 @@ export default defineComponent({
                     currentSeason.value = nextSeason || 1;
                     currentEpisode.value = nextEpisode || 1;
                     await loadSeason();
-                    registerMiniPlayer();
                 }
             },
             { deep: true }
         );
-
-        watch(currentEmbedUrl, registerMiniPlayer);
 
         onMounted(() => {
             loadShow();

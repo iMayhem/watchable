@@ -25,7 +25,7 @@ export async function registerUser(username: string, password: string): Promise<
     }
 
     try {
-        const supabase = getSupabaseClient();
+        const supabase = await getSupabaseClient();
 
         // Check if user already exists
         const { data: existingUser, error: checkError } = await supabase
@@ -63,7 +63,7 @@ export async function registerUser(username: string, password: string): Promise<
 
         // Auto-login after registration
         localStorage.setItem('movora_current_user', cleanUsername);
-        localStorage.setItem('watch_username', cleanUsername); // Seamless Watch Together sync!
+        localStorage.setItem('watch_username', cleanUsername);
         localStorage.setItem('watchlist', '[]');
 
         window.dispatchEvent(new Event('movora_auth_change'));
@@ -81,7 +81,7 @@ export async function loginUser(username: string, password: string): Promise<{ s
     const cleanUsername = username.trim().toLowerCase();
     
     try {
-        const supabase = getSupabaseClient();
+        const supabase = await getSupabaseClient();
 
         // Retrieve user record
         const { data: user, error: fetchError } = await supabase
@@ -100,19 +100,14 @@ export async function loginUser(username: string, password: string): Promise<{ s
         }
 
         localStorage.setItem('movora_current_user', cleanUsername);
-        localStorage.setItem('watch_username', cleanUsername); // Seamless Watch Together sync!
+        localStorage.setItem('watch_username', cleanUsername);
         
-        // Sync lists from retrieved Supabase record to LocalStorage 'watchlist' key
         if (user.watchlist) {
             localStorage.setItem('watchlist', JSON.stringify(user.watchlist));
         }
-        
-        // Sync watch history
         if (user.watch_history) {
             localStorage.setItem('viewHistory', JSON.stringify(user.watch_history));
         }
-        
-        // Sync search history
         if (user.search_history) {
             localStorage.setItem('searchHistory', JSON.stringify(user.search_history));
         }
@@ -130,7 +125,7 @@ export function logoutUser() {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('movora_current_user');
     localStorage.removeItem('watch_username');
-    localStorage.removeItem('watchlist'); // Clear user watchlist
+    localStorage.removeItem('watchlist');
     window.dispatchEvent(new Event('movora_auth_change'));
 }
 
@@ -143,13 +138,12 @@ export function getCurrentUser(): string | null {
 // Helper to push user lists to Supabase
 export async function pushUserDataToSupabase(username: string, watchlist: any[], watchHistory?: any[], searchHistory?: string[]) {
     try {
-        const supabase = getSupabaseClient();
+        const supabase = await getSupabaseClient();
         const updateData: any = { watchlist };
         
         if (watchHistory !== undefined) {
             updateData.watch_history = watchHistory;
         }
-        
         if (searchHistory !== undefined) {
             updateData.search_history = searchHistory;
         }
@@ -171,7 +165,7 @@ export async function pushUserDataToSupabase(username: string, watchlist: any[],
 export async function syncUserDataWithSupabase(username: string) {
     if (typeof window === 'undefined' || !username) return;
     try {
-        const supabase = getSupabaseClient();
+        const supabase = await getSupabaseClient();
         const { data: user, error } = await supabase
             .from('movora_users')
             .select('watchlist, watch_history, search_history')
@@ -198,7 +192,7 @@ export async function syncUserDataWithSupabase(username: string) {
 // Clear watch history
 export async function clearWatchHistory(username: string) {
     try {
-        const supabase = getSupabaseClient();
+        const supabase = await getSupabaseClient();
         const { error } = await supabase
             .from('movora_users')
             .update({ watch_history: [] })
@@ -221,7 +215,7 @@ export async function clearWatchHistory(username: string) {
 // Clear search history
 export async function clearSearchHistory(username: string) {
     try {
-        const supabase = getSupabaseClient();
+        const supabase = await getSupabaseClient();
         const { error } = await supabase
             .from('movora_users')
             .update({ search_history: [] })

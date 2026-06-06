@@ -17,49 +17,51 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onBeforeUnmount } from 'vue';
-import Toast from './components/feedback/Toast.vue';
-import CommandPalette from './components/navigation/CommandPalette.vue';
-import ScrollCar from './components/navigation/ScrollCar.vue';
-import { bindCommandPaletteHotkey } from './composables/useCommandPalette';
-import { startReveal, stopReveal } from './composables/useReveal';
-import { installAntiInspect, uninstallAntiInspect } from './composables/useAntiInspect';
+import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+
+const Toast = defineAsyncComponent(() => import('./components/feedback/Toast.vue'));
+const CommandPalette = defineAsyncComponent(() => import('./components/navigation/CommandPalette.vue'));
+const ScrollCar = defineAsyncComponent(() => import('./components/navigation/ScrollCar.vue'));
+
+// Lazy refs to cleanup functions — populated after dynamic import resolves
+let _stopReveal: (() => void) | null = null;
+let _uninstallAntiInspect: (() => void) | null = null;
+
+const initIdle = async () => {
+    // Dynamically import heavy composables — keeps them OUT of the initial bundle
+    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }, { installAntiInspect, uninstallAntiInspect }] =
+        await Promise.all([
+            import('./composables/useCommandPalette'),
+            import('./composables/useReveal'),
+            import('./composables/useAntiInspect')
+        ]);
+
+    bindCommandPaletteHotkey();
+    startReveal();
+    installAntiInspect();
+
+    _stopReveal = stopReveal;
+    _uninstallAntiInspect = uninstallAntiInspect;
+
+    // Prefetch main pages in the background
+    import('./pages/Movies.vue');
+    import('./pages/TVShows.vue');
+    import('./pages/Anime.vue');
+    import('./pages/Search.vue');
+    import('./pages/Watchlist.vue');
+};
 
 onMounted(() => {
-    // Use requestIdleCallback for non-critical initialization & dynamic route prefetching
     if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => {
-            bindCommandPaletteHotkey();
-            startReveal();
-            installAntiInspect();
-            
-            // Prefetch main pages asynchronously in the background during idle time
-            import('./pages/Movies.vue');
-            import('./pages/TVShows.vue');
-            import('./pages/Anime.vue');
-            import('./pages/Search.vue');
-            import('./pages/Watchlist.vue');
-        });
+        requestIdleCallback(() => initIdle());
     } else {
-        // Fallback for browsers without requestIdleCallback
-        setTimeout(() => {
-            bindCommandPaletteHotkey();
-            startReveal();
-            installAntiInspect();
-            
-            // Prefetch main pages asynchronously in the background
-            import('./pages/Movies.vue');
-            import('./pages/TVShows.vue');
-            import('./pages/Anime.vue');
-            import('./pages/Search.vue');
-            import('./pages/Watchlist.vue');
-        }, 100);
+        setTimeout(() => initIdle(), 100);
     }
 });
 
 onBeforeUnmount(() => {
-    stopReveal();
-    uninstallAntiInspect();
+    _stopReveal?.();
+    _uninstallAntiInspect?.();
 });
 </script>
 

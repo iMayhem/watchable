@@ -2,51 +2,53 @@
     <div class="tv-detail">
         <SiteHeader />
 
-        <main v-if="show" id="main" class="tv-detail__main" role="main">
+        <main id="main" class="tv-detail__main" role="main">
             <section class="tv-detail__snap-slide">
                 <TitleMasthead
-                    :id="show.id"
+                    :id="show ? show.id : ''"
                     type="tv"
-                    :title="show.name"
-                    :tagline="show.tagline"
+                    :title="show ? show.name : ''"
+                    :tagline="show ? show.tagline : ''"
                     :eyebrow="mastheadEyebrow"
-                    :backdrop-path="show.backdrop_path"
-                    :poster-path="show.poster_path"
-                    :rating="show.vote_average"
-                    :release-date="show.first_air_date"
+                    :backdrop-path="show ? show.backdrop_path : null"
+                    :poster-path="show ? show.poster_path : null"
+                    :rating="show ? show.vote_average : 0"
+                    :release-date="show ? show.first_air_date : ''"
                     :genres="genreNames"
                     :genre-ids="genreIds"
                     :adult="false"
                     :play-route="playRoute"
                     :play-label="playLabel"
                     :show-trailer="hasTrailer"
+                    :loading="loading"
                     @trailer="openTrailer"
                 />
             </section>
 
             <section class="tv-detail__section tv-detail__snap-slide container-lm tv-detail__opening">
-                <MetaBar :items="metaItems" aria-label="Series metadata" />
+                <MetaBar :items="metaItems" :loading="loading" aria-label="Series metadata" />
 
                 <div class="tv-detail__columns">
                     <div class="tv-detail__col--main">
                         <DropCapSynopsis
-                            :body="show.overview"
+                            :body="show ? show.overview : ''"
                             eyebrow="The Synopsis"
+                            :loading="loading"
                         />
                     </div>
 
                     <div class="tv-detail__col--side">
                         <StatsBlock
-                            v-if="statsItems.length"
                             :stats="statsItems"
                             title="By the numbers"
                             eyebrow="Ledger"
+                            :loading="loading"
                         />
                     </div>
                 </div>
             </section>
 
-            <section v-if="show.seasons?.length" class="tv-detail__section tv-detail__snap-slide container-lm">
+            <section v-if="show && show.seasons?.length" class="tv-detail__section tv-detail__snap-slide container-lm">
                 <SeasonTabs
                     :show-id="show.id"
                     :seasons="show.seasons"
@@ -56,8 +58,8 @@
                 />
             </section>
 
-            <section v-if="cast.length" class="tv-detail__section tv-detail__snap-slide container-lm">
-                <CastGrid :casts="cast" title="The Ensemble" eyebrow="The Cast" :limit="12" />
+            <section class="tv-detail__section tv-detail__snap-slide container-lm">
+                <CastGrid :casts="cast" title="The Ensemble" eyebrow="The Cast" :limit="12" :loading="loading" />
             </section>
 
             <section v-if="reviews.length" class="tv-detail__section tv-detail__snap-slide container-lm">
@@ -68,7 +70,7 @@
                 />
             </section>
 
-            <section v-if="similarItems.length" class="tv-detail__section tv-detail__snap-slide">
+            <section class="tv-detail__section tv-detail__snap-slide">
                 <CuratedRail
                     :items="similarItems"
                     title="Companion pieces"
@@ -78,11 +80,6 @@
                 />
             </section>
         </main>
-
-        <div v-else-if="loading" class="tv-detail__loading" role="status">
-            <div class="tv-detail__spinner" aria-hidden="true" />
-            <span class="meta">Loading series…</span>
-        </div>
 
         <SiteFooter />
 

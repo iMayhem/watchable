@@ -1,16 +1,27 @@
 <template>
-    <section class="synopsis" :aria-label="ariaLabel">
+    <section class="synopsis" :class="{ 'is-loading': loading }" :aria-label="ariaLabel">
         <p v-if="eyebrow" class="eyebrow synopsis__eyebrow">{{ eyebrow }}</p>
 
         <div class="synopsis__body">
-            <p v-for="(para, idx) in paragraphs" :key="idx" class="synopsis__p" :class="{ 'synopsis__p--lead': idx === 0 }">
-                <span v-if="idx === 0 && showDropCap" class="synopsis__dropcap">{{ firstLetter }}</span>
-                {{ idx === 0 && showDropCap ? restOfFirst : para }}
-            </p>
+            <template v-if="loading">
+                <div class="synopsis__skeleton-line synopsis__skeleton-shimmer" style="width: 100%; height: 16px; margin-bottom: 12px; border-radius: 4px" />
+                <div class="synopsis__skeleton-line synopsis__skeleton-shimmer" style="width: 95%; height: 16px; margin-bottom: 12px; border-radius: 4px" />
+                <div class="synopsis__skeleton-line synopsis__skeleton-shimmer" style="width: 88%; height: 16px; margin-bottom: 24px; border-radius: 4px" />
+                
+                <div class="synopsis__skeleton-line synopsis__skeleton-shimmer" style="width: 98%; height: 16px; margin-bottom: 12px; border-radius: 4px" />
+                <div class="synopsis__skeleton-line synopsis__skeleton-shimmer" style="width: 92%; height: 16px; margin-bottom: 12px; border-radius: 4px" />
+                <div class="synopsis__skeleton-line synopsis__skeleton-shimmer" style="width: 75%; height: 16px; border-radius: 4px" />
+            </template>
+            <template v-else>
+                <p v-for="(para, idx) in paragraphs" :key="idx" class="synopsis__p" :class="{ 'synopsis__p--lead': idx === 0 }">
+                    <span v-if="idx === 0 && showDropCap" class="synopsis__dropcap">{{ firstLetter }}</span>
+                    {{ idx === 0 && showDropCap ? restOfFirst : para }}
+                </p>
 
-            <p v-if="!paragraphs.length" class="synopsis__empty meta">
-                No synopsis filed for this title.
-            </p>
+                <p v-if="!paragraphs.length" class="synopsis__empty meta">
+                    No synopsis filed for this title.
+                </p>
+            </template>
         </div>
     </section>
 </template>
@@ -23,7 +34,8 @@ export default defineComponent({
     props: {
         body: { type: String, default: '' },
         eyebrow: { type: String, default: 'The Synopsis' },
-        ariaLabel: { type: String, default: 'Synopsis' }
+        ariaLabel: { type: String, default: 'Synopsis' },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const paragraphs = computed(() =>
@@ -97,6 +109,36 @@ export default defineComponent({
     &__empty {
         color: var(--bone-400);
         font-style: italic;
+    }
+}
+
+.synopsis__skeleton-line {
+    background: var(--ink-750);
+}
+
+.synopsis__skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--ink-750);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: synopsis-skeleton-shimmer-anim 1.6s infinite ease-in-out;
+    }
+}
+
+@keyframes synopsis-skeleton-shimmer-anim {
+    100% {
+        transform: translateX(100%);
     }
 }
 </style>

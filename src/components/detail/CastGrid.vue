@@ -1,5 +1,5 @@
 <template>
-    <section v-if="visibleCasts.length" class="cast-grid" :aria-label="title">
+    <section v-if="visibleCasts.length || loading" class="cast-grid" :class="{ 'is-loading': loading }" :aria-label="title">
         <header class="cast-grid__head">
             <p v-if="eyebrow" class="eyebrow cast-grid__eyebrow">{{ eyebrow }}</p>
             <h2 class="cast-grid__title display">{{ title }}</h2>
@@ -7,15 +7,22 @@
         </header>
 
         <ul class="cast-grid__list" role="list">
-            <li v-for="c in visibleCasts" :key="c.id" class="cast-grid__item">
-                <PersonCard
-                    :id="c.id"
-                    :name="c.name"
-                    :profile-path="c.profile_path"
-                    :role="c.character"
-                    :department="c.known_for_department || ''"
-                />
-            </li>
+            <template v-if="loading">
+                <li v-for="i in limit" :key="i" class="cast-grid__item">
+                    <PersonCard :id="i" name="" :loading="true" />
+                </li>
+            </template>
+            <template v-else v-for="c in visibleCasts" :key="c.id">
+                <li class="cast-grid__item">
+                    <PersonCard
+                        :id="c.id"
+                        :name="c.name"
+                        :profile-path="c.profile_path"
+                        :role="c.character"
+                        :department="c.known_for_department || ''"
+                    />
+                </li>
+            </template>
         </ul>
     </section>
 </template>
@@ -33,7 +40,8 @@ export default defineComponent({
         title: { type: String, default: 'The Cast' },
         eyebrow: { type: String, default: 'Players' },
         description: { type: String, default: '' },
-        limit: { type: Number, default: 12 }
+        limit: { type: Number, default: 12 },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const visibleCasts = computed(() => {

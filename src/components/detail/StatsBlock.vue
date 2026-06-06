@@ -1,17 +1,29 @@
 <template>
-    <aside v-if="visibleStats.length" class="stats-block" :aria-label="ariaLabel">
+    <aside v-if="visibleStats.length || loading" class="stats-block" :class="{ 'is-loading': loading }" :aria-label="ariaLabel">
         <p v-if="eyebrow" class="eyebrow stats-block__eyebrow">{{ eyebrow }}</p>
         <h3 v-if="title" class="stats-block__title">{{ title }}</h3>
 
         <ul class="stats-block__list" role="list">
-            <li v-for="(stat, idx) in visibleStats" :key="idx" class="stats-block__item">
-                <span class="stats-block__label">{{ stat.label }}</span>
-                <span class="stats-block__value" :class="{ 'stats-block__value--accent': stat.accent }">
-                    {{ stat.value }}
-                    <span v-if="stat.suffix" class="stats-block__suffix">{{ stat.suffix }}</span>
-                </span>
-                <span v-if="stat.hint" class="stats-block__hint">{{ stat.hint }}</span>
-            </li>
+            <template v-if="loading">
+                <li v-for="i in 3" :key="i" class="stats-block__item">
+                    <span class="stats-block__label">
+                        <div class="stats-block__skeleton-line stats-block__skeleton-shimmer" style="width: 80px; height: 10px; border-radius: 2px" />
+                    </span>
+                    <span class="stats-block__value">
+                        <div class="stats-block__skeleton-line stats-block__skeleton-shimmer" style="width: 120px; height: 20px; margin-top: 4px; border-radius: 4px" />
+                    </span>
+                </li>
+            </template>
+            <template v-else v-for="stat in visibleStats" :key="stat.label">
+                <li class="stats-block__item">
+                    <span class="stats-block__label">{{ stat.label }}</span>
+                    <span class="stats-block__value" :class="{ 'stats-block__value--accent': stat.accent }">
+                        {{ stat.value }}
+                        <span v-if="stat.suffix" class="stats-block__suffix">{{ stat.suffix }}</span>
+                    </span>
+                    <span v-if="stat.hint" class="stats-block__hint">{{ stat.hint }}</span>
+                </li>
+            </template>
         </ul>
     </aside>
 </template>
@@ -30,10 +42,11 @@ export interface StatEntry {
 export default defineComponent({
     name: 'StatsBlock',
     props: {
-        stats: { type: Array as PropType<StatEntry[]>, required: true },
+        stats: { type: Array as PropType<StatEntry[]>, default: () => [] },
         title: { type: String, default: '' },
         eyebrow: { type: String, default: 'By the numbers' },
-        ariaLabel: { type: String, default: 'Statistics' }
+        ariaLabel: { type: String, default: 'Statistics' },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const visibleStats = computed(() =>
@@ -133,6 +146,36 @@ export default defineComponent({
         font-size: var(--fs-xs);
         color: var(--bone-400);
         font-style: italic;
+    }
+}
+
+.stats-block__skeleton-line {
+    background: var(--ink-750);
+}
+
+.stats-block__skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--ink-750);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: stats-block-skeleton-shimmer-anim 1.6s infinite ease-in-out;
+    }
+}
+
+@keyframes stats-block-skeleton-shimmer-anim {
+    100% {
+        transform: translateX(100%);
     }
 }
 </style>

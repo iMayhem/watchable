@@ -2,52 +2,54 @@
     <div class="movie-detail">
         <SiteHeader />
 
-        <main v-if="movie" id="main" class="movie-detail__main" role="main">
+        <main id="main" class="movie-detail__main" role="main">
             <section class="movie-detail__snap-slide">
                 <TitleMasthead
-                    :id="movie.id"
+                    :id="movie ? movie.id : ''"
                     type="movie"
-                    :title="movie.title"
-                    :tagline="movie.tagline"
+                    :title="movie ? movie.title : ''"
+                    :tagline="movie ? movie.tagline : ''"
                     :eyebrow="mastheadEyebrow"
-                    :backdrop-path="movie.backdrop_path"
-                    :poster-path="movie.poster_path"
-                    :rating="movie.vote_average"
-                    :release-date="movie.release_date"
+                    :backdrop-path="movie ? movie.backdrop_path : null"
+                    :poster-path="movie ? movie.poster_path : null"
+                    :rating="movie ? movie.vote_average : 0"
+                    :release-date="movie ? movie.release_date : ''"
                     :genres="genreNames"
                     :genre-ids="genreIds"
-                    :adult="movie.adult"
+                    :adult="movie ? movie.adult : false"
                     :play-route="playRoute"
                     :play-label="playLabel"
                     :show-trailer="hasTrailer"
+                    :loading="loading"
                     @trailer="openTrailer"
                 />
             </section>
 
             <section class="movie-detail__section movie-detail__snap-slide container-lm movie-detail__opening">
-                <MetaBar :items="metaItems" aria-label="Film metadata" />
+                <MetaBar :items="metaItems" :loading="loading" aria-label="Film metadata" />
 
                 <div class="movie-detail__columns">
                     <div class="movie-detail__col--main">
                         <DropCapSynopsis
-                            :body="movie.overview"
+                            :body="movie ? movie.overview : ''"
                             eyebrow="The Synopsis"
+                            :loading="loading"
                         />
                     </div>
 
                     <div class="movie-detail__col--side">
                         <StatsBlock
-                            v-if="statsItems.length"
                             :stats="statsItems"
                             title="By the numbers"
                             eyebrow="Ledger"
+                            :loading="loading"
                         />
                     </div>
                 </div>
             </section>
 
-            <section v-if="cast.length" class="movie-detail__section movie-detail__snap-slide container-lm">
-                <CastGrid :casts="cast" title="The Players" eyebrow="The Cast" :limit="12" />
+            <section class="movie-detail__section movie-detail__snap-slide container-lm">
+                <CastGrid :casts="cast" title="The Players" eyebrow="The Cast" :limit="12" :loading="loading" />
             </section>
 
             <section v-if="reviews.length" class="movie-detail__section movie-detail__snap-slide container-lm">
@@ -58,7 +60,7 @@
                 />
             </section>
 
-            <section v-if="similarItems.length" class="movie-detail__section movie-detail__snap-slide">
+            <section class="movie-detail__section movie-detail__snap-slide">
                 <CuratedRail
                     :items="similarItems"
                     title="Double bill"
@@ -68,11 +70,6 @@
                 />
             </section>
         </main>
-
-        <div v-else-if="loading" class="movie-detail__loading" role="status">
-            <div class="movie-detail__spinner" aria-hidden="true" />
-            <span class="meta">Loading feature…</span>
-        </div>
 
         <SiteFooter />
 

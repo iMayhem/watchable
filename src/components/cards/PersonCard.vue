@@ -1,6 +1,13 @@
 <template>
-    <article class="person-card">
-        <router-link :to="routeTo" class="person-card__link" :aria-label="name">
+    <article class="person-card" :class="{ 'is-loading': loading }">
+        <div v-if="loading" class="person-card__skeleton-wrapper">
+            <div class="person-card__avatar person-card__skeleton-shimmer" style="border-radius: 50%" />
+            <div class="person-card__body">
+                <div class="person-card__skeleton-line person-card__skeleton-shimmer" style="width: 80%; height: 12px; margin: 4px auto 0; border-radius: 2px" />
+                <div class="person-card__skeleton-line person-card__skeleton-shimmer" style="width: 50%; height: 10px; margin: 6px auto 0; border-radius: 2px" />
+            </div>
+        </div>
+        <router-link v-else :to="routeTo" class="person-card__link" :aria-label="name">
             <div class="person-card__avatar">
                 <img
                     v-if="imageUrl"
@@ -32,11 +39,12 @@ import { useAppPaths } from '../../composables/useAppPaths';
 export default defineComponent({
     name: 'PersonCard',
     props: {
-        id: { type: [Number, String], required: true },
-        name: { type: String, required: true },
+        id: { type: [Number, String], default: '' },
+        name: { type: String, default: '' },
         profilePath: { type: String as PropType<string | null>, default: null },
         role: { type: String, default: '' },
-        department: { type: String, default: '' }
+        department: { type: String, default: '' },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const { actor } = useAppPaths();
@@ -56,7 +64,7 @@ export default defineComponent({
                 .join('');
         });
 
-        const routeTo = computed(() => actor(props.id));
+        const routeTo = computed(() => props.id ? actor(props.id) : '');
 
         return { imageUrl, initials, routeTo };
     }
@@ -150,6 +158,40 @@ export default defineComponent({
         font-size: var(--fs-xs);
         color: var(--bone-400);
         margin-top: 0.25rem;
+    }
+}
+
+.person-card__skeleton-wrapper {
+    width: 100%;
+}
+
+.person-card__skeleton-line {
+    background: var(--ink-750);
+}
+
+.person-card__skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--ink-750);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: person-card-skeleton-shimmer-anim 1.6s infinite ease-in-out;
+    }
+}
+
+@keyframes person-card-skeleton-shimmer-anim {
+    100% {
+        transform: translateX(100%);
     }
 }
 

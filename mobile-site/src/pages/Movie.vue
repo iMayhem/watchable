@@ -1,31 +1,32 @@
 <template>
     <MobileShell>
-        <div v-if="movie" class="m-detail">
+        <div class="m-detail">
             <TitleMasthead
-                :id="movie.id"
+                :id="movie ? movie.id : ''"
                 type="movie"
-                :title="movie.title"
-                :tagline="movie.tagline"
+                :title="movie ? movie.title : ''"
+                :tagline="movie ? movie.tagline : ''"
                 :eyebrow="mastheadEyebrow"
-                :backdrop-path="movie.backdrop_path"
-                :poster-path="movie.poster_path"
-                :rating="movie.vote_average"
-                :release-date="movie.release_date"
+                :backdrop-path="movie ? movie.backdrop_path : null"
+                :poster-path="movie ? movie.poster_path : null"
+                :rating="movie ? movie.vote_average : 0"
+                :release-date="movie ? movie.release_date : ''"
                 :genres="genreNames"
                 :genre-ids="genreIds"
-                :adult="movie.adult"
+                :adult="movie ? movie.adult : false"
                 :play-route="playRoute"
                 :play-label="playLabel"
                 :show-trailer="hasTrailer"
+                :loading="loading"
                 @trailer="trailerOpen = true"
             />
 
             <section class="m-detail__section container-lm">
-                <DropCapSynopsis :body="movie.overview" eyebrow="Synopsis" />
+                <DropCapSynopsis :body="movie ? movie.overview : ''" eyebrow="Synopsis" :loading="loading" />
             </section>
 
-            <section v-if="cast.length" class="m-detail__section container-lm">
-                <CastGrid :casts="cast" title="Cast" :limit="8" />
+            <section class="m-detail__section container-lm">
+                <CastGrid :casts="cast" title="Cast" :limit="8" :loading="loading" />
             </section>
 
             <section v-if="similarItems.length" class="m-detail__section">
@@ -33,10 +34,6 @@
                     <MobileMediaGrid :items="similarItems" />
                 </MobileSection>
             </section>
-        </div>
-
-        <div v-else class="m-detail__loading" role="status">
-            <div class="m-discover__spinner" aria-hidden="true" />
         </div>
 
         <TrailerDialog
@@ -72,6 +69,7 @@ const cast = ref<Cast[]>([]);
 const similar = ref<Array<{ id: number; title: string; poster_path: string | null; vote_average: number; release_date: string; genre_ids: number[]; adult: boolean }>>([]);
 const trailerOpen = ref(false);
 const trailers = ref<TrailerVideo[]>([]);
+const loading = ref(true);
 
 const genreNames = computed(() => (movie.value?.genres ?? []).map(g => g.name));
 const genreIds = computed(() => (movie.value?.genres ?? []).map(g => g.id));
@@ -97,16 +95,25 @@ const similarItems = computed(() =>
 );
 
 async function load(id: string) {
-    const [{ data: movieData }, { data: creditsData }, { data: similarData }] = await Promise.all([
-        fetchMovie(id),
-        fetchMovieCredits(id),
-        fetchSimilarMovies(id)
-    ]);
-    movie.value = movieData.value ?? null;
-    cast.value = creditsData.value?.cast ?? [];
-    similar.value = (similarData.value?.results ?? []) as typeof similar.value;
-    trailers.value = await fetchTrailerVideos(id, 'movie');
-    document.title = movie.value?.title ? `${movie.value.title} — Moovie` : 'Movie — Moovie';
+    loading.value = true;
+    movie.value = null;
+    cast.value = [];
+    similar.value = [];
+    trailers.value = [];
+    try {
+        const [{ data: movieData }, { data: creditsData }, { data: similarData }] = await Promise.all([
+            fetchMovie(id),
+            fetchMovieCredits(id),
+            fetchSimilarMovies(id)
+        ]);
+        movie.value = movieData.value ?? null;
+        cast.value = creditsData.value?.cast ?? [];
+        similar.value = (similarData.value?.results ?? []) as typeof similar.value;
+        trailers.value = await fetchTrailerVideos(id, 'movie');
+        document.title = movie.value?.title ? `${movie.value.title} — Moovie` : 'Movie — Moovie';
+    } finally {
+        loading.value = false;
+    }
 }
 
 watch(

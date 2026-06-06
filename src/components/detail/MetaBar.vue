@@ -1,6 +1,16 @@
 <template>
-    <dl class="metabar meta" :aria-label="ariaLabel">
-        <template v-for="item in visibleItems" :key="item.label">
+    <dl class="metabar meta" :class="{ 'is-loading': loading }" :aria-label="ariaLabel">
+        <template v-if="loading">
+            <div v-for="i in 6" :key="i" class="metabar__entry">
+                <dt class="metabar__label">
+                    <div class="metabar__skeleton-line metabar__skeleton-shimmer" style="width: 65px; height: 10px; border-radius: 2px" />
+                </dt>
+                <dd class="metabar__value">
+                    <div class="metabar__skeleton-line metabar__skeleton-shimmer" style="width: 105px; height: 14px; margin-top: 4px; border-radius: 4px" />
+                </dd>
+            </div>
+        </template>
+        <template v-else v-for="item in visibleItems" :key="item.label">
             <div class="metabar__entry">
                 <dt class="metabar__label">{{ item.label }}</dt>
                 <dd class="metabar__value" :class="{ 'metabar__value--accent': item.accent }">
@@ -34,8 +44,9 @@ export interface MetaEntry {
 export default defineComponent({
     name: 'MetaBar',
     props: {
-        items: { type: Array as PropType<MetaEntry[]>, required: true },
-        ariaLabel: { type: String, default: 'Title metadata' }
+        items: { type: Array as PropType<MetaEntry[]>, default: () => [] },
+        ariaLabel: { type: String, default: 'Title metadata' },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const visibleItems = computed(() =>
@@ -106,6 +117,36 @@ export default defineComponent({
         svg {
             opacity: 0.7;
         }
+    }
+}
+
+.metabar__skeleton-line {
+    background: var(--ink-750);
+}
+
+.metabar__skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--ink-750);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: metabar-skeleton-shimmer-anim 1.6s infinite ease-in-out;
+    }
+}
+
+@keyframes metabar-skeleton-shimmer-anim {
+    100% {
+        transform: translateX(100%);
     }
 }
 </style>

@@ -1,34 +1,31 @@
 <template>
     <MobileShell>
-        <div v-if="show" class="m-detail">
+        <div class="m-detail">
             <TitleMasthead
-                :id="show.id"
+                :id="show ? show.id : ''"
                 type="tv"
-                :title="show.name"
-                :tagline="show.tagline"
+                :title="show ? show.name : ''"
+                :tagline="show ? show.tagline : ''"
                 :eyebrow="mastheadEyebrow"
-                :backdrop-path="show.backdrop_path"
-                :poster-path="show.poster_path"
-                :rating="show.vote_average"
-                :release-date="show.first_air_date"
+                :backdrop-path="show ? show.backdrop_path : null"
+                :poster-path="show ? show.poster_path : null"
+                :rating="show ? show.vote_average : 0"
+                :release-date="show ? show.first_air_date : ''"
                 :genres="genreNames"
                 :genre-ids="genreIds"
                 :adult="false"
                 :play-route="playRoute"
                 play-label="Play"
+                :loading="loading"
             />
 
             <section class="m-detail__section container-lm">
-                <DropCapSynopsis :body="show.overview" eyebrow="Synopsis" />
+                <DropCapSynopsis :body="show ? show.overview : ''" eyebrow="Synopsis" :loading="loading" />
             </section>
 
-            <section v-if="cast.length" class="m-detail__section container-lm">
-                <CastGrid :casts="cast" title="Cast" :limit="8" />
+            <section class="m-detail__section container-lm">
+                <CastGrid :casts="cast" title="Cast" :limit="8" :loading="loading" />
             </section>
-        </div>
-
-        <div v-else class="m-detail__loading">
-            <div class="m-discover__spinner" aria-hidden="true" />
         </div>
     </MobileShell>
 </template>
@@ -51,6 +48,7 @@ const { fetchTvShow, fetchTvShowCredit } = useTvShows();
 
 const show = ref<TVShowDetails | null>(null);
 const cast = ref<Cast[]>([]);
+const loading = ref(true);
 
 const genreNames = computed(() => (show.value?.genres ?? []).map(g => g.name));
 const genreIds = computed(() => (show.value?.genres ?? []).map(g => g.id));
@@ -62,13 +60,20 @@ const playRoute = computed(() => {
 });
 
 async function load(id: string) {
-    const [{ data: showData }, { data: creditsData }] = await Promise.all([
-        fetchTvShow(id),
-        fetchTvShowCredit(id)
-    ]);
-    show.value = showData.value ?? null;
-    cast.value = creditsData.value?.cast ?? [];
-    document.title = show.value?.name ? `${show.value.name} — Moovie` : 'TV Show — Moovie';
+    loading.value = true;
+    show.value = null;
+    cast.value = [];
+    try {
+        const [{ data: showData }, { data: creditsData }] = await Promise.all([
+            fetchTvShow(id),
+            fetchTvShowCredit(id)
+        ]);
+        show.value = showData.value ?? null;
+        cast.value = creditsData.value?.cast ?? [];
+        document.title = show.value?.name ? `${show.value.name} — Moovie` : 'TV Show — Moovie';
+    } finally {
+        loading.value = false;
+    }
 }
 
 watch(

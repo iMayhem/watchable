@@ -1,155 +1,179 @@
 <template>
-    <header ref="rootRef" class="masthead" :class="{ 'trailer-playing': trailerLive }" :aria-label="`${title} — masthead`">
-        <div class="masthead__stage">
-            <template v-if="backdropUrl">
-                <div v-if="isVerticalBackdrop" class="masthead__art-fallback-container">
+    <header ref="rootRef" class="masthead" :class="{ 'trailer-playing': trailerLive, 'is-loading': loading }" :aria-label="loading ? 'Loading...' : `${title} — masthead`">
+        <!-- Skeleton Loading state -->
+        <div v-if="loading" class="masthead__skeleton-wrapper">
+            <div class="masthead__stage masthead__skeleton-shimmer" />
+            <div class="container-lm masthead__inner">
+                <div class="masthead__crumb eyebrow" style="opacity: 0.3">
+                    <span aria-hidden="true">←</span> Back to issue
+                </div>
+                <div class="masthead__content">
+                    <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 140px; height: 16px; margin-bottom: 24px; border-radius: 4px" />
+                    <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 55%; height: 5.5rem; margin-bottom: 24px; border-radius: 8px" />
+                    <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 35%; height: 24px; margin-bottom: 24px; border-radius: 4px" />
+                    <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 280px; height: 32px; margin-bottom: 32px; border-radius: 16px" />
+                    <div class="masthead__actions">
+                        <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 140px; height: 48px; border-radius: 24px" />
+                        <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 140px; height: 48px; border-radius: 24px" />
+                        <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 140px; height: 48px; border-radius: 24px" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Normal Masthead Content -->
+        <template v-else>
+            <div class="masthead__stage">
+                <template v-if="backdropUrl">
+                    <div v-if="isVerticalBackdrop" class="masthead__art-fallback-container">
+                        <img
+                            class="masthead__art--blurred"
+                            :src="backdropUrl"
+                            alt=""
+                            fetchpriority="low"
+                            decoding="async"
+                            loading="eager"
+                        />
+                        <img
+                            class="masthead__art--contained"
+                            :src="backdropUrl"
+                            :alt="title"
+                            fetchpriority="high"
+                            decoding="async"
+                            loading="eager"
+                        />
+                    </div>
                     <img
-                        class="masthead__art--blurred"
-                        :src="backdropUrl"
-                        alt=""
-                        fetchpriority="low"
-                        decoding="async"
-                        loading="eager"
-                    />
-                    <img
-                        class="masthead__art--contained"
+                        v-else
+                        class="masthead__art"
                         :src="backdropUrl"
                         :alt="title"
                         fetchpriority="high"
                         decoding="async"
                         loading="eager"
                     />
-                </div>
-                <img
-                    v-else
-                    class="masthead__art"
-                    :src="backdropUrl"
-                    :alt="title"
-                    fetchpriority="high"
-                    decoding="async"
-                    loading="eager"
-                />
-            </template>
-            <div v-else class="masthead__art masthead__art--placeholder" aria-hidden="true" />
+                </template>
+                <div v-else class="masthead__art masthead__art--placeholder" aria-hidden="true" />
 
-            <TrailerIframe
-                :bind-ref="setIframe"
-                :src="trailerSrc"
-                :visible="trailerVisible"
-                :live="trailerLive"
-                @load="onIframeLoad"
+                <TrailerIframe
+                    :bind-ref="setIframe"
+                    :src="trailerSrc"
+                    :visible="trailerVisible"
+                    :live="trailerLive"
+                    @load="onIframeLoad"
+                />
+
+                <div class="masthead__scrim" aria-hidden="true" />
+                <div class="masthead__bloom" aria-hidden="true" />
+                <div class="masthead__grain grain" aria-hidden="true" />
+            </div>
+
+            <TrailerControls
+                :visible="trailerLive"
+                :paused="userPaused"
+                :muted="userMuted"
+                @toggle-pause="togglePause"
+                @toggle-mute="toggleMute"
             />
 
-            <div class="masthead__scrim" aria-hidden="true" />
-            <div class="masthead__bloom" aria-hidden="true" />
-            <div class="masthead__grain grain" aria-hidden="true" />
-        </div>
+            <div class="container-lm masthead__inner">
+                <router-link :to="homePath" class="masthead__crumb eyebrow">
+                    <span aria-hidden="true">←</span>
+                    Back to issue
+                </router-link>
 
-        <TrailerControls
-            :visible="trailerLive"
-            :paused="userPaused"
-            :muted="userMuted"
-            @toggle-pause="togglePause"
-            @toggle-mute="toggleMute"
-        />
+                <div class="masthead__content">
+                    <span class="eyebrow masthead__eyebrow">
+                        {{ eyebrow }}
+                        <span v-if="year" class="masthead__year">· {{ year }}</span>
+                    </span>
 
-        <div class="container-lm masthead__inner">
-            <router-link :to="homePath" class="masthead__crumb eyebrow">
-                <span aria-hidden="true">←</span>
-                Back to issue
-            </router-link>
+                    <h1 class="masthead__title display" data-reveal>{{ title }}</h1>
 
-            <div class="masthead__content">
-                <span class="eyebrow masthead__eyebrow">
-                    {{ eyebrow }}
-                    <span v-if="year" class="masthead__year">· {{ year }}</span>
-                </span>
+                    <p v-if="tagline" class="masthead__tagline">
+                        <span class="masthead__quote" aria-hidden="true">“</span>{{ tagline }}<span class="masthead__quote" aria-hidden="true">”</span>
+                    </p>
 
-                <h1 class="masthead__title display" data-reveal>{{ title }}</h1>
-
-                <p v-if="tagline" class="masthead__tagline">
-                    <span class="masthead__quote" aria-hidden="true">“</span>{{ tagline }}<span class="masthead__quote" aria-hidden="true">”</span>
-                </p>
-
-                <ul v-if="genres.length || ratingLabel" class="masthead__chips">
-                    <li v-if="ratingLabel" class="masthead__rating">
-                        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
-                            <path fill="currentColor" d="M12 2l2.9 6.88L22 9.82l-5.34 4.94L18.18 22 12 18.27 5.82 22l1.52-7.24L2 9.82l7.1-.94z"/>
-                        </svg>
-                        {{ ratingLabel }}
-                    </li>
-                    <li v-for="g in genres.slice(0, 4)" :key="g" class="masthead__chip">{{ g }}</li>
-                    <li v-if="adult" class="masthead__cert">18+</li>
-                </ul>
-
-                <div class="masthead__actions">
-                    <LmButton 
-                        variant="primary" 
-                        size="lg" 
-                        :to="playRoute" 
-                        :aria-label="playLabel"
-                        @mouseenter="handlePlayHover"
-                        @focus="handlePlayHover"
-                    >
-                        <template #leading>
-                            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                                <path fill="currentColor" d="M8 5v14l11-7z"/>
+                    <ul v-if="genres.length || ratingLabel" class="masthead__chips">
+                        <li v-if="ratingLabel" class="masthead__rating">
+                            <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                                <path fill="currentColor" d="M12 2l2.9 6.88L22 9.82l-5.34 4.94L18.18 22 12 18.27 5.82 22l1.52-7.24L2 9.82l7.1-.94z"/>
                             </svg>
-                        </template>
-                        {{ playLabel }}
-                    </LmButton>
+                            {{ ratingLabel }}
+                        </li>
+                        <li v-for="g in genres.slice(0, 4)" :key="g" class="masthead__chip">{{ g }}</li>
+                        <li v-if="adult" class="masthead__cert">18+</li>
+                    </ul>
 
-                    <LmButton
-                        v-if="showTrailer"
-                        variant="outline"
-                        size="lg"
-                        @click="$emit('trailer')"
-                    >
-                        <template #leading>
-                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="5" width="18" height="14" rx="2"/>
-                                <path d="M10 9l5 3-5 3z" fill="currentColor"/>
-                            </svg>
-                        </template>
-                        Trailer
-                    </LmButton>
+                    <div class="masthead__actions">
+                        <LmButton 
+                            variant="primary" 
+                            size="lg" 
+                            :to="playRoute" 
+                            :aria-label="playLabel"
+                            @mouseenter="handlePlayHover"
+                            @focus="handlePlayHover"
+                        >
+                            <template #leading>
+                                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                    <path fill="currentColor" d="M8 5v14l11-7z"/>
+                                </svg>
+                            </template>
+                            {{ playLabel }}
+                        </LmButton>
 
-                    <LmButton
-                        variant="outline"
-                        size="lg"
-                        :href="partyHref"
-                        rel="nofollow"
-                    >
-                        <template #leading>
-                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                <circle cx="9" cy="7" r="4" />
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                            </svg>
-                        </template>
-                        Watch Together
-                    </LmButton>
+                        <LmButton
+                            v-if="showTrailer"
+                            variant="outline"
+                            size="lg"
+                            @click="$emit('trailer')"
+                        >
+                            <template #leading>
+                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="5" width="18" height="14" rx="2"/>
+                                    <path d="M10 9l5 3-5 3z" fill="currentColor"/>
+                                </svg>
+                            </template>
+                            Trailer
+                        </LmButton>
 
-                    <LmButton
-                        variant="ghost"
-                        size="lg"
-                        @click="toggleWatchlist"
-                        :aria-pressed="inWatchlist"
-                    >
-                        <template #leading>
-                            <svg v-if="inWatchlist" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                                <path fill="currentColor" d="M5 5h14v16l-7-4-7 4z"/>
-                            </svg>
-                            <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M5 5h14v16l-7-4-7 4z"/>
-                            </svg>
-                        </template>
-                        {{ inWatchlist ? 'On your list' : 'Watchlist' }}
-                    </LmButton>
+                        <LmButton
+                            variant="outline"
+                            size="lg"
+                            :href="partyHref"
+                            rel="nofollow"
+                        >
+                            <template #leading>
+                                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                    <circle cx="9" cy="7" r="4" />
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                </svg>
+                            </template>
+                            Watch Together
+                        </LmButton>
+
+                        <LmButton
+                            variant="ghost"
+                            size="lg"
+                            @click="toggleWatchlist"
+                            :aria-pressed="inWatchlist"
+                        >
+                            <template #leading>
+                                <svg v-if="inWatchlist" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                    <path fill="currentColor" d="M5 5h14v16l-7-4-7 4z"/>
+                                </svg>
+                                <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M5 5h14v16l-7-4-7 4z"/>
+                                </svg>
+                            </template>
+                            {{ inWatchlist ? 'On your list' : 'Watchlist' }}
+                        </LmButton>
+                    </div>
                 </div>
             </div>
-        </div>
+        </template>
     </header>
 </template>
 
@@ -169,9 +193,9 @@ export default defineComponent({
     components: { LmButton, TrailerControls, TrailerIframe },
     emits: ['trailer'],
     props: {
-        id: { type: [Number, String], required: true },
+        id: { type: [Number, String], default: '' },
         type: { type: String as PropType<'movie' | 'tv' | 'anime'>, default: 'movie' },
-        title: { type: String, required: true },
+        title: { type: String, default: '' },
         tagline: { type: String, default: '' },
         eyebrow: { type: String, default: 'Feature' },
         backdropPath: { type: String as PropType<string | null>, default: null },
@@ -181,9 +205,10 @@ export default defineComponent({
         genres: { type: Array as PropType<string[]>, default: () => [] },
         genreIds: { type: Array as PropType<number[]>, default: () => [] },
         adult: { type: Boolean, default: false },
-        playRoute: { type: [String, Object] as PropType<string | Record<string, unknown>>, required: true },
+        playRoute: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: '' },
         playLabel: { type: String, default: 'Play' },
-        showTrailer: { type: Boolean, default: true }
+        showTrailer: { type: Boolean, default: true },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const { home } = useAppPaths();
@@ -534,6 +559,44 @@ export default defineComponent({
 
         &__crumb { margin-bottom: var(--s-5); }
         &__actions { margin-top: var(--s-5); }
+    }
+}
+
+.masthead__skeleton-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.masthead__skeleton-line {
+    background: var(--ink-750);
+}
+
+.masthead__skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--ink-750);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+        );
+        transform: translateX(-100%);
+        animation: masthead-skeleton-shimmer-anim 1.6s infinite ease-in-out;
+    }
+}
+
+@keyframes masthead-skeleton-shimmer-anim {
+    100% {
+        transform: translateX(100%);
     }
 }
 </style>

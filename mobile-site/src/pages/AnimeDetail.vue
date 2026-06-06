@@ -1,38 +1,58 @@
 <template>
     <MobileShell>
-        <div v-if="anime" class="m-detail">
+        <div class="m-detail">
             <div class="m-anime-hero">
-                <img
-                    v-if="bannerUrl"
-                    :src="bannerUrl"
-                    :alt="title"
-                    class="m-anime-hero__img"
-                />
-                <div class="m-anime-hero__scrim" aria-hidden="true" />
-                <div class="m-anime-hero__body">
-                    <h1 class="m-anime-hero__title">{{ title }}</h1>
-                    <router-link :to="playRoute" class="m-anime-hero__play">Play</router-link>
-                </div>
+                <template v-if="loading">
+                    <div class="m-anime-hero__skeleton-img m-anime-hero__skeleton-shimmer" />
+                    <div class="m-anime-hero__scrim" aria-hidden="true" />
+                    <div class="m-anime-hero__body">
+                        <div class="m-anime-hero__skeleton-title m-anime-hero__skeleton-shimmer" />
+                        <div class="m-anime-hero__skeleton-btn m-anime-hero__skeleton-shimmer" />
+                    </div>
+                </template>
+                <template v-else>
+                    <img
+                        v-if="bannerUrl"
+                        :src="bannerUrl"
+                        :alt="title"
+                        class="m-anime-hero__img"
+                    />
+                    <div class="m-anime-hero__scrim" aria-hidden="true" />
+                    <div class="m-anime-hero__body">
+                        <h1 class="m-anime-hero__title">{{ title }}</h1>
+                        <router-link :to="playRoute" class="m-anime-hero__play">Play</router-link>
+                    </div>
+                </template>
             </div>
 
-            <p v-if="description" class="m-anime-hero__desc" v-html="description" />
-
-            <MobileSection v-if="episodes.length" title="Episodes" eyebrow="Watch">
-                <div class="m-anime-eps">
-                    <router-link
-                        v-for="ep in episodes"
-                        :key="ep"
-                        :to="paths.streamAnime(anime.id, ep)"
-                        class="m-anime-eps__chip"
-                    >
-                        Ep {{ ep }}
-                    </router-link>
+            <template v-if="loading">
+                <div class="m-anime-hero__desc">
+                    <div class="m-anime-hero__skeleton-line m-anime-hero__skeleton-shimmer" style="width: 100%; height: 14px; margin-bottom: 8px" />
+                    <div class="m-anime-hero__skeleton-line m-anime-hero__skeleton-shimmer" style="width: 95%; height: 14px; margin-bottom: 8px" />
+                    <div class="m-anime-hero__skeleton-line m-anime-hero__skeleton-shimmer" style="width: 70%; height: 14px" />
                 </div>
-            </MobileSection>
-        </div>
+                <MobileSection title="Episodes" eyebrow="Watch">
+                    <div class="m-anime-eps">
+                        <div v-for="i in 8" :key="i" class="m-anime-eps__skeleton-chip m-anime-hero__skeleton-shimmer" />
+                    </div>
+                </MobileSection>
+            </template>
+            <template v-else>
+                <p v-if="description" class="m-anime-hero__desc" v-html="description" />
 
-        <div v-else class="m-detail__loading">
-            <div class="m-discover__spinner" aria-hidden="true" />
+                <MobileSection v-if="episodes.length" title="Episodes" eyebrow="Watch">
+                    <div class="m-anime-eps">
+                        <router-link
+                            v-for="ep in episodes"
+                            :key="ep"
+                            :to="anime ? paths.streamAnime(anime.id, ep) : ''"
+                            class="m-anime-eps__chip"
+                        >
+                            Ep {{ ep }}
+                        </router-link>
+                    </div>
+                </MobileSection>
+            </template>
         </div>
     </MobileShell>
 </template>
@@ -49,6 +69,7 @@ const route = useRoute();
 const paths = useAppPaths();
 const { fetchAnimeById } = useAniList();
 const anime = ref<AnimeMedia | null>(null);
+const loading = ref(true);
 
 const title = computed(
     () => anime.value?.title.english || anime.value?.title.romaji || 'Anime'
@@ -66,9 +87,14 @@ const playRoute = computed(() =>
 );
 
 onMounted(async () => {
-    const res = await fetchAnimeById(Number(route.params.id));
-    anime.value = res?.data?.Media ?? null;
-    document.title = `${title.value} — Moovie`;
+    loading.value = true;
+    try {
+        const res = await fetchAnimeById(Number(route.params.id));
+        anime.value = res?.data?.Media ?? null;
+        document.title = `${title.value} — Moovie`;
+    } finally {
+        loading.value = false;
+    }
 });
 </script>
 
@@ -125,6 +151,57 @@ onMounted(async () => {
         font-size: var(--fs-sm);
         line-height: var(--lh-base);
     }
+
+    &__skeleton-img {
+        width: 100%;
+        height: 100%;
+        background: var(--ink-800);
+    }
+
+    &__skeleton-title {
+        width: 180px;
+        height: 20px;
+        border-radius: 4px;
+        background: var(--ink-750);
+    }
+
+    &__skeleton-btn {
+        width: 60px;
+        height: 32px;
+        border-radius: var(--r-pill);
+        background: var(--ink-750);
+    }
+
+    &__skeleton-line {
+        background: var(--ink-750);
+        border-radius: 2px;
+    }
+
+    &__skeleton-shimmer {
+        position: relative;
+        overflow: hidden;
+        background: var(--ink-750);
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.04),
+                transparent
+            );
+            transform: translateX(-100%);
+            animation: mobile-anime-skeleton-shimmer-anim 1.6s infinite ease-in-out;
+        }
+    }
+}
+
+@keyframes mobile-anime-skeleton-shimmer-anim {
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 .m-anime-eps {
@@ -145,6 +222,13 @@ onMounted(async () => {
         text-decoration: none;
         font-weight: 600;
         font-size: var(--fs-sm);
+    }
+
+    &__skeleton-chip {
+        width: 3.25rem;
+        height: 2.5rem;
+        border-radius: var(--r-sm);
+        background: var(--ink-750);
     }
 }
 

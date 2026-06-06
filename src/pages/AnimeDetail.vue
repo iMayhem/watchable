@@ -2,49 +2,51 @@
     <div class="anime-detail">
         <SiteHeader />
 
-        <main v-if="anime" id="main" class="anime-detail__main" role="main">
+        <main id="main" class="anime-detail__main" role="main">
             <section class="anime-detail__snap-slide">
                 <TitleMasthead
-                    :id="anime.id"
+                    :id="anime ? anime.id : ''"
                     type="anime"
-                    :title="anime.title.english || anime.title.romaji || anime.title.native"
-                    :tagline="anime.title.native"
+                    :title="anime ? (anime.title.english || anime.title.romaji || anime.title.native) : ''"
+                    :tagline="anime ? anime.title.native : ''"
                     :eyebrow="mastheadEyebrow"
                     :backdrop-path="backdropPath"
-                    :poster-path="anime.coverImage.large"
-                    :rating="anime.averageScore ? anime.averageScore / 10 : 0"
-                    :release-date="String(anime.seasonYear || '')"
-                    :genres="anime.genres"
+                    :poster-path="anime ? anime.coverImage.large : null"
+                    :rating="anime && anime.averageScore ? anime.averageScore / 10 : 0"
+                    :release-date="anime ? String(anime.seasonYear || '') : ''"
+                    :genres="anime ? anime.genres : []"
                     :adult="false"
                     :play-route="playRoute"
                     play-label="Play"
                     :show-trailer="false"
+                    :loading="loading"
                 />
             </section>
 
             <section class="anime-detail__section anime-detail__snap-slide container-lm anime-detail__opening">
-                <MetaBar :items="metaItems" aria-label="Anime metadata" />
+                <MetaBar :items="metaItems" :loading="loading" aria-label="Anime metadata" />
 
                 <div class="anime-detail__columns">
                     <div class="anime-detail__col--main">
                         <DropCapSynopsis
                             :body="cleanDescription"
                             eyebrow="The Synopsis"
+                            :loading="loading"
                         />
                     </div>
 
                     <div class="anime-detail__col--side">
                         <StatsBlock
-                            v-if="statsItems.length"
                             :stats="statsItems"
                             title="By the numbers"
                             eyebrow="Ledger"
+                            :loading="loading"
                         />
                     </div>
                 </div>
             </section>
 
-            <section v-if="episodesList.length" class="anime-detail__section anime-detail__snap-slide container-lm">
+            <section v-if="anime && episodesList.length" class="anime-detail__section anime-detail__snap-slide container-lm">
                 <div class="episode-guide">
                     <p class="eyebrow">The Schedule</p>
                     <h3 class="episode-guide__title display">Episode guide</h3>
@@ -117,12 +119,7 @@
             </section>
         </main>
 
-        <div v-else-if="loading" class="anime-detail__loading" role="status">
-            <div class="anime-detail__spinner" aria-hidden="true" />
-            <span class="meta">Loading anime details…</span>
-        </div>
-
-        <div v-else class="anime-detail__loading">
+        <div v-if="!anime && !loading" class="anime-detail__loading">
             <span class="meta">Could not load anime details.</span>
         </div>
 
@@ -215,7 +212,7 @@ export default defineComponent({
         });
 
         const playRoute = computed(() => {
-            return `/stream/anime/${anime.value?.id}/episode/1`;
+            return anime.value ? `/stream/anime/${anime.value.id}/episode/1` : '';
         });
 
         const currentPage = ref(1);

@@ -1,5 +1,5 @@
 <template>
-    <div ref="rootRef" class="stream-frame" :class="{ 'is-loading': isLoading, 'has-error': hasError }">
+    <div ref="rootRef" class="stream-frame" :class="{ 'has-error': hasError }">
         <div
             v-if="ambientImage"
             class="stream-frame__bloom"
@@ -23,15 +23,6 @@
                     @load="onLoad"
                     @error="onError"
                 />
-
-                <!-- Loading state -->
-                <div v-if="isLoading && !hasError" class="stream-frame__loading" role="status" aria-live="polite">
-                    <div class="stream-frame__skeleton" aria-hidden="true" />
-                    <div class="stream-frame__loader">
-                        <div class="stream-frame__spinner" aria-hidden="true" />
-                        <p class="meta">{{ loadingLabel }}</p>
-                    </div>
-                </div>
 
                 <!-- Error state -->
                 <div v-if="hasError" class="stream-frame__error" role="alert">
@@ -69,7 +60,6 @@ export default defineComponent({
     setup(props) {
         const rootRef = ref<HTMLElement | null>(null);
         const frameEl = ref<HTMLIFrameElement | null>(null);
-        const isLoading = ref(true);
         const hasError = ref(false);
 
         const sandboxAttribute = computed(() => {
@@ -87,30 +77,6 @@ export default defineComponent({
 
         const ambientPath = computed(() => props.backdropPath || props.posterPath || null);
         useAmbientColor(ambientPath, rootRef);
-
-        const loadingMessages = [
-            'Threading the reel…',
-            'Cueing the projector…',
-            'Striking the print…',
-            'Rolling film…'
-        ];
-        const loadingLabel = ref(loadingMessages[0]);
-        let messageTimer: ReturnType<typeof setInterval> | null = null;
-
-        const startMessages = () => {
-            let i = 0;
-            messageTimer = setInterval(() => {
-                i = (i + 1) % loadingMessages.length;
-                loadingLabel.value = loadingMessages[i];
-            }, 2200);
-        };
-
-        const stopMessages = () => {
-            if (messageTimer) {
-                clearInterval(messageTimer);
-                messageTimer = null;
-            }
-        };
 
         let stopTracking: (() => void) | null = null;
 
@@ -136,23 +102,15 @@ export default defineComponent({
         };
 
         const onLoad = () => {
-            window.setTimeout(() => {
-                isLoading.value = false;
-                hasError.value = false;
-                stopMessages();
-            }, 600);
+            hasError.value = false;
         };
 
         const onError = () => {
-            isLoading.value = false;
             hasError.value = true;
-            stopMessages();
         };
 
         const retry = () => {
             hasError.value = false;
-            isLoading.value = true;
-            startMessages();
             if (frameEl.value && props.embedUrl) {
                 const src = frameEl.value.src;
                 frameEl.value.src = '';
@@ -166,9 +124,7 @@ export default defineComponent({
             () => props.embedUrl,
             (next, prev) => {
                 if (next && next !== prev) {
-                    isLoading.value = true;
                     hasError.value = false;
-                    startMessages();
                     startTrackingIfNeeded();
                 }
             }
@@ -181,15 +137,10 @@ export default defineComponent({
         );
 
         onMounted(() => {
-            startMessages();
-            window.setTimeout(() => {
-                if (isLoading.value) onLoad();
-            }, 15000);
             startTrackingIfNeeded();
         });
 
         onUnmounted(() => {
-            stopMessages();
             if (stopTracking) {
                 stopTracking();
                 stopTracking = null;
@@ -199,9 +150,7 @@ export default defineComponent({
         return {
             rootRef,
             frameEl,
-            isLoading,
             hasError,
-            loadingLabel,
             ambientImage,
             sandboxAttribute,
             onLoad,
@@ -278,47 +227,6 @@ export default defineComponent({
         border: 0;
     }
 
-    &__loading {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        background: var(--ink-900);
-        z-index: 5;
-    }
-
-    &__skeleton {
-        position: absolute;
-        inset: 0;
-        background:
-            linear-gradient(
-                100deg,
-                rgba(255, 255, 255, 0) 30%,
-                rgba(255, 255, 255, 0.04) 50%,
-                rgba(255, 255, 255, 0) 70%
-            ) var(--ink-800);
-        background-size: 220% 100%;
-        animation: streamFrameShimmer 2.4s infinite ease-in-out;
-    }
-
-    &__loader {
-        position: relative;
-        z-index: 1;
-        display: grid;
-        gap: var(--s-3);
-        justify-items: center;
-        color: var(--bone-200);
-    }
-
-    &__spinner {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        border: 2px solid var(--rule-strong);
-        border-top-color: var(--ember);
-        animation: streamFrameSpin 1.1s linear infinite;
-    }
-
     &__error {
         position: absolute;
         inset: 0;
@@ -363,22 +271,6 @@ export default defineComponent({
             background: var(--ember-600);
             transform: translateY(-1px);
         }
-    }
-}
-
-@keyframes streamFrameShimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
-@keyframes streamFrameSpin {
-    to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .stream-frame__skeleton,
-    .stream-frame__spinner {
-        animation: none;
     }
 }
 </style>

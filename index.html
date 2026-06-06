@@ -121,9 +121,12 @@
     <script>
       (function () {
         try {
+          var host = location.hostname;
+          if (host === 'localhost' || host === '127.0.0.1') return;
+          
           var path = location.pathname;
           if (path.indexOf('/api/') === 0 || path.indexOf('/party') === 0 || /\.[a-z0-9]+$/i.test(path)) return;
-          if (path === '/m' || path.indexOf('/m/') === 0) return;
+          
           var q = location.search || '';
           if (/\bdesktop=1\b/.test(q) || q.indexOf('desktop') !== -1) return;
           var mobileQ = /\bmobile=1\b/.test(q) || q.indexOf('mobile') !== -1;
@@ -133,8 +136,9 @@
           var narrow = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
           var tablet = touch && narrow;
           if (mobileQ || mobileUa || tablet) {
-            var target = path === '/' ? '/m' : '/m' + path;
-            location.replace(target + location.search + location.hash);
+            var targetHost = host.indexOf('m.') === 0 ? host : 'm.' + host;
+            var targetUrl = 'https://' + targetHost + path + location.search + location.hash;
+            location.replace(targetUrl);
           }
         } catch (e) {}
       })();

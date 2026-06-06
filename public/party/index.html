@@ -22,6 +22,15 @@
     <script defer src="https://cloud.umami.is/script.js" data-website-id="584702db-6988-4367-9bb3-935742c17dd4"></script>
 </head>
 <body>
+    <script>
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('room')) {
+                document.body.classList.add('room-view-active');
+                document.body.classList.add('cinema-mode');
+            }
+        })();
+    </script>
 
     <!-- Main Header -->
     <header id="main-header">
@@ -67,11 +76,30 @@
             </div>
 
             <div id="rooms-container" class="rooms-grid">
-                <!-- Rooms injected here -->
-                <div class="empty-state">
-                    <div class="empty-icon">🍿</div>
-                    <h3>No active parties right now.</h3>
-                    <p>Be the first to start a party room and share the link with friends!</p>
+                <!-- Shimmer Skeletons shown on load -->
+                <div class="skeleton-card skeleton-shimmer">
+                    <div class="skeleton-text skeleton-text--title"></div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                        <div class="skeleton-text skeleton-text--body1"></div>
+                        <div class="skeleton-text skeleton-text--body2"></div>
+                    </div>
+                    <div class="skeleton-button" style="margin-top: auto;"></div>
+                </div>
+                <div class="skeleton-card skeleton-shimmer">
+                    <div class="skeleton-text skeleton-text--title"></div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                        <div class="skeleton-text skeleton-text--body1"></div>
+                        <div class="skeleton-text skeleton-text--body2"></div>
+                    </div>
+                    <div class="skeleton-button" style="margin-top: auto;"></div>
+                </div>
+                <div class="skeleton-card skeleton-shimmer">
+                    <div class="skeleton-text skeleton-text--title"></div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                        <div class="skeleton-text skeleton-text--body1"></div>
+                        <div class="skeleton-text skeleton-text--body2"></div>
+                    </div>
+                    <div class="skeleton-button" style="margin-top: auto;"></div>
                 </div>
             </div>
         </section>

@@ -160,7 +160,7 @@ export default defineComponent({
         const tmdbBackdrop = ref<string | null>(null);
 
         const backdropPath = computed(() => {
-            return anime.value?.bannerImage || tmdbBackdrop.value || anime.value?.coverImage?.large || null;
+            return tmdbBackdrop.value || anime.value?.coverImage?.large || null;
         });
 
         const cleanDescription = computed(() => {
@@ -458,7 +458,7 @@ export default defineComponent({
                     });
 
                     // Trigger TMDb mapping matching
-                    loadTmdbEpisodes(anime.value);
+                    await loadTmdbEpisodes(anime.value);
                 }
             } catch (err) {
                 console.error('Failed to load anime:', err);

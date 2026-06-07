@@ -17,6 +17,7 @@
                     :src="embedUrl"
                     :title="title"
                     class="stream-frame__iframe"
+                    :class="{ 'is-loading': iframeLoading }"
                     allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                     allowfullscreen
                     frameborder="0"
@@ -243,6 +244,12 @@ export default defineComponent({
         width: 100%;
         height: 100%;
         border: 0;
+        transition: opacity var(--dur-base) var(--ease-out);
+
+        &.is-loading {
+            opacity: 0;
+            pointer-events: none;
+        }
     }
 
     &__loading {

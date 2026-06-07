@@ -82,8 +82,8 @@
                             :key="item.key"
                             class="up-next__item"
                             :class="{ 
-                                'is-active-episode': item.episode === currentEpisode,
-                                'is-priming': item.episode === currentEpisode + 1 && countingDown
+                                'is-active-episode': item.season === currentSeason && item.episode === currentEpisode,
+                                'is-priming': item.season === currentSeason && item.episode === currentEpisode + 1 && countingDown
                             }"
                         >
                             <button 
@@ -106,10 +106,10 @@
                                             <path d="m8 3 4 3 4-3" />
                                         </svg>
                                     </div>
-                                    <span v-if="item.episode === currentEpisode" class="up-next__now-playing">
+                                    <span v-if="item.season === currentSeason && item.episode === currentEpisode" class="up-next__now-playing">
                                         Now Playing
                                     </span>
-                                    <span v-if="item.episode === currentEpisode + 1 && countingDown" class="up-next__count">
+                                    <span v-if="item.season === currentSeason && item.episode === currentEpisode + 1 && countingDown" class="up-next__count">
                                         {{ countdown }}s
                                     </span>
                                 </div>

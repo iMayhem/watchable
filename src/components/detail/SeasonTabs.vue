@@ -15,8 +15,21 @@
             />
         </div>
 
-        <div v-if="loading" class="season-tabs__loading meta">
-            Loading season…
+        <div v-if="loading" class="season-tabs__episodes animate-pulse" aria-hidden="true">
+            <div
+                v-for="i in 6"
+                :key="i"
+                class="season-tabs__ep"
+            >
+                <div class="season-tabs__skeleton-card">
+                    <div class="season-tabs__skeleton-still season-tabs__skeleton-shimmer" />
+                    <div class="season-tabs__skeleton-body">
+                        <div class="season-tabs__skeleton-line season-tabs__skeleton-meta season-tabs__skeleton-shimmer" />
+                        <div class="season-tabs__skeleton-line season-tabs__skeleton-title season-tabs__skeleton-shimmer" />
+                        <div class="season-tabs__skeleton-line season-tabs__skeleton-desc season-tabs__skeleton-shimmer" />
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div v-else-if="visibleEpisodes.length" class="season-tabs__episodes" role="list">
@@ -347,6 +360,80 @@ export default defineComponent({
         font-size: var(--fs-sm);
         color: var(--bone-300);
         line-height: 1.55;
+    }
+
+    &__skeleton-card {
+        display: grid;
+        gap: var(--s-3);
+        padding: var(--s-3);
+        border-radius: var(--r-md);
+        background: var(--ink-800);
+        border: 1px solid var(--rule);
+    }
+
+    &__skeleton-still {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: var(--ink-700);
+        border-radius: var(--r-sm);
+    }
+
+    &__skeleton-body {
+        display: grid;
+        gap: var(--s-2);
+    }
+
+    &__skeleton-line {
+        height: 12px;
+        background: var(--ink-700);
+        border-radius: 4px;
+
+        &.season-tabs__skeleton-meta {
+            width: 40%;
+            height: 10px;
+        }
+
+        &.season-tabs__skeleton-title {
+            width: 75%;
+            height: 16px;
+            margin-top: var(--s-1);
+        }
+
+        &.season-tabs__skeleton-desc {
+            width: 90%;
+            height: 12px;
+            margin-top: var(--s-1);
+        }
+    }
+
+    &__skeleton-shimmer {
+        position: relative;
+        overflow: hidden;
+        background: var(--ink-700);
+
+        &::after {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.05) 20%,
+                rgba(255, 255, 255, 0.1) 60%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            animation: season-shimmer 1.6s infinite ease-in-out;
+            content: '';
+        }
+    }
+}
+
+@keyframes season-shimmer {
+    100% {
+        transform: translateX(100%);
     }
 }
 

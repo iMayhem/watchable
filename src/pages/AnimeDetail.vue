@@ -23,14 +23,17 @@
                 />
             </section>
 
-            <section v-if="anime && episodesList.length" class="anime-detail__section anime-detail__snap-slide container-lm">
+            <section v-if="loading || (anime && episodesList.length)" class="anime-detail__section anime-detail__snap-slide container-lm">
                 <div class="episode-guide">
                     <p class="eyebrow">The Schedule</p>
                     <h3 class="episode-guide__title display">Episode guide</h3>
                     <p class="episode-guide__desc">Every installment, in running order.</p>
 
                     <!-- Premium Custom Season Changer tabs -->
-                    <div v-if="seasonsList.length > 1" class="anime-detail__seasons-rail">
+                    <div v-if="loading" class="anime-detail__seasons-rail" aria-hidden="true">
+                        <div v-for="i in 3" :key="i" class="season-tab-btn-skeleton" />
+                    </div>
+                    <div v-else-if="seasonsList.length > 1" class="anime-detail__seasons-rail">
                         <button
                             v-for="s in seasonsList"
                             :key="s.id"
@@ -43,7 +46,16 @@
                         </button>
                     </div>
 
-                    <div class="episode-guide__grid">
+                    <div v-if="loading" class="episode-guide__grid" aria-hidden="true">
+                        <div v-for="i in 12" :key="i" class="episode-card-skeleton">
+                            <div class="episode-card-skeleton__still episode-card-skeleton__shimmer" />
+                            <div class="episode-card-skeleton__meta">
+                                <div class="episode-card-skeleton__line episode-card-skeleton__title episode-card-skeleton__shimmer" />
+                                <div class="episode-card-skeleton__line episode-card-skeleton__desc episode-card-skeleton__shimmer" />
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="episode-guide__grid">
                         <router-link
                             v-for="ep in paginatedEpisodesList"
                             :key="ep"
@@ -65,7 +77,7 @@
                         </router-link>
                     </div>
 
-                    <div class="episode-guide__pagination">
+                    <div v-if="!loading" class="episode-guide__pagination">
                         <button 
                             @click="currentPage > 1 ? currentPage-- : null"
                             :disabled="currentPage === 1"
@@ -804,6 +816,98 @@ export default defineComponent({
         color: #000;
         font-weight: 600;
         box-shadow: 0 4px 12px rgba(229, 9, 20, 0.2);
+    }
+}
+
+.season-tab-btn-skeleton {
+    width: 90px;
+    height: 34px;
+    border-radius: var(--r-pill);
+    background: var(--ink-800);
+    position: relative;
+    overflow: hidden;
+    &::after {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateX(-100%);
+        background-image: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.05) 20%,
+            rgba(255, 255, 255, 0.1) 60%,
+            rgba(255, 255, 255, 0) 100%
+        );
+        animation: anime-shimmer 1.6s infinite ease-in-out;
+        content: '';
+    }
+}
+
+.episode-card-skeleton {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--r-md);
+    overflow: hidden;
+    background: var(--ink-800);
+    border: 1px solid var(--rule);
+
+    &__still {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: var(--ink-700);
+    }
+
+    &__meta {
+        padding: var(--s-3);
+        display: grid;
+        gap: var(--s-2);
+    }
+
+    &__line {
+        height: 12px;
+        background: var(--ink-700);
+        border-radius: 4px;
+
+        &.episode-card-skeleton__title {
+            width: 70%;
+            height: 14px;
+        }
+
+        &.episode-card-skeleton__desc {
+            width: 90%;
+            height: 10px;
+        }
+    }
+
+    &__shimmer {
+        position: relative;
+        overflow: hidden;
+
+        &::after {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.05) 20%,
+                rgba(255, 255, 255, 0.1) 60%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            animation: anime-shimmer 1.6s infinite ease-in-out;
+            content: '';
+        }
+    }
+}
+
+@keyframes anime-shimmer {
+    100% {
+        transform: translateX(100%);
     }
 }
 </style>

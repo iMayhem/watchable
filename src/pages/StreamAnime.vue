@@ -81,60 +81,92 @@
                 </div>
 
                 <div class="watch-stage__aside">
-                    <!-- Premium Season Selector -->
-                    <div v-if="seasonsList.length > 1" class="season-switcher">
-                        <p class="eyebrow season-switcher__header">Season / Arc</p>
-                        <div class="season-switcher__select-wrapper">
-                            <select
-                                :value="animeId"
-                                @change="goToSeason(Number(($event.target as HTMLSelectElement).value))"
-                                class="season-switcher__select"
-                            >
-                                <option
-                                    v-for="s in seasonsList"
-                                    :key="s.id"
-                                    :value="s.id"
+                    <!-- Season & Language side by side -->
+                    <div class="aside-controls">
+                        <!-- Season Selector -->
+                        <div v-if="seasonsList.length > 1" class="season-switcher">
+                            <p class="eyebrow season-switcher__header">Season / Arc</p>
+                            <div class="season-switcher__select-wrapper">
+                                <select
+                                    :value="animeId"
+                                    @change="goToSeason(Number(($event.target as HTMLSelectElement).value))"
+                                    class="season-switcher__select"
                                 >
-                                    {{ s.label }}
-                                </option>
-                            </select>
-                            <span class="season-switcher__chevron" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M6 9l6 6 6-6" />
-                                </svg>
-                            </span>
+                                    <option
+                                        v-for="s in seasonsList"
+                                        :key="s.id"
+                                        :value="s.id"
+                                    >
+                                        {{ s.label }}
+                                    </option>
+                                </select>
+                                <span class="season-switcher__chevron" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M6 9l6 6 6-6" />
+                                    </svg>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Language Pref -->
+                        <div v-if="availableServers[activeServerIndex]?.name !== 'Videasy'" class="language-switcher">
+                            <p class="eyebrow language-switcher__header">Language Pref</p>
+                            <div class="language-switcher__tabs">
+                                <button
+                                    type="button"
+                                    class="language-switcher__btn"
+                                    :class="{ 'is-active': activeLanguage === 'sub' }"
+                                    @click="activeLanguage = 'sub'"
+                                >
+                                    Subtitled
+                                </button>
+                                <button
+                                    type="button"
+                                    class="language-switcher__btn"
+                                    :class="{ 'is-active': activeLanguage === 'dub' }"
+                                    @click="activeLanguage = 'dub'"
+                                >
+                                    Dubbed
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Premium Dub / Sub Switcher styled exactly as standard components -->
-                    <div v-if="availableServers[activeServerIndex]?.name !== 'Videasy'" class="language-switcher">
-                        <p class="eyebrow language-switcher__header">Language Pref</p>
-                        <div class="language-switcher__tabs">
-                            <button
-                                type="button"
-                                class="language-switcher__btn"
-                                :class="{ 'is-active': activeLanguage === 'sub' }"
-                                @click="activeLanguage = 'sub'"
-                            >
-                                Subtitled
-                            </button>
-                            <button
-                                type="button"
-                                class="language-switcher__btn"
-                                :class="{ 'is-active': activeLanguage === 'dub' }"
-                                @click="activeLanguage = 'dub'"
-                            >
-                                Dubbed
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Server Room Accordion used identically to Movie/Show pages -->
+                    <!-- Server Room Accordion -->
                     <ServerAccordion
                         :servers="availableServers"
                         :active-server-index="activeServerIndex"
                         @server-change="activeServerIndex = $event"
                     />
+
+                    <!-- Up Next Episodes -->
+                    <div v-if="upNextEpisodes.length" class="up-next">
+                        <p class="eyebrow up-next__header">Up Next</p>
+                        <div class="up-next__list">
+                            <button
+                                v-for="ep in upNextEpisodes"
+                                :key="ep"
+                                type="button"
+                                class="up-next__item"
+                                :class="{ 'is-current': ep === currentEpisode }"
+                                @click="goToEpisode(ep)"
+                            >
+                                <div class="up-next__thumb">
+                                    <img
+                                        v-if="anime?.coverImage?.large"
+                                        :src="anime.coverImage.large"
+                                        :alt="`Episode ${ep}`"
+                                        loading="lazy"
+                                    />
+                                    <span class="up-next__ep-badge">EP {{ ep }}</span>
+                                </div>
+                                <div class="up-next__meta">
+                                    <p class="up-next__code eyebrow">Episode {{ ep }}</p>
+                                    <p class="up-next__title">{{ animeTitle }}</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -504,6 +536,16 @@ export default defineComponent({
             }
         };
 
+        // Up Next: next 3 episodes after current
+        const upNextEpisodes = computed(() => {
+            const next: number[] = [];
+            for (let i = 1; i <= 3; i++) {
+                const ep = currentEpisode.value + i;
+                if (ep <= totalEpisodes.value) next.push(ep);
+            }
+            return next;
+        });
+
         // Keyboard navigation for step increment
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -600,6 +642,7 @@ export default defineComponent({
             activeRangeIndex,
             searchQuery,
             displayedEpisodes,
+            upNextEpisodes,
             goBack,
             goToEpisode
         };
@@ -1038,6 +1081,7 @@ export default defineComponent({
     display: flex;
     flex-direction: column;
     gap: var(--s-3);
+    min-width: 0;
 
     &__header {
         margin: 0;
@@ -1291,6 +1335,7 @@ export default defineComponent({
     display: flex;
     flex-direction: column;
     gap: var(--s-3);
+    min-width: 0;
 
     &__header {
         margin: 0;
@@ -1336,6 +1381,126 @@ export default defineComponent({
             width: 16px;
             height: 16px;
         }
+    }
+}
+
+// Side-by-side row for season & language controls
+.aside-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-3);
+
+    // If only one child (no season or no language), stretch to full width
+    > *:only-child {
+        grid-column: span 2;
+    }
+
+    @media (max-width: 480px) {
+        grid-template-columns: 1fr;
+
+        > *:only-child {
+            grid-column: span 1;
+        }
+    }
+}
+
+// Up Next panel
+.up-next {
+    background: var(--ink-800);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-lg);
+    padding: var(--s-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+
+    &__header {
+        margin: 0;
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-2);
+    }
+
+    &__item {
+        display: flex;
+        align-items: center;
+        gap: var(--s-3);
+        width: 100%;
+        text-align: left;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-sm);
+        padding: var(--s-2);
+        cursor: pointer;
+        transition:
+            background-color var(--dur-fast) var(--ease-out),
+            border-color var(--dur-fast) var(--ease-out);
+
+        &:hover {
+            background: rgba(255, 90, 31, 0.08);
+            border-color: rgba(255, 90, 31, 0.3);
+        }
+
+        &.is-current {
+            border-color: var(--ember);
+        }
+    }
+
+    &__thumb {
+        position: relative;
+        flex: 0 0 80px;
+        aspect-ratio: 16 / 9;
+        border-radius: var(--r-xs, 4px);
+        overflow: hidden;
+        background: var(--ink-750);
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+    }
+
+    &__ep-badge {
+        position: absolute;
+        bottom: 4px;
+        left: 4px;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(4px);
+        color: var(--bone-50);
+        font-family: var(--font-mono);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        padding: 2px 5px;
+        border-radius: 3px;
+    }
+
+    &__meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    &__code {
+        margin: 0;
+        color: var(--bone-400);
+    }
+
+    &__title {
+        margin: 0;
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        color: var(--bone-50);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
 </style>

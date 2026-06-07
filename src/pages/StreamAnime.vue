@@ -299,9 +299,9 @@ export default defineComponent({
         const searchQuery = ref<string>('');
 
         const availableServers: Server[] = [
-            { name: 'AnimePlay CFD', urlTemplate: 'https://animeplay.cfd/stream/ani/{id}/{episode}/{lang}' },
-            { name: 'MegaPlay', urlTemplate: 'https://megaplay.buzz/stream/ani/{id}/{episode}/{lang}' },
-            { name: 'Videasy', urlTemplate: 'https://player.videasy.net/anime/{id}/{episode}?color=E05A47&autoplayNextEpisode=true&overlay=true' }
+            { name: '🥣 Shrikhand', urlTemplate: 'https://animeplay.cfd/stream/ani/{id}/{episode}/{lang}' },
+            { name: '🍨 Rabri', urlTemplate: 'https://megaplay.buzz/stream/ani/{id}/{episode}/{lang}' },
+            { name: '⬜ Barfi', urlTemplate: 'https://player.videasy.net/anime/{id}/{episode}?color=E05A47&autoplayNextEpisode=true&overlay=true' }
         ];
 
         const animeTitle = computed(() => {

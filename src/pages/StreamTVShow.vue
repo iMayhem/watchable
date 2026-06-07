@@ -17,9 +17,33 @@
                 <div class="watch-stage__title-block">
                     <h1 v-if="show" class="watch-stage__title">{{ show.name }}</h1>
                     <span v-else class="watch-stage__title-skeleton" aria-hidden="true" />
-                    <p class="meta watch-stage__code">
-                        S{{ currentSeason }} · E{{ String(currentEpisode).padStart(2, '0') }}
-                    </p>
+                    <div class="watch-stage__episode-nav">
+                        <button
+                            type="button"
+                            class="watch-stage__nav-btn"
+                            :disabled="currentEpisode <= 1"
+                            @click="goToPreviousEpisode"
+                            aria-label="Previous Episode"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                        <p class="meta watch-stage__code">
+                            S{{ currentSeason }} · E{{ String(currentEpisode).padStart(2, '0') }}
+                        </p>
+                        <button
+                            type="button"
+                            class="watch-stage__nav-btn"
+                            :disabled="isLastEpisode"
+                            @click="goToNextEpisode"
+                            aria-label="Next Episode"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="watch-stage__actions">
@@ -562,17 +586,13 @@ export default defineComponent({
         };
 
         const goBack = () => {
-            if (window.history.state && window.history.state.back) {
-                router.back();
-            } else {
-                router.push({
-                    path: paths.tvShow(showId.value),
-                    query: {
-                        season: String(currentSeason.value),
-                        episode: String(currentEpisode.value)
-                    }
-                });
-            }
+            router.push({
+                path: paths.tvShow(showId.value),
+                query: {
+                    season: String(currentSeason.value),
+                    episode: String(currentEpisode.value)
+                }
+            });
         };
 
         watch(
@@ -626,7 +646,8 @@ export default defineComponent({
             onUpNextSelect,
             onUpNextSeasonChange,
             goBack,
-            nextAiringInfo
+            nextAiringInfo,
+            isLastEpisode
         };
     }
 });
@@ -787,6 +808,47 @@ export default defineComponent({
     &__code {
         color: var(--bone-400);
         font-family: var(--font-mono);
+    }
+
+    &__episode-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 4px;
+
+        @media (max-width: 640px) {
+            justify-content: flex-start;
+        }
+    }
+
+    &__nav-btn {
+        background: none;
+        border: none;
+        color: var(--bone-400);
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--r-sm);
+        transition: color var(--dur-fast), background-color var(--dur-fast);
+
+        &:hover:not(:disabled) {
+            color: var(--ember);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        &:disabled {
+            color: var(--bone-700);
+            cursor: not-allowed;
+            opacity: 0.35;
+        }
+
+        svg {
+            width: 14px;
+            height: 14px;
+        }
     }
 
     &__actions {

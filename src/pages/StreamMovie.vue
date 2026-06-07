@@ -233,11 +233,7 @@ export default defineComponent({
         };
 
         const goBack = () => {
-            if (window.history.state && window.history.state.back) {
-                router.back();
-            } else {
-                router.push(paths.movie(movieId.value));
-            }
+            router.push(paths.movie(movieId.value));
         };
 
         watch(

@@ -437,8 +437,27 @@ export default defineComponent({
 
         const getEpisodeOverview = (epNum: number) => {
             const match = tmdbEpisodes.value.find(e => e.episode_number === epNum);
-            if (match && match.overview) {
-                return match.overview;
+            if (match) {
+                if (match.air_date) {
+                    const parts = match.air_date.split('-');
+                    if (parts.length === 3) {
+                        const year = parseInt(parts[0], 10);
+                        const month = parseInt(parts[1], 10) - 1;
+                        const day = parseInt(parts[2], 10);
+                        const airDate = new Date(year, month, day);
+                        
+                        const now = new Date();
+                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        
+                        if (airDate > today) {
+                            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            return `📅 Releases: ${months[month]} ${day}, ${year}`;
+                        }
+                    }
+                }
+                if (match.overview) {
+                    return match.overview;
+                }
             }
             return 'Sub/Dub available';
         };

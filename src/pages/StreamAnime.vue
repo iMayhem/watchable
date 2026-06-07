@@ -138,35 +138,6 @@
                         :active-server-index="activeServerIndex"
                         @server-change="activeServerIndex = $event"
                     />
-
-                    <!-- Up Next Episodes -->
-                    <div v-if="upNextEpisodes.length" class="up-next">
-                        <p class="eyebrow up-next__header">Up Next</p>
-                        <div class="up-next__list">
-                            <button
-                                v-for="ep in upNextEpisodes"
-                                :key="ep"
-                                type="button"
-                                class="up-next__item"
-                                :class="{ 'is-current': ep === currentEpisode }"
-                                @click="goToEpisode(ep)"
-                            >
-                                <div class="up-next__thumb">
-                                    <img
-                                        v-if="anime?.coverImage?.large"
-                                        :src="anime.coverImage.large"
-                                        :alt="`Episode ${ep}`"
-                                        loading="lazy"
-                                    />
-                                    <span class="up-next__ep-badge">EP {{ ep }}</span>
-                                </div>
-                                <div class="up-next__meta">
-                                    <p class="up-next__code eyebrow">Episode {{ ep }}</p>
-                                    <p class="up-next__title">{{ animeTitle }}</p>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -243,7 +214,7 @@
                                     'is-active': ep === currentEpisode,
                                     'has-progress': animeProgress(ep) > 0
                                 }"
-                                :title="`Episode ${ep}`"
+                                :title="seasonEpisodes[ep - 1]?.name ? `Episode ${ep}: ${seasonEpisodes[ep - 1].name}` : `Episode ${ep}`"
                                 @click="goToEpisode(ep)"
                             >
                                 <span class="ep-square__number">{{ ep }}</span>
@@ -294,6 +265,17 @@
                 Streams are mirrored from third-party providers. moovie does not host video files.
             </p>
         </main>
+
+        <UpNextDrawer
+            v-if="anime && seasonsList.length"
+            :current-season="currentSeasonNumber"
+            :current-episode="currentEpisode"
+            :season-episodes="seasonEpisodes"
+            :next-season-number="nextSeasonNumber"
+            :next-season-episodes="nextSeasonEpisodes"
+            @select="onUpNextSelect"
+            @season-change="onUpNextSeasonChange"
+        />
     </div>
 </template>
 
@@ -304,8 +286,11 @@ import { useAniList } from '../composables/useAniList';
 import { saveProgress, getProgressPercent } from '../composables/useProgress';
 import { addViewedItem } from '../composables/useHistory';
 import { Server } from '../composables/useStream';
+import { Episode } from '../composables/useTvShows';
+import useAxios from '../composables/useAxios';
 import StreamFrame from '../components/player/StreamFrame.vue';
 import ServerAccordion from '../components/player/ServerAccordion.vue';
+import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import { useAppPaths } from '../composables/useAppPaths';
 
@@ -314,7 +299,8 @@ export default defineComponent({
     components: {
         ArrowLeft,
         ServerAccordion,
-        StreamFrame
+        StreamFrame,
+        UpNextDrawer
     },
     setup() {
         const route = useRoute();
@@ -330,6 +316,11 @@ export default defineComponent({
         const activeRangeIndex = ref<number>(0);
         const searchQuery = ref<string>('');
 
+        const tmdbTvId = ref<number | null>(null);
+        const tmdbEpisodes = ref<any[]>([]);
+        const nextSeasonTmdbEpisodes = ref<any[]>([]);
+        const isLoadingTmdb = ref(false);
+
         const availableServers: Server[] = [
             { name: 'Shrikhand', urlTemplate: 'https://animeplay.cfd/stream/ani/{id}/{episode}/{lang}' },
             { name: 'Rabri', urlTemplate: 'https://megaplay.buzz/stream/ani/{id}/{episode}/{lang}' },
@@ -342,6 +333,9 @@ export default defineComponent({
         });
 
         const totalEpisodes = computed(() => {
+            if (tmdbEpisodes.value && tmdbEpisodes.value.length > 0) {
+                return tmdbEpisodes.value.length;
+            }
             if (!anime.value) return 1;
             if (anime.value.episodes) return anime.value.episodes;
             if (anime.value.nextAiringEpisode?.episode) {
@@ -536,15 +530,206 @@ export default defineComponent({
             }
         };
 
-        // Up Next: next 3 episodes after current
-        const upNextEpisodes = computed(() => {
-            const next: number[] = [];
-            for (let i = 1; i <= 3; i++) {
-                const ep = currentEpisode.value + i;
-                if (ep <= totalEpisodes.value) next.push(ep);
-            }
-            return next;
+        const currentSeasonIdx = computed(() => {
+            if (!anime.value || !seasonsList.value.length) return -1;
+            return seasonsList.value.findIndex(s => s.id === animeId.value);
         });
+
+        const currentSeasonNumber = computed(() => {
+            return currentSeasonIdx.value !== -1 ? currentSeasonIdx.value + 1 : 1;
+        });
+
+        const nextSeasonId = computed(() => {
+            const idx = currentSeasonIdx.value;
+            if (idx === -1 || idx + 1 >= seasonsList.value.length) return null;
+            return seasonsList.value[idx + 1].id;
+        });
+
+        const nextSeasonNumber = computed(() => {
+            return nextSeasonId.value ? (currentSeasonIdx.value + 2) : 0;
+        });
+
+        const nextSeasonEpisodesCount = ref<number>(0);
+        const nextSeasonCoverImage = ref<string>('');
+        const nextSeasonTitle = ref<string>('');
+
+        watch(nextSeasonId, async (id) => {
+            if (!id) {
+                nextSeasonEpisodesCount.value = 0;
+                nextSeasonCoverImage.value = '';
+                nextSeasonTitle.value = '';
+                return;
+            }
+            try {
+                const response = await fetchAnimeById(id);
+                const media = response?.data?.Media ?? null;
+                if (media) {
+                    nextSeasonEpisodesCount.value = media.episodes || 12;
+                    nextSeasonCoverImage.value = media.coverImage.large || '';
+                    nextSeasonTitle.value = media.title.english || media.title.romaji || media.title.native || '';
+                }
+            } catch (err) {
+                console.error('Failed to load next season details:', err);
+            }
+        }, { immediate: true });
+
+        const fetchTmdbEpisodes = async (title: string) => {
+            if (!title) {
+                tmdbEpisodes.value = [];
+                tmdbTvId.value = null;
+                return;
+            }
+            isLoadingTmdb.value = true;
+            try {
+                const axiosInstance = useAxios();
+                const searchRes = await axiosInstance.get('search/tv', {
+                    params: { query: title }
+                });
+                const results = searchRes.data?.results || [];
+                if (results.length > 0) {
+                    let mapped = results.find((r: any) => r.genre_ids && r.genre_ids.includes(16));
+                    if (!mapped) {
+                        mapped = results[0];
+                    }
+                    tmdbTvId.value = mapped.id;
+                    const seasonRes = await axiosInstance.get(`tv/${mapped.id}/season/1`);
+                    tmdbEpisodes.value = seasonRes.data?.episodes || [];
+                } else {
+                    tmdbEpisodes.value = [];
+                    tmdbTvId.value = null;
+                }
+            } catch (err) {
+                console.error('Failed to fetch TMDB mapping/episodes for anime:', err);
+                tmdbEpisodes.value = [];
+                tmdbTvId.value = null;
+            } finally {
+                isLoadingTmdb.value = false;
+            }
+        };
+
+        const fetchNextSeasonTmdbEpisodes = async (title: string) => {
+            if (!title) {
+                nextSeasonTmdbEpisodes.value = [];
+                return;
+            }
+            try {
+                const axiosInstance = useAxios();
+                const searchRes = await axiosInstance.get('search/tv', {
+                    params: { query: title }
+                });
+                const results = searchRes.data?.results || [];
+                if (results.length > 0) {
+                    let mapped = results.find((r: any) => r.genre_ids && r.genre_ids.includes(16));
+                    if (!mapped) {
+                        mapped = results[0];
+                    }
+                    const seasonRes = await axiosInstance.get(`tv/${mapped.id}/season/1`);
+                    nextSeasonTmdbEpisodes.value = seasonRes.data?.episodes || [];
+                } else {
+                    nextSeasonTmdbEpisodes.value = [];
+                }
+            } catch (err) {
+                console.error('Failed to fetch TMDB next season episodes:', err);
+                nextSeasonTmdbEpisodes.value = [];
+            }
+        };
+
+        watch(animeTitle, (title) => {
+            if (title) {
+                fetchTmdbEpisodes(title);
+            } else {
+                tmdbEpisodes.value = [];
+                tmdbTvId.value = null;
+            }
+        }, { immediate: true });
+
+        watch(nextSeasonTitle, (title) => {
+            if (title) {
+                fetchNextSeasonTmdbEpisodes(title);
+            } else {
+                nextSeasonTmdbEpisodes.value = [];
+            }
+        }, { immediate: true });
+
+        const seasonEpisodes = computed(() => {
+            if (tmdbEpisodes.value && tmdbEpisodes.value.length > 0) {
+                return tmdbEpisodes.value.map(ep => ({
+                    ...ep,
+                    season_number: currentSeasonNumber.value
+                })) as unknown as Episode[];
+            }
+
+            const list = [];
+            const img = anime.value?.coverImage?.large || '';
+            const desc = anime.value?.description || '';
+            for (let i = 1; i <= totalEpisodes.value; i++) {
+                list.push({
+                    id: i,
+                    name: `Episode ${i}`,
+                    overview: desc,
+                    still_path: img,
+                    air_date: '',
+                    episode_number: i,
+                    season_number: currentSeasonNumber.value,
+                    crew: [],
+                    guest_stars: [],
+                    production_code: '',
+                    runtime: 0,
+                    vote_average: 0,
+                    vote_count: 0
+                });
+            }
+            return list as unknown as Episode[];
+        });
+
+        const nextSeasonEpisodes = computed(() => {
+            if (!nextSeasonId.value) return [];
+            if (nextSeasonTmdbEpisodes.value && nextSeasonTmdbEpisodes.value.length > 0) {
+                return nextSeasonTmdbEpisodes.value.map(ep => ({
+                    ...ep,
+                    season_number: nextSeasonNumber.value
+                })) as unknown as Episode[];
+            }
+
+            const list = [];
+            const img = nextSeasonCoverImage.value;
+            for (let i = 1; i <= nextSeasonEpisodesCount.value; i++) {
+                list.push({
+                    id: i,
+                    name: `Episode ${i}`,
+                    overview: '',
+                    still_path: img,
+                    air_date: '',
+                    episode_number: i,
+                    season_number: nextSeasonNumber.value,
+                    crew: [],
+                    guest_stars: [],
+                    production_code: '',
+                    runtime: 0,
+                    vote_average: 0,
+                    vote_count: 0
+                });
+            }
+            return list as unknown as Episode[];
+        });
+
+        const onUpNextSelect = (payload: { season: number; episode: number }) => {
+            const targetSeasonIdx = payload.season - 1;
+            const targetAnime = seasonsList.value[targetSeasonIdx];
+            if (targetAnime && targetAnime.id !== animeId.value) {
+                router.push(paths.streamAnime(targetAnime.id, payload.episode));
+            } else {
+                goToEpisode(payload.episode);
+            }
+        };
+
+        const onUpNextSeasonChange = (next: number) => {
+            const targetSeasonIdx = next - 1;
+            const targetAnime = seasonsList.value[targetSeasonIdx];
+            if (targetAnime && targetAnime.id !== animeId.value) {
+                router.push(paths.streamAnime(targetAnime.id, 1));
+            }
+        };
 
         // Keyboard navigation for step increment
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -642,7 +827,12 @@ export default defineComponent({
             activeRangeIndex,
             searchQuery,
             displayedEpisodes,
-            upNextEpisodes,
+            currentSeasonNumber,
+            seasonEpisodes,
+            nextSeasonNumber,
+            nextSeasonEpisodes,
+            onUpNextSelect,
+            onUpNextSeasonChange,
             goBack,
             goToEpisode
         };
@@ -1401,106 +1591,6 @@ export default defineComponent({
         > *:only-child {
             grid-column: span 1;
         }
-    }
-}
-
-// Up Next panel
-.up-next {
-    background: var(--ink-800);
-    border: 1px solid var(--rule);
-    border-radius: var(--r-lg);
-    padding: var(--s-4);
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-3);
-
-    &__header {
-        margin: 0;
-    }
-
-    &__list {
-        display: flex;
-        flex-direction: column;
-        gap: var(--s-2);
-    }
-
-    &__item {
-        display: flex;
-        align-items: center;
-        gap: var(--s-3);
-        width: 100%;
-        text-align: left;
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-sm);
-        padding: var(--s-2);
-        cursor: pointer;
-        transition:
-            background-color var(--dur-fast) var(--ease-out),
-            border-color var(--dur-fast) var(--ease-out);
-
-        &:hover {
-            background: rgba(255, 90, 31, 0.08);
-            border-color: rgba(255, 90, 31, 0.3);
-        }
-
-        &.is-current {
-            border-color: var(--ember);
-        }
-    }
-
-    &__thumb {
-        position: relative;
-        flex: 0 0 80px;
-        aspect-ratio: 16 / 9;
-        border-radius: var(--r-xs, 4px);
-        overflow: hidden;
-        background: var(--ink-750);
-
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-    }
-
-    &__ep-badge {
-        position: absolute;
-        bottom: 4px;
-        left: 4px;
-        background: rgba(0, 0, 0, 0.75);
-        backdrop-filter: blur(4px);
-        color: var(--bone-50);
-        font-family: var(--font-mono);
-        font-size: 0.6rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        padding: 2px 5px;
-        border-radius: 3px;
-    }
-
-    &__meta {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-    }
-
-    &__code {
-        margin: 0;
-        color: var(--bone-400);
-    }
-
-    &__title {
-        margin: 0;
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
-        font-weight: 500;
-        color: var(--bone-50);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 }
 </style>

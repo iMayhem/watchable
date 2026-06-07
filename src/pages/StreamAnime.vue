@@ -314,6 +314,7 @@
             :season-episodes="seasonEpisodes"
             :next-season-number="nextSeasonNumber"
             :next-season-episodes="nextSeasonEpisodes"
+            :is-loading="isLoadingTmdb"
             @select="onUpNextSelect"
             @season-change="onUpNextSeasonChange"
         />
@@ -986,7 +987,8 @@ export default defineComponent({
             goToEpisode,
             nextAiringInfo,
             isEpisodeUpcoming,
-            getEpisodeTooltip
+            getEpisodeTooltip,
+            isLoadingTmdb
         };
     }
 });

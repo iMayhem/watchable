@@ -247,6 +247,7 @@
             :season-episodes="seasonEpisodes"
             :next-season-number="nextSeasonNumber"
             :next-season-episodes="nextSeasonEpisodes"
+            :is-loading="isLoadingEpisodes"
             @select="onUpNextSelect"
             @season-change="onUpNextSeasonChange"
         />

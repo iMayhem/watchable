@@ -38,53 +38,111 @@
                     </button>
                 </header>
 
-                <ul v-if="hasUpcoming" class="up-next__list">
-                    <li
-                        v-for="(item, idx) in upcoming"
-                        :key="item.key"
-                        class="up-next__item"
-                        :class="{ 'is-priming': idx === 0 && countingDown }"
-                    >
-                        <button 
-                            type="button" 
-                            class="up-next__row" 
-                            :class="{ 'is-upcoming': item.isUpcoming }" 
-                            :disabled="item.isUpcoming" 
-                            @click="select(item)"
-                        >
-                            <div class="up-next__still">
-                                <img
-                                    v-if="item.still"
-                                    :src="item.still"
-                                    :alt="item.label"
-                                    loading="lazy"
-                                />
-                                <div v-else class="up-next__placeholder" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
-                                        <rect x="3" y="6" width="18" height="12" rx="2" />
-                                        <path d="m8 3 4 3 4-3" />
-                                    </svg>
+                <div v-if="isLoading" class="up-next__list-container">
+                    <div class="up-next__section-title">Loading episodes…</div>
+                    <ul class="up-next__list">
+                        <li v-for="i in 3" :key="i" class="up-next__item is-skeleton">
+                            <div class="up-next__row">
+                                <div class="up-next__still skeleton-pulse" />
+                                <div class="up-next__body">
+                                    <div class="skeleton-line skeleton-meta skeleton-pulse" />
+                                    <div class="skeleton-line skeleton-title skeleton-pulse" />
+                                    <div class="skeleton-line skeleton-overview skeleton-pulse" />
                                 </div>
-                                <span v-if="idx === 0 && countingDown" class="up-next__count">
-                                    {{ countdown }}s
-                                </span>
                             </div>
-                            <div class="up-next__body">
-                                <span class="meta up-next__meta">{{ item.code }} · {{ item.label }}</span>
-                                <h4 class="up-next__name">{{ item.title }}</h4>
-                                <p class="up-next__overview">
-                                    <span v-if="item.isUpcoming" class="up-next__airdate">
-                                        📅 Airs: {{ item.upcomingDate }}
+                        </li>
+                    </ul>
+                </div>
+
+                <div v-else class="up-next__list-container">
+                    <!-- Coming Up Section -->
+                    <div class="up-next__section-title">Coming up</div>
+                    <ul v-if="hasUpcoming" class="up-next__list">
+                        <li
+                            v-for="(item, idx) in upcoming"
+                            :key="item.key"
+                            class="up-next__item"
+                            :class="{ 'is-priming': idx === 0 && countingDown }"
+                        >
+                            <button 
+                                type="button" 
+                                class="up-next__row" 
+                                :class="{ 'is-upcoming': item.isUpcoming }" 
+                                :disabled="item.isUpcoming" 
+                                @click="select(item)"
+                            >
+                                <div class="up-next__still">
+                                    <img
+                                        v-if="item.still"
+                                        :src="item.still"
+                                        :alt="item.label"
+                                        loading="lazy"
+                                    />
+                                    <div v-else class="up-next__placeholder" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                                            <rect x="3" y="6" width="18" height="12" rx="2" />
+                                            <path d="m8 3 4 3 4-3" />
+                                        </svg>
+                                    </div>
+                                    <span v-if="idx === 0 && countingDown" class="up-next__count">
+                                        {{ countdown }}s
                                     </span>
-                                    <span v-else-if="item.overview">
+                                </div>
+                                <div class="up-next__body">
+                                    <span class="meta up-next__meta">{{ item.code }} · {{ item.label }}</span>
+                                    <h4 class="up-next__name">{{ item.title }}</h4>
+                                    <p class="up-next__overview">
+                                        <span v-if="item.isUpcoming" class="up-next__airdate">
+                                            📅 Airs: {{ item.upcomingDate }}
+                                        </span>
+                                        <span v-else-if="item.overview">
+                                            {{ truncate(item.overview, 110) }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </button>
+                        </li>
+                    </ul>
+                    <p v-else class="meta up-next__empty">No more episodes filed for this run.</p>
+
+                    <!-- Previous 3 Episodes Section -->
+                    <div v-if="previousEpisodes.length > 0" class="up-next__section-title">Previous episodes</div>
+                    <ul v-if="previousEpisodes.length > 0" class="up-next__list">
+                        <li
+                            v-for="item in previousEpisodes"
+                            :key="item.key"
+                            class="up-next__item"
+                        >
+                            <button 
+                                type="button" 
+                                class="up-next__row" 
+                                @click="select(item)"
+                            >
+                                <div class="up-next__still">
+                                    <img
+                                        v-if="item.still"
+                                        :src="item.still"
+                                        :alt="item.label"
+                                        loading="lazy"
+                                    />
+                                    <div v-else class="up-next__placeholder" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                                            <rect x="3" y="6" width="18" height="12" rx="2" />
+                                            <path d="m8 3 4 3 4-3" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="up-next__body">
+                                    <span class="meta up-next__meta">{{ item.code }} · {{ item.label }}</span>
+                                    <h4 class="up-next__name">{{ item.title }}</h4>
+                                    <p v-if="item.overview" class="up-next__overview">
                                         {{ truncate(item.overview, 110) }}
-                                    </span>
-                                </p>
-                            </div>
-                        </button>
-                    </li>
-                </ul>
-                <p v-else class="meta up-next__empty">No more episodes filed for this run.</p>
+                                    </p>
+                                </div>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
 
                 <footer class="up-next__foot">
                     <label class="up-next__autoplay">
@@ -126,7 +184,8 @@ export default defineComponent({
         seasonEpisodes: { type: Array as PropType<Episode[]>, required: true },
         nextSeasonNumber: { type: Number, default: 0 },
         nextSeasonEpisodes: { type: Array as PropType<Episode[]>, default: () => [] },
-        autoplayCountdown: { type: Number, default: 12 }
+        autoplayCountdown: { type: Number, default: 12 },
+        isLoading: { type: Boolean, default: false }
     },
     emits: ['select', 'season-change'],
     setup(props, { emit }) {
@@ -205,6 +264,28 @@ export default defineComponent({
             return items;
         });
 
+        const previousEpisodes = computed<UpNextItem[]>(() => {
+            const items: UpNextItem[] = [];
+            const prev = props.seasonEpisodes.filter(
+                (ep) => ep.episode_number < props.currentEpisode
+            );
+            prev.slice(-3).reverse().forEach((ep) => {
+                items.push({
+                    key: `s${props.currentSeason}e${ep.episode_number}`,
+                    season: props.currentSeason,
+                    episode: ep.episode_number,
+                    code: `S${props.currentSeason} · E${String(ep.episode_number).padStart(2, '0')}`,
+                    label: formatLabel(ep),
+                    title: ep.name || `Episode ${ep.episode_number}`,
+                    overview: ep.overview || '',
+                    still: ep.still_path ? useWebImage(ep.still_path, 'medium') : '',
+                    isUpcoming: false,
+                    upcomingDate: ''
+                });
+            });
+            return items;
+        });
+
         const hasUpcoming = computed(() => upcoming.value.length > 0);
 
         const countingDown = ref(false);
@@ -242,7 +323,6 @@ export default defineComponent({
                 emit('season-change', item.season);
             }
             emit('select', { season: item.season, episode: item.episode });
-            open.value = false;
         };
 
         const truncate = (text: string, length: number) => {
@@ -267,6 +347,7 @@ export default defineComponent({
             autoplay,
             upcoming,
             hasUpcoming,
+            previousEpisodes,
             countdown,
             countingDown,
             select,
@@ -396,6 +477,24 @@ export default defineComponent({
         svg { width: 18px; height: 18px; }
     }
 
+    &__list-container {
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-3);
+        padding-right: 4px;
+
+        /* Hide scrollbar visually but keep functional */
+        scrollbar-width: thin;
+        &::-webkit-scrollbar {
+            width: 4px;
+        }
+        &::-webkit-scrollbar-thumb {
+            background: var(--ink-700);
+            border-radius: var(--r-pill);
+        }
+    }
+
     &__list {
         list-style: none;
         margin: 0;
@@ -523,6 +622,73 @@ export default defineComponent({
 
     &__empty {
         color: var(--bone-400);
+    }
+
+    &__section-title {
+        font-family: var(--font-display);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--bone-400);
+        margin-top: var(--s-5);
+        margin-bottom: var(--s-2);
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+
+        &:first-of-type {
+            margin-top: 0;
+        }
+    }
+
+    &__item.is-skeleton {
+        pointer-events: none;
+        background: var(--ink-800);
+        box-shadow: inset 0 0 0 1px var(--rule);
+    }
+
+    .skeleton-pulse {
+        background: linear-gradient(
+            90deg,
+            var(--ink-700) 25%,
+            var(--ink-600) 50%,
+            var(--ink-700) 75%
+        );
+        background-size: 200% 100%;
+        animation: upNextPulse 1.5s infinite linear;
+    }
+
+    .skeleton-line {
+        height: 10px;
+        border-radius: var(--r-sm);
+        background: var(--ink-700);
+
+        &.skeleton-meta {
+            width: 40%;
+            height: 8px;
+        }
+
+        &.skeleton-title {
+            width: 80%;
+            height: 12px;
+            margin-top: 4px;
+        }
+
+        &.skeleton-overview {
+            width: 60%;
+            height: 8px;
+            margin-top: 8px;
+        }
+    }
+
+    @keyframes upNextPulse {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
     }
 
     &__foot {

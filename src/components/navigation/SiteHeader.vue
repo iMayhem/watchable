@@ -73,6 +73,40 @@
                     Sign In
                 </button>
 
+                <!-- Regional Settings Dropdown Trigger -->
+                <div ref="regionContainer" class="site-header__region-container">
+                    <button
+                        class="site-header__region-toggle"
+                        :class="{ 'is-active': isRegionDropdownOpen }"
+                        type="button"
+                        @click="toggleRegionDropdown"
+                    >
+                        <span class="site-header__region-flag">{{ getFlagEmoji(currentRegion) }}</span>
+                        Change Region
+                    </button>
+                    
+                    <div v-if="isRegionDropdownOpen" class="region-dropdown">
+                        <div class="region-dropdown__header eyebrow">
+                            Select Region
+                        </div>
+                        <div class="region-dropdown__list">
+                            <button
+                                v-for="r in regions"
+                                :key="r.code"
+                                class="region-dropdown__item"
+                                :class="{ 'is-active': currentRegion === r.code }"
+                                @click="selectRegion(r.code)"
+                            >
+                                <span class="region-dropdown__flag">{{ getFlagEmoji(r.code) }}</span>
+                                <span class="region-dropdown__name">{{ r.name }}</span>
+                                <svg v-if="currentRegion === r.code" class="region-dropdown__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <button
                     class="site-header__icon-btn site-header__menu"
                     type="button"
@@ -110,6 +144,11 @@
                     <span class="site-header__drawer-label">Watch Together</span>
                 </a>
 
+                <button class="site-header__drawer-link" @click="isSettingsModalOpen = true; drawerOpen = false">
+                    <span class="eyebrow site-header__drawer-num">🌐</span>
+                    <span class="site-header__drawer-label">Regional Settings</span>
+                </button>
+
 
 
                 <div v-if="currentUser" class="site-header__drawer-link" style="justify-content: space-between;">
@@ -134,6 +173,9 @@
         <!-- Authentication Modal Dialog -->
         <AuthModal :is-open="isAuthModalOpen" @close="isAuthModalOpen = false" />
         
+        <!-- Regional Settings Modal -->
+        <SettingsModal :is-open="isSettingsModalOpen" @close="isSettingsModalOpen = false" />
+        
 
     </header>
 </template>
@@ -143,9 +185,11 @@ import { defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import LmDrawer from '../primitives/Drawer.vue';
 import AuthModal from './AuthModal.vue';
+import SettingsModal from './SettingsModal.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
+import { getSettings, REGIONS } from '../../composables/useSettings';
 
 interface NavItem {
     label: string;
@@ -185,13 +229,14 @@ const primaryNav: NavItem[] = [
 
 export default defineComponent({
     name: 'SiteHeader',
-    components: { LmDrawer, AuthModal },
+    components: { LmDrawer, AuthModal, SettingsModal },
     setup() {
         const route = useRoute();
         const scrolled = ref(false);
         const drawerOpen = ref(false);
 
         const isAuthModalOpen = ref(false);
+        const isSettingsModalOpen = ref(false);
 
         const currentUser = ref<string | null>(null);
 
@@ -217,16 +262,80 @@ export default defineComponent({
             openPalette();
         };
 
+        // Region dropdown settings
+        const { region: currentRegion, language: currentLanguage, updateSettings } = getSettings();
+        const regionContainer = ref<HTMLElement | null>(null);
+        const isRegionDropdownOpen = ref(false);
+
+        const toggleRegionDropdown = (e: Event) => {
+            e.stopPropagation();
+            isRegionDropdownOpen.value = !isRegionDropdownOpen.value;
+        };
+
+        const closeRegionDropdown = () => {
+            isRegionDropdownOpen.value = false;
+        };
+
+        const selectRegion = (code: string) => {
+            updateSettings(code, 'en-US');
+            closeRegionDropdown();
+        };
+
+        const getFlagEmoji = (code: string) => {
+            switch (code) {
+                case 'global': return '🌐';
+                case 'US': return '🇺🇸';
+                case 'GB': return '🇬🇧';
+                case 'IN': return '🇮🇳';
+                case 'ES': return '🇪🇸';
+                case 'MX': return '🇲🇽';
+                case 'IT': return '🇮🇹';
+                case 'FR': return '🇫🇷';
+                case 'DE': return '🇩🇪';
+                case 'BR': return '🇧🇷';
+                case 'JP': return '🇯🇵';
+                case 'KR': return '🇰🇷';
+                case 'CN': return '🇨🇳';
+                case 'TH': return '🇹🇭';
+                case 'TW': return '🇹🇼';
+                case 'PH': return '🇵🇭';
+                case 'ID': return '🇮🇩';
+                case 'TR': return '🇹🇷';
+                case 'RU': return '🇷🇺';
+                case 'EG': return '🇪🇬';
+                case 'CA': return '🇨🇦';
+                case 'AU': return '🇦🇺';
+                case 'AR': return '🇦🇷';
+                case 'MY': return '🇲🇾';
+                case 'SA': return '🇸🇦';
+                case 'ZA': return '🇿🇦';
+                case 'NL': return '🇳🇱';
+                case 'PL': return '🇵🇱';
+                case 'SE': return '🇸🇪';
+                case 'CO': return '🇨🇴';
+                case 'CL': return '🇨🇱';
+                default: return '🌐';
+            }
+        };
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (regionContainer.value && !regionContainer.value.contains(event.target as Node)) {
+                closeRegionDropdown();
+            }
+        };
+
         onMounted(() => {
             onScroll();
             window.addEventListener('scroll', onScroll, { passive: true });
             updateCurrentUser();
             window.addEventListener('movora_auth_change', updateCurrentUser);
+            document.addEventListener('click', handleClickOutside);
         });
 
         onBeforeUnmount(() => {
             window.removeEventListener('scroll', onScroll);
             window.removeEventListener('movora_auth_change', updateCurrentUser);
+            document.removeEventListener('click', handleClickOutside);
         });
 
         return {
@@ -238,9 +347,19 @@ export default defineComponent({
             openPalette,
             openFromDrawer,
             isAuthModalOpen,
+            isSettingsModalOpen,
 
             currentUser,
-            handleLogout
+            handleLogout,
+
+            // Region selectors
+            regions: REGIONS,
+            currentRegion,
+            isRegionDropdownOpen,
+            regionContainer,
+            toggleRegionDropdown,
+            selectRegion,
+            getFlagEmoji
         };
     }
 });
@@ -561,6 +680,33 @@ export default defineComponent({
         }
     }
 
+    &__region-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--bone-200);
+        font-family: var(--font-ui);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        padding: 6px 14px;
+        border: 1px solid var(--rule);
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        transition: background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+
+        &:hover, &.is-active {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: var(--bone-50);
+        }
+    }
+
+    &__region-flag {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+
     &__user-badge {
         display: inline-flex;
         align-items: center;
@@ -659,6 +805,110 @@ export default defineComponent({
         border: 1px solid rgba(255, 90, 31, 0.35);
         box-shadow: 0 0 10px rgba(255, 90, 31, 0.25);
         transform: scale(1.05);
+    }
+}
+
+.site-header__region-container {
+    position: relative;
+    display: inline-flex;
+}
+
+.region-dropdown {
+    position: absolute;
+    top: calc(100% + var(--s-2));
+    right: 0;
+    width: 240px;
+    background: rgba(26, 24, 21, 0.95);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-md);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(16px);
+    overflow: hidden;
+    z-index: 100;
+    animation: dropdown-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &__header {
+        padding: var(--s-3) var(--s-4) var(--s-2);
+        color: var(--bone-400);
+        font-size: 0.625rem;
+        border-bottom: 1px solid var(--rule);
+        text-align: left;
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        padding: var(--s-1);
+        max-height: 320px;
+        overflow-y: auto;
+
+        &::-webkit-scrollbar {
+            width: 4px;
+        }
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        &::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: var(--r-pill);
+        }
+        &::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    }
+
+    &__item {
+        display: flex;
+        align-items: center;
+        gap: var(--s-3);
+        width: 100%;
+        padding: 10px var(--s-3);
+        background: transparent;
+        border: none;
+        border-radius: var(--r-sm);
+        color: var(--bone-200);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        cursor: pointer;
+        text-align: left;
+        transition: background-color var(--dur-fast), color var(--dur-fast);
+
+        &:hover {
+            background: var(--surface-tint);
+            color: var(--bone-50);
+        }
+
+        &.is-active {
+            background: rgba(255, 90, 31, 0.08);
+            color: var(--ember);
+        }
+    }
+
+    &__flag {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+
+    &__name {
+        flex: 1;
+    }
+
+    &__check {
+        width: 14px;
+        height: 14px;
+        color: var(--ember);
+    }
+}
+
+@keyframes dropdown-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 </style>

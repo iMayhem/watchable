@@ -89,7 +89,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
@@ -151,6 +151,7 @@ export default defineComponent({
             (highLightOptions.popular.data ?? []).slice(0, 10).map(m => ({
                 id: m.id,
                 title: m.title,
+                originalTitle: m.original_title,
                 posterPath: m.poster_path,
                 type: 'movie' as const
             }))
@@ -160,6 +161,7 @@ export default defineComponent({
             (highLightOptions.new.data ?? []).slice(0, 18).map(m => ({
                 id: m.id,
                 title: m.title,
+                originalTitle: m.original_title,
                 posterPath: m.poster_path,
                 rating: m.vote_average,
                 releaseDate: m.release_date,
@@ -173,6 +175,7 @@ export default defineComponent({
             (highLightOptions.popular.data ?? []).slice(10, 28).map(m => ({
                 id: m.id,
                 title: m.title,
+                originalTitle: m.original_title,
                 posterPath: m.poster_path,
                 rating: m.vote_average,
                 releaseDate: m.release_date,
@@ -186,6 +189,7 @@ export default defineComponent({
             (newShows.value ?? []).slice(0, 18).map(s => ({
                 id: s.id,
                 title: s.name,
+                originalTitle: s.original_name,
                 posterPath: s.poster_path,
                 rating: s.vote_average,
                 releaseDate: s.release_date,
@@ -199,6 +203,7 @@ export default defineComponent({
             (upcomingTv.value ?? []).slice(0, 14).map(s => ({
                 id: s.id,
                 title: s.name,
+                originalTitle: s.original_name,
                 backdropPath: s.backdrop_path,
                 posterPath: s.poster_path,
                 rating: s.vote_average,
@@ -211,7 +216,6 @@ export default defineComponent({
             try {
                 const res = await useAxios().get('tv/on_the_air', {
                     params: {
-                        language: 'en-US',
                         page: 1
                     }
                 });
@@ -222,14 +226,29 @@ export default defineComponent({
             }
         };
 
-        onMounted(async () => {
-            document.title = 'Moovie — Stream Movies, TV Shows & Anime Free';
-            primeGenres();
+        const loadData = async () => {
+            highLightOptions.featured.data = [];
+            highLightOptions.popular.data = [];
+            highLightOptions.new.data = [];
+            newShows.value = [];
+            upcomingTv.value = [];
+
             await Promise.all([
                 fetchAllHighlights(),
                 fetchNewShows(),
                 fetchUpcomingTv()
             ]);
+        };
+
+        onMounted(() => {
+            document.title = 'Moovie — Stream Movies, TV Shows & Anime Free';
+            primeGenres();
+            loadData();
+            window.addEventListener('movora_settings_change', loadData);
+        });
+
+        onBeforeUnmount(() => {
+            window.removeEventListener('movora_settings_change', loadData);
         });
 
         return {

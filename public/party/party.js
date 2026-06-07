@@ -98,15 +98,16 @@
         const serversList = [
             { id: 'cinemaos', name: 'Gulab Jamun', movie: 'https://cinemaos.tech/player/{tmdbId}', tv: 'https://cinemaos.tech/player/{tmdbId}/{season}/{episode}' },
             { id: 'smashy', name: 'Jalebi', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },
-            { id: 'vidking', name: 'Kheer', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true' },
-            { id: 'vidlink', name: 'Cham Cham', movie: 'https://vidlink.pro/movie/{tmdbId}?primaryColor=6366f1', tv: 'https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?primaryColor=6366f1' },
-            { id: 'videasy', name: 'Barfi', movie: 'https://player.videasy.net/movie/{tmdbId}?color=6366f1', tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}?color=6366f1' },
-            { id: 'vidsrc', name: 'VidSrc (to)', movie: 'https://vidsrc.to/embed/movie/{tmdbId}', tv: 'https://vidsrc.to/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'peachify', name: 'Rasgulla', movie: 'https://peachify.top/embed/movie/{tmdbId}', tv: 'https://peachify.top/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'mappletv', name: 'Kaju Katli', movie: 'https://mappletv.uk/watch/movie/{tmdbId}', tv: 'https://mappletv.uk/watch/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'vidking', name: 'Kheer', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
+            { id: 'videasy', name: 'Barfi', movie: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff', tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
             { id: 'vidsrc_ru', name: 'Laddu', movie: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.ru/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'vidsrc_su', name: 'Peda', movie: 'https://vidsrc-embed.su/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.su/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'vidsrcme', name: 'Gajar Ka Halwa', movie: 'https://vidsrcme.su/embed/movie/{tmdbId}', tv: 'https://vidsrcme.su/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'multiembed', name: 'Soan Papdi', movie: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1', tv: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1&s={season}&e={episode}' },
             { id: 'vsrc', name: 'Sandesh', movie: 'https://vsrc.su/embed/movie/{tmdbId}', tv: 'https://vsrc.su/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'vidlink', name: 'Cham Cham', movie: 'https://vidlink.pro/movie/{tmdbId}', tv: 'https://vidlink.pro/tv/{tmdbId}/{season}/{episode}' },
             { id: 'autoembed', name: 'Kulfi', movie: 'https://player.autoembed.app/embed/movie/{tmdbId}', tv: 'https://player.autoembed.app/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'vidfast', name: 'Mysore Pak', movie: 'https://vidfast.pro/movie/{tmdbId}', tv: 'https://vidfast.pro/tv/{tmdbId}/{season}/{episode}' },
             { id: 'movies111', name: 'Imarti', movie: 'https://111movies.com/movie/{tmdbId}', tv: 'https://111movies.com/tv/{tmdbId}/{season}/{episode}' },
@@ -270,11 +271,13 @@
                 `).join('');
                 return;
             }
-            menu.innerHTML = serversList.map(srv => `
-                <button class="server-dropdown-item ${srv.id === activeProvider ? 'active' : ''}" onclick="switchStreamProvider('${srv.id}')">
+            menu.innerHTML = serversList.map(srv => {
+                const tooltip = srv.id === 'cinemaos' ? ` title="Gulab Jamun - If server does not load or takes time, click on gear icon - select server - and choose ultrafast"` : ` title="${srv.name}"`;
+                return `
+                <button class="server-dropdown-item ${srv.id === activeProvider ? 'active' : ''}"${tooltip} onclick="switchStreamProvider('${srv.id}')">
                     ${srv.name}
                 </button>
-            `).join('');
+            `}).join('');
         }
 
         function showEmbedPlayer(embedUrl) {
@@ -299,6 +302,38 @@
 
                 newIframe.src = embedUrl;
                 parent.replaceChild(newIframe, oldIframe);
+
+                // Add server tip overlay for CinemaOS
+                let existingTip = parent.querySelector('.party-server-tip');
+                if (existingTip) existingTip.remove();
+                
+                if (lowerUrl.includes('cinemaos.tech')) {
+                    const tip = document.createElement('div');
+                    tip.className = 'party-server-tip';
+                    let secondsLeft = 15;
+                    
+                    const renderTip = () => {
+                        tip.innerHTML = `<p>If server does not load or takes time, click on gear icon <span>&rarr;</span> select server <span>&rarr;</span> choose <strong>ultrafast</strong>. <span style="color: var(--ember); margin-left: 0.35rem; font-weight: 700; font-variant-numeric: tabular-nums;">(${secondsLeft}s)</span></p>`;
+                    };
+                    
+                    renderTip();
+                    parent.appendChild(tip);
+                    
+                    const interval = setInterval(() => {
+                        secondsLeft--;
+                        if (secondsLeft >= 0 && tip.parentNode) {
+                            renderTip();
+                        }
+                    }, 1000);
+                    
+                    setTimeout(() => {
+                        if (tip.parentNode) {
+                            tip.classList.add('fade-out');
+                            clearInterval(interval);
+                            setTimeout(() => tip.remove(), 600);
+                        }
+                    }, 15000);
+                }
             }
         }
 

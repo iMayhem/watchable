@@ -12,6 +12,7 @@
             :id="item.id"
             :type="item.type ?? defaultType"
             :title="item.title"
+            :original-title="item.originalTitle"
             :poster-path="item.posterPath"
             :rating="item.rating"
             :release-date="item.releaseDate"
@@ -30,6 +31,7 @@ import PosterCard from '../cards/PosterCard.vue';
 export interface CuratedItem {
     id: number | string;
     title: string;
+    originalTitle?: string;
     posterPath: string | null;
     rating?: number;
     releaseDate?: string;

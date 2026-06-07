@@ -127,7 +127,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
 import { debounce } from '../utils/memoization';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
@@ -154,15 +154,14 @@ export default defineComponent({
 
         const buildUrl = (mode: SortMode, pageNum: number): string => {
             if (mode === 'trending') {
-                return `https://api.themoviedb.org/3/trending/person/day?language=en-US&page=${pageNum}`;
+                return `https://api.themoviedb.org/3/trending/person/day?page=${pageNum}`;
             }
-            return `https://api.themoviedb.org/3/person/popular?language=en-US&page=${pageNum}`;
+            return `https://api.themoviedb.org/3/person/popular?page=${pageNum}`;
         };
 
         const buildSearchUrl = (pageNum: number): string => {
             const params = new URLSearchParams({
                 query: searchTerm.value,
-                language: 'en-US',
                 page: String(pageNum),
                 include_adult: 'false'
             });
@@ -234,6 +233,12 @@ export default defineComponent({
         onMounted(() => {
             document.title = 'People — Moovie';
             fetchPage(1, false);
+
+            window.addEventListener('movora_settings_change', reload);
+        });
+
+        onBeforeUnmount(() => {
+            window.removeEventListener('movora_settings_change', reload);
         });
 
         return {

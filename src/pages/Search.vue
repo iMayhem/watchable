@@ -63,6 +63,7 @@
                                 :id="item.id"
                                 type="movie"
                                 :title="item.title || item.original_title || ''"
+                                :original-title="item.original_title || ''"
                                 :poster-path="item.poster_path"
                                 :rating="item.vote_average || 0"
                                 :release-date="item.release_date || ''"
@@ -80,6 +81,7 @@
                                 :id="item.id"
                                 type="tv"
                                 :title="item.name || item.original_name || ''"
+                                :original-title="item.original_name || ''"
                                 :poster-path="item.poster_path"
                                 :rating="item.vote_average || 0"
                                 :release-date="item.first_air_date || ''"
@@ -177,7 +179,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { debounce } from '../utils/memoization';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
@@ -340,6 +342,12 @@ export default defineComponent({
             }
         );
 
+        const reloadSearch = () => {
+            if (searchTerm.value.trim()) {
+                performSearch(searchTerm.value);
+            }
+        };
+
         onMounted(() => {
             document.title = 'Search — Moovie';
             window.scrollTo(0, 0);
@@ -348,6 +356,12 @@ export default defineComponent({
             } else {
                 clearSearchResults();
             }
+
+            window.addEventListener('movora_settings_change', reloadSearch);
+        });
+
+        onBeforeUnmount(() => {
+            window.removeEventListener('movora_settings_change', reloadSearch);
         });
 
         return {

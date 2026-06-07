@@ -43,6 +43,7 @@
 
             <div class="poster-card__caption">
                 <h4 class="poster-card__title">{{ title }}</h4>
+                <p v-if="originalTitle && originalTitle !== title" class="poster-card__original-title">{{ originalTitle }}</p>
                 <div class="poster-card__meta meta">
                     <span v-if="year">{{ year }}</span>
                     <span v-if="year && genreLabel" class="poster-card__dot">·</span>
@@ -99,6 +100,7 @@ export default defineComponent({
         id: { type: [Number, String], required: true },
         type: { type: String as PropType<MediaType>, default: 'movie' },
         title: { type: String, required: true },
+        originalTitle: { type: String, default: '' },
         posterPath: { type: String as PropType<string | null>, default: null },
         rating: { type: Number, default: 0 },
         releaseDate: { type: String, default: '' },
@@ -383,6 +385,21 @@ export default defineComponent({
 
         .is-peeking & {
             color: var(--ember);
+        }
+    }
+
+    &__original-title {
+        font-family: var(--font-ui);
+        font-size: 0.65rem;
+        color: var(--bone-400);
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: color var(--dur-fast) var(--ease-out);
+
+        .is-peeking & {
+            color: var(--bone-200);
         }
     }
 

@@ -26,6 +26,13 @@
                     @error="onError"
                 />
                 <!-- Loading state -->
+                <transition name="puff">
+                    <div v-if="showOverlay" class="stream-frame__server-tip">
+                        <p>If server does not load or takes time, click on gear icon <span class="meta">&rarr;</span> select server <span class="meta">&rarr;</span> choose <strong>ultrafast</strong>. <span class="timer">({{ countdown }}s)</span></p>
+                    </div>
+                </transition>
+
+                <!-- Loading state -->
                 <div v-if="iframeLoading && !hasError" class="stream-frame__loading">
                     <div class="stream-frame__loading-pulse">
                         <div class="stream-frame__loading-spinner">
@@ -76,6 +83,31 @@ export default defineComponent({
         const frameEl = ref<HTMLIFrameElement | null>(null);
         const hasError = ref(false);
         const iframeLoading = ref(true);
+        const showOverlay = ref(false);
+        const countdown = ref(10);
+
+        let overlayTimer: number | null = null;
+        let intervalTimer: number | null = null;
+
+        watch(() => props.embedUrl, (newUrl) => {
+            if (overlayTimer) clearTimeout(overlayTimer);
+            if (intervalTimer) clearInterval(intervalTimer);
+            if (newUrl && newUrl.includes('cinemaos.tech')) {
+                showOverlay.value = true;
+                countdown.value = 15;
+                
+                intervalTimer = window.setInterval(() => {
+                    countdown.value--;
+                }, 1000);
+                
+                overlayTimer = window.setTimeout(() => {
+                    showOverlay.value = false;
+                    clearInterval(intervalTimer!);
+                }, 15000);
+            } else {
+                showOverlay.value = false;
+            }
+        }, { immediate: true });
 
         const sandboxAttribute = computed(() => {
             if (!props.embedUrl) return undefined;
@@ -163,6 +195,8 @@ export default defineComponent({
                 stopTracking();
                 stopTracking = null;
             }
+            if (overlayTimer) clearTimeout(overlayTimer);
+            if (intervalTimer) clearInterval(intervalTimer);
         });
 
         return {
@@ -170,6 +204,8 @@ export default defineComponent({
             frameEl,
             hasError,
             iframeLoading,
+            showOverlay,
+            countdown,
             ambientImage,
             sandboxAttribute,
             onLoad,
@@ -394,6 +430,48 @@ export default defineComponent({
         margin: 0 auto;
     }
 
+    &__server-tip {
+        position: absolute;
+        top: var(--s-5);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 20;
+        padding: 0.6rem 1.25rem;
+        pointer-events: none;
+        text-align: center;
+        width: max-content;
+        max-width: 90%;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 0, 0, 0.5);
+
+        p {
+            margin: 0;
+            color: var(--bone-100);
+            font-size: var(--fs-xs);
+            font-family: var(--font-ui);
+
+            @media (min-width: 640px) {
+                font-size: var(--fs-sm);
+            }
+            
+            strong {
+                color: var(--ember);
+                font-weight: 600;
+            }
+            
+            .meta {
+                color: var(--bone-400);
+                margin: 0 0.2rem;
+            }
+            
+            .timer {
+                color: var(--ember);
+                font-weight: 700;
+                margin-left: 0.35rem;
+                font-variant-numeric: tabular-nums;
+            }
+        }
+    }
+
     &__retry {
         margin-top: var(--s-2);
         padding: 0.65rem 1.4rem;
@@ -413,5 +491,19 @@ export default defineComponent({
             transform: translateY(-1px);
         }
     }
+}
+
+.puff-enter-active,
+.puff-leave-active {
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.puff-enter-from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.95);
+}
+.puff-leave-to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(1.05);
+    filter: blur(4px);
 }
 </style>

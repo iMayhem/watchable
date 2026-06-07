@@ -22,9 +22,6 @@
                             <p class="eyebrow discover__results-eyebrow">{{ resultsEyebrow }}</p>
                             <h2 class="discover__results-title">{{ resultsTitle }}</h2>
                         </div>
-                        <p v-if="totalResults" class="meta discover__count">
-                            {{ totalResults.toLocaleString() }} results
-                        </p>
                     </header>
 
                     <div v-if="activeChips.length" class="discover__active" role="list">
@@ -86,6 +83,7 @@
                             :id="item.id"
                             type="tv"
                             :title="item.name"
+                            :original-title="item.original_name || item.original_title"
                             :poster-path="item.poster_path"
                             :rating="item.vote_average"
                             :release-date="item.first_air_date"
@@ -114,7 +112,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter, LocationQueryRaw } from 'vue-router';
 import { debounce } from '../utils/memoization';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
@@ -219,7 +217,6 @@ export default defineComponent({
         const buildDiscoverUrl = (pageNum: number): string => {
             const f = filters.value;
             const params = new URLSearchParams({
-                language: 'en-US',
                 sort_by: f.sortBy,
                 page: String(pageNum),
                 include_adult: 'false'
@@ -246,7 +243,6 @@ export default defineComponent({
         const buildSearchUrl = (pageNum: number): string => {
             const params = new URLSearchParams({
                 query: searchTerm.value,
-                language: 'en-US',
                 page: String(pageNum),
                 include_adult: 'false'
             });
@@ -398,6 +394,12 @@ export default defineComponent({
 
             genres.value = await getGenres('tv');
             await fetchPage(1, false);
+
+            window.addEventListener('movora_settings_change', reload);
+        });
+
+        onBeforeUnmount(() => {
+            window.removeEventListener('movora_settings_change', reload);
         });
 
         watch(

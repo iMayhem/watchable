@@ -41,10 +41,9 @@
                         }"
                         role="option"
                         :aria-selected="activeServerIndex === index"
-                        :title="`${server.name} (server ${index + 1})`"
+                        :title="getServerTitle(server)"
                         @click="select(index)"
                     >
-                        <span class="server-card__index meta">{{ String(index + 1).padStart(2, '0') }}</span>
                         <span class="server-card__body">
                             <span class="server-card__name">{{ server.name }}</span>
                             <span class="server-card__hint meta">
@@ -90,7 +89,14 @@ export default defineComponent({
 
         const serverHint = (index: number) => {
             if (props.activeServerIndex === index) return 'Currently projecting';
-            return `Mirror ${index + 1}`;
+            return 'Select to connect';
+        };
+
+        const getServerTitle = (server: Server) => {
+            if (server.name === 'Gulab Jamun') {
+                return `Gulab Jamun - If server does not load or takes time, click on gear icon - select server - and choose ultrafast`;
+            }
+            return server.name;
         };
 
         const select = (index: number) => {
@@ -108,6 +114,7 @@ export default defineComponent({
             loadingIndex,
             activeServerName,
             serverHint,
+            getServerTitle,
             select
         };
     }

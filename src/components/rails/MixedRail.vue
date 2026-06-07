@@ -20,6 +20,7 @@
                 :id="item.id"
                 :type="item.kind"
                 :title="item.title"
+                :original-title="item.originalTitle"
                 :poster-path="item.posterPath"
                 :rating="item.rating ?? 0"
                 :release-date="item.releaseDate ?? ''"
@@ -41,6 +42,7 @@ export type MixedItem =
           kind: 'movie' | 'tv';
           id: number | string;
           title: string;
+    originalTitle?: string;
           posterPath: string | null;
           rating?: number;
           releaseDate?: string;

@@ -235,6 +235,7 @@ export default defineComponent({
             similar.value.slice(0, 14).map(s => ({
                 id: s.id,
                 title: s.name,
+                originalTitle: s.original_name,
                 posterPath: s.poster_path,
                 rating: s.vote_average,
                 releaseDate: s.release_date,

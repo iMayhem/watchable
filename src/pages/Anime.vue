@@ -20,9 +20,6 @@
                             <p class="eyebrow discover__results-eyebrow">The Lineup</p>
                             <h2 class="discover__results-title">{{ resultsTitle }}</h2>
                         </div>
-                        <p v-if="totalResults" class="meta discover__count">
-                            {{ totalResults.toLocaleString() }} results
-                        </p>
                     </header>
 
                     <div v-if="activeChips.length" class="discover__active" role="list">
@@ -79,6 +76,7 @@
                             :id="anime.id"
                             type="anime"
                             :title="anime.title.english || anime.title.romaji"
+                            :original-title="anime.title.native || anime.title.romaji"
                             :poster-path="anime.coverImage.large"
                             :rating="anime.averageScore ? anime.averageScore / 10 : 0"
                             :release-date="anime.seasonYear?.toString() || ''"

@@ -153,6 +153,21 @@
                     @previous="goToPreviousEpisode"
                     @next="goToNextEpisode"
                 />
+
+                <!-- Next Airing Date notice -->
+                <div v-if="nextAiringInfo" class="episode-navigator__upcoming">
+                    <div class="upcoming-badge">
+                        <span class="upcoming-badge__pulse" />
+                        Next Episode
+                    </div>
+                    <span class="upcoming-text">
+                        <strong>Episode {{ nextAiringInfo.episode }}</strong> 
+                        <span v-if="nextAiringInfo.name && nextAiringInfo.name !== `Episode ${nextAiringInfo.episode}`">
+                            ("{{ nextAiringInfo.name }}")
+                        </span>
+                        airs on {{ nextAiringInfo.dateString }}.
+                    </span>
+                </div>
             </section>
 
             <section v-if="currentEpisodeDetails && show" class="watch-stage__feature">
@@ -268,6 +283,24 @@ export default defineComponent({
         const isLoadingEpisodes = ref(false);
         const showShortcuts = ref(false);
 
+        const nextAiringEpisode = ref<any | null>(null);
+
+        const nextAiringInfo = computed(() => {
+            if (!nextAiringEpisode.value) return null;
+            const ep = nextAiringEpisode.value;
+            const date = new Date(ep.air_date);
+            const dateString = date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric'
+            });
+            return {
+                episode: ep.episode_number,
+                dateString,
+                name: ep.name
+            };
+        });
+
         const availableServers = computed(() => getServers('tv'));
         const availableSeasons = computed(() =>
             seasons.value.filter((s) => s.season_number > 0)
@@ -365,7 +398,19 @@ export default defineComponent({
             isLoadingEpisodes.value = true;
             try {
                 const { data } = await fetchTvShowBySeason(showId.value, currentSeason.value);
-                seasonEpisodes.value = data.value?.episodes || [];
+                const allEpisodes = data.value?.episodes || [];
+                const now = new Date();
+
+                seasonEpisodes.value = allEpisodes.filter((ep: any) => {
+                    if (!ep.air_date) return true;
+                    return new Date(ep.air_date) <= now;
+                });
+
+                nextAiringEpisode.value = allEpisodes.find((ep: any) => {
+                    if (!ep.air_date) return false;
+                    return new Date(ep.air_date) > now;
+                }) || null;
+
                 currentEpisodeDetails.value =
                     seasonEpisodes.value.find((ep) => ep.episode_number === currentEpisode.value) ||
                     seasonEpisodes.value[0] ||
@@ -381,7 +426,11 @@ export default defineComponent({
                 if (nextSeasonNumber.value) {
                     fetchTvShowBySeason(showId.value, nextSeasonNumber.value)
                         .then(({ data }) => {
-                            nextSeasonEpisodes.value = data.value?.episodes || [];
+                            const allNextEpisodes = data.value?.episodes || [];
+                            nextSeasonEpisodes.value = allNextEpisodes.filter((ep: any) => {
+                                if (!ep.air_date) return true;
+                                return new Date(ep.air_date) <= now;
+                            });
                         })
                         .catch(() => {
                             nextSeasonEpisodes.value = [];
@@ -546,7 +595,8 @@ export default defineComponent({
             goToNextEpisode,
             onUpNextSelect,
             onUpNextSeasonChange,
-            goBack
+            goBack,
+            nextAiringInfo
         };
     }
 });
@@ -1109,7 +1159,6 @@ export default defineComponent({
 :global(.scroll-car-container) {
     display: none !important;
 }
-</style>
 
 
 // Keyboard Shortcuts Info Panel
@@ -1211,3 +1260,56 @@ export default defineComponent({
     opacity: 0;
     transform: translateY(-8px);
 }
+
+.episode-navigator__upcoming {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    background: rgba(255, 90, 31, 0.05);
+    border: 1px solid rgba(255, 90, 31, 0.25);
+    border-radius: var(--r-md);
+    font-size: var(--fs-sm);
+    color: var(--bone-200);
+
+    .upcoming-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-2);
+        padding: 0.2rem 0.5rem;
+        background: rgba(255, 90, 31, 0.12);
+        border: 1px solid rgba(255, 90, 31, 0.3);
+        border-radius: var(--r-pill);
+        color: var(--ember);
+        font-family: var(--font-mono);
+        font-size: var(--fs-xs);
+        text-transform: uppercase;
+        letter-spacing: var(--ls-micro);
+        font-weight: 500;
+        flex-shrink: 0;
+
+        &__pulse {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--ember);
+            box-shadow: 0 0 8px rgba(255, 90, 31, 0.4);
+            animation: upcomingPulse 2s infinite;
+        }
+    }
+
+    .upcoming-text {
+        line-height: var(--lh-base);
+        strong {
+            color: var(--bone-50);
+        }
+    }
+}
+
+@keyframes upcomingPulse {
+    0% { transform: scale(0.95); opacity: 0.5; }
+    50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px var(--ember); }
+    100% { transform: scale(0.95); opacity: 0.5; }
+}
+</style>

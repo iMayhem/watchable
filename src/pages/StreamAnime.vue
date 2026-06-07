@@ -226,6 +226,21 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- Next Airing Date notice -->
+                    <div v-if="nextAiringInfo" class="episode-navigator__upcoming">
+                        <div class="upcoming-badge">
+                            <span class="upcoming-badge__pulse" />
+                            Next Episode
+                        </div>
+                        <span class="upcoming-text">
+                            <strong>Episode {{ nextAiringInfo.episode }}</strong> 
+                            <span v-if="nextAiringInfo.name && nextAiringInfo.name !== `Episode ${nextAiringInfo.episode}`">
+                                ("{{ nextAiringInfo.name }}")
+                            </span>
+                            airs on {{ nextAiringInfo.dateString }}.
+                        </span>
+                    </div>
                 </div>
             </section>
 
@@ -321,6 +336,67 @@ export default defineComponent({
         const nextSeasonTmdbEpisodes = ref<any[]>([]);
         const isLoadingTmdb = ref(false);
 
+        const releasedTmdbEpisodes = computed(() => {
+            if (!tmdbEpisodes.value) return [];
+            const now = new Date();
+            return tmdbEpisodes.value.filter(ep => {
+                if (!ep.air_date) return true;
+                return new Date(ep.air_date) <= now;
+            });
+        });
+
+        const releasedNextSeasonTmdbEpisodes = computed(() => {
+            if (!nextSeasonTmdbEpisodes.value) return [];
+            const now = new Date();
+            return nextSeasonTmdbEpisodes.value.filter(ep => {
+                if (!ep.air_date) return true;
+                return new Date(ep.air_date) <= now;
+            });
+        });
+
+        const nextTmdbEpisode = computed(() => {
+            if (!tmdbEpisodes.value) return null;
+            const now = new Date();
+            return tmdbEpisodes.value.find(ep => {
+                if (!ep.air_date) return false;
+                return new Date(ep.air_date) > now;
+            });
+        });
+
+        const nextAiringInfo = computed(() => {
+            if (nextTmdbEpisode.value) {
+                const ep = nextTmdbEpisode.value;
+                const date = new Date(ep.air_date);
+                const dateString = date.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                return {
+                    episode: ep.episode_number,
+                    dateString,
+                    name: ep.name
+                };
+            }
+            if (anime.value?.nextAiringEpisode) {
+                const { airingAt, episode } = anime.value.nextAiringEpisode;
+                const date = new Date(airingAt * 1000);
+                const dateString = date.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                return {
+                    episode,
+                    dateString,
+                    name: `Episode ${episode}`
+                };
+            }
+            return null;
+        });
+
         const availableServers: Server[] = [
             { name: 'Shrikhand', urlTemplate: 'https://animeplay.cfd/stream/ani/{id}/{episode}/{lang}' },
             { name: 'Rabri', urlTemplate: 'https://megaplay.buzz/stream/ani/{id}/{episode}/{lang}' },
@@ -333,8 +409,8 @@ export default defineComponent({
         });
 
         const totalEpisodes = computed(() => {
-            if (tmdbEpisodes.value && tmdbEpisodes.value.length > 0) {
-                return tmdbEpisodes.value.length;
+            if (releasedTmdbEpisodes.value && releasedTmdbEpisodes.value.length > 0) {
+                return releasedTmdbEpisodes.value.length;
             }
             if (!anime.value) return 1;
             if (anime.value.episodes) return anime.value.episodes;
@@ -342,7 +418,7 @@ export default defineComponent({
                 return anime.value.nextAiringEpisode.episode - 1;
             }
             if (anime.value.status === 'RELEASING') {
-                return Math.max(1200, currentEpisode.value + 50);
+                return Math.max(12, currentEpisode.value);
             }
             return 12;
         });
@@ -652,8 +728,8 @@ export default defineComponent({
         }, { immediate: true });
 
         const seasonEpisodes = computed(() => {
-            if (tmdbEpisodes.value && tmdbEpisodes.value.length > 0) {
-                return tmdbEpisodes.value.map(ep => ({
+            if (releasedTmdbEpisodes.value && releasedTmdbEpisodes.value.length > 0) {
+                return releasedTmdbEpisodes.value.map(ep => ({
                     ...ep,
                     season_number: currentSeasonNumber.value
                 })) as unknown as Episode[];
@@ -684,8 +760,8 @@ export default defineComponent({
 
         const nextSeasonEpisodes = computed(() => {
             if (!nextSeasonId.value) return [];
-            if (nextSeasonTmdbEpisodes.value && nextSeasonTmdbEpisodes.value.length > 0) {
-                return nextSeasonTmdbEpisodes.value.map(ep => ({
+            if (releasedNextSeasonTmdbEpisodes.value && releasedNextSeasonTmdbEpisodes.value.length > 0) {
+                return releasedNextSeasonTmdbEpisodes.value.map(ep => ({
                     ...ep,
                     season_number: nextSeasonNumber.value
                 })) as unknown as Episode[];
@@ -834,7 +910,8 @@ export default defineComponent({
             onUpNextSelect,
             onUpNextSeasonChange,
             goBack,
-            goToEpisode
+            goToEpisode,
+            nextAiringInfo
         };
     }
 });
@@ -1592,5 +1669,57 @@ export default defineComponent({
             grid-column: span 1;
         }
     }
+}
+
+.episode-navigator__upcoming {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
+    padding: var(--s-3) var(--s-4);
+    background: rgba(255, 90, 31, 0.05);
+    border: 1px solid rgba(255, 90, 31, 0.25);
+    border-radius: var(--r-md);
+    font-size: var(--fs-sm);
+    color: var(--bone-200);
+
+    .upcoming-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-2);
+        padding: 0.2rem 0.5rem;
+        background: rgba(255, 90, 31, 0.12);
+        border: 1px solid rgba(255, 90, 31, 0.3);
+        border-radius: var(--r-pill);
+        color: var(--ember);
+        font-family: var(--font-mono);
+        font-size: var(--fs-xs);
+        text-transform: uppercase;
+        letter-spacing: var(--ls-micro);
+        font-weight: 500;
+        flex-shrink: 0;
+
+        &__pulse {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--ember);
+            box-shadow: 0 0 8px rgba(255, 90, 31, 0.4);
+            animation: upcomingPulse 2s infinite;
+        }
+    }
+
+    .upcoming-text {
+        line-height: var(--lh-base);
+        strong {
+            color: var(--bone-50);
+        }
+    }
+}
+
+@keyframes upcomingPulse {
+    0% { transform: scale(0.95); opacity: 0.5; }
+    50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px var(--ember); }
+    100% { transform: scale(0.95); opacity: 0.5; }
 }
 </style>

@@ -24,7 +24,18 @@
                     @load="onLoad"
                     @error="onError"
                 />
-
+                <!-- Loading state -->
+                <div v-if="iframeLoading && !hasError" class="stream-frame__loading">
+                    <div class="stream-frame__loading-pulse">
+                        <div class="stream-frame__loading-spinner">
+                            <span class="spinner-ring spinner-ring--1"></span>
+                            <span class="spinner-ring spinner-ring--2"></span>
+                            <span class="spinner-ring spinner-ring--3"></span>
+                        </div>
+                        <p class="loading-text">Preparing projector</p>
+                        <p class="stream-frame__adblock-tip">Tip — Use an Adblocker for a cleaner experience</p>
+                    </div>
+                </div>
 
                 <!-- Error state -->
                 <div v-if="hasError" class="stream-frame__error" role="alert">
@@ -311,6 +322,15 @@ export default defineComponent({
         letter-spacing: 0.1em;
         text-transform: uppercase;
         margin: 0;
+    }
+
+    &__adblock-tip {
+        font-family: var(--font-ui);
+        color: var(--ember);
+        font-size: var(--fs-xs);
+        margin-top: var(--s-3);
+        letter-spacing: var(--ls-micro);
+        opacity: 0.85;
     }
 
     @keyframes stream-pulse-anim {

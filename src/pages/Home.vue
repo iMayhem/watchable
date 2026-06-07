@@ -223,7 +223,7 @@ export default defineComponent({
         };
 
         onMounted(async () => {
-            document.title = 'Moovie — A Cinema Periodical';
+            document.title = 'Moovie — Stream Movies, TV Shows & Anime Free';
             primeGenres();
             await Promise.all([
                 fetchAllHighlights(),

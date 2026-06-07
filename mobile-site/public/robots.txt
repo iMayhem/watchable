@@ -3,3 +3,4 @@ Disallow: /party/
 Disallow: /party
 
 Sitemap: https://m.moovie.fun/sitemap.xml
+Sitemap: https://m.moovie.fun/sitemap-dynamic.xml

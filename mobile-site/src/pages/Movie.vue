@@ -121,7 +121,22 @@ async function load(id: string) {
                 description: movie.value.overview || `Watch ${movie.value.title} online on Moovie.`,
                 image: posterUrl,
                 canonical: `https://m.moovie.fun/movie/${movie.value.id}`,
-                type: 'video.movie'
+                type: 'video.movie',
+                jsonLd: {
+                    '@context': 'https://schema.org',
+                    '@type': 'Movie',
+                    'name': movie.value.title,
+                    'description': movie.value.overview,
+                    'image': posterUrl,
+                    'dateCreated': movie.value.release_date || undefined,
+                    'aggregateRating': movie.value.vote_count ? {
+                        '@type': 'AggregateRating',
+                        'bestRating': '10',
+                        'worstRating': '1',
+                        'ratingValue': movie.value.vote_average.toFixed(1),
+                        'ratingCount': movie.value.vote_count
+                    } : undefined
+                }
             });
         } else {
             document.title = 'Movie — Moovie';

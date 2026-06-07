@@ -27,8 +27,8 @@ export const streamData = useStorage<StreamData>('streamData', defaultStreamData
 
 // Migrate legacy local storage preferences — force Cinemaos (index 0) as default
 if (streamData.value) {
-  if (!streamData.value.version || streamData.value.version < 4) {
-    // v4: Hard-reset ALL saved server preferences to Cinemaos (index 0).
+  if (!streamData.value.version || streamData.value.version < 5) {
+    // v5: Hard-reset ALL saved server preferences to Cinemaos (index 0).
     // IMPORTANT: We must reassign the entire object — NOT mutate nested properties.
     // VueUse's useStorage only tracks top-level ref reassignments; direct deep
     // mutations (entry.serverIndex = 0) are silently lost and never written to localStorage.
@@ -43,7 +43,7 @@ if (streamData.value) {
     // Reassign the entire value so useStorage detects and persists the change
     streamData.value = {
       movieServerMap: resetMap,
-      version: 4
+      version: 5
     };
   }
 }
@@ -51,6 +51,8 @@ if (streamData.value) {
 export const movieServers = ref<Server[]>([
   { name: 'Cinemaos', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
   { name: 'Smashy', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
+  { name: 'Peachify', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}' },
+  { name: 'Mapple', urlTemplate: 'https://mappletv.uk/watch/movie/{tmdbId}' },
   { name: 'VidKing', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
   { name: 'VidEasy', urlTemplate: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff' },
   { name: 'VidSrc RU', urlTemplate: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}' },
@@ -68,6 +70,8 @@ export const movieServers = ref<Server[]>([
 export const tvServers = ref<Server[]>([
   { name: 'Cinemaos', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
   { name: 'Smashy', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
+  { name: 'Peachify', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Mapple', urlTemplate: 'https://mappletv.uk/watch/tv/{externalId}/{season}/{episode}' },
   { name: 'VidKing', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
   { name: 'VidEasy', urlTemplate: 'https://player.videasy.net/tv/{externalId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
   { name: 'VidSrc RU', urlTemplate: 'https://vidsrc-embed.ru/embed/tv/{externalId}/{season}/{episode}' },

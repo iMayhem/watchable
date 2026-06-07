@@ -83,7 +83,22 @@ async function load(id: string) {
                 description: show.value.overview || `Watch ${show.value.name} online on Moovie.`,
                 image: posterUrl,
                 canonical: `https://m.moovie.fun/tv-show/${show.value.id}`,
-                type: 'video.tv_show'
+                type: 'video.tv_show',
+                jsonLd: {
+                    '@context': 'https://schema.org',
+                    '@type': 'TVSeries',
+                    'name': show.value.name,
+                    'description': show.value.overview,
+                    'image': posterUrl,
+                    'dateCreated': show.value.first_air_date || undefined,
+                    'aggregateRating': show.value.vote_count ? {
+                        '@type': 'AggregateRating',
+                        'bestRating': '10',
+                        'worstRating': '1',
+                        'ratingValue': show.value.vote_average.toFixed(1),
+                        'ratingCount': show.value.vote_count
+                    } : undefined
+                }
             });
         } else {
             document.title = 'TV Show — Moovie';

@@ -389,7 +389,17 @@ export default defineComponent({
                         title: `${actorDetails.value.name} — Moovie`,
                         description: actorDetails.value.biography || `Discover movies and shows starring ${actorDetails.value.name} on Moovie.`,
                         image: profileUrl,
-                        canonical: `https://moovie.fun/actor/${actorDetails.value.id}`
+                        canonical: `https://moovie.fun/actor/${actorDetails.value.id}`,
+                        jsonLd: {
+                            '@context': 'https://schema.org',
+                            '@type': 'Person',
+                            'name': actorDetails.value.name,
+                            'description': actorDetails.value.biography || undefined,
+                            'image': profileUrl || undefined,
+                            'birthDate': actorDetails.value.birthday || undefined,
+                            'deathDate': actorDetails.value.deathday || undefined,
+                            'birthPlace': actorDetails.value.place_of_birth || undefined
+                        }
                     });
                 } else {
                     document.title = 'People — Moovie';

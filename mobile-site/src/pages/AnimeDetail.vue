@@ -96,12 +96,29 @@ onMounted(async () => {
         const res = await fetchAnimeById(Number(route.params.id));
         anime.value = res?.data?.Media ?? null;
         if (anime.value) {
+            const isMovie = anime.value.format === 'MOVIE';
+            const rawAnime = anime.value as any;
             updateSeo({
                 title: `${title.value} — Moovie`,
                 description: description.value || `Watch ${title.value} online on Moovie.`,
                 image: bannerUrl.value || 'https://m.moovie.fun/og-image.png',
                 canonical: `https://m.moovie.fun/anime/${anime.value.id}`,
-                type: 'video.tv_show'
+                type: isMovie ? 'video.movie' : 'video.tv_show',
+                jsonLd: {
+                    '@context': 'https://schema.org',
+                    '@type': isMovie ? 'Movie' : 'TVSeries',
+                    'name': title.value,
+                    'description': description.value,
+                    'image': bannerUrl.value || undefined,
+                    'dateCreated': rawAnime.startDate?.year ? `${rawAnime.startDate.year}-${String(rawAnime.startDate.month || 1).padStart(2, '0')}-${String(rawAnime.startDate.day || 1).padStart(2, '0')}` : undefined,
+                    'aggregateRating': anime.value.averageScore ? {
+                        '@type': 'AggregateRating',
+                        'bestRating': '100',
+                        'worstRating': '1',
+                        'ratingValue': anime.value.averageScore,
+                        'ratingCount': 100
+                    } : undefined
+                }
             });
         } else {
             document.title = `${title.value} — Moovie`;

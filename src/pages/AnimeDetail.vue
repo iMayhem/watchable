@@ -449,12 +449,28 @@ export default defineComponent({
 
                 if (anime.value) {
                     const title = anime.value.title.english || anime.value.title.romaji || anime.value.title.native;
+                    const isMovie = anime.value.format === 'MOVIE';
                     updateSeo({
                         title: `${title} — Moovie`,
                         description: cleanDescription.value || `Watch ${title} online on Moovie.`,
                         image: anime.value.coverImage?.large || 'https://moovie.fun/og-image.png',
                         canonical: `https://moovie.fun/anime/${anime.value.id}`,
-                        type: 'video.tv_show'
+                        type: isMovie ? 'video.movie' : 'video.tv_show',
+                        jsonLd: {
+                            '@context': 'https://schema.org',
+                            '@type': isMovie ? 'Movie' : 'TVSeries',
+                            'name': title,
+                            'description': cleanDescription.value,
+                            'image': anime.value.coverImage?.large || undefined,
+                            'dateCreated': anime.value.startDate?.year ? `${anime.value.startDate.year}-${String(anime.value.startDate.month || 1).padStart(2, '0')}-${String(anime.value.startDate.day || 1).padStart(2, '0')}` : undefined,
+                            'aggregateRating': anime.value.averageScore ? {
+                                '@type': 'AggregateRating',
+                                'bestRating': '100',
+                                'worstRating': '1',
+                                'ratingValue': anime.value.averageScore,
+                                'ratingCount': 100
+                            } : undefined
+                        }
                     });
                     
                     addViewedItem({

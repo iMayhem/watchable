@@ -36,6 +36,7 @@ export function useSeo() {
     image?: string;
     canonical?: string;
     type?: string;
+    jsonLd?: Record<string, any> | string;
   }) => {
     document.title = opt.title;
 
@@ -65,6 +66,20 @@ export function useSeo() {
     // Canonical
     if (opt.canonical) {
       setLink('canonical', opt.canonical);
+    }
+
+    // JSON-LD Structured Data
+    let scriptEl = document.getElementById('seo-schema-jsonld') as HTMLScriptElement | null;
+    if (opt.jsonLd) {
+      if (!scriptEl) {
+        scriptEl = document.createElement('script');
+        scriptEl.id = 'seo-schema-jsonld';
+        scriptEl.type = 'application/ld+json';
+        document.head.appendChild(scriptEl);
+      }
+      scriptEl.textContent = typeof opt.jsonLd === 'string' ? opt.jsonLd : JSON.stringify(opt.jsonLd);
+    } else if (scriptEl) {
+      scriptEl.remove();
     }
   };
 

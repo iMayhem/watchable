@@ -92,7 +92,17 @@ onMounted(async () => {
             title: `${actor.value.name} — Moovie`,
             description: actor.value.biography || `Discover movies and shows starring ${actor.value.name} on Moovie.`,
             image: profileUrl.value || 'https://m.moovie.fun/og-image.png',
-            canonical: `https://m.moovie.fun/actor/${actor.value.id}`
+            canonical: `https://m.moovie.fun/actor/${actor.value.id}`,
+            jsonLd: {
+                '@context': 'https://schema.org',
+                '@type': 'Person',
+                'name': actor.value.name,
+                'description': actor.value.biography || undefined,
+                'image': profileUrl.value || undefined,
+                'birthDate': actor.value.birthday || undefined,
+                'deathDate': actor.value.deathday || undefined,
+                'birthPlace': actor.value.place_of_birth || undefined
+            }
         });
     } else {
         document.title = 'Actor — Moovie';

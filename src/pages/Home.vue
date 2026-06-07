@@ -189,7 +189,7 @@ export default defineComponent({
             (newShows.value ?? []).slice(0, 18).map(s => ({
                 id: s.id,
                 title: s.name,
-                originalTitle: s.original_name,
+                originalTitle: (s as any).original_name || s.original_title,
                 posterPath: s.poster_path,
                 rating: s.vote_average,
                 releaseDate: s.release_date,
@@ -203,7 +203,7 @@ export default defineComponent({
             (upcomingTv.value ?? []).slice(0, 14).map(s => ({
                 id: s.id,
                 title: s.name,
-                originalTitle: s.original_name,
+                originalTitle: (s as any).original_name || s.original_title,
                 backdropPath: s.backdrop_path,
                 posterPath: s.poster_path,
                 rating: s.vote_average,

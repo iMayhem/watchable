@@ -83,7 +83,7 @@
                             :id="item.id"
                             type="movie"
                             :title="item.title"
-                            :original-title="item.original_title || item.original_name"
+                            :original-title="item.original_title"
                             :poster-path="item.poster_path"
                             :rating="item.vote_average"
                             :release-date="item.release_date"

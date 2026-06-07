@@ -83,7 +83,7 @@
                             :id="item.id"
                             type="tv"
                             :title="item.name"
-                            :original-title="item.original_name || item.original_title"
+                            :original-title="item.original_title"
                             :poster-path="item.poster_path"
                             :rating="item.vote_average"
                             :release-date="item.first_air_date"

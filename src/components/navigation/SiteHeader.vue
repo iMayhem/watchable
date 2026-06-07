@@ -263,7 +263,7 @@ export default defineComponent({
         };
 
         // Region dropdown settings
-        const { region: currentRegion, language: currentLanguage, updateSettings } = getSettings();
+        const { region: currentRegion, updateSettings } = getSettings();
         const regionContainer = ref<HTMLElement | null>(null);
         const isRegionDropdownOpen = ref(false);
 

@@ -8,8 +8,8 @@
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "build:analyze": "vue-tsc && vite build --mode analyze",
-    "preview": "yarn run build && wrangler dev",
-    "deploy": "yarn run build && wrangler deploy"
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",

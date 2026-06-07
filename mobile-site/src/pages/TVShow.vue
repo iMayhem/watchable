@@ -41,10 +41,14 @@ import { useTvShows, TVShowDetails } from '@/composables/useTvShows';
 import { Cast } from '@/composables/useMovies';
 import { primeGenres } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
+import { useSeo } from '../composables/useSeo';
+
 
 const route = useRoute();
 const paths = useAppPaths();
 const { fetchTvShow, fetchTvShowCredit } = useTvShows();
+const { updateSeo } = useSeo();
+
 
 const show = ref<TVShowDetails | null>(null);
 const cast = ref<Cast[]>([]);
@@ -70,7 +74,20 @@ async function load(id: string) {
         ]);
         show.value = showData.value ?? null;
         cast.value = creditsData.value?.cast ?? [];
-        document.title = show.value?.name ? `${show.value.name} — Moovie` : 'TV Show — Moovie';
+        if (show.value) {
+            const posterUrl = show.value.poster_path 
+                ? `https://image.tmdb.org/t/p/w500${show.value.poster_path}` 
+                : 'https://m.moovie.fun/og-image.png';
+            updateSeo({
+                title: `${show.value.name} — Moovie`,
+                description: show.value.overview || `Watch ${show.value.name} online on Moovie.`,
+                image: posterUrl,
+                canonical: `https://m.moovie.fun/tv-show/${show.value.id}`,
+                type: 'video.tv_show'
+            });
+        } else {
+            document.title = 'TV Show — Moovie';
+        }
     } finally {
         loading.value = false;
     }

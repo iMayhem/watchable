@@ -34,10 +34,14 @@ import MobileSection from '../components/MobileSection.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
 import { useActor, ActorDetails } from '@/composables/useActor';
 import { useWebImage } from '@/utils/useWebImage';
+import { useSeo } from '../composables/useSeo';
+
 
 const route = useRoute();
 const { fetchActorDetails, fetchCombinedCredits } = useActor();
+const { updateSeo } = useSeo();
 const actor = ref<ActorDetails | null>(null);
+
 const credits = ref<Array<{ id: number; title?: string; name?: string; poster_path?: string | null; media_type: string; vote_average?: number }>>([]);
 
 const profileUrl = computed(() =>
@@ -83,7 +87,16 @@ onMounted(async () => {
         media_type: c.media_type || 'movie',
         vote_average: c.vote_average
     }));
-    document.title = actor.value?.name ? `${actor.value.name} — Moovie` : 'Actor — Moovie';
+    if (actor.value) {
+        updateSeo({
+            title: `${actor.value.name} — Moovie`,
+            description: actor.value.biography || `Discover movies and shows starring ${actor.value.name} on Moovie.`,
+            image: profileUrl.value || 'https://m.moovie.fun/og-image.png',
+            canonical: `https://m.moovie.fun/actor/${actor.value.id}`
+        });
+    } else {
+        document.title = 'Actor — Moovie';
+    }
 });
 </script>
 

@@ -64,10 +64,14 @@ import MobileShell from '../layout/MobileShell.vue';
 import MobileSection from '../components/MobileSection.vue';
 import { useAniList, AnimeMedia } from '@/composables/useAniList';
 import { useAppPaths } from '@/composables/useAppPaths';
+import { useSeo } from '../composables/useSeo';
+
 
 const route = useRoute();
 const paths = useAppPaths();
 const { fetchAnimeById } = useAniList();
+const { updateSeo } = useSeo();
+
 const anime = ref<AnimeMedia | null>(null);
 const loading = ref(true);
 
@@ -91,7 +95,17 @@ onMounted(async () => {
     try {
         const res = await fetchAnimeById(Number(route.params.id));
         anime.value = res?.data?.Media ?? null;
-        document.title = `${title.value} — Moovie`;
+        if (anime.value) {
+            updateSeo({
+                title: `${title.value} — Moovie`,
+                description: description.value || `Watch ${title.value} online on Moovie.`,
+                image: bannerUrl.value || 'https://m.moovie.fun/og-image.png',
+                canonical: `https://m.moovie.fun/anime/${anime.value.id}`,
+                type: 'video.tv_show'
+            });
+        } else {
+            document.title = `${title.value} — Moovie`;
+        }
     } finally {
         loading.value = false;
     }

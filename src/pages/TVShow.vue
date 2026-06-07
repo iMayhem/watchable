@@ -109,6 +109,7 @@ import TrailerDialog from '../components/detail/TrailerDialog.vue';
 import { useTvShows, TVShowDetails, TVShowType } from '../composables/useTvShows';
 import { Cast, Crew } from '../composables/useMovies';
 import { fetchTrailerVideos, type TrailerVideo } from '../composables/useTrailer';
+import { useSeo } from '../composables/useSeo';
 import { addViewedItem } from '../composables/useHistory';
 import { getLastWatchedMetaData } from '../composables/useStream';
 import useAxios from '../composables/useAxios';
@@ -142,6 +143,7 @@ export default defineComponent({
     setup() {
         const route = useRoute();
         const { fetchTvShow, fetchTvShowCredit, fetchSimilarTvShows } = useTvShows();
+        const { updateSeo } = useSeo();
 
         const show = ref<TVShowDetails | null>(null);
         const cast = ref<Cast[]>([]);
@@ -321,7 +323,16 @@ export default defineComponent({
                 trailers.value = videos ?? [];
 
                 if (show.value) {
-                    document.title = `${show.value.name} — Moovie`;
+                    const posterUrl = show.value.poster_path 
+                        ? `https://image.tmdb.org/t/p/w500${show.value.poster_path}` 
+                        : 'https://moovie.fun/og-image.png';
+                    updateSeo({
+                        title: `${show.value.name} — Moovie`,
+                        description: show.value.overview || `Watch ${show.value.name} online on Moovie.`,
+                        image: posterUrl,
+                        canonical: `https://moovie.fun/tv-show/${show.value.id}`,
+                        type: 'video.tv_show'
+                    });
                     addViewedItem({
                         id: show.value.id,
                         title: show.value.name,

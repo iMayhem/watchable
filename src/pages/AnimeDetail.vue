@@ -139,6 +139,8 @@ import StatsBlock, { StatEntry } from '../components/detail/StatsBlock.vue';
 import { useAniList } from '../composables/useAniList';
 import { addViewedItem } from '../composables/useHistory';
 import useAxios from '../composables/useAxios';
+import { useSeo } from '../composables/useSeo';
+
 
 export default defineComponent({
     name: 'AnimeDetail',
@@ -154,6 +156,8 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const { fetchAnimeById } = useAniList();
+        const { updateSeo } = useSeo();
+
 
         const anime = ref<any | null>(null);
         const loading = ref(true);
@@ -445,7 +449,13 @@ export default defineComponent({
 
                 if (anime.value) {
                     const title = anime.value.title.english || anime.value.title.romaji || anime.value.title.native;
-                    document.title = `${title} — Moovie`;
+                    updateSeo({
+                        title: `${title} — Moovie`,
+                        description: cleanDescription.value || `Watch ${title} online on Moovie.`,
+                        image: anime.value.coverImage?.large || 'https://moovie.fun/og-image.png',
+                        canonical: `https://moovie.fun/anime/${anime.value.id}`,
+                        type: 'video.tv_show'
+                    });
                     
                     addViewedItem({
                         id: anime.value.id,

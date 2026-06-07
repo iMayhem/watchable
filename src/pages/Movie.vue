@@ -97,6 +97,7 @@ import CuratedRail, { CuratedItem } from '../components/rails/CuratedRail.vue';
 import TrailerDialog from '../components/detail/TrailerDialog.vue';
 import { useMovies, MovieDetails, Cast, Crew } from '../composables/useMovies';
 import { fetchTrailerVideos, type TrailerVideo } from '../composables/useTrailer';
+import { useSeo } from '../composables/useSeo';
 import { addViewedItem } from '../composables/useHistory';
 import { getLastWatchedMetaData } from '../composables/useStream';
 import useAxios from '../composables/useAxios';
@@ -139,6 +140,7 @@ export default defineComponent({
     setup() {
         const route = useRoute();
         const { fetchMovie, fetchMovieCredits, fetchSimilarMovies } = useMovies();
+        const { updateSeo } = useSeo();
 
         const movie = ref<MovieDetails | null>(null);
         const cast = ref<Cast[]>([]);
@@ -322,7 +324,16 @@ export default defineComponent({
                 trailers.value = videos ?? [];
 
                 if (movie.value) {
-                    document.title = `${movie.value.title} — Moovie`;
+                    const posterUrl = movie.value.poster_path 
+                        ? `https://image.tmdb.org/t/p/w500${movie.value.poster_path}` 
+                        : 'https://moovie.fun/og-image.png';
+                    updateSeo({
+                        title: `${movie.value.title} — Moovie`,
+                        description: movie.value.overview || `Watch ${movie.value.title} online on Moovie.`,
+                        image: posterUrl,
+                        canonical: `https://moovie.fun/movie/${movie.value.id}`,
+                        type: 'video.movie'
+                    });
                     addViewedItem({
                         id: movie.value.id,
                         title: movie.value.title,

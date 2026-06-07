@@ -3,6 +3,7 @@ import Movie from './pages/Movie.vue';
 import TVShow from './pages/TVShow.vue';
 import AnimeDetail from './pages/AnimeDetail.vue';
 import Actor from './pages/Actor.vue';
+import { useSeo } from './composables/useSeo';
 
 const routes: Array<RouteRecordRaw> = [
     {
@@ -118,11 +119,22 @@ const router = createRouter({
     }
 });
 
-router.beforeEach((to, _from, next) => {
-    if (to.meta.title) {
-        document.title = `${to.meta.title} — Moovie`;
+const { updateSeo } = useSeo();
+
+router.afterEach((to) => {
+    const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode'];
+    if (to.name && dynamicRoutes.includes(to.name as string)) {
+        return;
     }
-    next();
+
+    const title = to.meta.title ? `${to.meta.title} — Moovie` : 'Moovie — Stream Movies, TV Shows & Anime Free';
+    const canonical = `https://m.moovie.fun${to.path}`;
+    
+    updateSeo({
+        title,
+        canonical,
+        image: 'https://m.moovie.fun/og-image.png'
+    });
 });
 
 export { router, routes };

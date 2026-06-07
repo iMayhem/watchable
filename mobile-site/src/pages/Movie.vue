@@ -59,10 +59,12 @@ import { fetchTrailerVideos, type TrailerVideo } from '@/composables/useTrailer'
 import { getLastWatchedMetaData } from '@/composables/useStream';
 import { primeGenres } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
+import { useSeo } from '../composables/useSeo';
 
 const route = useRoute();
 const paths = useAppPaths();
 const { fetchMovie, fetchMovieCredits, fetchSimilarMovies } = useMovies();
+const { updateSeo } = useSeo();
 
 const movie = ref<MovieDetails | null>(null);
 const cast = ref<Cast[]>([]);
@@ -110,7 +112,20 @@ async function load(id: string) {
         cast.value = creditsData.value?.cast ?? [];
         similar.value = (similarData.value?.results ?? []) as typeof similar.value;
         trailers.value = await fetchTrailerVideos(id, 'movie');
-        document.title = movie.value?.title ? `${movie.value.title} — Moovie` : 'Movie — Moovie';
+        if (movie.value) {
+            const posterUrl = movie.value.poster_path 
+                ? `https://image.tmdb.org/t/p/w500${movie.value.poster_path}` 
+                : 'https://m.moovie.fun/og-image.png';
+            updateSeo({
+                title: `${movie.value.title} — Moovie`,
+                description: movie.value.overview || `Watch ${movie.value.title} online on Moovie.`,
+                image: posterUrl,
+                canonical: `https://m.moovie.fun/movie/${movie.value.id}`,
+                type: 'video.movie'
+            });
+        } else {
+            document.title = 'Movie — Moovie';
+        }
     } finally {
         loading.value = false;
     }

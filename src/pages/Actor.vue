@@ -299,6 +299,8 @@ import { useActor, ActorDetails, ActorImages } from '../composables/useActor';
 import { useWebImage } from '../utils/useWebImage';
 import { useToast } from '../composables/useToast';
 import { useAmbientColor } from '../composables/useAmbientColor';
+import { useSeo } from '../composables/useSeo';
+
 
 interface CreditItem {
     id: number;
@@ -326,6 +328,8 @@ export default defineComponent({
         const route = useRoute();
         const { fetchActorDetails, fetchActorImages, fetchCombinedCredits } = useActor();
         const { addToast } = useToast();
+        const { updateSeo } = useSeo();
+
 
         const actorId = computed(() => String(route.params.id || ''));
         const actorDetails = ref<ActorDetails | undefined>();
@@ -377,9 +381,19 @@ export default defineComponent({
                 const cast = (creditsRes.data.value?.cast ?? []) as CreditItem[];
                 credits.value = cast.filter(c => c.media_type === 'movie' || c.media_type === 'tv');
 
-                document.title = actorDetails.value
-                    ? `${actorDetails.value.name} — Movieace`
-                    : 'People — Movieace';
+                if (actorDetails.value) {
+                    const profileUrl = actorDetails.value.profile_path 
+                        ? useWebImage(actorDetails.value.profile_path, 'large') 
+                        : 'https://moovie.fun/og-image.png';
+                    updateSeo({
+                        title: `${actorDetails.value.name} — Moovie`,
+                        description: actorDetails.value.biography || `Discover movies and shows starring ${actorDetails.value.name} on Moovie.`,
+                        image: profileUrl,
+                        canonical: `https://moovie.fun/actor/${actorDetails.value.id}`
+                    });
+                } else {
+                    document.title = 'People — Moovie';
+                }
             } catch (e: any) {
                 hasError.value = true;
                 errorMessage.value = e?.message || 'Could not load this person.';

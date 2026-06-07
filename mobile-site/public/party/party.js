@@ -278,20 +278,27 @@
         }
 
         function showEmbedPlayer(embedUrl) {
-            const iframe = document.getElementById('video-player-iframe');
-            if (iframe) {
-                iframe.style.display = 'block';
+            const oldIframe = document.getElementById('video-player-iframe');
+            if (oldIframe) {
+                const parent = oldIframe.parentNode;
+                const newIframe = document.createElement('iframe');
+                newIframe.id = 'video-player-iframe';
+                newIframe.className = oldIframe.className;
+                newIframe.style.display = 'block';
+                newIframe.allowFullscreen = true;
+                newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+
                 const lowerUrl = embedUrl.toLowerCase();
                 if (
                     lowerUrl.includes('cinemaos.tech') ||
                     lowerUrl.includes('smashystream.com') ||
                     lowerUrl.includes('mappletv.uk')
                 ) {
-                    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
-                } else {
-                    iframe.removeAttribute('sandbox');
+                    newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
                 }
-                iframe.src = embedUrl;
+
+                newIframe.src = embedUrl;
+                parent.replaceChild(newIframe, oldIframe);
             }
         }
 

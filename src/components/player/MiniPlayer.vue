@@ -9,6 +9,7 @@
             >
                 <div class="mini-player__frame">
                     <iframe
+                        :key="state.embedUrl"
                         :src="state.embedUrl"
                         :title="state.title"
                         class="mini-player__iframe"

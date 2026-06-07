@@ -291,8 +291,7 @@
                 const lowerUrl = embedUrl.toLowerCase();
                 if (
                     lowerUrl.includes('cinemaos.tech') ||
-                    lowerUrl.includes('smashystream.com') ||
-                    lowerUrl.includes('mappletv.uk')
+                    lowerUrl.includes('smashystream.com')
                 ) {
                     newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
                 }

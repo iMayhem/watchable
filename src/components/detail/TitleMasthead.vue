@@ -154,22 +154,7 @@
                             Watch Together
                         </LmButton>
 
-                        <LmButton
-                            variant="ghost"
-                            size="lg"
-                            @click="toggleWatchlist"
-                            :aria-pressed="inWatchlist"
-                        >
-                            <template #leading>
-                                <svg v-if="inWatchlist" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                                    <path fill="currentColor" d="M5 5h14v16l-7-4-7 4z"/>
-                                </svg>
-                                <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M5 5h14v16l-7-4-7 4z"/>
-                                </svg>
-                            </template>
-                            {{ inWatchlist ? 'On your list' : 'Watchlist' }}
-                        </LmButton>
+
                     </div>
                 </div>
             </div>
@@ -182,7 +167,6 @@ import { computed, defineComponent, PropType, ref, toRef } from 'vue';
 import LmButton from '../primitives/Button.vue';
 import TrailerControls from '../hero/TrailerControls.vue';
 import TrailerIframe from '../hero/TrailerIframe.vue';
-import { isInWatchlist, toggleWatchlistItem } from '../../composables/useWatchlist';
 import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { usePrefetch } from '../../composables/usePrefetch';
@@ -274,19 +258,7 @@ export default defineComponent({
             props.rating > 0 ? props.rating.toFixed(1) : ''
         );
 
-        const inWatchlist = computed(() => isInWatchlist(props.id, props.type));
 
-        const toggleWatchlist = () => {
-            toggleWatchlistItem({
-                id: props.id,
-                title: props.title,
-                image: props.posterPath,
-                rating: props.rating,
-                categories: props.genreIds || [],
-                adult: props.adult,
-                type: props.type
-            });
-        };
 
         const {
             iframeRef,
@@ -321,8 +293,6 @@ export default defineComponent({
             isVerticalBackdrop,
             year,
             ratingLabel,
-            inWatchlist,
-            toggleWatchlist,
             setIframe,
             trailerVisible,
             trailerLive,

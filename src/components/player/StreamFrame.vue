@@ -70,8 +70,7 @@ export default defineComponent({
             const url = props.embedUrl.toLowerCase();
             if (
                 url.includes('cinemaos.tech') ||
-                url.includes('smashystream.com') ||
-                url.includes('mappletv.uk')
+                url.includes('smashystream.com')
             ) {
                 return 'allow-scripts allow-same-origin allow-forms';
             }

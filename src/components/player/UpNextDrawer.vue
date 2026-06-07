@@ -45,7 +45,13 @@
                         class="up-next__item"
                         :class="{ 'is-priming': idx === 0 && countingDown }"
                     >
-                        <button type="button" class="up-next__row" @click="select(item)">
+                        <button 
+                            type="button" 
+                            class="up-next__row" 
+                            :class="{ 'is-upcoming': item.isUpcoming }" 
+                            :disabled="item.isUpcoming" 
+                            @click="select(item)"
+                        >
                             <div class="up-next__still">
                                 <img
                                     v-if="item.still"
@@ -66,8 +72,13 @@
                             <div class="up-next__body">
                                 <span class="meta up-next__meta">{{ item.code }} · {{ item.label }}</span>
                                 <h4 class="up-next__name">{{ item.title }}</h4>
-                                <p v-if="item.overview" class="up-next__overview">
-                                    {{ truncate(item.overview, 110) }}
+                                <p class="up-next__overview">
+                                    <span v-if="item.isUpcoming" class="up-next__airdate">
+                                        📅 Airs: {{ item.upcomingDate }}
+                                    </span>
+                                    <span v-else-if="item.overview">
+                                        {{ truncate(item.overview, 110) }}
+                                    </span>
                                 </p>
                             </div>
                         </button>
@@ -103,6 +114,8 @@ export interface UpNextItem {
     title: string;
     overview: string;
     still: string;
+    isUpcoming?: boolean;
+    upcomingDate?: string;
 }
 
 export default defineComponent({
@@ -132,7 +145,20 @@ export default defineComponent({
                 (ep) => ep.episode_number > props.currentEpisode
             );
 
+            const now = new Date();
+
             remaining.slice(0, 3).forEach((ep) => {
+                const isUpcoming = ep.air_date ? new Date(ep.air_date) > now : false;
+                let upcomingDate = '';
+                if (isUpcoming) {
+                    upcomingDate = new Date(ep.air_date).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
                 items.push({
                     key: `s${props.currentSeason}e${ep.episode_number}`,
                     season: props.currentSeason,
@@ -141,13 +167,26 @@ export default defineComponent({
                     label: formatLabel(ep),
                     title: ep.name || `Episode ${ep.episode_number}`,
                     overview: ep.overview || '',
-                    still: ep.still_path ? useWebImage(ep.still_path, 'medium') : ''
+                    still: ep.still_path ? useWebImage(ep.still_path, 'medium') : '',
+                    isUpcoming,
+                    upcomingDate
                 });
             });
 
             if (items.length < 3 && props.nextSeasonNumber && props.nextSeasonEpisodes.length) {
                 const need = 3 - items.length;
                 props.nextSeasonEpisodes.slice(0, need).forEach((ep) => {
+                    const isUpcoming = ep.air_date ? new Date(ep.air_date) > now : false;
+                    let upcomingDate = '';
+                    if (isUpcoming) {
+                        upcomingDate = new Date(ep.air_date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
                     items.push({
                         key: `s${props.nextSeasonNumber}e${ep.episode_number}`,
                         season: props.nextSeasonNumber,
@@ -156,7 +195,9 @@ export default defineComponent({
                         label: formatLabel(ep),
                         title: ep.name || `Episode ${ep.episode_number}`,
                         overview: ep.overview || '',
-                        still: ep.still_path ? useWebImage(ep.still_path, 'medium') : ''
+                        still: ep.still_path ? useWebImage(ep.still_path, 'medium') : '',
+                        isUpcoming,
+                        upcomingDate
                     });
                 });
             }
@@ -181,7 +222,7 @@ export default defineComponent({
 
         const startCountdown = () => {
             stopCountdown();
-            if (!autoplay.value || !hasUpcoming.value) return;
+            if (!autoplay.value || !hasUpcoming.value || upcoming.value[0]?.isUpcoming) return;
             countingDown.value = true;
             countdown.value = props.autoplayCountdown;
             timer = setInterval(() => {
@@ -195,6 +236,7 @@ export default defineComponent({
         };
 
         const select = (item: UpNextItem) => {
+            if (item.isUpcoming) return;
             stopCountdown();
             if (item.season !== props.currentSeason) {
                 emit('season-change', item.season);
@@ -212,7 +254,7 @@ export default defineComponent({
         watch(
             () => [open.value, autoplay.value, hasUpcoming.value],
             () => {
-                if (open.value && autoplay.value && hasUpcoming.value) startCountdown();
+                if (open.value && autoplay.value && hasUpcoming.value && !upcoming.value[0]?.isUpcoming) startCountdown();
                 else stopCountdown();
             },
             { immediate: true }
@@ -389,6 +431,16 @@ export default defineComponent({
             background: var(--surface-tint);
         }
 
+        &.is-upcoming {
+            cursor: not-allowed !important;
+            opacity: 0.55;
+            background: transparent !important;
+            
+            &:hover {
+                background: transparent !important;
+            }
+        }
+
         &:focus-visible {
             outline: 2px solid var(--ember);
             outline-offset: -2px;
@@ -461,6 +513,12 @@ export default defineComponent({
         line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+
+    &__airdate {
+        color: var(--ember);
+        font-weight: 500;
+        font-size: var(--fs-xs);
     }
 
     &__empty {

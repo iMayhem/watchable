@@ -314,7 +314,12 @@ export default defineComponent({
         });
 
         const isLastEpisode = computed(() => {
-            const lastInSeason = currentEpisode.value === seasonEpisodes.value.length;
+            const now = new Date();
+            const releasedCount = seasonEpisodes.value.filter(ep => {
+                if (!ep.air_date) return true;
+                return new Date(ep.air_date) <= now;
+            }).length;
+            const lastInSeason = currentEpisode.value === releasedCount;
             const lastSeason = !nextSeasonNumber.value;
             return lastInSeason && lastSeason;
         });
@@ -401,7 +406,7 @@ export default defineComponent({
                 const allEpisodes = data.value?.episodes || [];
                 const now = new Date();
 
-                seasonEpisodes.value = allEpisodes.filter((ep: any) => {
+                const released = allEpisodes.filter((ep: any) => {
                     if (!ep.air_date) return true;
                     return new Date(ep.air_date) <= now;
                 });
@@ -410,6 +415,12 @@ export default defineComponent({
                     if (!ep.air_date) return false;
                     return new Date(ep.air_date) > now;
                 }) || null;
+
+                if (nextAiringEpisode.value) {
+                    seasonEpisodes.value = [...released, nextAiringEpisode.value];
+                } else {
+                    seasonEpisodes.value = released;
+                }
 
                 currentEpisodeDetails.value =
                     seasonEpisodes.value.find((ep) => ep.episode_number === currentEpisode.value) ||
@@ -427,10 +438,19 @@ export default defineComponent({
                     fetchTvShowBySeason(showId.value, nextSeasonNumber.value)
                         .then(({ data }) => {
                             const allNextEpisodes = data.value?.episodes || [];
-                            nextSeasonEpisodes.value = allNextEpisodes.filter((ep: any) => {
+                            const nextReleased = allNextEpisodes.filter((ep: any) => {
                                 if (!ep.air_date) return true;
                                 return new Date(ep.air_date) <= now;
                             });
+                            const nextUpcoming = allNextEpisodes.find((ep: any) => {
+                                if (!ep.air_date) return false;
+                                return new Date(ep.air_date) > now;
+                            });
+                            if (nextUpcoming) {
+                                nextSeasonEpisodes.value = [...nextReleased, nextUpcoming];
+                            } else {
+                                nextSeasonEpisodes.value = nextReleased;
+                            }
                         })
                         .catch(() => {
                             nextSeasonEpisodes.value = [];
@@ -494,15 +514,25 @@ export default defineComponent({
                 currentEpisode.value = 1;
                 await updateRoute();
                 await loadSeason();
-                if (seasonEpisodes.value.length) {
-                    changeEpisode(seasonEpisodes.value.length);
+                const now = new Date();
+                const releasedCount = seasonEpisodes.value.filter(ep => {
+                    if (!ep.air_date) return true;
+                    return new Date(ep.air_date) <= now;
+                }).length;
+                if (releasedCount > 0) {
+                    changeEpisode(releasedCount);
                 }
             }
         };
 
         const goToNextEpisode = () => {
             if (isLastEpisode.value) return;
-            if (currentEpisode.value < seasonEpisodes.value.length) {
+            const now = new Date();
+            const releasedCount = seasonEpisodes.value.filter(ep => {
+                if (!ep.air_date) return true;
+                return new Date(ep.air_date) <= now;
+            }).length;
+            if (currentEpisode.value < releasedCount) {
                 changeEpisode(currentEpisode.value + 1);
             } else if (nextSeasonNumber.value) {
                 onSeasonChange(nextSeasonNumber.value).then(() => changeEpisode(1));

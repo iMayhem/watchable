@@ -169,8 +169,20 @@ const routes: Array<RouteRecordRaw> = [
 const router = createRouter({
     history: createWebHistory(),
     routes,
-    scrollBehavior(_to, _from, savedPosition) {
+    scrollBehavior(to, from, savedPosition) {
         if (savedPosition) return savedPosition;
+        if (
+            to.params.id &&
+            from.params.id &&
+            to.params.id === from.params.id &&
+            (
+                (to.name === 'StreamTVShow' && from.name === 'StreamTVShow') ||
+                ((to.name === 'StreamAnime' || to.name === 'StreamAnimeEpisode') &&
+                 (from.name === 'StreamAnime' || from.name === 'StreamAnimeEpisode'))
+            )
+        ) {
+            return false;
+        }
         return { top: 0, left: 0 };
     }
 });

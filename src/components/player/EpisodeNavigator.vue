@@ -73,7 +73,11 @@
                 <button
                     type="button"
                     class="ep-row"
-                    :class="{ 'is-active': ep.episode_number === currentEpisode }"
+                    :class="{ 
+                        'is-active': ep.episode_number === currentEpisode,
+                        'is-upcoming': isEpisodeUpcoming(ep)
+                    }"
+                    :disabled="isEpisodeUpcoming(ep)"
                     role="option"
                     :aria-selected="ep.episode_number === currentEpisode"
                     @click="emit('select', ep.episode_number)"
@@ -107,7 +111,10 @@
                     <div class="ep-row__body">
                         <div class="ep-row__meta">
                             <span class="meta">EP {{ String(ep.episode_number).padStart(2, '0') }}</span>
-                            <span v-if="ep.air_date" class="meta">{{ formatDate(ep.air_date) }}</span>
+                            <span v-if="isEpisodeUpcoming(ep)" class="meta ep-row__upcoming-date">
+                                📅 Airing: {{ formatUpcomingDate(ep) }}
+                            </span>
+                            <span v-else-if="ep.air_date" class="meta">{{ formatDate(ep.air_date) }}</span>
                             <span v-if="ep.runtime" class="meta">{{ ep.runtime }} min</span>
                         </div>
                         <h4 class="ep-row__title">{{ ep.name || `Episode ${ep.episode_number}` }}</h4>
@@ -194,6 +201,24 @@ export default defineComponent({
             }
         };
 
+        const isEpisodeUpcoming = (ep: Episode) => {
+            if (!ep.air_date) return false;
+            return new Date(ep.air_date) > new Date();
+        };
+
+        const formatUpcomingDate = (ep: Episode) => {
+            if (!ep.air_date) return '';
+            const d = new Date(ep.air_date);
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        };
+
         onMounted(() => document.addEventListener('keydown', onKey));
         onUnmounted(() => document.removeEventListener('keydown', onKey));
 
@@ -205,7 +230,9 @@ export default defineComponent({
             epProgress,
             formatDate,
             truncate,
-            emit
+            emit,
+            isEpisodeUpcoming,
+            formatUpcomingDate
         };
     }
 });
@@ -411,6 +438,25 @@ export default defineComponent({
     &.is-active {
         background: linear-gradient(135deg, rgba(255, 90, 31, 0.12), rgba(255, 90, 31, 0.04));
         box-shadow: inset 0 0 0 1px rgba(255, 90, 31, 0.4);
+    }
+
+    &.is-upcoming {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+        background: transparent !important;
+        border: 1px dashed rgba(255, 255, 255, 0.15);
+        box-shadow: none !important;
+
+        &:hover {
+            transform: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+    }
+
+    &__upcoming-date {
+        color: var(--ember) !important;
+        font-weight: 500;
     }
 
     &__still {

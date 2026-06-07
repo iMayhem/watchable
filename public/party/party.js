@@ -291,7 +291,8 @@
                 const lowerUrl = embedUrl.toLowerCase();
                 if (
                     lowerUrl.includes('cinemaos.tech') ||
-                    lowerUrl.includes('smashystream.com')
+                    lowerUrl.includes('smashystream.com') ||
+                    lowerUrl.includes('animeplay.cfd')
                 ) {
                     newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
                 }

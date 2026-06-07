@@ -76,7 +76,8 @@ export default defineComponent({
             const url = state.value.embedUrl.toLowerCase();
             if (
                 url.includes('cinemaos.tech') ||
-                url.includes('smashystream.com')
+                url.includes('smashystream.com') ||
+                url.includes('animeplay.cfd')
             ) {
                 return 'allow-scripts allow-same-origin allow-forms';
             }

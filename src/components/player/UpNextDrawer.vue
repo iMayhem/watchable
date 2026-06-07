@@ -59,7 +59,7 @@
                     </div>
                 </div>
 
-                <div v-if="isLoading" class="up-next__list-container">
+                <div v-if="isLoading || isPreviewLoading" class="up-next__list-container">
                     <div class="up-next__section-title">Loading episodes…</div>
                     <ul class="up-next__list">
                         <li v-for="i in 5" :key="i" class="up-next__item is-skeleton">

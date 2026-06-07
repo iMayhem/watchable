@@ -23,29 +23,6 @@
                 />
             </section>
 
-            <section class="anime-detail__section anime-detail__snap-slide container-lm anime-detail__opening">
-                <MetaBar :items="metaItems" :loading="loading" aria-label="Anime metadata" />
-
-                <div class="anime-detail__columns">
-                    <div class="anime-detail__col--main">
-                        <DropCapSynopsis
-                            :body="cleanDescription"
-                            eyebrow="The Synopsis"
-                            :loading="loading"
-                        />
-                    </div>
-
-                    <div class="anime-detail__col--side">
-                        <StatsBlock
-                            :stats="statsItems"
-                            title="By the numbers"
-                            eyebrow="Ledger"
-                            :loading="loading"
-                        />
-                    </div>
-                </div>
-            </section>
-
             <section v-if="anime && episodesList.length" class="anime-detail__section anime-detail__snap-slide container-lm">
                 <div class="episode-guide">
                     <p class="eyebrow">The Schedule</p>
@@ -114,6 +91,29 @@
                                 <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
                             </svg>
                         </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="anime-detail__section anime-detail__snap-slide container-lm anime-detail__opening">
+                <MetaBar :items="metaItems" :loading="loading" aria-label="Anime metadata" />
+
+                <div class="anime-detail__columns">
+                    <div class="anime-detail__col--main">
+                        <DropCapSynopsis
+                            :body="cleanDescription"
+                            eyebrow="The Synopsis"
+                            :loading="loading"
+                        />
+                    </div>
+
+                    <div class="anime-detail__col--side">
+                        <StatsBlock
+                            :stats="statsItems"
+                            title="By the numbers"
+                            eyebrow="Ledger"
+                            :loading="loading"
+                        />
                     </div>
                 </div>
             </section>

@@ -248,8 +248,12 @@
             :next-season-number="nextSeasonNumber"
             :next-season-episodes="nextSeasonEpisodes"
             :is-loading="isLoadingEpisodes"
+            :seasons="seasonsDropdownList"
+            :preview-episodes="previewEpisodes"
+            :is-preview-loading="isPreviewLoading"
             @select="onUpNextSelect"
             @season-change="onUpNextSeasonChange"
+            @preview-season="onPreviewSeason"
         />
     </div>
 </template>
@@ -330,6 +334,13 @@ export default defineComponent({
         const availableSeasons = computed(() =>
             seasons.value.filter((s) => s.season_number > 0)
         );
+
+        const seasonsDropdownList = computed(() => {
+            return availableSeasons.value.map(s => ({
+                number: s.season_number,
+                label: s.name || `Season ${s.season_number}`
+            }));
+        });
 
         const nextSeasonNumber = computed(() => {
             const next = availableSeasons.value.find(
@@ -596,6 +607,36 @@ export default defineComponent({
             });
         };
 
+        const previewEpisodes = ref<Episode[]>([]);
+        const isPreviewLoading = ref(false);
+
+        const onPreviewSeason = async (seasonNum: number) => {
+            if (seasonNum === currentSeason.value) {
+                previewEpisodes.value = [];
+                return;
+            }
+            isPreviewLoading.value = true;
+            try {
+                const { data } = await fetchTvShowBySeason(showId.value, seasonNum);
+                const allEpisodes = data.value?.episodes || [];
+                const now = new Date();
+                const released = allEpisodes.filter((ep: any) => {
+                    if (!ep.air_date) return true;
+                    return new Date(ep.air_date) <= now;
+                });
+                const nextAiring = allEpisodes.find((ep: any) => {
+                    if (!ep.air_date) return false;
+                    return new Date(ep.air_date) > now;
+                }) || null;
+                
+                previewEpisodes.value = nextAiring ? [...released, nextAiring] : released;
+            } catch (err) {
+                console.error('Failed to load season preview:', err);
+            } finally {
+                isPreviewLoading.value = false;
+            }
+        };
+
         watch(
             () => route.params,
             async (next) => {
@@ -632,6 +673,7 @@ export default defineComponent({
             currentEpisode,
             currentEpisodeDetails,
             isLoadingEpisodes,
+            seasonsDropdownList,
             currentEmbedUrl,
             episodeStill,
             airYear,
@@ -648,7 +690,10 @@ export default defineComponent({
             onUpNextSeasonChange,
             goBack,
             nextAiringInfo,
-            isLastEpisode
+            isLastEpisode,
+            previewEpisodes,
+            isPreviewLoading,
+            onPreviewSeason
         };
     }
 });

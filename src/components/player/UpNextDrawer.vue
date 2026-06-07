@@ -23,8 +23,8 @@
             >
                 <header class="up-next__head">
                     <div>
-                        <p class="eyebrow">Up next</p>
-                        <h3 class="up-next__title">Coming up</h3>
+                        <p class="eyebrow">Browse</p>
+                        <h3 class="up-next__title">Episodes</h3>
                     </div>
                     <button
                         type="button"
@@ -38,10 +38,31 @@
                     </button>
                 </header>
 
+                <div v-if="seasons && seasons.length > 0" class="up-next__season-selector">
+                    <div class="up-next__select-wrapper">
+                        <select
+                            id="drawer-season-select"
+                            :value="previewSeason"
+                            @change="onSeasonSelect"
+                        >
+                            <option
+                                v-for="s in seasons"
+                                :key="s.number"
+                                :value="s.number"
+                            >
+                                {{ s.label }}
+                            </option>
+                        </select>
+                        <svg class="select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m6 9 6 6 6-6" />
+                        </svg>
+                    </div>
+                </div>
+
                 <div v-if="isLoading" class="up-next__list-container">
                     <div class="up-next__section-title">Loading episodes…</div>
                     <ul class="up-next__list">
-                        <li v-for="i in 3" :key="i" class="up-next__item is-skeleton">
+                        <li v-for="i in 5" :key="i" class="up-next__item is-skeleton">
                             <div class="up-next__row">
                                 <div class="up-next__still skeleton-pulse" />
                                 <div class="up-next__body">
@@ -55,14 +76,15 @@
                 </div>
 
                 <div v-else class="up-next__list-container">
-                    <!-- Coming Up Section -->
-                    <div class="up-next__section-title">Coming up</div>
-                    <ul v-if="hasUpcoming" class="up-next__list">
+                    <ul v-if="formattedEpisodes.length" class="up-next__list">
                         <li
-                            v-for="(item, idx) in upcoming"
+                            v-for="item in formattedEpisodes"
                             :key="item.key"
                             class="up-next__item"
-                            :class="{ 'is-priming': idx === 0 && countingDown }"
+                            :class="{ 
+                                'is-active-episode': item.episode === currentEpisode,
+                                'is-priming': item.episode === currentEpisode + 1 && countingDown
+                            }"
                         >
                             <button 
                                 type="button" 
@@ -84,7 +106,10 @@
                                             <path d="m8 3 4 3 4-3" />
                                         </svg>
                                     </div>
-                                    <span v-if="idx === 0 && countingDown" class="up-next__count">
+                                    <span v-if="item.episode === currentEpisode" class="up-next__now-playing">
+                                        Now Playing
+                                    </span>
+                                    <span v-if="item.episode === currentEpisode + 1 && countingDown" class="up-next__count">
                                         {{ countdown }}s
                                     </span>
                                 </div>
@@ -103,45 +128,7 @@
                             </button>
                         </li>
                     </ul>
-                    <p v-else class="meta up-next__empty">No more episodes filed for this run.</p>
-
-                    <!-- Previous 3 Episodes Section -->
-                    <div v-if="previousEpisodes.length > 0" class="up-next__section-title">Previous episodes</div>
-                    <ul v-if="previousEpisodes.length > 0" class="up-next__list">
-                        <li
-                            v-for="item in previousEpisodes"
-                            :key="item.key"
-                            class="up-next__item"
-                        >
-                            <button 
-                                type="button" 
-                                class="up-next__row" 
-                                @click="select(item)"
-                            >
-                                <div class="up-next__still">
-                                    <img
-                                        v-if="item.still"
-                                        :src="item.still"
-                                        :alt="item.label"
-                                        loading="lazy"
-                                    />
-                                    <div v-else class="up-next__placeholder" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
-                                            <rect x="3" y="6" width="18" height="12" rx="2" />
-                                            <path d="m8 3 4 3 4-3" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="up-next__body">
-                                    <span class="meta up-next__meta">{{ item.code }} · {{ item.label }}</span>
-                                    <h4 class="up-next__name">{{ item.title }}</h4>
-                                    <p v-if="item.overview" class="up-next__overview">
-                                        {{ truncate(item.overview, 110) }}
-                                    </p>
-                                </div>
-                            </button>
-                        </li>
-                    </ul>
+                    <p v-else class="meta up-next__empty">No episodes found for this season.</p>
                 </div>
 
                 <footer class="up-next__foot">
@@ -185,9 +172,21 @@ export default defineComponent({
         nextSeasonNumber: { type: Number, default: 0 },
         nextSeasonEpisodes: { type: Array as PropType<Episode[]>, default: () => [] },
         autoplayCountdown: { type: Number, default: 12 },
-        isLoading: { type: Boolean, default: false }
+        isLoading: { type: Boolean, default: false },
+        seasons: {
+            type: Array as PropType<Array<{ number: number; label: string }>>,
+            default: () => []
+        },
+        previewEpisodes: {
+            type: Array as PropType<Episode[]>,
+            default: () => []
+        },
+        isPreviewLoading: {
+            type: Boolean,
+            default: false
+        }
     },
-    emits: ['select', 'season-change'],
+    emits: ['select', 'season-change', 'preview-season'],
     setup(props, { emit }) {
         const open = useStorage<boolean>('lm:upnext:open', false);
         const autoplay = useStorage<boolean>('lm:upnext:autoplay', false);
@@ -264,27 +263,64 @@ export default defineComponent({
             return items;
         });
 
-        const previousEpisodes = computed<UpNextItem[]>(() => {
+        const previewSeason = ref(props.currentSeason);
+
+        watch(() => props.currentSeason, (newSeason) => {
+            previewSeason.value = newSeason;
+        });
+
+        watch(open, (newOpen) => {
+            if (newOpen) {
+                previewSeason.value = props.currentSeason;
+                emit('preview-season', props.currentSeason);
+            }
+        });
+
+        const episodesSource = computed(() => {
+            if (previewSeason.value !== props.currentSeason && props.previewEpisodes && props.previewEpisodes.length > 0) {
+                return props.previewEpisodes;
+            }
+            return props.seasonEpisodes;
+        });
+
+        const formattedEpisodes = computed<UpNextItem[]>(() => {
             const items: UpNextItem[] = [];
-            const prev = props.seasonEpisodes.filter(
-                (ep) => ep.episode_number < props.currentEpisode
-            );
-            prev.slice(-3).reverse().forEach((ep) => {
+            const now = new Date();
+            episodesSource.value.forEach((ep) => {
+                const isUpcoming = ep.air_date ? new Date(ep.air_date) > now : false;
+                let upcomingDate = '';
+                if (isUpcoming) {
+                    upcomingDate = new Date(ep.air_date).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
                 items.push({
-                    key: `s${props.currentSeason}e${ep.episode_number}`,
-                    season: props.currentSeason,
+                    key: `s${previewSeason.value}e${ep.episode_number}`,
+                    season: previewSeason.value,
                     episode: ep.episode_number,
-                    code: `S${props.currentSeason} · E${String(ep.episode_number).padStart(2, '0')}`,
+                    code: `S${previewSeason.value} · E${String(ep.episode_number).padStart(2, '0')}`,
                     label: formatLabel(ep),
                     title: ep.name || `Episode ${ep.episode_number}`,
                     overview: ep.overview || '',
                     still: ep.still_path ? useWebImage(ep.still_path, 'medium') : '',
-                    isUpcoming: false,
-                    upcomingDate: ''
+                    isUpcoming,
+                    upcomingDate
                 });
             });
             return items;
         });
+
+        const onSeasonSelect = (event: Event) => {
+            const val = parseInt((event.target as HTMLSelectElement).value, 10);
+            if (!Number.isNaN(val)) {
+                previewSeason.value = val;
+                emit('preview-season', val);
+            }
+        };
 
         const hasUpcoming = computed(() => upcoming.value.length > 0);
 
@@ -347,11 +383,13 @@ export default defineComponent({
             autoplay,
             upcoming,
             hasUpcoming,
-            previousEpisodes,
+            formattedEpisodes,
+            onSeasonSelect,
             countdown,
             countingDown,
             select,
-            truncate
+            truncate,
+            previewSeason
         };
     }
 });
@@ -706,6 +744,70 @@ export default defineComponent({
         input {
             accent-color: var(--ember);
         }
+    }
+
+    &__season-selector {
+        margin-bottom: var(--s-1);
+    }
+
+    &__select-wrapper {
+        position: relative;
+        width: 100%;
+
+        select {
+            appearance: none;
+            width: 100%;
+            background: var(--ink-800);
+            border: 1px solid var(--rule);
+            color: var(--bone-50);
+            padding: var(--s-3) var(--s-8) var(--s-3) var(--s-4);
+            border-radius: var(--r-md);
+            font-family: var(--font-display);
+            font-size: var(--fs-base);
+            font-weight: 500;
+            cursor: pointer;
+            transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+
+            &:focus {
+                outline: none;
+                border-color: var(--ember);
+                box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.2);
+            }
+        }
+
+        .select-chevron {
+            position: absolute;
+            right: var(--s-4);
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            color: var(--bone-400);
+            pointer-events: none;
+        }
+    }
+
+    &__item.is-active-episode {
+        background: var(--ink-750);
+        box-shadow: inset 0 0 0 1px var(--ember);
+        
+        .up-next__row:hover {
+            background: var(--ink-750);
+        }
+    }
+
+    &__now-playing {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(11, 10, 8, 0.7);
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: var(--fs-xs);
+        color: var(--ember);
+        text-transform: uppercase;
+        letter-spacing: var(--ls-micro);
     }
 
     &__scrim {

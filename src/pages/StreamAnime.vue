@@ -315,8 +315,12 @@
             :next-season-number="nextSeasonNumber"
             :next-season-episodes="nextSeasonEpisodes"
             :is-loading="isLoadingTmdb"
+            :seasons="seasonsDropdownList"
+            :preview-episodes="previewEpisodes"
+            :is-preview-loading="isPreviewLoading"
             @select="onUpNextSelect"
             @season-change="onUpNextSeasonChange"
+            @preview-season="onPreviewSeason"
         />
     </div>
 </template>
@@ -620,6 +624,13 @@ export default defineComponent({
                     label: label
                 };
             });
+        });
+
+        const seasonsDropdownList = computed(() => {
+            return seasonsList.value.map((s, idx) => ({
+                number: idx + 1,
+                label: s.label
+            }));
         });
 
         const goToSeason = (id: number) => {
@@ -935,6 +946,59 @@ export default defineComponent({
             }
         };
 
+        const previewEpisodes = ref<Episode[]>([]);
+        const isPreviewLoading = ref(false);
+
+        const onPreviewSeason = async (seasonIdx: number) => {
+            if (seasonIdx === currentSeasonNumber.value) {
+                previewEpisodes.value = [];
+                return;
+            }
+            isPreviewLoading.value = true;
+            try {
+                const targetSeason = seasonsList.value[seasonIdx - 1];
+                if (targetSeason) {
+                    const animeRes = await fetchAnimeById(targetSeason.id);
+                    const media = animeRes?.data?.Media ?? null;
+                    if (media) {
+                        const title = media.title.english || media.title.romaji || media.title.native || '';
+                        const axiosInstance = useAxios();
+                        const searchRes = await axiosInstance.get('search/tv', {
+                            params: { query: title }
+                        });
+                        const results = searchRes.data?.results || [];
+                        let mappedEpisodes: any[] = [];
+                        if (results.length > 0) {
+                            let mapped = results.find((r: any) => r.genre_ids && r.genre_ids.includes(16));
+                            if (!mapped) mapped = results[0];
+                            const seasonRes = await axiosInstance.get(`tv/${mapped.id}/season/1`);
+                            mappedEpisodes = seasonRes.data?.episodes || [];
+                        }
+                        
+                        const now = new Date();
+                        const released = mappedEpisodes.filter((ep: any) => {
+                            if (!ep.air_date) return true;
+                            return new Date(ep.air_date) <= now;
+                        });
+                        const nextAiring = mappedEpisodes.find((ep: any) => {
+                            if (!ep.air_date) return false;
+                            return new Date(ep.air_date) > now;
+                        }) || null;
+                        
+                        const allEps = nextAiring ? [...released, nextAiring] : released;
+                        previewEpisodes.value = allEps.map(ep => ({
+                            ...ep,
+                            season_number: seasonIdx
+                        })) as unknown as Episode[];
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load anime season preview:', err);
+            } finally {
+                isPreviewLoading.value = false;
+            }
+        };
+
         onMounted(() => {
             const epParam = route.params.episode;
             if (epParam) {
@@ -988,7 +1052,11 @@ export default defineComponent({
             nextAiringInfo,
             isEpisodeUpcoming,
             getEpisodeTooltip,
-            isLoadingTmdb
+            isLoadingTmdb,
+            seasonsDropdownList,
+            previewEpisodes,
+            isPreviewLoading,
+            onPreviewSeason
         };
     }
 });

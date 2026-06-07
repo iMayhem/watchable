@@ -25,6 +25,16 @@
                 />
             </section>
 
+            <section v-if="show && show.seasons?.length" class="tv-detail__section tv-detail__snap-slide container-lm">
+                <SeasonTabs
+                    :show-id="show.id"
+                    :seasons="show.seasons"
+                    title="Episode guide"
+                    eyebrow="The Schedule"
+                    description="Every installment, in running order."
+                />
+            </section>
+
             <section class="tv-detail__section tv-detail__snap-slide container-lm tv-detail__opening">
                 <MetaBar :items="metaItems" :loading="loading" aria-label="Series metadata" />
 
@@ -46,16 +56,6 @@
                         />
                     </div>
                 </div>
-            </section>
-
-            <section v-if="show && show.seasons?.length" class="tv-detail__section tv-detail__snap-slide container-lm">
-                <SeasonTabs
-                    :show-id="show.id"
-                    :seasons="show.seasons"
-                    title="Episode guide"
-                    eyebrow="The Schedule"
-                    description="Every installment, in running order."
-                />
             </section>
 
             <section class="tv-detail__section tv-detail__snap-slide container-lm">

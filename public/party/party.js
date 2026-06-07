@@ -96,21 +96,21 @@
 
         // Available Stream Servers
         const serversList = [
-            { id: 'cinemaos', name: '🔴 Gulab Jamun', movie: 'https://cinemaos.tech/player/{tmdbId}', tv: 'https://cinemaos.tech/player/{tmdbId}/{season}/{episode}' },
-            { id: 'smashy', name: '🌀 Jalebi', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },
-            { id: 'vidking', name: '🥛 Kheer', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true' },
-            { id: 'vidlink', name: '🍡 Cham Cham', movie: 'https://vidlink.pro/movie/{tmdbId}?primaryColor=6366f1', tv: 'https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?primaryColor=6366f1' },
-            { id: 'videasy', name: '⬜ Barfi', movie: 'https://player.videasy.net/movie/{tmdbId}?color=6366f1', tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}?color=6366f1' },
+            { id: 'cinemaos', name: 'Gulab Jamun', movie: 'https://cinemaos.tech/player/{tmdbId}', tv: 'https://cinemaos.tech/player/{tmdbId}/{season}/{episode}' },
+            { id: 'smashy', name: 'Jalebi', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },
+            { id: 'vidking', name: 'Kheer', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true' },
+            { id: 'vidlink', name: 'Cham Cham', movie: 'https://vidlink.pro/movie/{tmdbId}?primaryColor=6366f1', tv: 'https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?primaryColor=6366f1' },
+            { id: 'videasy', name: 'Barfi', movie: 'https://player.videasy.net/movie/{tmdbId}?color=6366f1', tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}?color=6366f1' },
             { id: 'vidsrc', name: 'VidSrc (to)', movie: 'https://vidsrc.to/embed/movie/{tmdbId}', tv: 'https://vidsrc.to/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidsrc_ru', name: '🧆 Laddu', movie: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.ru/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidsrc_su', name: '🟠 Peda', movie: 'https://vidsrc-embed.su/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.su/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidsrcme', name: '🥕 Gajar Ka Halwa', movie: 'https://vidsrcme.su/embed/movie/{tmdbId}', tv: 'https://vidsrcme.su/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'multiembed', name: '🥮 Soan Papdi', movie: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1', tv: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1&s={season}&e={episode}' },
-            { id: 'vsrc', name: '🍧 Sandesh', movie: 'https://vsrc.su/embed/movie/{tmdbId}', tv: 'https://vsrc.su/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'autoembed', name: '🍦 Kulfi', movie: 'https://player.autoembed.app/embed/movie/{tmdbId}', tv: 'https://player.autoembed.app/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidfast', name: '🟫 Mysore Pak', movie: 'https://vidfast.pro/movie/{tmdbId}', tv: 'https://vidfast.pro/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'movies111', name: '🥞 Imarti', movie: 'https://111movies.com/movie/{tmdbId}', tv: 'https://111movies.com/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidora', name: '🥯 Ghevar', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' }
+            { id: 'vidsrc_ru', name: 'Laddu', movie: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.ru/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'vidsrc_su', name: 'Peda', movie: 'https://vidsrc-embed.su/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.su/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'vidsrcme', name: 'Gajar Ka Halwa', movie: 'https://vidsrcme.su/embed/movie/{tmdbId}', tv: 'https://vidsrcme.su/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'multiembed', name: 'Soan Papdi', movie: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1', tv: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1&s={season}&e={episode}' },
+            { id: 'vsrc', name: 'Sandesh', movie: 'https://vsrc.su/embed/movie/{tmdbId}', tv: 'https://vsrc.su/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'autoembed', name: 'Kulfi', movie: 'https://player.autoembed.app/embed/movie/{tmdbId}', tv: 'https://player.autoembed.app/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'vidfast', name: 'Mysore Pak', movie: 'https://vidfast.pro/movie/{tmdbId}', tv: 'https://vidfast.pro/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'movies111', name: 'Imarti', movie: 'https://111movies.com/movie/{tmdbId}', tv: 'https://111movies.com/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'vidora', name: 'Ghevar', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' }
         ];
 
         let activeProvider = 'cinemaos';
@@ -257,11 +257,11 @@
             const menu = document.getElementById('server-dropdown-menu');
             if (isAnime) {
                 const animeServers = [
-                    { id: 'videasy', name: '⬜ Barfi (Sub/Dub)' },
-                    { id: 'animeplay_sub', name: '🥣 Shrikhand (Sub)' },
-                    { id: 'animeplay_dub', name: '🥣 Shrikhand (Dub)' },
-                    { id: 'megaplay_sub', name: '🍨 Rabri (Sub)' },
-                    { id: 'megaplay_dub', name: '🍨 Rabri (Dub)' }
+                    { id: 'videasy', name: 'Barfi (Sub/Dub)' },
+                    { id: 'animeplay_sub', name: 'Shrikhand (Sub)' },
+                    { id: 'animeplay_dub', name: 'Shrikhand (Dub)' },
+                    { id: 'megaplay_sub', name: 'Rabri (Sub)' },
+                    { id: 'megaplay_dub', name: 'Rabri (Dub)' }
                 ];
                 menu.innerHTML = animeServers.map(srv => `
                     <button class="server-dropdown-item ${srv.id === activeProvider ? 'active' : ''}" onclick="switchStreamProvider('${srv.id}')">
@@ -321,10 +321,10 @@
 
             // Update trigger active text
             if (isAnime) {
-                const matchedName = providerId === 'videasy' ? '⬜ Barfi (Sub/Dub)' : (
-                    providerId === 'animeplay_dub' ? '🥣 Shrikhand (Dub)' : (
-                        providerId === 'megaplay_sub' ? '🍨 Rabri (Sub)' : (
-                            providerId === 'megaplay_dub' ? '🍨 Rabri (Dub)' : '🥣 Shrikhand (Sub)'
+                const matchedName = providerId === 'videasy' ? 'Barfi (Sub/Dub)' : (
+                    providerId === 'animeplay_dub' ? 'Shrikhand (Dub)' : (
+                        providerId === 'megaplay_sub' ? 'Rabri (Sub)' : (
+                            providerId === 'megaplay_dub' ? 'Rabri (Dub)' : 'Shrikhand (Sub)'
                         )
                     )
                 );

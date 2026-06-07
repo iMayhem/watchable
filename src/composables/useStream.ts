@@ -49,41 +49,41 @@ if (streamData.value) {
 }
 
 export const movieServers = ref<Server[]>([
-  { name: '🔴 Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
-  { name: '🌀 Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
-  { name: '🟡 Rasgulla', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}' },
-  { name: '🔷 Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/movie/{tmdbId}' },
-  { name: '🥛 Kheer', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
-  { name: '⬜ Barfi', urlTemplate: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff' },
-  { name: '🧆 Laddu', urlTemplate: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}' },
-  { name: '🟠 Peda', urlTemplate: 'https://vidsrc-embed.su/embed/movie/{tmdbId}' },
-  { name: '🥕 Gajar Ka Halwa', urlTemplate: 'https://vidsrcme.su/embed/movie/{tmdbId}' },
-  { name: '🥮 Soan Papdi', urlTemplate: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1' },
-  { name: '🍧 Sandesh', urlTemplate: 'https://vsrc.su/embed/movie/{tmdbId}' },
-  { name: '🍡 Cham Cham', urlTemplate: 'https://vidlink.pro/movie/{tmdbId}' },
-  { name: '🍦 Kulfi', urlTemplate: 'https://player.autoembed.app/embed/movie/{tmdbId}' },
-  { name: '🟫 Mysore Pak', urlTemplate: 'https://vidfast.pro/movie/{tmdbId}' },
-  { name: '🥞 Imarti', urlTemplate: 'https://111movies.com/movie/{tmdbId}' },
-  { name: '🥯 Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' }
+  { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
+  { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
+  { name: 'Rasgulla', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}' },
+  { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/movie/{tmdbId}' },
+  { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
+  { name: 'Barfi', urlTemplate: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff' },
+  { name: 'Laddu', urlTemplate: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}' },
+  { name: 'Peda', urlTemplate: 'https://vidsrc-embed.su/embed/movie/{tmdbId}' },
+  { name: 'Gajar Ka Halwa', urlTemplate: 'https://vidsrcme.su/embed/movie/{tmdbId}' },
+  { name: 'Soan Papdi', urlTemplate: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1' },
+  { name: 'Sandesh', urlTemplate: 'https://vsrc.su/embed/movie/{tmdbId}' },
+  { name: 'Cham Cham', urlTemplate: 'https://vidlink.pro/movie/{tmdbId}' },
+  { name: 'Kulfi', urlTemplate: 'https://player.autoembed.app/embed/movie/{tmdbId}' },
+  { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/movie/{tmdbId}' },
+  { name: 'Imarti', urlTemplate: 'https://111movies.com/movie/{tmdbId}' },
+  { name: 'Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' }
 ]);
 
 export const tvServers = ref<Server[]>([
-  { name: '🔴 Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
-  { name: '🌀 Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
-  { name: '🟡 Rasgulla', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}' },
-  { name: '🔷 Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/tv/{externalId}/{season}/{episode}' },
-  { name: '🥛 Kheer', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
-  { name: '⬜ Barfi', urlTemplate: 'https://player.videasy.net/tv/{externalId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
-  { name: '🧆 Laddu', urlTemplate: 'https://vidsrc-embed.ru/embed/tv/{externalId}/{season}/{episode}' },
-  { name: '🟠 Peda', urlTemplate: 'https://vidsrc-embed.su/embed/tv/{externalId}/{season}/{episode}' },
-  { name: '🥕 Gajar Ka Halwa', urlTemplate: 'https://vidsrcme.su/embed/tv/{externalId}/{season}/{episode}' },
-  { name: '🥮 Soan Papdi', urlTemplate: 'https://multiembed.mov/?video_id={externalId}&tmdb=1&s={season}&e={episode}' },
-  { name: '🍧 Sandesh', urlTemplate: 'https://vsrc.su/embed/tv/{externalId}/{season}/{episode}' },
-  { name: '🍡 Cham Cham', urlTemplate: 'https://vidlink.pro/tv/{externalId}/{season}/{episode}' },
-  { name: '🍦 Kulfi', urlTemplate: 'https://player.autoembed.app/embed/tv/{externalId}/{season}/{episode}' },
-  { name: '🟫 Mysore Pak', urlTemplate: 'https://vidfast.pro/tv/{externalId}/{season}/{episode}' },
-  { name: '🥞 Imarti', urlTemplate: 'https://111movies.com/tv/{externalId}/{season}/{episode}' },
-  { name: '🥯 Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' }
+  { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
+  { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
+  { name: 'Rasgulla', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/tv/{externalId}/{season}/{episode}' },
+  { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
+  { name: 'Barfi', urlTemplate: 'https://player.videasy.net/tv/{externalId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
+  { name: 'Laddu', urlTemplate: 'https://vidsrc-embed.ru/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Peda', urlTemplate: 'https://vidsrc-embed.su/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Gajar Ka Halwa', urlTemplate: 'https://vidsrcme.su/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Soan Papdi', urlTemplate: 'https://multiembed.mov/?video_id={externalId}&tmdb=1&s={season}&e={episode}' },
+  { name: 'Sandesh', urlTemplate: 'https://vsrc.su/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Cham Cham', urlTemplate: 'https://vidlink.pro/tv/{externalId}/{season}/{episode}' },
+  { name: 'Kulfi', urlTemplate: 'https://player.autoembed.app/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/tv/{externalId}/{season}/{episode}' },
+  { name: 'Imarti', urlTemplate: 'https://111movies.com/tv/{externalId}/{season}/{episode}' },
+  { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' }
 ]);
 
 export const currentStreamData = ref({

@@ -437,6 +437,114 @@ export default defineComponent({
             return episodes;
         };
 
+        const cleanAnimeTitle = (title: string) =>
+            title.replace(/Season \d+|Part \d+/gi, '').trim();
+
+        const findAnimatedTmdbShow = async (media: any) => {
+            const axiosInstance = useAxios();
+            const titles = [
+                media?.title?.english,
+                media?.title?.romaji,
+                media?.title?.native
+            ].filter(Boolean);
+
+            for (const title of titles) {
+                const cleanTitle = cleanAnimeTitle(title);
+                if (!cleanTitle) continue;
+
+                const searchRes = await axiosInstance.get('search/tv', {
+                    params: { query: cleanTitle }
+                });
+                const results = searchRes.data?.results || [];
+                if (!results.length) continue;
+
+                return (
+                    results.find((result: any) =>
+                        result.genre_ids && result.genre_ids.includes(16)
+                    ) || results[0]
+                );
+            }
+
+            return null;
+        };
+
+        const getTmdbSeasonNumber = (seasons: any[], media: any) => {
+            const anilistTitle = [
+                media?.title?.english,
+                media?.title?.romaji,
+                media?.title?.native
+            ].filter(Boolean).join(' ').toLowerCase();
+            const anilistYear = media?.seasonYear;
+            const keywords = [
+                'mugen',
+                'entertainment',
+                'swordsmith',
+                'hashira',
+                'yuukaku',
+                'katanakaji',
+                'shibuya',
+                'hidden inventory',
+                'sister',
+                'village',
+                'training',
+                'final'
+            ];
+
+            for (const season of seasons) {
+                const seasonName = (season.name || '').toLowerCase();
+                if (
+                    keywords.some((keyword) =>
+                        seasonName.includes(keyword) && anilistTitle.includes(keyword)
+                    )
+                ) {
+                    return season.season_number;
+                }
+            }
+
+            if (anilistYear) {
+                const exactMatch = seasons.find((season: any) => {
+                    if (!season.air_date) return false;
+                    return new Date(season.air_date).getFullYear() === anilistYear;
+                });
+                if (exactMatch) return exactMatch.season_number;
+
+                let closestSeason = null;
+                let minDiff = Infinity;
+                for (const season of seasons) {
+                    if (!season.air_date) continue;
+                    const seasonYear = new Date(season.air_date).getFullYear();
+                    const diff = Math.abs(seasonYear - anilistYear);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestSeason = season;
+                    }
+                }
+                if (closestSeason && minDiff <= 1) return closestSeason.season_number;
+            }
+
+            return 1;
+        };
+
+        const fetchTmdbEpisodesForMedia = async (media: any) => {
+            if (!media) return { tvId: null, episodes: [] as any[] };
+
+            const axiosInstance = useAxios();
+            const mapped = await findAnimatedTmdbShow(media);
+            if (!mapped) return { tvId: null, episodes: [] as any[] };
+
+            const showRes = await axiosInstance.get(`tv/${mapped.id}`);
+            const tmdbSeasons = (showRes.data?.seasons || []).filter(
+                (season: any) => season.season_number > 0
+            );
+            const seasonNumber = getTmdbSeasonNumber(tmdbSeasons, media);
+            const seasonRes = await axiosInstance.get(`tv/${mapped.id}/season/${seasonNumber}`);
+
+            return {
+                tvId: mapped.id,
+                episodes: seasonRes.data?.episodes || []
+            };
+        };
+
         const browsableTmdbEpisodes = computed(() => {
             if (!tmdbEpisodes.value.length) return [];
             return applyAniListAvailability(
@@ -778,31 +886,17 @@ export default defineComponent({
             }
         }, { immediate: true });
 
-        const fetchTmdbEpisodes = async (title: string) => {
-            if (!title) {
+        const fetchTmdbEpisodes = async (media: any) => {
+            if (!media) {
                 tmdbEpisodes.value = [];
                 tmdbTvId.value = null;
                 return;
             }
             isLoadingTmdb.value = true;
             try {
-                const axiosInstance = useAxios();
-                const searchRes = await axiosInstance.get('search/tv', {
-                    params: { query: title }
-                });
-                const results = searchRes.data?.results || [];
-                if (results.length > 0) {
-                    let mapped = results.find((r: any) => r.genre_ids && r.genre_ids.includes(16));
-                    if (!mapped) {
-                        mapped = results[0];
-                    }
-                    tmdbTvId.value = mapped.id;
-                    const seasonRes = await axiosInstance.get(`tv/${mapped.id}/season/1`);
-                    tmdbEpisodes.value = seasonRes.data?.episodes || [];
-                } else {
-                    tmdbEpisodes.value = [];
-                    tmdbTvId.value = null;
-                }
+                const result = await fetchTmdbEpisodesForMedia(media);
+                tmdbEpisodes.value = result.episodes;
+                tmdbTvId.value = result.tvId;
             } catch (err) {
                 console.error('Failed to fetch TMDB mapping/episodes for anime:', err);
                 tmdbEpisodes.value = [];
@@ -812,45 +906,32 @@ export default defineComponent({
             }
         };
 
-        const fetchNextSeasonTmdbEpisodes = async (title: string) => {
-            if (!title) {
+        const fetchNextSeasonTmdbEpisodes = async (media: any) => {
+            if (!media) {
                 nextSeasonTmdbEpisodes.value = [];
                 return;
             }
             try {
-                const axiosInstance = useAxios();
-                const searchRes = await axiosInstance.get('search/tv', {
-                    params: { query: title }
-                });
-                const results = searchRes.data?.results || [];
-                if (results.length > 0) {
-                    let mapped = results.find((r: any) => r.genre_ids && r.genre_ids.includes(16));
-                    if (!mapped) {
-                        mapped = results[0];
-                    }
-                    const seasonRes = await axiosInstance.get(`tv/${mapped.id}/season/1`);
-                    nextSeasonTmdbEpisodes.value = seasonRes.data?.episodes || [];
-                } else {
-                    nextSeasonTmdbEpisodes.value = [];
-                }
+                const result = await fetchTmdbEpisodesForMedia(media);
+                nextSeasonTmdbEpisodes.value = result.episodes;
             } catch (err) {
                 console.error('Failed to fetch TMDB next season episodes:', err);
                 nextSeasonTmdbEpisodes.value = [];
             }
         };
 
-        watch(animeTitle, (title) => {
-            if (title) {
-                fetchTmdbEpisodes(title);
+        watch(anime, (media) => {
+            if (media) {
+                fetchTmdbEpisodes(media);
             } else {
                 tmdbEpisodes.value = [];
                 tmdbTvId.value = null;
             }
         }, { immediate: true });
 
-        watch(nextSeasonTitle, (title) => {
-            if (title) {
-                fetchNextSeasonTmdbEpisodes(title);
+        watch(nextSeasonMedia, (media) => {
+            if (media) {
+                fetchNextSeasonTmdbEpisodes(media);
             } else {
                 nextSeasonTmdbEpisodes.value = [];
             }
@@ -1030,19 +1111,7 @@ export default defineComponent({
                     const animeRes = await fetchAnimeById(targetSeason.id);
                     const media = animeRes?.data?.Media ?? null;
                     if (media) {
-                        const title = media.title.english || media.title.romaji || media.title.native || '';
-                        const axiosInstance = useAxios();
-                        const searchRes = await axiosInstance.get('search/tv', {
-                            params: { query: title }
-                        });
-                        const results = searchRes.data?.results || [];
-                        let mappedEpisodes: any[] = [];
-                        if (results.length > 0) {
-                            let mapped = results.find((r: any) => r.genre_ids && r.genre_ids.includes(16));
-                            if (!mapped) mapped = results[0];
-                            const seasonRes = await axiosInstance.get(`tv/${mapped.id}/season/1`);
-                            mappedEpisodes = seasonRes.data?.episodes || [];
-                        }
+                        const { episodes: mappedEpisodes } = await fetchTmdbEpisodesForMedia(media);
                         
                         const browsable = buildBrowsableEpisodes(
                             applyAniListAvailability(mappedEpisodes, media),

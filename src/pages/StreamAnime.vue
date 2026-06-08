@@ -377,16 +377,85 @@ export default defineComponent({
 
         const announcedEpisodeCount = computed(() => anime.value?.episodes ?? null);
 
+        const releasedFallbackDate = '1970-01-01';
+
+        const hasAired = (airDate: string | null | undefined, now = new Date()) => {
+            if (!airDate) return false;
+            const date = new Date(airDate);
+            return !Number.isNaN(date.getTime()) && date <= now;
+        };
+
+        const hasFutureAirDate = (airDate: string | null | undefined, now = new Date()) => {
+            if (!airDate) return false;
+            const date = new Date(airDate);
+            return !Number.isNaN(date.getTime()) && date > now;
+        };
+
+        const applyAniListAvailability = (
+            episodes: EpisodeLike[],
+            media: any | null,
+            now = new Date()
+        ): EpisodeLike[] => {
+            if (!media) return episodes;
+
+            const nextAiring = media.nextAiringEpisode;
+            if (nextAiring?.episode) {
+                const nextEpisode = Number(nextAiring.episode);
+                const nextAirDate = nextAiring.airingAt
+                    ? new Date(nextAiring.airingAt * 1000).toISOString()
+                    : null;
+
+                return episodes.map((ep) => {
+                    if (ep.episode_number < nextEpisode) {
+                        return {
+                            ...ep,
+                            air_date: hasAired(ep.air_date, now) ? ep.air_date : releasedFallbackDate
+                        };
+                    }
+
+                    if (ep.episode_number === nextEpisode) {
+                        return {
+                            ...ep,
+                            air_date: nextAirDate
+                        };
+                    }
+
+                    return {
+                        ...ep,
+                        air_date: hasFutureAirDate(ep.air_date, now) ? ep.air_date : null
+                    };
+                });
+            }
+
+            if (media.status === 'FINISHED') {
+                return episodes.map((ep) => ({
+                    ...ep,
+                    air_date: hasAired(ep.air_date, now) ? ep.air_date : releasedFallbackDate
+                }));
+            }
+
+            return episodes;
+        };
+
         const browsableTmdbEpisodes = computed(() => {
             if (!tmdbEpisodes.value.length) return [];
-            return buildBrowsableEpisodes(tmdbEpisodes.value, announcedEpisodeCount.value);
+            return applyAniListAvailability(
+                buildBrowsableEpisodes(
+                    applyAniListAvailability(tmdbEpisodes.value, anime.value),
+                    announcedEpisodeCount.value
+                ),
+                anime.value
+            );
         });
 
         const browsableNextSeasonTmdbEpisodes = computed(() => {
             if (!nextSeasonTmdbEpisodes.value.length) return [];
-            return buildBrowsableEpisodes(
-                nextSeasonTmdbEpisodes.value,
-                nextSeasonEpisodesCount.value || null
+            return applyAniListAvailability(
+                buildBrowsableEpisodes(
+                    applyAniListAvailability(nextSeasonTmdbEpisodes.value, nextSeasonMedia.value),
+                    nextSeasonEpisodesCount.value || null
+                ),
+                nextSeasonMedia.value
             );
         });
 
@@ -683,17 +752,21 @@ export default defineComponent({
         const nextSeasonEpisodesCount = ref<number>(0);
         const nextSeasonCoverImage = ref<string>('');
         const nextSeasonTitle = ref<string>('');
+        const nextSeasonMedia = ref<any | null>(null);
 
         watch(nextSeasonId, async (id) => {
             if (!id) {
                 nextSeasonEpisodesCount.value = 0;
                 nextSeasonCoverImage.value = '';
                 nextSeasonTitle.value = '';
+                nextSeasonMedia.value = null;
                 return;
             }
+            nextSeasonMedia.value = null;
             try {
                 const response = await fetchAnimeById(id);
                 const media = response?.data?.Media ?? null;
+                nextSeasonMedia.value = media;
                 if (media) {
                     nextSeasonEpisodesCount.value = media.episodes || 12;
                     nextSeasonCoverImage.value = media.coverImage.large || '';
@@ -701,6 +774,7 @@ export default defineComponent({
                 }
             } catch (err) {
                 console.error('Failed to load next season details:', err);
+                nextSeasonMedia.value = null;
             }
         }, { immediate: true });
 
@@ -826,20 +900,18 @@ export default defineComponent({
 
             const list: EpisodeLike[] = [];
             for (let i = 1; i <= totalEpisodes.value; i++) {
-                const isUpcoming =
-                    anime.value?.nextAiringEpisode && i >= anime.value.nextAiringEpisode.episode;
-                let epAirDate = '';
-                if (isUpcoming && i === anime.value.nextAiringEpisode.episode) {
-                    const airTime = anime.value.nextAiringEpisode.airingAt * 1000;
-                    epAirDate = new Date(airTime).toISOString();
-                }
                 list.push({
                     episode_number: i,
-                    name: isUpcoming ? `Episode ${i} (Upcoming)` : `Episode ${i}`,
-                    air_date: epAirDate,
+                    name: `Episode ${i}`,
+                    air_date: null,
                 });
             }
-            return mapBrowsableToEpisodes(list, currentSeasonNumber.value, img, desc);
+            return mapBrowsableToEpisodes(
+                applyAniListAvailability(list, anime.value),
+                currentSeasonNumber.value,
+                img,
+                desc
+            );
         });
 
         const nextSeasonEpisodes = computed(() => {
@@ -863,7 +935,7 @@ export default defineComponent({
                 });
             }
             return mapBrowsableToEpisodes(
-                list,
+                applyAniListAvailability(list, nextSeasonMedia.value),
                 nextSeasonNumber.value,
                 nextSeasonCoverImage.value,
                 ''
@@ -973,11 +1045,11 @@ export default defineComponent({
                         }
                         
                         const browsable = buildBrowsableEpisodes(
-                            mappedEpisodes,
+                            applyAniListAvailability(mappedEpisodes, media),
                             media.episodes ?? null
                         );
                         previewEpisodes.value = mapBrowsableToEpisodes(
-                            browsable,
+                            applyAniListAvailability(browsable, media),
                             seasonIdx,
                             media.coverImage?.large || '',
                             media.description || ''

@@ -23,15 +23,12 @@ const selectSize = (size: WebImageSize) => {
 };
 
 /**
- * m.moovie.fun is a separate static deploy — /api/img only exists on the main domain.
- * Point image requests at the apex host so posters load on mobile.
+ * m.moovie.fun has its own /api/img function (mobile-site/functions/api/img.ts)
+ * so it can always use a relative path, same as the main domain.
+ * This function is kept for any edge case where VITE_IMAGE_PROXY_ORIGIN is set.
  */
 export function getImageProxyOrigin(): string {
     if (IS_DEV || typeof location === 'undefined') return '';
-    const host = location.hostname;
-    if (host.startsWith('m.')) {
-        return `${location.protocol}//${host.slice(2)}`;
-    }
     const envOrigin = import.meta.env.VITE_IMAGE_PROXY_ORIGIN;
     if (envOrigin) return String(envOrigin).replace(/\/$/, '');
     return '';

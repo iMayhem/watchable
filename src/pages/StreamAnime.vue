@@ -392,14 +392,11 @@ export default defineComponent({
 
         const nextTmdbEpisode = computed(() => getNextUpcomingEpisode(tmdbEpisodes.value));
 
-        const nextSeasonNextTmdbEpisode = computed(() =>
-            getNextUpcomingEpisode(nextSeasonTmdbEpisodes.value)
-        );
-
         const nextAiringInfo = computed(() => {
-            if (nextTmdbEpisode.value) {
+            const airDate = nextTmdbEpisode.value?.air_date;
+            if (airDate) {
                 const ep = nextTmdbEpisode.value;
-                const date = new Date(ep.air_date);
+                const date = new Date(airDate);
                 const dateString = date.toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'short',

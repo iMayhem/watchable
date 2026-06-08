@@ -114,6 +114,7 @@ import { addViewedItem } from '../composables/useHistory';
 import { getLastWatchedMetaData } from '../composables/useStream';
 import useAxios from '../composables/useAxios';
 import { primeGenres } from '../composables/useGenreLookup';
+import { buildProxiedImageUrl } from '../utils/useWebImage';
 
 interface ReviewsResponse {
     results: Array<{
@@ -324,9 +325,14 @@ export default defineComponent({
                 trailers.value = videos ?? [];
 
                 if (show.value) {
-                    const posterUrl = show.value.poster_path 
-                        ? `https://image.tmdb.org/t/p/w500${show.value.poster_path}` 
-                        : 'https://moovie.fun/og-image.png';
+                    const rawPosterUrl = show.value.poster_path 
+                        ? buildProxiedImageUrl(`w500${show.value.poster_path}`) 
+                        : '/og-image.png';
+                    // SEO meta needs an absolute URL; in production buildProxiedImageUrl
+                    // returns a relative /api/img?... path, so we prefix the canonical host.
+                    const posterUrl = rawPosterUrl.startsWith('/')
+                        ? `https://moovie.fun${rawPosterUrl}`
+                        : rawPosterUrl;
                     updateSeo({
                         title: `${show.value.name} — Moovie`,
                         description: show.value.overview || `Watch ${show.value.name} online on Moovie.`,

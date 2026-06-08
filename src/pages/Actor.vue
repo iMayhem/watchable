@@ -254,7 +254,7 @@
                         <a
                             v-for="(photo, idx) in profiles.slice(0, 12)"
                             :key="`ph-${idx}`"
-                            :href="`https://image.tmdb.org/t/p/original${photo.file_path}`"
+                            :href="buildProxiedImageUrl(`original${photo.file_path}`)"
                             target="_blank"
                             rel="noopener"
                             class="actor-page__photo"
@@ -296,7 +296,7 @@ import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import KeyartTile from '../components/cards/KeyartTile.vue';
 import { useActor, ActorDetails, ActorImages } from '../composables/useActor';
-import { useWebImage } from '../utils/useWebImage';
+import { useWebImage, buildProxiedImageUrl } from '../utils/useWebImage';
 import { useToast } from '../composables/useToast';
 import { useAmbientColor } from '../composables/useAmbientColor';
 import { useSeo } from '../composables/useSeo';

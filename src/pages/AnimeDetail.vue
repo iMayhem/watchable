@@ -152,6 +152,7 @@ import { useAniList } from '../composables/useAniList';
 import { addViewedItem } from '../composables/useHistory';
 import useAxios from '../composables/useAxios';
 import { useSeo } from '../composables/useSeo';
+import { buildProxiedImageUrl } from '../utils/useWebImage';
 
 
 export default defineComponent({
@@ -422,7 +423,7 @@ export default defineComponent({
         const getEpisodeStill = (epNum: number) => {
             const match = tmdbEpisodes.value.find(e => e.episode_number === epNum);
             if (match && match.still_path) {
-                return `https://image.tmdb.org/t/p/w780${match.still_path}`;
+                return buildProxiedImageUrl(`w780${match.still_path}`);
             }
             return anime.value?.bannerImage || anime.value?.coverImage?.large;
         };

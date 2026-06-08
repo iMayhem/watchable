@@ -3,6 +3,8 @@
  * Provides lazy loading, WebP conversion, and responsive image handling
  */
 
+import { buildProxiedImageUrl } from './useWebImage';
+
 interface ImageOptions {
   width?: number;
   height?: number;
@@ -10,8 +12,6 @@ interface ImageOptions {
   format?: 'webp' | 'jpeg' | 'png';
   blur?: number;
 }
-
-const IS_DEV = import.meta.env.DEV;
 
 /**
  * Generate optimized image URL.
@@ -43,11 +43,7 @@ export function getOptimizedImageUrl(
     return originalUrl;
   }
 
-  if (IS_DEV) {
-    return `https://image.tmdb.org/t/p/${tmdbPath}`;
-  }
-
-  return `/api/img?path=${encodeURIComponent('/' + tmdbPath)}`;
+  return buildProxiedImageUrl(tmdbPath);
 }
 
 /**

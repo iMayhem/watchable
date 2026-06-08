@@ -171,6 +171,7 @@ import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { usePrefetch } from '../../composables/usePrefetch';
 import { useAppPaths } from '../../composables/useAppPaths';
+import { useWebImage } from '../../utils/useWebImage';
 
 export default defineComponent({
     name: 'TitleMasthead',
@@ -197,8 +198,6 @@ export default defineComponent({
     setup(props) {
         const { home } = useAppPaths();
         const homePath = home;
-        const IMAGE_BASEURL = (import.meta as any).env.VITE_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/';
-
         const rootRef = ref<HTMLElement | null>(null);
         const ambientPath = computed(() => props.backdropPath || props.posterPath);
         useAmbientColor(ambientPath, rootRef);
@@ -232,12 +231,7 @@ export default defineComponent({
 
         const backdropUrl = computed(() => {
             if (!props.backdropPath) return '';
-            // If backdropPath is already a full URL (e.g. from AniList banner), use it directly!
-            if (props.backdropPath.startsWith('http')) {
-                return props.backdropPath;
-            }
-            const tmdbUrl = `${IMAGE_BASEURL}w1280${props.backdropPath}`;
-            return `https://wsrv.nl/?url=${encodeURIComponent(tmdbUrl)}&w=1280&output=webp&q=85`;
+            return useWebImage(props.backdropPath, 'hero');
         });
 
         const isVerticalBackdrop = computed(() => {

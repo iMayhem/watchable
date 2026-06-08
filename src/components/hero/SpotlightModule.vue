@@ -76,6 +76,7 @@
 import { computed, defineComponent, PropType } from 'vue';
 import LmButton from '../primitives/Button.vue';
 import { useAppPaths } from '../../composables/useAppPaths';
+import { useWebImage } from '../../utils/useWebImage';
 
 export default defineComponent({
     name: 'SpotlightModule',
@@ -98,16 +99,10 @@ export default defineComponent({
         runtime: { type: String, default: '' }
     },
     setup(props) {
-        const IMAGE_BASEURL = (import.meta as any).env.VITE_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/';
-
         const artUrl = computed(() => {
             const path = props.backdropPath || props.posterPath;
             if (!path) return '';
-            const size = props.backdropPath ? 'original' : 'original';
-            const tmdbUrl = `${IMAGE_BASEURL}${size}${path}`;
-            const width = props.backdropPath ? 1920 : 1280;
-            // Use wsrv.nl for optimization
-            return `https://wsrv.nl/?url=${encodeURIComponent(tmdbUrl)}&w=${width}&output=webp&q=85`;
+            return useWebImage(path, props.backdropPath ? 'hero' : 'large');
         });
 
         const year = computed(() =>

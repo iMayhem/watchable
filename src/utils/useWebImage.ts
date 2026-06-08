@@ -9,45 +9,68 @@ import { TVShowDetails } from '../composables/useTvShows';
 const IS_DEV = import.meta.env.DEV;
 const TMDB_BASE = 'https://image.tmdb.org/t/p/';
 
-const selectSize = (size: "medium" | "large" | "small" | "xlarge") => {
-    const sizeOptions = {
-        small: "w500",
-        medium: "w780",
-        large: "original",
-        xlarge: "original"
-    }
+export type WebImageSize = 'small' | 'medium' | 'large' | 'xlarge' | 'hero';
+
+const selectSize = (size: WebImageSize) => {
+    const sizeOptions: Record<WebImageSize, string> = {
+        small: 'w500',
+        medium: 'w780',
+        large: 'original',
+        xlarge: 'original',
+        hero: 'w1280',
+    };
     return sizeOptions[size] || sizeOptions.medium;
+};
+
+/**
+ * m.moovie.fun is a separate static deploy — /api/img only exists on the main domain.
+ * Point image requests at the apex host so posters load on mobile.
+ */
+export function getImageProxyOrigin(): string {
+    if (IS_DEV || typeof location === 'undefined') return '';
+    const host = location.hostname;
+    if (host.startsWith('m.')) {
+        return `${location.protocol}//${host.slice(2)}`;
+    }
+    const envOrigin = import.meta.env.VITE_IMAGE_PROXY_ORIGIN;
+    if (envOrigin) return String(envOrigin).replace(/\/$/, '');
+    return '';
 }
 
 /**
  * Builds a proxied image URL that goes through moovie.fun/api/img
  * so ISPs blocking image.tmdb.org see only moovie.fun traffic.
  */
-const proxyUrl = (tmdbPath: string): string => {
+export function buildProxiedImageUrl(tmdbPath: string): string {
     if (IS_DEV) {
-        // Local dev: hit TMDB directly (no proxy needed)
         return `${TMDB_BASE}${tmdbPath}`;
     }
-    // Production: route through our Cloudflare Pages Function
-    const path = `/${tmdbPath}`;
-    return `/api/img?path=${encodeURIComponent(path)}`;
-};
+    const path = tmdbPath.startsWith('/') ? tmdbPath : `/${tmdbPath}`;
+    const origin = getImageProxyOrigin();
+    return `${origin}/api/img?path=${encodeURIComponent(path)}`;
+}
 
-export const useWebImage = (url: string, size: "medium" | "large" | "small" | "xlarge" = "medium") => {
+const proxyUrl = buildProxiedImageUrl;
+
+export const useWebImage = (url: string, size: WebImageSize = 'medium') => {
     let resolvedUrl = url;
     if (url.startsWith('//')) {
         resolvedUrl = `https:${url}`;
     }
 
-    // Already a full external URL (e.g. AniList CDN) — return as-is
+    // Full TMDB URLs still need proxying; other CDNs (e.g. AniList) pass through.
     if (resolvedUrl.startsWith('http://') || resolvedUrl.startsWith('https://')) {
+        if (resolvedUrl.includes('image.tmdb.org')) {
+            const match = resolvedUrl.match(/\/t\/p\/(.+)/);
+            if (match) return buildProxiedImageUrl(match[1]);
+        }
         return resolvedUrl;
     }
 
     const imgSize = selectSize(size);
     const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
     return proxyUrl(`${imgSize}/${cleanUrl}`);
-}
+};
 
 export const getMovieImageUrl = (data: Movie | MovieDetails | TVShowDetails) => {
     const cleanBackdrop = data.backdrop_path

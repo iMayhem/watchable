@@ -112,6 +112,7 @@ import { genreName, primeGenres } from '../../composables/useGenreLookup';
 import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { useAppPaths } from '../../composables/useAppPaths';
+import { useWebImage } from '../../utils/useWebImage';
 
 export default defineComponent({
     name: 'BillboardHero',
@@ -133,17 +134,13 @@ export default defineComponent({
         loading: { type: Boolean, default: false }
     },
     setup(props) {
-        const IMAGE_BASEURL = (import.meta as any).env.VITE_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/';
-
         const rootRef = ref<HTMLElement | null>(null);
         const ambientPath = computed(() => props.backdropPath || props.posterPath);
         useAmbientColor(ambientPath, rootRef);
 
         const backdropUrl = computed(() => {
             if (!props.backdropPath) return '';
-            const tmdbUrl = `${IMAGE_BASEURL}w1280${props.backdropPath}`;
-            // Use wsrv.nl for optimization: WebP format, 1280px width, 85% quality
-            return `https://wsrv.nl/?url=${encodeURIComponent(tmdbUrl)}&w=1280&output=webp&q=85`;
+            return useWebImage(props.backdropPath, 'hero');
         });
 
         const year = computed(() =>

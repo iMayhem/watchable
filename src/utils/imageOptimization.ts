@@ -11,48 +11,43 @@ interface ImageOptions {
   blur?: number;
 }
 
+const IS_DEV = import.meta.env.DEV;
+
 /**
- * Generate optimized image URL using wsrv.nl
+ * Generate optimized image URL.
+ * In production routes through /api/img (our Cloudflare proxy) to bypass ISP blocks.
+ * In dev, falls back to direct TMDB.
  */
 export function getOptimizedImageUrl(
   originalUrl: string,
-  options: ImageOptions = {}
+  _options: ImageOptions = {}
 ): string {
   if (!originalUrl) return '';
-  
-  // If already a full URL from external source, use it directly
+
+  // Non-TMDB external URL — return as-is
   if (originalUrl.startsWith('http') && !originalUrl.includes('tmdb.org')) {
     return originalUrl;
   }
 
-  const {
-    width,
-    height,
-    quality = 85,
-    format = 'webp',
-    blur
-  } = options;
-
-  // Build wsrv.nl URL
-  const params = new URLSearchParams();
-  
-  if (width) params.set('w', width.toString());
-  if (height) params.set('h', height.toString());
-  params.set('output', format);
-  params.set('q', quality.toString());
-  if (blur) params.set('blur', blur.toString());
-  
-  // Handle TMDB images
-  if (originalUrl.includes('tmdb.org') || originalUrl.startsWith('/')) {
-    const tmdbUrl = originalUrl.startsWith('http') 
-      ? originalUrl 
-      : `https://image.tmdb.org/t/p/original${originalUrl}`;
-    params.set('url', tmdbUrl);
+  // Resolve raw TMDB path (e.g. /abc.jpg) to a full path
+  let tmdbPath: string;
+  if (originalUrl.startsWith('/') && !originalUrl.startsWith('/api')) {
+    // e.g. /abc.jpg → original/abc.jpg
+    const clean = originalUrl.slice(1);
+    tmdbPath = `original/${clean}`;
+  } else if (originalUrl.includes('image.tmdb.org')) {
+    // Strip base URL down to the path portion e.g. /t/p/original/abc.jpg
+    const match = originalUrl.match(/\/t\/p\/(.+)/);
+    tmdbPath = match ? match[1] : `original/${originalUrl.split('/').pop()}`;
   } else {
-    params.set('url', originalUrl);
+    return originalUrl;
   }
 
-  return `https://wsrv.nl/?${params.toString()}`;
+  if (IS_DEV) {
+    return `https://image.tmdb.org/t/p/${tmdbPath}`;
+  }
+
+  return `/api/img?path=${encodeURIComponent('/' + tmdbPath)}`;
 }
 
 /**

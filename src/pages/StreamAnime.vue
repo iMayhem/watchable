@@ -339,6 +339,14 @@ import ServerAccordion from '../components/player/ServerAccordion.vue';
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import { useAppPaths } from '../composables/useAppPaths';
+import {
+    buildBrowsableEpisodes,
+    findEpisodeByNumber,
+    formatEpisodeAirDate,
+    getNextUpcomingEpisode,
+    isEpisodeNotYetAired,
+    type EpisodeLike
+} from '../utils/episodeAvailability';
 
 export default defineComponent({
     name: 'StreamAnime',
@@ -367,41 +375,26 @@ export default defineComponent({
         const nextSeasonTmdbEpisodes = ref<any[]>([]);
         const isLoadingTmdb = ref(false);
 
-        const releasedTmdbEpisodes = computed(() => {
-            if (!tmdbEpisodes.value) return [];
-            const now = new Date();
-            return tmdbEpisodes.value.filter(ep => {
-                if (!ep.air_date) return true;
-                return new Date(ep.air_date) <= now;
-            });
+        const announcedEpisodeCount = computed(() => anime.value?.episodes ?? null);
+
+        const browsableTmdbEpisodes = computed(() => {
+            if (!tmdbEpisodes.value.length) return [];
+            return buildBrowsableEpisodes(tmdbEpisodes.value, announcedEpisodeCount.value);
         });
 
-        const releasedNextSeasonTmdbEpisodes = computed(() => {
-            if (!nextSeasonTmdbEpisodes.value) return [];
-            const now = new Date();
-            return nextSeasonTmdbEpisodes.value.filter(ep => {
-                if (!ep.air_date) return true;
-                return new Date(ep.air_date) <= now;
-            });
+        const browsableNextSeasonTmdbEpisodes = computed(() => {
+            if (!nextSeasonTmdbEpisodes.value.length) return [];
+            return buildBrowsableEpisodes(
+                nextSeasonTmdbEpisodes.value,
+                nextSeasonEpisodesCount.value || null
+            );
         });
 
-        const nextTmdbEpisode = computed(() => {
-            if (!tmdbEpisodes.value) return null;
-            const now = new Date();
-            return tmdbEpisodes.value.find(ep => {
-                if (!ep.air_date) return false;
-                return new Date(ep.air_date) > now;
-            });
-        });
+        const nextTmdbEpisode = computed(() => getNextUpcomingEpisode(tmdbEpisodes.value));
 
-        const nextSeasonNextTmdbEpisode = computed(() => {
-            if (!nextSeasonTmdbEpisodes.value) return null;
-            const now = new Date();
-            return nextSeasonTmdbEpisodes.value.find(ep => {
-                if (!ep.air_date) return false;
-                return new Date(ep.air_date) > now;
-            });
-        });
+        const nextSeasonNextTmdbEpisode = computed(() =>
+            getNextUpcomingEpisode(nextSeasonTmdbEpisodes.value)
+        );
 
         const nextAiringInfo = computed(() => {
             if (nextTmdbEpisode.value) {
@@ -438,30 +431,25 @@ export default defineComponent({
         });
 
         const isEpisodeUpcoming = (epNum: number) => {
-            const ep = seasonEpisodes.value[epNum - 1];
-            if (!ep) return false;
-            if (ep.air_date) {
-                return new Date(ep.air_date) > new Date();
+            if (browsableTmdbEpisodes.value.length > 0) {
+                return isEpisodeNotYetAired(epNum, browsableTmdbEpisodes.value);
             }
-            return false;
+            const nextEp = anime.value?.nextAiringEpisode?.episode;
+            if (!nextEp) return false;
+            return epNum >= nextEp;
         };
 
         const getEpisodeTooltip = (epNum: number) => {
-            const ep = seasonEpisodes.value[epNum - 1];
+            const ep = findEpisodeByNumber(seasonEpisodes.value, epNum);
             if (!ep) return `Episode ${epNum}`;
-            
-            const isUpcoming = ep.air_date ? new Date(ep.air_date) > new Date() : false;
-            if (isUpcoming) {
-                const dateStr = new Date(ep.air_date).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                return `Episode ${epNum} (Airing on ${dateStr})`;
+
+            if (isEpisodeUpcoming(epNum)) {
+                const dateStr = formatEpisodeAirDate(ep.air_date);
+                return dateStr === 'Date TBA'
+                    ? `Episode ${epNum} (Upcoming — date TBA)`
+                    : `Episode ${epNum} (Airing on ${dateStr})`;
             }
-            
+
             return ep.name ? `Episode ${epNum}: ${ep.name}` : `Episode ${epNum}`;
         };
 
@@ -477,8 +465,8 @@ export default defineComponent({
         });
 
         const totalEpisodes = computed(() => {
-            if (releasedTmdbEpisodes.value && releasedTmdbEpisodes.value.length > 0) {
-                return releasedTmdbEpisodes.value.length + (nextTmdbEpisode.value ? 1 : 0);
+            if (browsableTmdbEpisodes.value.length > 0) {
+                return Math.max(...browsableTmdbEpisodes.value.map((ep) => ep.episode_number));
             }
             if (!anime.value) return 1;
             if (anime.value.episodes) return anime.value.episodes;
@@ -671,10 +659,9 @@ export default defineComponent({
         };
 
         const goToEpisode = (ep: number) => {
-            if (ep >= 1 && ep <= totalEpisodes.value) {
-                currentEpisode.value = ep;
-                router.push(paths.streamAnime(animeId.value, ep));
-            }
+            if (ep < 1 || ep > totalEpisodes.value || isEpisodeUpcoming(ep)) return;
+            currentEpisode.value = ep;
+            router.push(paths.streamAnime(animeId.value, ep));
         };
 
         const currentSeasonIdx = computed(() => {
@@ -798,80 +785,92 @@ export default defineComponent({
             }
         }, { immediate: true });
 
-        const seasonEpisodes = computed(() => {
-            if (releasedTmdbEpisodes.value && releasedTmdbEpisodes.value.length > 0) {
-                const eps = [...releasedTmdbEpisodes.value];
-                if (nextTmdbEpisode.value) {
-                    eps.push(nextTmdbEpisode.value);
-                }
-                return eps.map(ep => ({
+        const mapBrowsableToEpisodes = (
+            eps: EpisodeLike[],
+            seasonNumber: number,
+            fallbackImg: string,
+            fallbackDesc: string
+        ): Episode[] => {
+            return eps.map((ep) => {
+                const upcoming = isEpisodeNotYetAired(ep.episode_number, eps);
+                return {
                     ...ep,
-                    season_number: currentSeasonNumber.value
-                })) as unknown as Episode[];
-            }
+                    id: ep.episode_number,
+                    name: upcoming
+                        ? `${ep.name || `Episode ${ep.episode_number}`} (Upcoming)`
+                        : (ep.name || `Episode ${ep.episode_number}`),
+                    overview: (ep as any).overview || fallbackDesc,
+                    still_path: (ep as any).still_path || fallbackImg,
+                    air_date: ep.air_date || '',
+                    episode_number: ep.episode_number,
+                    season_number: seasonNumber,
+                    crew: [],
+                    guest_stars: [],
+                    production_code: '',
+                    runtime: 0,
+                    vote_average: 0,
+                    vote_count: 0
+                };
+            }) as unknown as Episode[];
+        };
 
-            const list = [];
+        const seasonEpisodes = computed(() => {
             const img = anime.value?.coverImage?.large || '';
             const desc = anime.value?.description || '';
+
+            if (browsableTmdbEpisodes.value.length > 0) {
+                return mapBrowsableToEpisodes(
+                    browsableTmdbEpisodes.value,
+                    currentSeasonNumber.value,
+                    img,
+                    desc
+                );
+            }
+
+            const list: EpisodeLike[] = [];
             for (let i = 1; i <= totalEpisodes.value; i++) {
-                const isUpcoming = anime.value?.nextAiringEpisode && i === anime.value.nextAiringEpisode.episode;
+                const isUpcoming =
+                    anime.value?.nextAiringEpisode && i >= anime.value.nextAiringEpisode.episode;
                 let epAirDate = '';
-                if (isUpcoming) {
+                if (isUpcoming && i === anime.value.nextAiringEpisode.episode) {
                     const airTime = anime.value.nextAiringEpisode.airingAt * 1000;
                     epAirDate = new Date(airTime).toISOString();
                 }
                 list.push({
-                    id: i,
-                    name: isUpcoming ? `Episode ${i} (Upcoming)` : `Episode ${i}`,
-                    overview: desc,
-                    still_path: img,
-                    air_date: epAirDate,
                     episode_number: i,
-                    season_number: currentSeasonNumber.value,
-                    crew: [],
-                    guest_stars: [],
-                    production_code: '',
-                    runtime: 0,
-                    vote_average: 0,
-                    vote_count: 0
+                    name: isUpcoming ? `Episode ${i} (Upcoming)` : `Episode ${i}`,
+                    air_date: epAirDate,
                 });
             }
-            return list as unknown as Episode[];
+            return mapBrowsableToEpisodes(list, currentSeasonNumber.value, img, desc);
         });
 
         const nextSeasonEpisodes = computed(() => {
             if (!nextSeasonId.value) return [];
-            if (releasedNextSeasonTmdbEpisodes.value && releasedNextSeasonTmdbEpisodes.value.length > 0) {
-                const eps = [...releasedNextSeasonTmdbEpisodes.value];
-                if (nextSeasonNextTmdbEpisode.value) {
-                    eps.push(nextSeasonNextTmdbEpisode.value);
-                }
-                return eps.map(ep => ({
-                    ...ep,
-                    season_number: nextSeasonNumber.value
-                })) as unknown as Episode[];
+
+            if (browsableNextSeasonTmdbEpisodes.value.length > 0) {
+                return mapBrowsableToEpisodes(
+                    browsableNextSeasonTmdbEpisodes.value,
+                    nextSeasonNumber.value,
+                    nextSeasonCoverImage.value,
+                    ''
+                );
             }
 
-            const list = [];
-            const img = nextSeasonCoverImage.value;
+            const list: EpisodeLike[] = [];
             for (let i = 1; i <= nextSeasonEpisodesCount.value; i++) {
                 list.push({
-                    id: i,
-                    name: `Episode ${i}`,
-                    overview: '',
-                    still_path: img,
-                    air_date: '',
                     episode_number: i,
-                    season_number: nextSeasonNumber.value,
-                    crew: [],
-                    guest_stars: [],
-                    production_code: '',
-                    runtime: 0,
-                    vote_average: 0,
-                    vote_count: 0
+                    name: `Episode ${i}`,
+                    air_date: null,
                 });
             }
-            return list as unknown as Episode[];
+            return mapBrowsableToEpisodes(
+                list,
+                nextSeasonNumber.value,
+                nextSeasonCoverImage.value,
+                ''
+            );
         });
 
         const onUpNextSelect = (payload: { season: number; episode: number }) => {
@@ -940,8 +939,9 @@ export default defineComponent({
 
             // Handle auto-next
             if (data.event === 'complete') {
-                if (currentEpisode.value < totalEpisodes.value) {
-                    goToEpisode(currentEpisode.value + 1);
+                const nextEp = currentEpisode.value + 1;
+                if (nextEp <= totalEpisodes.value && !isEpisodeUpcoming(nextEp)) {
+                    goToEpisode(nextEp);
                 }
             }
         };
@@ -975,21 +975,16 @@ export default defineComponent({
                             mappedEpisodes = seasonRes.data?.episodes || [];
                         }
                         
-                        const now = new Date();
-                        const released = mappedEpisodes.filter((ep: any) => {
-                            if (!ep.air_date) return true;
-                            return new Date(ep.air_date) <= now;
-                        });
-                        const nextAiring = mappedEpisodes.find((ep: any) => {
-                            if (!ep.air_date) return false;
-                            return new Date(ep.air_date) > now;
-                        }) || null;
-                        
-                        const allEps = nextAiring ? [...released, nextAiring] : released;
-                        previewEpisodes.value = allEps.map(ep => ({
-                            ...ep,
-                            season_number: seasonIdx
-                        })) as unknown as Episode[];
+                        const browsable = buildBrowsableEpisodes(
+                            mappedEpisodes,
+                            media.episodes ?? null
+                        );
+                        previewEpisodes.value = mapBrowsableToEpisodes(
+                            browsable,
+                            seasonIdx,
+                            media.coverImage?.large || '',
+                            media.description || ''
+                        );
                     }
                 }
             } catch (err) {
@@ -1752,7 +1747,7 @@ export default defineComponent({
         color: var(--bone-200);
     }
 
-    &:hover:not(.is-active) {
+    &:hover:not(.is-active):not(.is-upcoming):not(:disabled) {
         background: var(--ink-600);
         box-shadow: inset 0 0 0 1px var(--rule-strong);
         transform: scale(1.05);
@@ -1760,6 +1755,10 @@ export default defineComponent({
         .ep-square__number {
             color: var(--bone-50);
         }
+    }
+
+    &:disabled {
+        pointer-events: none;
     }
 
     &.is-active {

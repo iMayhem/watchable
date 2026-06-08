@@ -149,6 +149,11 @@ import { computed, defineComponent, onUnmounted, PropType, ref, watch } from 'vu
 import { useStorage } from '@vueuse/core';
 import { useWebImage } from '../../utils/useWebImage';
 import { Episode } from '../../composables/useTvShows';
+import {
+    formatEpisodeAirDate,
+    isEpisodeNotYetAired,
+    type EpisodeLike
+} from '../../utils/episodeAvailability';
 
 export interface UpNextItem {
     key: string;
@@ -191,10 +196,41 @@ export default defineComponent({
         const open = useStorage<boolean>('lm:upnext:open', false);
         const autoplay = useStorage<boolean>('lm:upnext:autoplay', false);
 
-        const formatLabel = (ep: Episode) => {
-            const air = ep.air_date ? new Date(ep.air_date) : null;
-            if (!air || Number.isNaN(air.getTime())) return ep.name || `Episode ${ep.episode_number}`;
-            return ep.name || `Episode ${ep.episode_number}`;
+        const toEpisodeLike = (episodes: Episode[]): EpisodeLike[] =>
+            episodes.map((ep) => ({
+                episode_number: ep.episode_number,
+                air_date: ep.air_date,
+                name: ep.name
+            }));
+
+        const formatLabel = (ep: Episode, isUpcoming: boolean) => {
+            const base = ep.name || `Episode ${ep.episode_number}`;
+            if (isUpcoming && !base.toLowerCase().includes('upcoming')) {
+                return `${base} (Upcoming)`;
+            }
+            return base;
+        };
+
+        const buildUpNextItem = (
+            ep: Episode,
+            season: number,
+            allEpisodes: EpisodeLike[],
+            now: Date
+        ): UpNextItem => {
+            const isUpcoming = isEpisodeNotYetAired(ep.episode_number, allEpisodes, now);
+            const upcomingDate = isUpcoming ? formatEpisodeAirDate(ep.air_date, now) : '';
+            return {
+                key: `s${season}e${ep.episode_number}`,
+                season,
+                episode: ep.episode_number,
+                code: `S${season} · E${String(ep.episode_number).padStart(2, '0')}`,
+                label: formatLabel(ep, isUpcoming),
+                title: ep.name || `Episode ${ep.episode_number}`,
+                overview: ep.overview || '',
+                still: ep.still_path ? useWebImage(ep.still_path, 'medium') : '',
+                isUpcoming,
+                upcomingDate
+            };
         };
 
         const upcoming = computed<UpNextItem[]>(() => {
@@ -204,59 +240,19 @@ export default defineComponent({
             );
 
             const now = new Date();
+            const seasonLike = toEpisodeLike(props.seasonEpisodes);
 
             remaining.slice(0, 3).forEach((ep) => {
-                const isUpcoming = ep.air_date ? new Date(ep.air_date) > now : false;
-                let upcomingDate = '';
-                if (isUpcoming) {
-                    upcomingDate = new Date(ep.air_date).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                }
-                items.push({
-                    key: `s${props.currentSeason}e${ep.episode_number}`,
-                    season: props.currentSeason,
-                    episode: ep.episode_number,
-                    code: `S${props.currentSeason} · E${String(ep.episode_number).padStart(2, '0')}`,
-                    label: formatLabel(ep),
-                    title: ep.name || `Episode ${ep.episode_number}`,
-                    overview: ep.overview || '',
-                    still: ep.still_path ? useWebImage(ep.still_path, 'medium') : '',
-                    isUpcoming,
-                    upcomingDate
-                });
+                items.push(buildUpNextItem(ep, props.currentSeason, seasonLike, now));
             });
 
             if (items.length < 3 && props.nextSeasonNumber && props.nextSeasonEpisodes.length) {
                 const need = 3 - items.length;
+                const nextSeasonLike = toEpisodeLike(props.nextSeasonEpisodes);
                 props.nextSeasonEpisodes.slice(0, need).forEach((ep) => {
-                    const isUpcoming = ep.air_date ? new Date(ep.air_date) > now : false;
-                    let upcomingDate = '';
-                    if (isUpcoming) {
-                        upcomingDate = new Date(ep.air_date).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
-                    }
-                    items.push({
-                        key: `s${props.nextSeasonNumber}e${ep.episode_number}`,
-                        season: props.nextSeasonNumber,
-                        episode: ep.episode_number,
-                        code: `S${props.nextSeasonNumber} · E${String(ep.episode_number).padStart(2, '0')}`,
-                        label: formatLabel(ep),
-                        title: ep.name || `Episode ${ep.episode_number}`,
-                        overview: ep.overview || '',
-                        still: ep.still_path ? useWebImage(ep.still_path, 'medium') : '',
-                        isUpcoming,
-                        upcomingDate
-                    });
+                    items.push(
+                        buildUpNextItem(ep, props.nextSeasonNumber, nextSeasonLike, now)
+                    );
                 });
             }
 
@@ -284,34 +280,12 @@ export default defineComponent({
         });
 
         const formattedEpisodes = computed<UpNextItem[]>(() => {
-            const items: UpNextItem[] = [];
             const now = new Date();
-            episodesSource.value.forEach((ep) => {
-                const isUpcoming = ep.air_date ? new Date(ep.air_date) > now : false;
-                let upcomingDate = '';
-                if (isUpcoming) {
-                    upcomingDate = new Date(ep.air_date).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                }
-                items.push({
-                    key: `s${previewSeason.value}e${ep.episode_number}`,
-                    season: previewSeason.value,
-                    episode: ep.episode_number,
-                    code: `S${previewSeason.value} · E${String(ep.episode_number).padStart(2, '0')}`,
-                    label: formatLabel(ep),
-                    title: ep.name || `Episode ${ep.episode_number}`,
-                    overview: ep.overview || '',
-                    still: ep.still_path ? useWebImage(ep.still_path, 'medium') : '',
-                    isUpcoming,
-                    upcomingDate
-                });
-            });
-            return items;
+            const source = episodesSource.value;
+            const sourceLike = toEpisodeLike(source);
+            return source.map((ep) =>
+                buildUpNextItem(ep, previewSeason.value, sourceLike, now)
+            );
         });
 
         const onSeasonSelect = (event: Event) => {

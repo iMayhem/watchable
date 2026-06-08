@@ -117,7 +117,7 @@ export default defineComponent({
                 url.includes('smashystream.com') ||
                 url.includes('animeplay.cfd')
             ) {
-                return 'allow-scripts allow-same-origin allow-forms';
+                return 'allow-scripts allow-same-origin allow-forms allow-presentation';
             }
             return undefined;
         });

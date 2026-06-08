@@ -297,7 +297,7 @@
                     lowerUrl.includes('smashystream.com') ||
                     lowerUrl.includes('animeplay.cfd')
                 ) {
-                    newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms');
+                    newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
                 }
 
                 newIframe.src = embedUrl;

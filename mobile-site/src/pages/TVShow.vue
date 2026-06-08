@@ -42,6 +42,7 @@ import { Cast } from '@/composables/useMovies';
 import { primeGenres } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
 import { useSeo } from '../composables/useSeo';
+import { buildProxiedImageUrl } from '@/utils/useWebImage';
 
 
 const route = useRoute();
@@ -75,9 +76,12 @@ async function load(id: string) {
         show.value = showData.value ?? null;
         cast.value = creditsData.value?.cast ?? [];
         if (show.value) {
-            const posterUrl = show.value.poster_path 
-                ? `https://image.tmdb.org/t/p/w500${show.value.poster_path}` 
-                : 'https://m.moovie.fun/og-image.png';
+            const rawPosterUrl = show.value.poster_path 
+                ? buildProxiedImageUrl(`w500${show.value.poster_path}`) 
+                : '/og-image.png';
+            const posterUrl = rawPosterUrl.startsWith('/')
+                ? `https://m.moovie.fun${rawPosterUrl}`
+                : rawPosterUrl;
             updateSeo({
                 title: `${show.value.name} — Moovie`,
                 description: show.value.overview || `Watch ${show.value.name} online on Moovie.`,

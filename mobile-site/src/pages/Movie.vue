@@ -60,6 +60,7 @@ import { getLastWatchedMetaData } from '@/composables/useStream';
 import { primeGenres } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
 import { useSeo } from '../composables/useSeo';
+import { buildProxiedImageUrl } from '@/utils/useWebImage';
 
 const route = useRoute();
 const paths = useAppPaths();
@@ -113,9 +114,12 @@ async function load(id: string) {
         similar.value = (similarData.value?.results ?? []) as typeof similar.value;
         trailers.value = await fetchTrailerVideos(id, 'movie');
         if (movie.value) {
-            const posterUrl = movie.value.poster_path 
-                ? `https://image.tmdb.org/t/p/w500${movie.value.poster_path}` 
-                : 'https://m.moovie.fun/og-image.png';
+            const rawPosterUrl = movie.value.poster_path 
+                ? buildProxiedImageUrl(`w500${movie.value.poster_path}`) 
+                : '/og-image.png';
+            const posterUrl = rawPosterUrl.startsWith('/')
+                ? `https://m.moovie.fun${rawPosterUrl}`
+                : rawPosterUrl;
             updateSeo({
                 title: `${movie.value.title} — Moovie`,
                 description: movie.value.overview || `Watch ${movie.value.title} online on Moovie.`,

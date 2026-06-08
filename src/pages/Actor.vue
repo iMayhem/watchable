@@ -567,6 +567,7 @@ export default defineComponent({
             errorMessage,
             retryFetch,
             useWebImage,
+            buildProxiedImageUrl,
             initials,
             age,
             totalCredits,

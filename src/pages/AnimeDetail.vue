@@ -174,6 +174,8 @@ export default defineComponent({
         const anime = ref<any | null>(null);
         const loading = ref(true);
         const tmdbBackdrop = ref<string | null>(null);
+        let animeLoadToken = 0;
+        let tmdbLoadToken = 0;
 
         const backdropPath = computed(() => {
             return tmdbBackdrop.value || anime.value?.coverImage?.large || null;
@@ -267,6 +269,12 @@ export default defineComponent({
             for (const edge of edges) {
                 const node = edge.node;
                 if (node.type === 'ANIME' && (edge.relationType === 'PREQUEL' || edge.relationType === 'SEQUEL')) {
+                    if (node.format === 'MOVIE' || node.format === 'SPECIAL' || node.format === 'MUSIC') {
+                        continue;
+                    }
+                    if (node.episodes !== undefined && node.episodes !== null && node.episodes <= 2) {
+                        continue;
+                    }
                     list.push({
                         id: node.id,
                         title: node.title.english || node.title.romaji || node.title.native,
@@ -312,37 +320,106 @@ export default defineComponent({
 
         const tmdbEpisodes = ref<any[]>([]);
 
+        const cleanAnimeTitle = (title: string) =>
+            title.replace(/Season \d+|Part \d+/gi, '').trim();
+
+        const findTmdbTitle = async (anilistMedia: any, searchType: 'movie' | 'tv') => {
+            const axiosInstance = useAxios();
+            const titles = [
+                anilistMedia?.title?.english,
+                anilistMedia?.title?.romaji,
+                anilistMedia?.title?.native
+            ].filter(Boolean);
+
+            for (const title of titles) {
+                const cleanTitle = cleanAnimeTitle(title);
+                if (!cleanTitle) continue;
+
+                const searchRes = await axiosInstance.get(`search/${searchType}`, {
+                    params: { query: cleanTitle }
+                });
+                const results = searchRes?.data?.results || [];
+                if (!results.length) continue;
+
+                return (
+                    searchType === 'tv' ? results.find((result: any) =>
+                        result.genre_ids && result.genre_ids.includes(16)
+                    ) || results[0] : results[0]
+                );
+            }
+
+            return null;
+        };
+
+        const getTmdbSeasonNumber = (seasons: any[], anilistMedia: any) => {
+            const anilistTitle = [
+                anilistMedia?.title?.english,
+                anilistMedia?.title?.romaji,
+                anilistMedia?.title?.native
+            ].filter(Boolean).join(' ').toLowerCase();
+            const anilistYear = anilistMedia?.seasonYear;
+            const keywords = [
+                'mugen',
+                'entertainment',
+                'swordsmith',
+                'hashira',
+                'yuukaku',
+                'katanakaji',
+                'shibuya',
+                'hidden inventory',
+                'sister',
+                'village',
+                'training',
+                'final'
+            ];
+
+            for (const season of seasons) {
+                const seasonName = (season.name || '').toLowerCase();
+                if (
+                    keywords.some((keyword) =>
+                        seasonName.includes(keyword) && anilistTitle.includes(keyword)
+                    )
+                ) {
+                    return season.season_number;
+                }
+            }
+
+            if (anilistYear) {
+                const exactMatch = seasons.find((season: any) => {
+                    if (!season.air_date) return false;
+                    return new Date(season.air_date).getFullYear() === anilistYear;
+                });
+                if (exactMatch) return exactMatch.season_number;
+
+                let closestSeason = null;
+                let minDiff = Infinity;
+                for (const season of seasons) {
+                    if (!season.air_date) continue;
+                    const seasonYear = new Date(season.air_date).getFullYear();
+                    const diff = Math.abs(seasonYear - anilistYear);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestSeason = season;
+                    }
+                }
+                if (closestSeason && minDiff <= 1) return closestSeason.season_number;
+            }
+
+            return 1;
+        };
+
         const loadTmdbEpisodes = async (anilistMedia: any) => {
+            const loadToken = ++tmdbLoadToken;
             tmdbEpisodes.value = [];
             tmdbBackdrop.value = null;
             if (!anilistMedia) return;
 
-            const englishTitle = anilistMedia.title.english;
-            const romajiTitle = anilistMedia.title.romaji;
             const isMovie = anilistMedia.format === 'MOVIE';
-            const searchType = isMovie ? 'movie' : 'tv';
 
             try {
-                let show = null;
-                
-                // Try English Title search (clean title without Season suffixes)
-                if (englishTitle) {
-                    const cleanTitle = englishTitle.replace(/Season \d+|Part \d+/gi, '').trim();
-                    const searchRes = await useAxios().get(
-                        `https://api.themoviedb.org/3/search/${searchType}?query=${encodeURIComponent(cleanTitle)}`
-                    );
-                    show = searchRes?.data?.results?.[0];
-                }
-                
-                // Fallback to Romaji Title
-                if (!show && romajiTitle) {
-                    const cleanTitle = romajiTitle.replace(/Season \d+|Part \d+/gi, '').trim();
-                    const searchRes = await useAxios().get(
-                        `https://api.themoviedb.org/3/search/${searchType}?query=${encodeURIComponent(cleanTitle)}`
-                    );
-                    show = searchRes?.data?.results?.[0];
-                }
-                
+                const show = await findTmdbTitle(anilistMedia, isMovie ? 'movie' : 'tv');
+                if (loadToken !== tmdbLoadToken) return;
+
                 if (show) {
                     if (show.backdrop_path) {
                         tmdbBackdrop.value = show.backdrop_path;
@@ -350,74 +427,34 @@ export default defineComponent({
                     
                     if (isMovie) {
                         const movieRes = await useAxios().get(`https://api.themoviedb.org/3/movie/${show.id}`);
+                        if (loadToken !== tmdbLoadToken) return;
                         if (movieRes?.data?.backdrop_path) {
                             tmdbBackdrop.value = movieRes.data.backdrop_path;
                         }
                     } else {
-                        // Fetch full TV show details to get list of all seasons
                         const showRes = await useAxios().get(`https://api.themoviedb.org/3/tv/${show.id}`);
+                        if (loadToken !== tmdbLoadToken) return;
                         if (showRes?.data?.backdrop_path) {
                             tmdbBackdrop.value = showRes.data.backdrop_path;
                         }
-                    const tmdbSeasons = showRes?.data?.seasons || [];
-                    
-                    // Match current AniList media to correct TMDB season
-                    let seasonNumber = 1;
-                    const anilistYear = anilistMedia.seasonYear;
-                    const anilistTitle = (englishTitle || romajiTitle || '').toLowerCase();
-                    
-                    // Keyword matching (Mugen, Entertainment, Swordsmith, etc.)
-                    for (const s of tmdbSeasons) {
-                        const sName = (s.name || '').toLowerCase();
-                        const keywords = ['mugen', 'entertainment', 'swordsmith', 'hashira', 'yuukaku', 'katanakaji'];
-                        for (const kw of keywords) {
-                            if (sName.includes(kw) && anilistTitle.includes(kw)) {
-                                seasonNumber = s.season_number;
-                                break;
-                            }
+
+                        const tmdbSeasons = (showRes?.data?.seasons || []).filter(
+                            (season: any) => season.season_number > 0
+                        );
+                        const seasonNumber = getTmdbSeasonNumber(tmdbSeasons, anilistMedia);
+                        const seasonRes = await useAxios().get(
+                            `https://api.themoviedb.org/3/tv/${show.id}/season/${seasonNumber}`
+                        );
+                        if (loadToken !== tmdbLoadToken) return;
+                        if (seasonRes?.data?.episodes) {
+                            tmdbEpisodes.value = seasonRes.data.episodes;
                         }
-                    }
-                    
-                    // Year matching
-                    if (seasonNumber === 1 && anilistYear) {
-                        const exactMatch = tmdbSeasons.find((s: any) => {
-                            if (!s.air_date) return false;
-                            return new Date(s.air_date).getFullYear() === anilistYear;
-                        });
-                        if (exactMatch) {
-                            seasonNumber = exactMatch.season_number;
-                        } else {
-                            // Find closest year
-                            let closestSeason = tmdbSeasons[0];
-                            let minDiff = Infinity;
-                            for (const s of tmdbSeasons) {
-                                if (!s.air_date) continue;
-                                const sYear = new Date(s.air_date).getFullYear();
-                                const diff = Math.abs(sYear - anilistYear);
-                                if (diff < minDiff) {
-                                    minDiff = diff;
-                                    closestSeason = s;
-                                }
-                            }
-                            if (closestSeason && minDiff <= 1) {
-                                seasonNumber = closestSeason.season_number;
-                            }
-                        }
-                    }
-                    
-                    // Fetch matched season's episodes
-                    const seasonRes = await useAxios().get(
-                        `https://api.themoviedb.org/3/tv/${show.id}/season/${seasonNumber}`
-                    );
-                    if (seasonRes?.data?.episodes) {
-                        tmdbEpisodes.value = seasonRes.data.episodes;
                     }
                 }
+            } catch (err) {
+                console.warn('Failed to load TMDb episode metadata:', err);
             }
-        } catch (err) {
-            console.warn('Failed to load TMDb episode metadata:', err);
-        }
-    };
+        };
 
         const getEpisodeStill = (epNum: number) => {
             const match = tmdbEpisodes.value.find(e => e.episode_number === epNum);
@@ -469,13 +506,16 @@ export default defineComponent({
         };
 
         const loadAnime = async (id: number) => {
+            const loadToken = ++animeLoadToken;
             loading.value = true;
             anime.value = null;
             tmdbBackdrop.value = null;
+            tmdbEpisodes.value = [];
             currentPage.value = 1;
 
             try {
                 const response = await fetchAnimeById(id);
+                if (loadToken !== animeLoadToken) return;
                 anime.value = response?.data?.Media ?? null;
 
                 if (anime.value) {
@@ -518,9 +558,12 @@ export default defineComponent({
                     await loadTmdbEpisodes(anime.value);
                 }
             } catch (err) {
+                if (loadToken !== animeLoadToken) return;
                 console.error('Failed to load anime:', err);
             } finally {
-                loading.value = false;
+                if (loadToken === animeLoadToken) {
+                    loading.value = false;
+                }
             }
         };
 

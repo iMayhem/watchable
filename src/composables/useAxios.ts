@@ -4,6 +4,8 @@ import { getSettings } from './useSettings'
 const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.themoviedb.org/3/'
 const API_KEY = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672'
 
+const STRICT_REGION_PRODUCTION = ['IN', 'US', 'JP', 'KR', 'FR', 'DE', 'GB', 'CN', 'RU', 'IT', 'ES', 'BR', 'MX']
+
 const useAxios = () => {
     const { region, language } = getSettings()
     const params: Record<string, string> = {
@@ -64,7 +66,7 @@ const useAxios = () => {
         config.params = config.params || {}
         url = config.url || ''
 
-        if (regionVal && regionVal !== 'global') {
+        if (regionVal && regionVal !== 'global' && !config.params.fallback_retry) {
             const currentSort = config.params.sort_by
             const defaultMovieSort = 'primary_release_date.desc'
             const defaultTVSort = 'first_air_date.desc'
@@ -81,7 +83,7 @@ const useAxios = () => {
                 config.params = {
                     ...config.params,
                     sort_by: getOverriddenSort(defaultMovieSort),
-                    with_origin_country: regionVal,
+                    ...(STRICT_REGION_PRODUCTION.includes(regionVal) ? { with_origin_country: regionVal } : {}),
                     watch_region: regionVal,
                     region: regionVal,
                     'primary_release_date.gte': MIN_RELEASE_DATE,
@@ -94,7 +96,7 @@ const useAxios = () => {
                 config.params = {
                     ...config.params,
                     sort_by: getOverriddenSort(defaultMovieSort),
-                    with_origin_country: regionVal,
+                    ...(STRICT_REGION_PRODUCTION.includes(regionVal) ? { with_origin_country: regionVal } : {}),
                     watch_region: regionVal,
                     region: regionVal,
                     'primary_release_date.gte': dates.gte,
@@ -107,7 +109,7 @@ const useAxios = () => {
                 config.params = {
                     ...config.params,
                     sort_by: getOverriddenSort(defaultTVSort),
-                    with_origin_country: regionVal,
+                    ...(STRICT_REGION_PRODUCTION.includes(regionVal) ? { with_origin_country: regionVal } : {}),
                     watch_region: regionVal,
                     region: regionVal,
                     without_genres: '10767,10763,10766',
@@ -121,7 +123,7 @@ const useAxios = () => {
                 config.params = {
                     ...config.params,
                     sort_by: getOverriddenSort(defaultTVSort),
-                    with_origin_country: regionVal,
+                    ...(STRICT_REGION_PRODUCTION.includes(regionVal) ? { with_origin_country: regionVal } : {}),
                     watch_region: regionVal,
                     region: regionVal,
                     without_genres: '10767,10763,10766',
@@ -131,7 +133,7 @@ const useAxios = () => {
                 }
                 console.log('[Axios Interceptor] Rewrote tv/on_the_air to discover/tv with params:', config.params)
             } else if (url.includes('discover/movie')) {
-                if (!config.params.with_original_language) {
+                if (!config.params.with_original_language && STRICT_REGION_PRODUCTION.includes(regionVal)) {
                     config.params.with_origin_country = regionVal
                 }
                 config.params.watch_region = regionVal
@@ -145,7 +147,7 @@ const useAxios = () => {
                 }
                 console.log('[Axios Interceptor] discover/movie updated params:', config.params)
             } else if (url.includes('discover/tv')) {
-                if (!config.params.with_original_language) {
+                if (!config.params.with_original_language && STRICT_REGION_PRODUCTION.includes(regionVal)) {
                     config.params.with_origin_country = regionVal
                 }
                 config.params.watch_region = regionVal
@@ -167,10 +169,39 @@ const useAxios = () => {
         return config
     })
 
-    axiosInstance.interceptors.response.use((response) => {
+    axiosInstance.interceptors.response.use(async (response) => {
         const regionVal = region.value
         const url = response.config.url || ''
         const currentSort = response.config.params?.sort_by
+
+        // Fallback retry: if the response results are empty and regionVal was not 'global'
+        if (
+            regionVal && 
+            regionVal !== 'global' && 
+            response.data && 
+            Array.isArray(response.data.results) && 
+            response.data.results.length === 0 &&
+            !response.config.params?.fallback_retry
+        ) {
+            console.log('[Axios Interceptor] Empty results for region:', regionVal, 'url:', url, '- retrying with global fallback')
+            const fallbackConfig = { ...response.config }
+            fallbackConfig.params = { 
+                ...fallbackConfig.params,
+                fallback_retry: 'true'
+            }
+            
+            // Strip region filtering so we retrieve global trending/popular movies/shows
+            delete fallbackConfig.params.with_origin_country
+            delete fallbackConfig.params.watch_region
+            delete fallbackConfig.params.region
+            
+            try {
+                const retryRes = await axiosInstance(fallbackConfig)
+                return retryRes
+            } catch (err) {
+                console.error('[Axios Interceptor] Fallback retry failed:', err)
+            }
+        }
 
         const isChronologicalSort = currentSort === 'primary_release_date.desc' || currentSort === 'first_air_date.desc'
 

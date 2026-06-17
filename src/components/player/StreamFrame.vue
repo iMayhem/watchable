@@ -186,11 +186,21 @@ export default defineComponent({
             { immediate: true }
         );
 
+        const handleUnload = () => {
+            if (frameEl.value) {
+                frameEl.value.src = 'about:blank';
+            }
+        };
+
         onMounted(() => {
             startTrackingIfNeeded();
+            window.addEventListener('beforeunload', handleUnload);
+            window.addEventListener('pagehide', handleUnload);
         });
 
         onUnmounted(() => {
+            window.removeEventListener('beforeunload', handleUnload);
+            window.removeEventListener('pagehide', handleUnload);
             if (stopTracking) {
                 stopTracking();
                 stopTracking = null;

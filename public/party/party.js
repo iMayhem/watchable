@@ -967,6 +967,24 @@
         window.addEventListener('DOMContentLoaded', async () => {
             updateHeaderBadge();
 
+            // Fast navigation helper when leaving the party page back to home
+            document.querySelectorAll('a[href="../index.html"]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const href = link.href;
+                    const iframe = document.getElementById('video-player-iframe');
+                    if (iframe) {
+                        iframe.src = 'about:blank';
+                        try {
+                            iframe.parentNode.removeChild(iframe);
+                        } catch (err) {}
+                    }
+                    setTimeout(() => {
+                        window.location.href = href;
+                    }, 20);
+                });
+            });
+
             // Listen for complete event from iframe players to advance episodes for social host
             window.addEventListener('message', (event) => {
                 let data = event.data;

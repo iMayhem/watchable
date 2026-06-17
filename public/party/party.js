@@ -96,6 +96,7 @@
 
         // Available Stream Servers
         const serversList = [
+            { id: 'rasmalai', name: 'Rasmalai', movie: 'https://peachify.top/embed/movie/{tmdbId}?server=sweet', tv: 'https://peachify.top/embed/tv/{tmdbId}/{season}/{episode}?server=sweet' },
             { id: 'cinemaos', name: 'Gulab Jamun', movie: 'https://cinemaos.tech/player/{tmdbId}', tv: 'https://cinemaos.tech/player/{tmdbId}/{season}/{episode}' },
             { id: 'smashy', name: 'Jalebi', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },
             { id: 'peachify', name: 'Rasgulla', movie: 'https://peachify.top/embed/movie/{tmdbId}', tv: 'https://peachify.top/embed/tv/{tmdbId}/{season}/{episode}' },
@@ -114,7 +115,7 @@
             { id: 'vidora', name: 'Ghevar', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' }
         ];
 
-        let activeProvider = 'cinemaos';
+        let activeProvider = 'rasmalai';
         let partyBufferingTimer = null;
 
         // Session Setup
@@ -209,7 +210,7 @@
             document.getElementById('create-view').classList.add('active');
         }
 
-        function showRoomView(room) {
+        async function showRoomView(room) {
             document.body.classList.add('room-view-active');
             document.body.classList.add('cinema-mode'); // Auto-enable Cinema Mode on room entry
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -228,7 +229,26 @@
             if (isAnime) {
                 activeProvider = 'animeplay_sub';
             } else {
-                activeProvider = 'cinemaos';
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('app_settings')
+                        .select('value')
+                        .eq('key', 'default_provider')
+                        .single();
+                    if (data && data.value) {
+                        const matched = serversList.find(s => s.id === data.value.toLowerCase());
+                        if (matched) {
+                            activeProvider = data.value.toLowerCase();
+                        } else {
+                            activeProvider = 'rasmalai';
+                        }
+                    } else {
+                        activeProvider = 'rasmalai';
+                    }
+                } catch (e) {
+                    console.warn('Failed to fetch default provider, using rasmalai:', e);
+                    activeProvider = 'rasmalai';
+                }
             }
             switchStreamProvider(activeProvider);
 

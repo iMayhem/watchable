@@ -1,5 +1,6 @@
 import { useStorage } from "@vueuse/core";
 import { ref } from "vue";
+import { getSupabaseClient } from "../lib/supabase";
 
 interface MovieServer {
   serverIndex: number;
@@ -87,6 +88,70 @@ export const tvServers = ref<Server[]>([
   { name: 'Imarti', urlTemplate: 'https://111movies.com/tv/{externalId}/{season}/{episode}' },
   { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' }
 ]);
+
+const idToNameMap: Record<string, string> = {
+  rasmalai: 'Rasmalai',
+  cinemaos: 'Gulab Jamun',
+  smashy: 'Jalebi',
+  peachify: 'Rasgulla',
+  mappletv: 'Kaju Katli',
+  vidking: 'Kheer',
+  videasy: 'Barfi',
+  vidsrc_ru: 'Laddu',
+  vidsrc_su: 'Peda',
+  vidsrcme: 'Gajar Ka Halwa',
+  multiembed: 'Soan Papdi',
+  vsrc: 'Sandesh',
+  vidlink: 'Cham Cham',
+  autoembed: 'Kulfi',
+  vidfast: 'Mysore Pak',
+  movies111: 'Imarti',
+  vidora: 'Ghevar'
+};
+
+async function fetchDefaultServerId() {
+  try {
+    const supabase = await getSupabaseClient();
+    const { data } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'default_provider')
+      .single();
+    if (data && data.value) {
+      return data.value;
+    }
+  } catch (e) {
+    console.warn('Failed to fetch default provider from Supabase, using local default:', e);
+  }
+  return null;
+}
+
+export async function loadDefaultServer() {
+  const defaultServerId = await fetchDefaultServerId();
+  if (!defaultServerId) return;
+
+  const targetName = idToNameMap[defaultServerId.toLowerCase()];
+  if (!targetName) return;
+
+  const targetNameLower = targetName.toLowerCase();
+  
+  // Rearrange movieServers
+  const movieIndex = movieServers.value.findIndex(s => s.name.toLowerCase() === targetNameLower);
+  if (movieIndex > 0) {
+    const [server] = movieServers.value.splice(movieIndex, 1);
+    movieServers.value.unshift(server);
+  }
+
+  // Rearrange tvServers
+  const tvIndex = tvServers.value.findIndex(s => s.name.toLowerCase() === targetNameLower);
+  if (tvIndex > 0) {
+    const [server] = tvServers.value.splice(tvIndex, 1);
+    tvServers.value.unshift(server);
+  }
+}
+
+// Call loadDefaultServer immediately
+loadDefaultServer();
 
 export const currentStreamData = ref({
   currentStreamId: 0,

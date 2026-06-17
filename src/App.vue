@@ -14,7 +14,18 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import { onMounted, onBeforeUnmount, defineAsyncComponent, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { getSettings } from './composables/useSettings';
+
+const router = useRouter();
+const { region } = getSettings();
+
+watch(region, (newRegion, oldRegion) => {
+    if (newRegion !== oldRegion) {
+        router.push('/');
+    }
+});
 
 const getRouteKey = (route: any) => {
     if (route.name === 'StreamTVShow' && route.params.id) {

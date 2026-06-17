@@ -33,14 +33,11 @@
                 </transition>
 
                 <!-- Loading state -->
-                <div v-if="iframeLoading && !hasError" class="stream-frame__loading">
-                    <div class="stream-frame__loading-pulse">
-                        <div class="stream-frame__loading-spinner">
-                            <span class="spinner-ring spinner-ring--1"></span>
-                            <span class="spinner-ring spinner-ring--2"></span>
-                            <span class="spinner-ring spinner-ring--3"></span>
-                        </div>
-                        <p class="loading-text">Preparing projector</p>
+                <div v-if="iframeLoading && !hasError" class="stream-frame__loading" role="status" aria-live="polite">
+                    <div class="stream-frame__skeleton" aria-hidden="true" />
+                    <div class="stream-frame__loader">
+                        <div class="stream-frame__spinner" aria-hidden="true" />
+                        <p class="meta">{{ loadingLabel }}</p>
                         <p class="stream-frame__adblock-tip">Tip — Use an Adblocker for a cleaner experience</p>
                     </div>
                 </div>
@@ -88,6 +85,32 @@ export default defineComponent({
 
         let overlayTimer: number | null = null;
         let intervalTimer: number | null = null;
+
+        const loadingMessages = [
+            'Threading the reel…',
+            'Cueing the projector…',
+            'Striking the print…',
+            'Rolling film…'
+        ];
+        const loadingLabel = ref(loadingMessages[0]);
+        let messageTimer: number | null = null;
+
+        const startMessages = () => {
+            if (messageTimer) clearInterval(messageTimer);
+            let i = 0;
+            loadingLabel.value = loadingMessages[0];
+            messageTimer = window.setInterval(() => {
+                i = (i + 1) % loadingMessages.length;
+                loadingLabel.value = loadingMessages[i];
+            }, 2200);
+        };
+
+        const stopMessages = () => {
+            if (messageTimer) {
+                clearInterval(messageTimer);
+                messageTimer = null;
+            }
+        };
 
         watch(() => props.embedUrl, (newUrl) => {
             if (overlayTimer) clearTimeout(overlayTimer);
@@ -151,15 +174,18 @@ export default defineComponent({
         const onLoad = () => {
             hasError.value = false;
             iframeLoading.value = false;
+            stopMessages();
         };
 
         const onError = () => {
             hasError.value = true;
+            stopMessages();
         };
 
         const retry = () => {
             hasError.value = false;
             iframeLoading.value = true;
+            startMessages();
             if (frameEl.value && props.embedUrl) {
                 const src = frameEl.value.src;
                 frameEl.value.src = '';
@@ -175,6 +201,7 @@ export default defineComponent({
                 if (next && next !== prev) {
                     hasError.value = false;
                     iframeLoading.value = true;
+                    startMessages();
                     startTrackingIfNeeded();
                 }
             }
@@ -196,11 +223,13 @@ export default defineComponent({
             startTrackingIfNeeded();
             window.addEventListener('beforeunload', handleUnload);
             window.addEventListener('pagehide', handleUnload);
+            startMessages();
         });
 
         onUnmounted(() => {
             window.removeEventListener('beforeunload', handleUnload);
             window.removeEventListener('pagehide', handleUnload);
+            stopMessages();
             if (stopTracking) {
                 stopTracking();
                 stopTracking = null;
@@ -216,6 +245,7 @@ export default defineComponent({
             iframeLoading,
             showOverlay,
             countdown,
+            loadingLabel,
             ambientImage,
             sandboxAttribute,
             onLoad,
@@ -302,78 +332,47 @@ export default defineComponent({
         position: absolute;
         inset: 0;
         display: grid;
-        place-content: center;
-        text-align: center;
-        background: linear-gradient(135deg, var(--ink-950) 0%, var(--ink-900) 100%);
-        z-index: 4;
+        place-items: center;
+        background: var(--ink-900);
+        z-index: 5;
     }
 
-    &__loading-pulse {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--s-3);
-        animation: stream-pulse-anim 1.8s infinite ease-in-out;
+    &__skeleton {
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(
+                100deg,
+                rgba(255, 255, 255, 0) 30%,
+                rgba(255, 255, 255, 0.04) 50%,
+                rgba(255, 255, 255, 0) 70%
+            ) var(--ink-800);
+        background-size: 220% 100%;
+        animation: streamFrameShimmer 2.4s infinite ease-in-out;
     }
 
-    &__loading-spinner {
+    &__loader {
         position: relative;
-        width: 64px;
-        height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: var(--s-2);
-
-        .spinner-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--bone-300);
-            border-radius: 50%;
-            position: absolute;
-            box-shadow: 0 0 8px rgba(245, 239, 228, 0.4);
-        }
-
-        .spinner-ring {
-            position: absolute;
-            border-radius: 50%;
-            border: 2px solid transparent;
-            
-            &--1 {
-                width: 28px;
-                height: 28px;
-                border-width: 1.5px;
-                border-top-color: rgba(245, 239, 228, 0.3);
-                animation: stream-spin-clockwise 1.2s linear infinite;
-            }
-
-            &--2 {
-                width: 44px;
-                height: 44px;
-                border-width: 2px;
-                border-top-color: rgba(245, 239, 228, 0.55);
-                border-right-color: rgba(245, 239, 228, 0.55);
-                animation: stream-spin-counter 1.6s linear infinite;
-            }
-
-            &--3 {
-                width: 60px;
-                height: 60px;
-                border-width: 2.5px;
-                border-top-color: var(--bone-100);
-                border-right-color: var(--bone-100);
-                border-left-color: var(--bone-100);
-                animation: stream-spin-clockwise 2.2s linear infinite;
-                box-shadow: 0 0 10px rgba(245, 239, 228, 0.05);
-            }
-        }
+        z-index: 1;
+        display: grid;
+        gap: var(--s-3);
+        justify-items: center;
+        color: var(--bone-200);
     }
 
-    .loading-text {
+    &__spinner {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 2px solid var(--rule-strong);
+        border-top-color: var(--ember);
+        animation: streamFrameSpin 1.1s linear infinite;
+    }
+
+    .meta {
         font-family: var(--font-mono);
-        color: var(--bone-400);
         font-size: var(--fs-xs);
-        letter-spacing: 0.1em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         margin: 0;
     }
@@ -387,30 +386,19 @@ export default defineComponent({
         opacity: 0.85;
     }
 
-    @keyframes stream-pulse-anim {
-        0%, 100% {
-            opacity: 0.7;
-        }
-        50% {
-            opacity: 1;
-        }
+    @keyframes streamFrameShimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
     }
 
-    @keyframes stream-spin-clockwise {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
-        }
+    @keyframes streamFrameSpin {
+        to { transform: rotate(360deg); }
     }
 
-    @keyframes stream-spin-counter {
-        from {
-            transform: rotate(360deg);
-        }
-        to {
-            transform: rotate(0deg);
+    @media (prefers-reduced-motion: reduce) {
+        .stream-frame__skeleton,
+        .stream-frame__spinner {
+            animation: none;
         }
     }
 

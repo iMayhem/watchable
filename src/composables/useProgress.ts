@@ -20,6 +20,8 @@ export const watchProgress = useStorage<ProgressMap>('watchProgress', {});
 export const isTracking = ref(false);
 
 const TRACKED_ORIGINS: Record<string, string> = {
+  'peachify.top': 'peachify',
+  'peachify.live': 'peachify',
   'vidlink.pro': 'vidlink',
   'www.vidking.net': 'vidking',
   'player.videasy.net': 'videasy',
@@ -47,6 +49,7 @@ function normalizeProgress(
   if (!source) return null;
 
   switch (source) {
+    case 'peachify':
     case 'vidlink':
     case 'vidking': {
       if (data.type === 'MEDIA_DATA') {

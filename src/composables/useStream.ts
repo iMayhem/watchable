@@ -50,10 +50,9 @@ if (streamData.value) {
 }
 
 export const movieServers = ref<Server[]>([
-  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?server=sweet&autoplay=true&autoPlay=true' },
+  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
-  { name: 'Rasgulla', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?autoplay=true&autoPlay=true' },
   { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/movie/{tmdbId}' },
   { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
   { name: 'Barfi', urlTemplate: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff' },
@@ -70,10 +69,9 @@ export const movieServers = ref<Server[]>([
 ]);
 
 export const tvServers = ref<Server[]>([
-  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?server=sweet&autoplay=true&autoPlay=true' },
+  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
-  { name: 'Rasgulla', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?autoplay=true&autoPlay=true' },
   { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/tv/{externalId}/{season}/{episode}' },
   { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
   { name: 'Barfi', urlTemplate: 'https://player.videasy.net/tv/{externalId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
@@ -93,7 +91,6 @@ const idToNameMap: Record<string, string> = {
   rasmalai: 'Rasmalai',
   cinemaos: 'Gulab Jamun',
   smashy: 'Jalebi',
-  peachify: 'Rasgulla',
   mappletv: 'Kaju Katli',
   vidking: 'Kheer',
   videasy: 'Barfi',
@@ -300,8 +297,9 @@ export function buildStreamUrl(
       url += `${separator}progress=${timestampSeconds}`;
     } else if (serverName.includes('111movies')) {
       url += `?progress=${timestampSeconds}`;
-    } else if (serverName.includes('vidlink') || serverName.includes('vidfast')) {
-      url += `?startAt=${timestampSeconds}`;
+    } else if (serverName.includes('vidlink') || serverName.includes('vidfast') || serverName.includes('rasmalai')) {
+      const separator = url.includes('?') ? '&' : '?';
+      url += `${separator}startAt=${timestampSeconds}`;
     }
   }
 

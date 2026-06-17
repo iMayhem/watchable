@@ -136,7 +136,8 @@ import {
     getPreferredStreamData,
     savePreferredServer,
     getServers,
-    buildStreamUrl
+    buildStreamUrl,
+    isDefaultServerLoaded
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
 import { useWebImage } from '../utils/useWebImage';
@@ -163,7 +164,7 @@ export default defineComponent({
         const resumeTimestamp = ref(0);
 
         const currentEmbedUrl = computed(() => {
-            if (!movieId.value) return '';
+            if (!movieId.value || !isDefaultServerLoaded.value) return '';
 
             const ts = (resumeTimestamp.value > 0 && reloadKey.value === 0)
                 ? resumeTimestamp.value

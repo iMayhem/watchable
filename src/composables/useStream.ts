@@ -109,6 +109,8 @@ const idToNameMap: Record<string, string> = {
   vidora: 'Ghevar'
 };
 
+export const isDefaultServerLoaded = ref(false);
+
 async function fetchDefaultServerId() {
   try {
     const supabase = await getSupabaseClient();
@@ -127,26 +129,32 @@ async function fetchDefaultServerId() {
 }
 
 export async function loadDefaultServer() {
-  const defaultServerId = await fetchDefaultServerId();
-  if (!defaultServerId) return;
+  try {
+    const defaultServerId = await fetchDefaultServerId();
+    if (!defaultServerId) return;
 
-  const targetName = idToNameMap[defaultServerId.toLowerCase()];
-  if (!targetName) return;
+    const targetName = idToNameMap[defaultServerId.toLowerCase()];
+    if (!targetName) return;
 
-  const targetNameLower = targetName.toLowerCase();
-  
-  // Rearrange movieServers
-  const movieIndex = movieServers.value.findIndex(s => s.name.toLowerCase() === targetNameLower);
-  if (movieIndex > 0) {
-    const [server] = movieServers.value.splice(movieIndex, 1);
-    movieServers.value.unshift(server);
-  }
+    const targetNameLower = targetName.toLowerCase();
+    
+    // Rearrange movieServers
+    const movieIndex = movieServers.value.findIndex(s => s.name.toLowerCase() === targetNameLower);
+    if (movieIndex > 0) {
+      const [server] = movieServers.value.splice(movieIndex, 1);
+      movieServers.value.unshift(server);
+    }
 
-  // Rearrange tvServers
-  const tvIndex = tvServers.value.findIndex(s => s.name.toLowerCase() === targetNameLower);
-  if (tvIndex > 0) {
-    const [server] = tvServers.value.splice(tvIndex, 1);
-    tvServers.value.unshift(server);
+    // Rearrange tvServers
+    const tvIndex = tvServers.value.findIndex(s => s.name.toLowerCase() === targetNameLower);
+    if (tvIndex > 0) {
+      const [server] = tvServers.value.splice(tvIndex, 1);
+      tvServers.value.unshift(server);
+    }
+  } catch (e) {
+    console.error('Error loading default server:', e);
+  } finally {
+    isDefaultServerLoaded.value = true;
   }
 }
 

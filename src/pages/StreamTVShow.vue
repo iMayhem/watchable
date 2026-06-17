@@ -273,7 +273,8 @@ import {
     savePreferredServer,
     saveLastWatchedMetaData,
     getServers,
-    buildStreamUrl
+    buildStreamUrl,
+    isDefaultServerLoaded
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
 import { useWebImage } from '../utils/useWebImage';
@@ -363,7 +364,7 @@ export default defineComponent({
         const resumeTimestamp = ref(0);
 
         const currentEmbedUrl = computed(() => {
-            if (!externalId.value) return '';
+            if (!externalId.value || !isDefaultServerLoaded.value) return '';
             const ts = resumeTimestamp.value > 0 ? resumeTimestamp.value : undefined;
             return buildStreamUrl(
                 externalId.value,

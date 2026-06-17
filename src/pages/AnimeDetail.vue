@@ -514,13 +514,18 @@ export default defineComponent({
                         adult: false,
                         type: 'anime'
                     });
+                }
+                
+                loading.value = false;
 
-                    // Trigger TMDb mapping matching
-                    await loadTmdbEpisodes(anime.value);
+                if (anime.value) {
+                    // Trigger TMDb mapping matching in background
+                    loadTmdbEpisodes(anime.value).catch(err => {
+                        console.error('Failed to load TMDB episodes mapping:', err);
+                    });
                 }
             } catch (err) {
                 console.error('Failed to load anime:', err);
-            } finally {
                 loading.value = false;
             }
         };

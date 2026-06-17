@@ -311,19 +311,9 @@ export default defineComponent({
             trailers.value = [];
 
             try {
-                const [details, credits, sim, videos] = await Promise.all([
-                    fetchMovie(id),
-                    fetchMovieCredits(id),
-                    fetchSimilarMovies(id),
-                    fetchTrailerVideos(id, 'movie'),
-                    fetchReviews(id)
-                ]);
-
+                // Fetch the core movie details first to unblock the UI instantly
+                const details = await fetchMovie(id);
                 movie.value = details.data.value ?? null;
-                cast.value = credits.data.value?.cast ?? [];
-                crew.value = credits.data.value?.crew ?? [];
-                similar.value = (sim.data.value?.results ?? []) as SimilarMovie[];
-                trailers.value = videos ?? [];
 
                 if (movie.value) {
                     const rawPosterUrl = movie.value.poster_path 
@@ -366,7 +356,26 @@ export default defineComponent({
                         type: 'movie'
                     });
                 }
-            } finally {
+
+                // Core data is loaded, unblock the user so they can click Play immediately!
+                loading.value = false;
+
+                // Load secondary non-essential metadata in the background
+                Promise.all([
+                    fetchMovieCredits(id),
+                    fetchSimilarMovies(id),
+                    fetchTrailerVideos(id, 'movie'),
+                    fetchReviews(id)
+                ]).then(([credits, sim, videos]) => {
+                    cast.value = credits.data.value?.cast ?? [];
+                    crew.value = credits.data.value?.crew ?? [];
+                    similar.value = (sim.data.value?.results ?? []) as SimilarMovie[];
+                    trailers.value = videos ?? [];
+                }).catch(err => {
+                    console.error('Failed to load secondary movie data in background:', err);
+                });
+            } catch (err) {
+                console.error('Failed to load movie details:', err);
                 loading.value = false;
             }
         };

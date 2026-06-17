@@ -706,10 +706,8 @@ export default defineComponent({
 
         const currentEmbedUrl = computed(() => {
             const server = availableServers[activeServerIndex.value];
-            const malId = anime.value?.idMal ? String(anime.value.idMal) : String(animeId.value);
-            
             let template = server.urlTemplate;
-            if (server.name === 'Videasy') {
+            if (server.name === 'Videasy' || server.name === 'Barfi') {
                 const isMovie = anime.value?.format === 'MOVIE' || totalEpisodes.value === 1;
                 template = isMovie
                     ? 'https://player.videasy.net/anime/{id}?color=E05A47&autoplayNextEpisode=true&overlay=true'
@@ -718,7 +716,6 @@ export default defineComponent({
 
             return template
                 .replace('{id}', String(animeId.value))
-                .replace('{malId}', malId)
                 .replace('{episode}', String(currentEpisode.value))
                 .replace('{lang}', activeLanguage.value);
         });

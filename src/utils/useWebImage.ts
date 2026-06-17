@@ -15,9 +15,9 @@ const selectSize = (size: WebImageSize) => {
     const sizeOptions: Record<WebImageSize, string> = {
         small: 'w500',
         medium: 'w780',
-        large: 'original',
-        xlarge: 'original',
-        hero: 'w1280',
+        large: 'w780',
+        xlarge: 'w780',
+        hero: 'w780',
     };
     return sizeOptions[size] || sizeOptions.medium;
 };

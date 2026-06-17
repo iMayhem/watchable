@@ -29,8 +29,6 @@
                     loading="lazy"
                     decoding="async"
                     class="topten__img"
-                    :class="{ 'is-loaded': loadedImages[item.id] }"
-                    @load="loadedImages[item.id] = true"
                 />
                 <div v-else class="topten__placeholder" aria-hidden="true">
                     <span>{{ (item.title?.[0] || '·').toUpperCase() }}</span>
@@ -155,12 +153,7 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center;
-        opacity: 0;
         transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
-
-        &.is-loaded {
-            opacity: 1;
-        }
     }
 
     &__skeleton-shimmer {

@@ -273,8 +273,7 @@ import {
     savePreferredServer,
     saveLastWatchedMetaData,
     getServers,
-    buildStreamUrl,
-    isDefaultServerLoaded
+    buildStreamUrl
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
 import { useWebImage } from '../utils/useWebImage';
@@ -364,7 +363,7 @@ export default defineComponent({
         const resumeTimestamp = ref(0);
 
         const currentEmbedUrl = computed(() => {
-            if (!externalId.value || !isDefaultServerLoaded.value) return '';
+            if (!externalId.value) return '';
             const ts = resumeTimestamp.value > 0 ? resumeTimestamp.value : undefined;
             return buildStreamUrl(
                 externalId.value,
@@ -372,9 +371,7 @@ export default defineComponent({
                 currentStreamData.value.currentServer,
                 currentSeason.value,
                 currentEpisode.value,
-                ts,
-                show.value?.name,
-                show.value?.first_air_date ? new Date(show.value.first_air_date).getFullYear() : undefined
+                ts
             );
         });
 

@@ -50,7 +50,7 @@ if (streamData.value) {
 }
 
 export const movieServers = ref<Server[]>([
-  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}' },
+  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?autoPlay=true' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
   { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/movie/{tmdbId}' },
@@ -69,7 +69,7 @@ export const movieServers = ref<Server[]>([
 ]);
 
 export const tvServers = ref<Server[]>([
-  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?autoPlay=true' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
   { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/tv/{externalId}/{season}/{episode}' },
@@ -108,6 +108,25 @@ const idToNameMap: Record<string, string> = {
 
 export const isDefaultServerLoaded = ref(false);
 
+// Synchronously load default server from cache on module evaluation
+const cachedDefaultServer = typeof window !== 'undefined' ? localStorage.getItem('default_server_id') : null;
+if (cachedDefaultServer) {
+  const targetName = idToNameMap[cachedDefaultServer.toLowerCase()];
+  if (targetName) {
+    const targetNameLower = targetName.toLowerCase();
+    const movieIndex = movieServers.value.findIndex(s => s.name.toLowerCase() === targetNameLower);
+    if (movieIndex > 0) {
+      const [server] = movieServers.value.splice(movieIndex, 1);
+      movieServers.value.unshift(server);
+    }
+    const tvIndex = tvServers.value.findIndex(s => s.name.toLowerCase() === targetNameLower);
+    if (tvIndex > 0) {
+      const [server] = tvServers.value.splice(tvIndex, 1);
+      tvServers.value.unshift(server);
+    }
+  }
+}
+
 async function fetchDefaultServerId() {
   try {
     const supabase = await getSupabaseClient();
@@ -129,6 +148,10 @@ export async function loadDefaultServer() {
   try {
     const defaultServerId = await fetchDefaultServerId();
     if (!defaultServerId) return;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('default_server_id', defaultServerId);
+    }
 
     const targetName = idToNameMap[defaultServerId.toLowerCase()];
     if (!targetName) return;

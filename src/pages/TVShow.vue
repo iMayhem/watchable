@@ -310,19 +310,9 @@ export default defineComponent({
             trailers.value = [];
 
             try {
-                const [details, credits, sim, videos] = await Promise.all([
-                    fetchTvShow(id),
-                    fetchTvShowCredit(id),
-                    fetchSimilarTvShows(id),
-                    fetchTrailerVideos(id, 'tv'),
-                    fetchReviews(id)
-                ]);
-
+                // Fetch the core show details first to unblock the UI instantly
+                const details = await fetchTvShow(id);
                 show.value = details.data.value ?? null;
-                cast.value = credits.data.value?.cast ?? [];
-                crew.value = credits.data.value?.crew ?? [];
-                similar.value = (sim.data.value?.results ?? []) as TVShowType[];
-                trailers.value = videos ?? [];
 
                 if (show.value) {
                     const rawPosterUrl = show.value.poster_path 
@@ -365,7 +355,26 @@ export default defineComponent({
                         type: 'tv'
                     });
                 }
-            } finally {
+
+                // Core data is loaded, unblock the user so they can click Play immediately!
+                loading.value = false;
+
+                // Load secondary non-essential metadata in the background
+                Promise.all([
+                    fetchTvShowCredit(id),
+                    fetchSimilarTvShows(id),
+                    fetchTrailerVideos(id, 'tv'),
+                    fetchReviews(id)
+                ]).then(([credits, sim, videos]) => {
+                    cast.value = credits.data.value?.cast ?? [];
+                    crew.value = credits.data.value?.crew ?? [];
+                    similar.value = (sim.data.value?.results ?? []) as TVShowType[];
+                    trailers.value = videos ?? [];
+                }).catch(err => {
+                    console.error('Failed to load secondary TV show data in background:', err);
+                });
+            } catch (err) {
+                console.error('Failed to load TV show details:', err);
                 loading.value = false;
             }
         };

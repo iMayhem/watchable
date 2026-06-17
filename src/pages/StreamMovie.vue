@@ -136,8 +136,7 @@ import {
     getPreferredStreamData,
     savePreferredServer,
     getServers,
-    buildStreamUrl,
-    isDefaultServerLoaded
+    buildStreamUrl
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
 import { useWebImage } from '../utils/useWebImage';
@@ -164,7 +163,7 @@ export default defineComponent({
         const resumeTimestamp = ref(0);
 
         const currentEmbedUrl = computed(() => {
-            if (!movieId.value || !isDefaultServerLoaded.value) return '';
+            if (!movieId.value) return '';
 
             const ts = (resumeTimestamp.value > 0 && reloadKey.value === 0)
                 ? resumeTimestamp.value
@@ -175,9 +174,7 @@ export default defineComponent({
                 currentStreamData.value.currentServer,
                 1,
                 1,
-                ts,
-                movie.value?.title,
-                movie.value?.release_date ? new Date(movie.value.release_date).getFullYear() : undefined
+                ts
             );
             if (reloadKey.value > 0) {
                 return `${base}${base.includes('?') ? '&' : '?'}t=${reloadKey.value}`;

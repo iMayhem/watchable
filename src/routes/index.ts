@@ -3,6 +3,9 @@ import Movie from '../pages/Movie.vue'
 import TVShow from '../pages/TVShow.vue'
 import AnimeDetail from '../pages/AnimeDetail.vue'
 import Actor from '../pages/Actor.vue'
+import StreamMovie from '../pages/StreamMovie.vue'
+import StreamTVShow from '../pages/StreamTVShow.vue'
+import StreamAnime from '../pages/StreamAnime.vue'
 import { useSeo } from '../composables/useSeo'
 
 declare module 'vue-router' {
@@ -110,7 +113,7 @@ const routes: Array<RouteRecordRaw> = [
         'path': '/stream/movie/:id',
         alias: '/watch/movie/:id',
         'name': 'StreamMovie',
-        'component': () => import('../pages/StreamMovie.vue'),
+        'component': StreamMovie,
         meta: {
             showInHeader: false,
             title: 'Stream Movie'
@@ -120,7 +123,7 @@ const routes: Array<RouteRecordRaw> = [
         'path': '/stream/tv-show/:id/season/:season/episode/:episode',
         alias: '/watch/tv/:id/:season/:episode',
         'name': 'StreamTVShow',
-        'component': () => import('../pages/StreamTVShow.vue'),
+        'component': StreamTVShow,
         meta: {
             showInHeader: false,
             title: 'Stream TV Show'
@@ -139,7 +142,7 @@ const routes: Array<RouteRecordRaw> = [
         'path': '/stream/anime/:id',
         alias: '/watch/anime/:id',
         'name': 'StreamAnime',
-        'component': () => import('../pages/StreamAnime.vue'),
+        'component': StreamAnime,
         meta: {
             showInHeader: false,
             title: 'Stream Anime'
@@ -149,7 +152,7 @@ const routes: Array<RouteRecordRaw> = [
         'path': '/stream/anime/:id/episode/:episode',
         alias: '/watch/anime/:id/:episode',
         'name': 'StreamAnimeEpisode',
-        'component': () => import('../pages/StreamAnime.vue'),
+        'component': StreamAnime,
         meta: {
             showInHeader: false,
             title: 'Stream Anime Episode'

@@ -11,7 +11,7 @@
             <div class="stream-frame__player">
                 <!-- Standard iframe embed -->
                 <iframe
-                    v-if="embedUrl && !hasError"
+                    v-if="embedUrl && shouldLoad && !hasError"
                     :key="embedUrl"
                     ref="frameEl"
                     :src="embedUrl"
@@ -80,6 +80,7 @@ export default defineComponent({
         const frameEl = ref<HTMLIFrameElement | null>(null);
         const hasError = ref(false);
         const iframeLoading = ref(true);
+        const shouldLoad = ref(false);
         const showOverlay = ref(false);
         const countdown = ref(10);
 
@@ -224,6 +225,10 @@ export default defineComponent({
             window.addEventListener('beforeunload', handleUnload);
             window.addEventListener('pagehide', handleUnload);
             startMessages();
+            // Delay rendering the heavy iframe to let the page transition and paint skeleton cleanly
+            window.setTimeout(() => {
+                shouldLoad.value = true;
+            }, 150);
         });
 
         onUnmounted(() => {
@@ -250,7 +255,8 @@ export default defineComponent({
             sandboxAttribute,
             onLoad,
             onError,
-            retry
+            retry,
+            shouldLoad
         };
     }
 });

@@ -46,6 +46,7 @@
                         class="watch-stage__party-btn"
                         title="Watch Together with friends!"
                         rel="nofollow"
+                        @click.prevent="handleWatchTogether"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__party-icon">
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -162,7 +163,10 @@ export default defineComponent({
         const reloadKey = ref(0);
         const resumeTimestamp = ref(0);
 
+        const isNavigatingToParty = ref(false);
+
         const currentEmbedUrl = computed(() => {
+            if (isNavigatingToParty.value) return '';
             if (!movieId.value) return '';
 
             const ts = (resumeTimestamp.value > 0 && reloadKey.value === 0)
@@ -234,6 +238,15 @@ export default defineComponent({
             router.push(paths.movie(movieId.value));
         };
 
+        const handleWatchTogether = (event: MouseEvent) => {
+            isNavigatingToParty.value = true;
+            const target = event.currentTarget as HTMLAnchorElement;
+            const href = target.href;
+            setTimeout(() => {
+                window.location.href = href;
+            }, 50);
+        };
+
         watch(
             () => route.params.id,
             (next, prev) => {
@@ -258,7 +271,8 @@ export default defineComponent({
             releaseYear,
             runtimeLabel,
             changeServer,
-            goBack
+            goBack,
+            handleWatchTogether
         };
     }
 });

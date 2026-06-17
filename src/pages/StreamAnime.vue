@@ -76,6 +76,7 @@
                         class="watch-stage__party-btn"
                         title="Watch Together with friends!"
                         rel="nofollow"
+                        @click.prevent="handleWatchTogether"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__party-icon">
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -704,7 +705,10 @@ export default defineComponent({
             return eps;
         });
 
+        const isNavigatingToParty = ref(false);
+
         const currentEmbedUrl = computed(() => {
+            if (isNavigatingToParty.value) return '';
             const server = availableServers[activeServerIndex.value];
             let template = server.urlTemplate;
             if (server.name === 'Videasy' || server.name === 'Barfi') {
@@ -827,6 +831,15 @@ export default defineComponent({
 
         const goBack = () => {
             router.push(paths.anime(animeId.value));
+        };
+
+        const handleWatchTogether = (event: MouseEvent) => {
+            isNavigatingToParty.value = true;
+            const target = event.currentTarget as HTMLAnchorElement;
+            const href = target.href;
+            setTimeout(() => {
+                window.location.href = href;
+            }, 50);
         };
 
         const goToEpisode = (ep: number) => {
@@ -1178,6 +1191,7 @@ export default defineComponent({
             onUpNextSelect,
             onUpNextSeasonChange,
             goBack,
+            handleWatchTogether,
             goToEpisode,
             nextAiringInfo,
             isEpisodeUpcoming,

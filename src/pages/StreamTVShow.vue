@@ -75,6 +75,7 @@
                         class="watch-stage__party-btn"
                         title="Watch Together with friends!"
                         rel="nofollow"
+                        @click.prevent="handleWatchTogether"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__party-icon">
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -362,7 +363,10 @@ export default defineComponent({
 
         const resumeTimestamp = ref(0);
 
+        const isNavigatingToParty = ref(false);
+
         const currentEmbedUrl = computed(() => {
+            if (isNavigatingToParty.value) return '';
             if (!externalId.value) return '';
             const ts = resumeTimestamp.value > 0 ? resumeTimestamp.value : undefined;
             return buildStreamUrl(
@@ -605,6 +609,15 @@ export default defineComponent({
             });
         };
 
+        const handleWatchTogether = (event: MouseEvent) => {
+            isNavigatingToParty.value = true;
+            const target = event.currentTarget as HTMLAnchorElement;
+            const href = target.href;
+            setTimeout(() => {
+                window.location.href = href;
+            }, 50);
+        };
+
         const previewEpisodes = ref<Episode[]>([]);
         const isPreviewLoading = ref(false);
 
@@ -687,6 +700,7 @@ export default defineComponent({
             onUpNextSelect,
             onUpNextSeasonChange,
             goBack,
+            handleWatchTogether,
             nextAiringInfo,
             isLastEpisode,
             previewEpisodes,

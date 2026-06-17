@@ -25,10 +25,10 @@ const defaultStreamData: StreamData = {
 
 export const streamData = useStorage<StreamData>('streamData', defaultStreamData);
 
-// Migrate legacy local storage preferences — force Cinemaos (index 0) as default
+// Migrate legacy local storage preferences — force Rasmalai (index 0) as default
 if (streamData.value) {
-  if (!streamData.value.version || streamData.value.version < 5) {
-    // v5: Hard-reset ALL saved server preferences to Cinemaos (index 0).
+  if (!streamData.value.version || streamData.value.version < 6) {
+    // v6: Hard-reset ALL saved server preferences to Rasmalai (index 0).
     // IMPORTANT: We must reassign the entire object — NOT mutate nested properties.
     // VueUse's useStorage only tracks top-level ref reassignments; direct deep
     // mutations (entry.serverIndex = 0) are silently lost and never written to localStorage.
@@ -43,16 +43,16 @@ if (streamData.value) {
     // Reassign the entire value so useStorage detects and persists the change
     streamData.value = {
       movieServerMap: resetMap,
-      version: 5
+      version: 6
     };
   }
 }
 
 export const movieServers = ref<Server[]>([
+  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?server=sweet' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
   { name: 'Rasgulla', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}' },
-  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?server=sweet' },
   { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/movie/{tmdbId}' },
   { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
   { name: 'Barfi', urlTemplate: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff' },
@@ -69,10 +69,10 @@ export const movieServers = ref<Server[]>([
 ]);
 
 export const tvServers = ref<Server[]>([
+  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?server=sweet' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
   { name: 'Rasgulla', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?server=sweet' },
   { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/tv/{externalId}/{season}/{episode}' },
   { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
   { name: 'Barfi', urlTemplate: 'https://player.videasy.net/tv/{externalId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },

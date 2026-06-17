@@ -1,6 +1,7 @@
 import { computed, reactive, ref } from "vue"
 import useAxios from "./useAxios"
 import { MovieResponse } from "./useMovies"
+import { getSettings } from "./useSettings"
 
 export interface Movie {
     value: MovieResponse | undefined
@@ -54,6 +55,37 @@ export const currentHighLightDetails = computed(() => {
 export const useHighlights = () => {
     const loading = ref(false)
     const error = ref("")
+    const { region } = getSettings()
+
+    const fetchHighlightResults = async (url: string) => {
+        const fetchGlobalFallback = async () => {
+            const res = await useAxios().get(url, {
+                params: {
+                    fallback_retry: "true"
+                }
+            })
+            return res.data
+        }
+
+        try {
+            const res = (await useAxios().get(url)).data
+            if (res.results && res.results.length > 0) {
+                return res
+            }
+
+            if (region.value && region.value !== "global") {
+                return await fetchGlobalFallback()
+            }
+
+            return res
+        } catch (err) {
+            if (region.value && region.value !== "global") {
+                return await fetchGlobalFallback()
+            }
+
+            throw err
+        }
+    }
 
     const fetchHighlights = async (highlightType?: "featured" | "popular" | "new") => {
         const targetHighlight = highlightType || currentHighlightTitle.value
@@ -62,12 +94,12 @@ export const useHighlights = () => {
             loading.value = true
             error.value = ""
 
-            const req = useAxios().get(highLightOptions[targetHighlight].url)
-            const res = (await req).data
+            const res = await fetchHighlightResults(highLightOptions[targetHighlight].url)
 
             if (res.results && res.results.length > 0) {
                 highLightOptions[targetHighlight].data = res.results
             } else {
+                highLightOptions[targetHighlight].data = []
                 error.value = "No data found"
             }
         } catch (err: any) {
@@ -105,13 +137,15 @@ export const useHighlights = () => {
             const promises = Object.keys(highLightOptions).map(async (key) => {
                 const highlightKey = key as "featured" | "popular" | "new"
                 try {
-                    const req = useAxios().get(highLightOptions[highlightKey].url)
-                    const res = (await req).data
+                    const res = await fetchHighlightResults(highLightOptions[highlightKey].url)
                     if (res.results && res.results.length > 0) {
                         highLightOptions[highlightKey].data = res.results
+                    } else {
+                        highLightOptions[highlightKey].data = []
                     }
                 } catch (err) {
                     console.error(`Error fetching ${highlightKey}:`, err)
+                    highLightOptions[highlightKey].data = []
                 }
             })
 

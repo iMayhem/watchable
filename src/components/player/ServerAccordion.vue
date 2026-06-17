@@ -1,10 +1,10 @@
 <template>
-    <section class="server-accordion" :class="{ 'is-open': open }">
+    <section ref="rootRef" class="server-accordion" :class="[`server-accordion--${variant}`, { 'is-open': open }]">
         <button
             type="button"
             class="server-accordion__head"
             :aria-expanded="open"
-            aria-controls="server-accordion-body"
+            :aria-controls="controlId"
             @click="open = !open"
         >
             <div class="server-accordion__heading">
@@ -26,7 +26,7 @@
         </button>
 
         <div
-            id="server-accordion-body"
+            :id="controlId"
             class="server-accordion__body"
             :hidden="!open"
         >
@@ -66,7 +66,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, ref } from 'vue';
 import { useStorage } from '@vueuse/core';
 import LmPill from '../primitives/Pill.vue';
 import { Server } from '../../composables/useStream';
@@ -76,12 +76,30 @@ export default defineComponent({
     components: { LmPill },
     props: {
         servers: { type: Array as PropType<Server[]>, required: true },
-        activeServerIndex: { type: Number, required: true }
+        activeServerIndex: { type: Number, required: true },
+        variant: { type: String as PropType<'panel' | 'dropdown'>, default: 'panel' }
     },
     emits: ['server-change'],
     setup(props, { emit }) {
-        const open = useStorage<boolean>('lm:server-accordion:open', true);
+        const rootRef = ref<HTMLElement | null>(null);
+        const panelOpen = useStorage<boolean>('lm:server-accordion:open', true);
+        const dropdownOpen = ref(false);
         const loadingIndex = ref<number | null>(null);
+
+        const open = computed({
+            get: () => props.variant === 'dropdown' ? dropdownOpen.value : panelOpen.value,
+            set: value => {
+                if (props.variant === 'dropdown') {
+                    dropdownOpen.value = value;
+                } else {
+                    panelOpen.value = value;
+                }
+            }
+        });
+
+        const controlId = computed(() =>
+            props.variant === 'dropdown' ? 'server-dropdown-body' : 'server-accordion-body'
+        );
 
         const activeServerName = computed(
             () => props.servers[props.activeServerIndex]?.name || 'Server'
@@ -104,13 +122,32 @@ export default defineComponent({
 
             loadingIndex.value = index;
             emit('server-change', index);
+            if (props.variant === 'dropdown') {
+                dropdownOpen.value = false;
+            }
             window.setTimeout(() => {
                 loadingIndex.value = null;
             }, 1000);
         };
 
+        const closeOnOutsideClick = (event: MouseEvent) => {
+            if (props.variant !== 'dropdown' || !dropdownOpen.value) return;
+            if (rootRef.value?.contains(event.target as Node)) return;
+            dropdownOpen.value = false;
+        };
+
+        onMounted(() => {
+            document.addEventListener('click', closeOnOutsideClick);
+        });
+
+        onBeforeUnmount(() => {
+            document.removeEventListener('click', closeOnOutsideClick);
+        });
+
         return {
+            rootRef,
             open,
+            controlId,
             loadingIndex,
             activeServerName,
             serverHint,
@@ -123,6 +160,7 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .server-accordion {
+    position: relative;
     background: var(--ink-800);
     border-radius: var(--r-lg);
     box-shadow: inset 0 0 0 1px var(--rule);
@@ -221,6 +259,93 @@ export default defineComponent({
     &__tip {
         margin: var(--s-4) 0 0;
         color: var(--bone-400);
+    }
+
+    &--dropdown {
+        display: inline-flex;
+        width: auto;
+        min-width: 220px;
+        overflow: visible;
+        border-radius: var(--r-pill);
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 0 0 1px var(--rule-strong);
+
+        .server-accordion__head {
+            min-height: 38px;
+            padding: 0.45rem 0.85rem 0.45rem 1rem;
+            border-radius: inherit;
+            box-sizing: border-box;
+            gap: var(--s-3);
+        }
+
+        .server-accordion__heading {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--s-2);
+        }
+
+        .server-accordion__heading .eyebrow {
+            display: none;
+        }
+
+        .server-accordion__title {
+            font-family: var(--font-ui);
+            font-size: var(--fs-sm);
+            font-weight: 700;
+            letter-spacing: 0;
+            white-space: nowrap;
+        }
+
+        .server-accordion__summary {
+            gap: var(--s-2);
+        }
+
+        .server-accordion__dot {
+            display: none;
+        }
+
+        .server-accordion__chev {
+            width: 20px;
+            height: 20px;
+        }
+
+        .server-accordion__body {
+            position: absolute;
+            top: calc(100% + var(--s-2));
+            right: 0;
+            z-index: calc(var(--z-header) + 1);
+            width: min(360px, calc(100vw - var(--s-4)));
+            max-height: min(62vh, 520px);
+            overflow-y: auto;
+            padding: var(--s-3);
+            border: 1px solid var(--rule);
+            border-radius: var(--r-lg);
+            background: rgba(19, 17, 14, 0.98);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(16px);
+        }
+
+        .server-accordion__grid {
+            grid-template-columns: 1fr;
+            gap: var(--s-2);
+            margin-top: 0;
+        }
+
+        .server-accordion__tip {
+            margin-top: var(--s-3);
+        }
+
+        @media (max-width: 640px) {
+            min-width: 0;
+
+            .server-accordion__head {
+                padding-inline: 0.85rem 0.65rem;
+            }
+
+            .server-accordion__title {
+                display: none;
+            }
+        }
     }
 }
 

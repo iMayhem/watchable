@@ -60,7 +60,8 @@ export default defineComponent({
         title: { type: String, default: 'Top 10 Today' },
         eyebrow: { type: String, default: 'The Marquee' },
         description: { type: String, default: '' },
-        moreTo: { type: [String, Object], default: null }
+        moreTo: { type: [String, Object], default: null },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const { detailPath } = useAppPaths();
@@ -69,6 +70,9 @@ export default defineComponent({
         const displayItems = computed(() => {
             if (props.items.length > 0) {
                 return props.items.slice(0, 10);
+            }
+            if (!props.loading) {
+                return [];
             }
             return Array.from({ length: 10 }, (_, i) => ({
                 id: i,

@@ -16,7 +16,7 @@
                 :genre-ids="hero ? hero.genre_ids : []"
                 :adult="hero ? hero.adult : false"
                 eyebrow="This week’s feature"
-                :loading="!hero"
+                :loading="isHomeLoading && !hero"
             />
 
             <ContinueShelf class="home__section" />
@@ -28,6 +28,7 @@
                 eyebrow="The Marquee"
                 description="What the house is watching right now."
                 :more-to="{ name: 'Movies' }"
+                :loading="isHomeLoading"
             />
 
             <SpotlightModule
@@ -125,6 +126,7 @@ export default defineComponent({
         const { fetchNewShows } = useTvShows();
 
         const upcomingTv = ref<TVShowType[]>([]);
+        const isHomeLoading = ref(true);
 
         const hero = computed(() => highLightOptions.featured.data?.[0] ?? null);
 
@@ -227,17 +229,22 @@ export default defineComponent({
         };
 
         const loadData = async () => {
+            isHomeLoading.value = true;
             highLightOptions.featured.data = [];
             highLightOptions.popular.data = [];
             highLightOptions.new.data = [];
             newShows.value = [];
             upcomingTv.value = [];
 
-            await Promise.all([
-                fetchAllHighlights(),
-                fetchNewShows(),
-                fetchUpcomingTv()
-            ]);
+            try {
+                await Promise.all([
+                    fetchAllHighlights(),
+                    fetchNewShows(),
+                    fetchUpcomingTv()
+                ]);
+            } finally {
+                isHomeLoading.value = false;
+            }
         };
 
         onMounted(() => {
@@ -256,6 +263,7 @@ export default defineComponent({
             spotlight,
             heroTagline,
             spotlightQuote,
+            isHomeLoading,
             topTenItems,
             nowPlayingItems,
             pantheonItems,

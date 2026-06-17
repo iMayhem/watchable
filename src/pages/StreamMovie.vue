@@ -18,28 +18,12 @@
                 <span v-else class="watch-stage__title-skeleton" aria-hidden="true" />
 
                 <div class="watch-stage__actions">
-                    <!-- Mobile Server Selector -->
-                    <div class="watch-stage__server-picker">
-                        <span>{{ availableServers[currentStreamData.currentServer]?.name || 'Select Server' }}</span>
-                        <select
-                            :value="currentStreamData.currentServer"
-                            @change="changeServer(Number(($event.target as HTMLSelectElement).value))"
-                            class="watch-stage__server-select"
-                        >
-                            <option
-                                v-for="(server, index) in availableServers"
-                                :key="server.name + index"
-                                :value="index"
-                            >
-                                {{ server.name }}
-                            </option>
-                        </select>
-                        <span class="watch-stage__server-select-arrow" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                        </span>
-                    </div>
+                    <ServerAccordion
+                        variant="dropdown"
+                        :servers="availableServers"
+                        :active-server-index="currentStreamData.currentServer"
+                        @server-change="changeServer"
+                    />
 
                     <a
                         :href="`/party/?room=${movieId}&title=${encodeURIComponent(movie?.title || '')}`"
@@ -71,14 +55,6 @@
                         :media-id="movieId"
                         media-type="movie"
                         @switch-to-server="changeServer"
-                    />
-                </div>
-
-                <div class="watch-stage__aside">
-                    <ServerAccordion
-                        :servers="availableServers"
-                        :active-server-index="currentStreamData.currentServer"
-                        @server-change="changeServer"
                     />
                 </div>
             </div>
@@ -461,7 +437,7 @@ export default defineComponent({
             scroll-snap-stop: always;
             height: 100dvh;
             padding: 72px var(--s-5) var(--s-4) var(--s-5);
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 1fr;
             align-items: stretch;
         }
     }
@@ -479,6 +455,13 @@ export default defineComponent({
 
             :deep(.stream-frame__player) {
                 border-radius: var(--r-md);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            :deep(.stream-frame__player) {
+                aspect-ratio: auto;
+                height: clamp(320px, 40vw, 580px);
             }
         }
     }

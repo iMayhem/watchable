@@ -47,28 +47,71 @@
                 </div>
 
                 <div class="watch-stage__actions">
-                    <!-- Mobile Server Selector -->
-                    <div class="watch-stage__server-picker">
-                        <span>{{ availableServers[activeServerIndex]?.name || 'Select Server' }}</span>
-                        <select
-                            :value="activeServerIndex"
-                            @change="activeServerIndex = Number(($event.target as HTMLSelectElement).value)"
-                            class="watch-stage__server-select"
-                        >
-                            <option
-                                v-for="(server, index) in availableServers"
-                                :key="server.name + index"
-                                :value="index"
-                            >
-                                {{ server.name }}
-                            </option>
-                        </select>
-                        <span class="watch-stage__server-select-arrow" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <details
+                        v-if="seasonsList.length > 1 || availableServers[activeServerIndex]?.name !== 'Videasy'"
+                        class="watch-stage__options"
+                    >
+                        <summary class="watch-stage__options-trigger">
+                            <span>Options</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
-                        </span>
-                    </div>
+                        </summary>
+
+                        <div class="watch-stage__options-menu">
+                            <div v-if="seasonsList.length > 1" class="watch-stage__option-group">
+                                <label class="eyebrow watch-stage__option-label" for="anime-season-select">
+                                    Season / Arc
+                                </label>
+                                <select
+                                    id="anime-season-select"
+                                    :value="animeId"
+                                    class="watch-stage__option-select"
+                                    @change="goToSeason(Number(($event.target as HTMLSelectElement).value))"
+                                >
+                                    <option
+                                        v-for="s in seasonsList"
+                                        :key="s.id"
+                                        :value="s.id"
+                                    >
+                                        {{ s.label }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div
+                                v-if="availableServers[activeServerIndex]?.name !== 'Videasy'"
+                                class="watch-stage__option-group"
+                            >
+                                <p class="eyebrow watch-stage__option-label">Language Pref</p>
+                                <div class="watch-stage__language-tabs">
+                                    <button
+                                        type="button"
+                                        class="watch-stage__language-btn"
+                                        :class="{ 'is-active': activeLanguage === 'sub' }"
+                                        @click="activeLanguage = 'sub'"
+                                    >
+                                        Subtitled
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="watch-stage__language-btn"
+                                        :class="{ 'is-active': activeLanguage === 'dub' }"
+                                        @click="activeLanguage = 'dub'"
+                                    >
+                                        Dubbed
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <ServerAccordion
+                        variant="dropdown"
+                        :servers="availableServers"
+                        :active-server-index="activeServerIndex"
+                        @server-change="activeServerIndex = $event"
+                    />
 
                     <a
                         v-if="anime"
@@ -105,65 +148,6 @@
                     />
                 </div>
 
-                <div class="watch-stage__aside">
-                    <!-- Season & Language side by side -->
-                    <div class="aside-controls">
-                        <!-- Season Selector -->
-                        <div v-if="seasonsList.length > 1" class="season-switcher">
-                            <p class="eyebrow season-switcher__header">Season / Arc</p>
-                            <div class="season-switcher__select-wrapper">
-                                <select
-                                    :value="animeId"
-                                    @change="goToSeason(Number(($event.target as HTMLSelectElement).value))"
-                                    class="season-switcher__select"
-                                >
-                                    <option
-                                        v-for="s in seasonsList"
-                                        :key="s.id"
-                                        :value="s.id"
-                                    >
-                                        {{ s.label }}
-                                    </option>
-                                </select>
-                                <span class="season-switcher__chevron" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M6 9l6 6 6-6" />
-                                    </svg>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Language Pref -->
-                        <div v-if="availableServers[activeServerIndex]?.name !== 'Videasy'" class="language-switcher">
-                            <p class="eyebrow language-switcher__header">Language Pref</p>
-                            <div class="language-switcher__tabs">
-                                <button
-                                    type="button"
-                                    class="language-switcher__btn"
-                                    :class="{ 'is-active': activeLanguage === 'sub' }"
-                                    @click="activeLanguage = 'sub'"
-                                >
-                                    Subtitled
-                                </button>
-                                <button
-                                    type="button"
-                                    class="language-switcher__btn"
-                                    :class="{ 'is-active': activeLanguage === 'dub' }"
-                                    @click="activeLanguage = 'dub'"
-                                >
-                                    Dubbed
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Server Room Accordion -->
-                    <ServerAccordion
-                        :servers="availableServers"
-                        :active-server-index="activeServerIndex"
-                        @server-change="activeServerIndex = $event"
-                    />
-                </div>
             </div>
 
             <!-- Highly Optimized Paginated Square Grid Episode Navigator with Search filter -->
@@ -1335,6 +1319,122 @@ export default defineComponent({
     &__actions {
         display: flex;
         align-items: center;
+        justify-content: flex-end;
+        gap: var(--s-2);
+        min-width: 0;
+    }
+
+    &__options {
+        position: relative;
+
+        &[open] .watch-stage__options-trigger svg {
+            transform: rotate(180deg);
+        }
+    }
+
+    &__options-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-2);
+        min-height: 38px;
+        padding: 0.45rem 0.9rem;
+        border: 1px solid var(--rule-strong);
+        border-radius: var(--r-pill);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--bone-50);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 700;
+        list-style: none;
+        cursor: pointer;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+
+        svg {
+            width: 16px;
+            height: 16px;
+            transition: transform var(--dur-base) var(--ease-out);
+        }
+
+        @media (max-width: 640px) {
+            width: 38px;
+            padding: 0;
+            justify-content: center;
+
+            span {
+                display: none;
+            }
+        }
+    }
+
+    &__options-menu {
+        position: absolute;
+        top: calc(100% + var(--s-2));
+        right: 0;
+        z-index: calc(var(--z-header) + 1);
+        width: min(340px, calc(100vw - var(--s-4)));
+        display: grid;
+        gap: var(--s-4);
+        padding: var(--s-4);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-lg);
+        background: rgba(19, 17, 14, 0.98);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(16px);
+    }
+
+    &__option-group {
+        display: grid;
+        gap: var(--s-2);
+    }
+
+    &__option-label {
+        margin: 0;
+        color: var(--bone-400);
+    }
+
+    &__option-select {
+        width: 100%;
+        min-height: 40px;
+        padding: 0 2.4rem 0 0.9rem;
+        border: 1px solid var(--rule);
+        border-radius: var(--r-md);
+        background: var(--ink-800);
+        color: var(--bone-50);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+    }
+
+    &__language-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--s-2);
+        padding: 4px;
+        border: 1px solid var(--rule);
+        border-radius: var(--r-md);
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    &__language-btn {
+        min-height: 34px;
+        padding: 0.45rem 0.7rem;
+        border-radius: var(--r-sm);
+        color: var(--bone-300);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 600;
+        transition: color var(--dur-fast), background-color var(--dur-fast);
+
+        &:hover {
+            color: var(--bone-50);
+        }
+
+        &.is-active {
+            background: var(--ember);
+            color: var(--ink-900);
+        }
     }
 
     &__party-btn {
@@ -1388,7 +1488,7 @@ export default defineComponent({
             scroll-snap-stop: always;
             height: 100dvh;
             padding: 72px var(--s-5) var(--s-4) var(--s-5);
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 1fr;
             align-items: stretch;
         }
     }
@@ -1417,6 +1517,11 @@ export default defineComponent({
         @media (min-width: 1024px) {
             :deep(.stream-frame__stage) {
                 padding: 0;
+            }
+
+            :deep(.stream-frame__player) {
+                aspect-ratio: auto;
+                height: clamp(320px, 40vw, 580px);
             }
         }
     }

@@ -4,6 +4,11 @@
 
         <main id="main" class="search-page__main" role="main">
             <section class="search-page__masthead container-lm">
+                <p class="eyebrow search-page__eyebrow">The Index</p>
+                <h1 class="search-page__title display">Search the archive</h1>
+                <p class="search-page__subtitle">
+                    Every film, every series, every face on record — cross-referenced in one query.
+                </p>
 
                 <form class="search-page__search" role="search" @submit.prevent>
                     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">

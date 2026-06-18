@@ -48,47 +48,48 @@
       (function() {
         'use strict';
         
+        // DEV: Right-click enabled for debugging - comment out to re-enable protection
         // Disable right-click immediately
-        document.addEventListener('contextmenu', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }, true);
+        // document.addEventListener('contextmenu', function(e) {
+        //   e.preventDefault();
+        //   e.stopPropagation();
+        //   return false;
+        // }, true);
         
         // Disable key shortcuts immediately
         document.addEventListener('keydown', function(e) {
-          // F12
-          if (e.key === 'F12') {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-          }
+          // F12 - DEV: Enabled for debugging
+          // if (e.key === 'F12') {
+          //   e.preventDefault();
+          //   e.stopPropagation();
+          //   return false;
+          // }
           
           var meta = e.ctrlKey || e.metaKey;
           if (!meta) return;
           
           var k = (e.key || '').toUpperCase();
           
-          // Block DevTools shortcuts
-          if (e.shiftKey && (k === 'I' || k === 'J' || k === 'C' || k === 'K' || k === 'M' || k === 'E')) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-          }
+          // Block DevTools shortcuts - DEV: Disabled for debugging
+          // if (e.shiftKey && (k === 'I' || k === 'J' || k === 'C' || k === 'K' || k === 'M' || k === 'E')) {
+          //   e.preventDefault();
+          //   e.stopPropagation();
+          //   return false;
+          // }
           
-          // Block view source, save, print
-          if (k === 'U' || k === 'S' || k === 'P') {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-          }
+          // Block view source, save, print - DEV: Disabled for debugging
+          // if (k === 'U' || k === 'S' || k === 'P') {
+          //   e.preventDefault();
+          //   e.stopPropagation();
+          //   return false;
+          // }
           
-          // Block Alt combinations
-          if (e.altKey && (k === 'I' || k === 'J' || k === 'C')) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-          }
+          // Block Alt combinations - DEV: Disabled for debugging
+          // if (e.altKey && (k === 'I' || k === 'J' || k === 'C')) {
+          //   e.preventDefault();
+          //   e.stopPropagation();
+          //   return false;
+          // }
         }, true);
         
         // Disable text selection

@@ -218,17 +218,14 @@ export default defineComponent({
 
         const fetchUpcomingTv = async () => {
             try {
-                console.log('[🎭 Upcoming] Fetching upcoming TV...');
                 const res = await useAxios().get('tv/on_the_air', {
                     params: {
                         page: 1
                     }
                 });
                 const data = res.data as UpcomingTvResponse;
-                console.log('[🎭 Upcoming] Loaded', data.results?.length || 0, 'items ✅');
                 upcomingTv.value = data.results ?? [];
             } catch (err) {
-                console.error('[🎭 Upcoming] Error', err);
                 upcomingTv.value = [];
             }
         };
@@ -271,7 +268,6 @@ export default defineComponent({
         onMounted(() => {
             document.title = 'Moovie — Stream Movies, TV Shows & Anime Free';
             primeGenres();
-            console.log('[📍 HOME PAGE] Mounted, loading initial data');
             loadData();
             window.addEventListener('movora_settings_change', handleSettingsChange);
         });
@@ -286,7 +282,6 @@ export default defineComponent({
             () => region.value,
             (newRegion, oldRegion) => {
                 if (newRegion !== oldRegion && oldRegion !== undefined) {
-                    console.log('[📍 HOME PAGE] Region changed via watch:', { oldRegion, newRegion });
                     loadData();
                 }
             }

@@ -403,6 +403,23 @@ export default defineComponent({
         padding: 0;
         display: grid;
         gap: var(--s-3);
+
+        @media (min-width: 1024px) {
+            max-height: clamp(300px, 50vh, 520px);
+            overflow-y: auto;
+            padding-right: var(--s-2);
+
+            &::-webkit-scrollbar {
+                width: 6px;
+            }
+            &::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            &::-webkit-scrollbar-thumb {
+                background: var(--rule-strong);
+                border-radius: var(--r-pill);
+            }
+        }
     }
 }
 

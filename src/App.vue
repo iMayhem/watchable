@@ -21,8 +21,12 @@ import { getSettings } from './composables/useSettings';
 const router = useRouter();
 const { region } = getSettings();
 
+console.log('[App.vue] Component initialized with region:', region.value);
+
 watch(region, (newRegion, oldRegion) => {
+    console.log('[App.vue] Region watch triggered:', { oldRegion, newRegion });
     if (newRegion !== oldRegion) {
+        console.log('[App.vue] Region changed, redirecting to /');
         router.push('/');
     }
 });

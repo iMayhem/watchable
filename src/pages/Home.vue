@@ -122,17 +122,29 @@ export default defineComponent({
         UpcomingRail
     },
     setup() {
+        console.log('[Home.vue] Component setup starting');
         const { fetchAllHighlights } = useHighlights();
         const { fetchNewShows } = useTvShows();
 
         const upcomingTv = ref<TVShowType[]>([]);
         const isHomeLoading = ref(true);
 
-        const hero = computed(() => highLightOptions.featured.data?.[0] ?? null);
+        console.log('[Home.vue] State refs created:', {
+            upcomingTvLength: upcomingTv.value.length,
+            isHomeLoading: isHomeLoading.value
+        });
+
+        const hero = computed(() => {
+            const heroVal = highLightOptions.featured.data?.[0] ?? null;
+            console.log('[Home.vue] Computed hero:', { hasHero: !!heroVal, heroId: heroVal?.id });
+            return heroVal;
+        });
 
         const spotlight = computed(() => {
             const pool = highLightOptions.featured.data ?? [];
-            return pool[1] ?? pool[0] ?? null;
+            const spotlightVal = pool[1] ?? pool[0] ?? null;
+            console.log('[Home.vue] Computed spotlight:', { hasSpotlight: !!spotlightVal, spotlightId: spotlightVal?.id, poolSize: pool.length });
+            return spotlightVal;
         });
 
         const heroTagline = computed(() => {

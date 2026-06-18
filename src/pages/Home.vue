@@ -216,14 +216,17 @@ export default defineComponent({
 
         const fetchUpcomingTv = async () => {
             try {
+                console.log('[Home.vue] fetchUpcomingTv: Starting fetch');
                 const res = await useAxios().get('tv/on_the_air', {
                     params: {
                         page: 1
                     }
                 });
                 const data = res.data as UpcomingTvResponse;
+                console.log('[Home.vue] fetchUpcomingTv: Response received with', data.results?.length || 0, 'items');
                 upcomingTv.value = data.results ?? [];
-            } catch {
+            } catch (err) {
+                console.error('[Home.vue] fetchUpcomingTv: Error', err);
                 upcomingTv.value = [];
             }
         };
@@ -254,20 +257,21 @@ export default defineComponent({
             }
         };
 
+        const handleSettingsChange = () => {
+            console.log('[Home.vue] movora_settings_change event received - reloading data');
+            loadData();
+        };
+
         onMounted(() => {
             document.title = 'Moovie — Stream Movies, TV Shows & Anime Free';
             primeGenres();
             loadData();
-            const handleSettingsChange = () => {
-                console.log('[Home.vue] movora_settings_change event received - reloading data');
-                loadData();
-            };
             window.addEventListener('movora_settings_change', handleSettingsChange);
-            
-            onBeforeUnmount(() => {
-                console.log('[Home.vue] Unmounting - removing event listener');
-                window.removeEventListener('movora_settings_change', handleSettingsChange);
-            });
+        });
+
+        onBeforeUnmount(() => {
+            console.log('[Home.vue] Unmounting - removing event listener');
+            window.removeEventListener('movora_settings_change', handleSettingsChange);
         });
 
         return {

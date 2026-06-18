@@ -153,15 +153,21 @@ export const useTvShows = () => {
         let error = ref("")
         let data = ref<TVShowType[]>([])
         try {
+            console.log('[fetchNewShows] Starting fetch')
             loading.value = true
             const req = useAxios().get('https://api.themoviedb.org/3/trending/tv/day')
             const res = (await req).data
+            console.log('[fetchNewShows] Response received:', res)
             if (res.results) {
                 newShows.value = res.results
-                data.value = res.results 
+                data.value = res.results
+                console.log('[fetchNewShows] Fetched', res.results.length, 'shows')
+            } else {
+                console.warn('[fetchNewShows] No results in response')
             }
         } catch (err: any) {
             error.value = err.message
+            console.error('[fetchNewShows] Error:', err)
         } finally {
             loading.value = false
         }

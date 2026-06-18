@@ -10,6 +10,8 @@ const useAxios = () => {
         api_key: API_KEY
     }
 
+    console.log('[useAxios] Creating new axios instance with region:', region.value, 'language:', language.value)
+
     if (language.value) {
         params.language = language.value
     }

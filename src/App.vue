@@ -14,11 +14,9 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onBeforeUnmount, defineAsyncComponent, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import { getSettings } from './composables/useSettings';
 
-const router = useRouter();
 const { region } = getSettings();
 
 // Removed: watch(region) redirect that was causing Home.vue component unmount/remount

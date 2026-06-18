@@ -84,7 +84,10 @@ export const useWebImage = (url: string, size: WebImageSize = 'medium') => {
     if (resolvedUrl.startsWith('http://') || resolvedUrl.startsWith('https://')) {
         if (resolvedUrl.includes('image.tmdb.org')) {
             const match = resolvedUrl.match(/\/t\/p\/(.+)/);
-            if (match) return buildProxiedImageUrl(match[1]);
+            if (match) {
+                const cleanPath = match[1].replace(/^(?:w\d+|original)\//, '');
+                return buildProxiedImageUrl(`${selectSize(size, quality)}/${cleanPath}`);
+            }
         }
         return resolvedUrl;
     }

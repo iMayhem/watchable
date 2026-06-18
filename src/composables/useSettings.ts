@@ -68,10 +68,9 @@ const selectedRegion = useStorage<string>('movora_user_region', 'global');
 const selectedLanguage = useStorage<string>('movora_user_language', 'en-US');
 const selectedTmdbImageQuality = ref<'low' | 'medium' | 'high'>('medium');
 let _globalSettingsLoaded = false;
+let _globalSettingsInterval: number | null = null;
 
-export async function loadGlobalSettings() {
-    if (_globalSettingsLoaded) return;
-    _globalSettingsLoaded = true;
+export async function refreshGlobalSettings() {
     try {
         const supabase = await getSupabaseClient();
         const { data } = await supabase
@@ -86,6 +85,17 @@ export async function loadGlobalSettings() {
         }
     } catch (err) {
         console.warn('[settings] Failed to load global settings:', err);
+    }
+}
+
+export async function loadGlobalSettings() {
+    if (_globalSettingsLoaded) return;
+    _globalSettingsLoaded = true;
+    await refreshGlobalSettings();
+
+    if (typeof window !== 'undefined' && !_globalSettingsInterval) {
+        window.addEventListener('focus', refreshGlobalSettings);
+        _globalSettingsInterval = window.setInterval(refreshGlobalSettings, 30000);
     }
 }
 

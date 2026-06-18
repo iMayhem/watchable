@@ -117,17 +117,18 @@
           return false;
         }, true);
         
+        // DEV: DevTools detection disabled for debugging
         // Detect DevTools via debugger trap
-        setInterval(function() {
-          var before = new Date().getTime();
-          // eslint-disable-next-line no-debugger
-          debugger;
-          var after = new Date().getTime();
-          if (after - before > 100) {
-            // DevTools detected - redirect or show warning
-            document.body.innerHTML = '<div style="position:fixed;inset:0;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:20px;"><div><h1>⚠️ Developer Tools Detected</h1><p>Please close developer tools and refresh the page.</p></div></div>';
-          }
-        }, 1000);
+        // setInterval(function() {
+        //   var before = new Date().getTime();
+        //   // eslint-disable-next-line no-debugger
+        //   debugger;
+        //   var after = new Date().getTime();
+        //   if (after - before > 100) {
+        //     // DevTools detected - redirect or show warning
+        //     document.body.innerHTML = '<div style="position:fixed;inset:0;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:20px;"><div><h1>⚠️ Developer Tools Detected</h1><p>Please close developer tools and refresh the page.</p></div></div>';
+        //   }
+        // }, 1000);
         
         // Clear console periodically
         setInterval(function() {

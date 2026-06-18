@@ -229,6 +229,7 @@ export default defineComponent({
         };
 
         const loadData = async () => {
+            console.log('[Home.vue] loadData called - clearing data and fetching');
             isHomeLoading.value = true;
             highLightOptions.featured.data = [];
             highLightOptions.popular.data = [];
@@ -242,6 +243,12 @@ export default defineComponent({
                     fetchNewShows(),
                     fetchUpcomingTv()
                 ]);
+                console.log('[Home.vue] Data loaded successfully');
+                console.log('[Home.vue] Featured data:', highLightOptions.featured.data.length, 'items');
+                console.log('[Home.vue] Popular data:', highLightOptions.popular.data.length, 'items');
+                console.log('[Home.vue] New data:', highLightOptions.new.data.length, 'items');
+            } catch (err) {
+                console.error('[Home.vue] Error loading data:', err);
             } finally {
                 isHomeLoading.value = false;
             }
@@ -251,11 +258,16 @@ export default defineComponent({
             document.title = 'Moovie — Stream Movies, TV Shows & Anime Free';
             primeGenres();
             loadData();
-            window.addEventListener('movora_settings_change', loadData);
-        });
-
-        onBeforeUnmount(() => {
-            window.removeEventListener('movora_settings_change', loadData);
+            const handleSettingsChange = () => {
+                console.log('[Home.vue] movora_settings_change event received - reloading data');
+                loadData();
+            };
+            window.addEventListener('movora_settings_change', handleSettingsChange);
+            
+            onBeforeUnmount(() => {
+                console.log('[Home.vue] Unmounting - removing event listener');
+                window.removeEventListener('movora_settings_change', handleSettingsChange);
+            });
         });
 
         return {

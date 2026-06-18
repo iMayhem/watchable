@@ -73,6 +73,40 @@
                     Sign In
                 </button>
 
+                <!-- Regional Settings Dropdown Trigger -->
+                <div ref="regionContainer" class="site-header__region-container">
+                    <button
+                        class="site-header__region-toggle"
+                        :class="{ 'is-active': isRegionDropdownOpen }"
+                        type="button"
+                        @click="toggleRegionDropdown"
+                    >
+                        <span class="site-header__region-flag">{{ getFlagEmoji(currentRegion) }}</span>
+                        Change Region
+                    </button>
+                    
+                    <div v-if="isRegionDropdownOpen" class="region-dropdown">
+                        <div class="region-dropdown__header eyebrow">
+                            Select Region
+                        </div>
+                        <div class="region-dropdown__list">
+                            <button
+                                v-for="r in regions"
+                                :key="r.code"
+                                class="region-dropdown__item"
+                                :class="{ 'is-active': currentRegion === r.code }"
+                                @click="selectRegion(r.code)"
+                            >
+                                <span class="region-dropdown__flag">{{ getFlagEmoji(r.code) }}</span>
+                                <span class="region-dropdown__name">{{ r.name }}</span>
+                                <svg v-if="currentRegion === r.code" class="region-dropdown__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <button
                     class="site-header__icon-btn site-header__menu"
                     type="button"
@@ -155,7 +189,7 @@ import SettingsModal from './SettingsModal.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
-import { getSettings } from '../../composables/useSettings';
+import { getSettings, REGIONS } from '../../composables/useSettings';
 
 interface NavItem {
     label: string;
@@ -228,16 +262,82 @@ export default defineComponent({
             openPalette();
         };
 
+        // Region dropdown settings
+        const { region: currentRegion, updateSettings } = getSettings();
+        const regionContainer = ref<HTMLElement | null>(null);
+        const isRegionDropdownOpen = ref(false);
+
+        const toggleRegionDropdown = (e: Event) => {
+            e.stopPropagation();
+            isRegionDropdownOpen.value = !isRegionDropdownOpen.value;
+        };
+
+        const closeRegionDropdown = () => {
+            isRegionDropdownOpen.value = false;
+        };
+
+        const selectRegion = (code: string) => {
+            console.log('[SiteHeader] selectRegion called with code:', code);
+            updateSettings(code, 'en-US');
+            closeRegionDropdown();
+            console.log('[SiteHeader] updateSettings completed');
+        };
+
+        const getFlagEmoji = (code: string) => {
+            switch (code) {
+                case 'global': return '🌐';
+                case 'US': return '🇺🇸';
+                case 'GB': return '🇬🇧';
+                case 'IN': return '🇮🇳';
+                case 'ES': return '🇪🇸';
+                case 'MX': return '🇲🇽';
+                case 'IT': return '🇮🇹';
+                case 'FR': return '🇫🇷';
+                case 'DE': return '🇩🇪';
+                case 'BR': return '🇧🇷';
+                case 'JP': return '🇯🇵';
+                case 'KR': return '🇰🇷';
+                case 'CN': return '🇨🇳';
+                case 'TH': return '🇹🇭';
+                case 'TW': return '🇹🇼';
+                case 'PH': return '🇵🇭';
+                case 'ID': return '🇮🇩';
+                case 'TR': return '🇹🇷';
+                case 'RU': return '🇷🇺';
+                case 'EG': return '🇪🇬';
+                case 'CA': return '🇨🇦';
+                case 'AU': return '🇦🇺';
+                case 'AR': return '🇦🇷';
+                case 'MY': return '🇲🇾';
+                case 'SA': return '🇸🇦';
+                case 'ZA': return '🇿🇦';
+                case 'NL': return '🇳🇱';
+                case 'PL': return '🇵🇱';
+                case 'SE': return '🇸🇪';
+                case 'CO': return '🇨🇴';
+                case 'CL': return '🇨🇱';
+                default: return '🌐';
+            }
+        };
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (regionContainer.value && !regionContainer.value.contains(event.target as Node)) {
+                closeRegionDropdown();
+            }
+        };
+
         onMounted(() => {
             onScroll();
             window.addEventListener('scroll', onScroll, { passive: true });
             updateCurrentUser();
             window.addEventListener('movora_auth_change', updateCurrentUser);
+            document.addEventListener('click', handleClickOutside);
         });
 
         onBeforeUnmount(() => {
             window.removeEventListener('scroll', onScroll);
             window.removeEventListener('movora_auth_change', updateCurrentUser);
+            document.removeEventListener('click', handleClickOutside);
         });
 
         return {
@@ -252,7 +352,16 @@ export default defineComponent({
             isSettingsModalOpen,
 
             currentUser,
-            handleLogout
+            handleLogout,
+
+            // Region selectors
+            regions: REGIONS,
+            currentRegion,
+            isRegionDropdownOpen,
+            regionContainer,
+            toggleRegionDropdown,
+            selectRegion,
+            getFlagEmoji
         };
     }
 });

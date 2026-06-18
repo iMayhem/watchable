@@ -287,6 +287,134 @@
         .server-grid-item span:first-child {
             color: var(--ember);
         }
+
+        /* 4K Curation Panel Styles */
+        .curation-section {
+            margin-top: 2.5rem;
+            border-top: 1px solid var(--rule);
+            padding-top: 2rem;
+            text-align: left;
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            color: var(--bone-50);
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #curation-count {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--bone-400);
+        }
+
+        .search-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .search-results {
+            list-style: none;
+            background: rgba(245, 239, 228, 0.02);
+            border: 1px solid var(--rule);
+            border-radius: var(--r-md);
+            margin-bottom: 1.5rem;
+            padding: 0.25rem 0;
+        }
+
+        .search-item, .curation-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--rule);
+            gap: 1rem;
+        }
+
+        .search-item:last-child, .curation-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-details {
+            flex: 1;
+            min-width: 0;
+            text-align: left;
+        }
+
+        .item-title {
+            font-weight: 500;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--bone-100);
+        }
+
+        .item-meta {
+            font-size: 0.75rem;
+            color: var(--bone-400);
+            margin-top: 0.15rem;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            width: auto;
+            box-shadow: none;
+        }
+
+        .curation-list {
+            list-style: none;
+            background: rgba(245, 239, 228, 0.02);
+            border: 1px solid var(--rule);
+            border-radius: var(--r-md);
+            margin-bottom: 1.5rem;
+        }
+
+        .curation-item {
+            background: rgba(245, 239, 228, 0.01);
+        }
+
+        .curation-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .action-icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--bone-300);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            width: 28px;
+            height: 28px;
+            transition: var(--transition);
+        }
+
+        .action-icon-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--bone-50);
+        }
+
+        .action-icon-btn:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+
+        .action-icon-btn.danger:hover {
+            color: #ff8a80;
+            background: rgba(197, 78, 61, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -347,6 +475,30 @@
                     <span>Save Changes</span>
                 </button>
             </form>
+
+            <!-- 4K Curation Section -->
+            <div class="curation-section">
+                <h2 class="section-title">4K Selection Curation <span id="curation-count">(0/10)</span></h2>
+                
+                <!-- Search panel to query TMDB -->
+                <form onsubmit="handleSearch4K(event)" class="search-container">
+                    <input type="text" id="search-4k-input" class="form-input" placeholder="Search movies to add..." autocomplete="off">
+                    <button type="submit" class="btn btn-sm" style="width: auto;">Search</button>
+                </form>
+
+                <!-- Search Results Box -->
+                <ul id="search-4k-results" class="search-results" style="display: none; max-height: 160px; list-style: none; margin-bottom: 1rem;">
+                </ul>
+
+                <!-- Selected Curation List -->
+                <ul id="curation-4k-list" class="curation-list">
+                    <li style="padding: 1.5rem; text-align: center; color: var(--bone-400); font-size: 0.9rem;">No 4K movies selected yet</li>
+                </ul>
+
+                <button type="button" class="btn" id="save-4k-btn" onclick="handleSave4K(event)">
+                    <span>Save 4K Curation</span>
+                </button>
+            </div>
 
             <div class="server-grid">
                 <div class="server-grid-item"><strong>ID</strong><strong>Sweet Name</strong></div>
@@ -451,6 +603,220 @@
                 }
             } catch (err) {
                 console.warn('Could not retrieve current default provider:', err);
+            }
+            
+            // Load 4K curation
+            await load4KCuration();
+        }
+
+        // ==========================================
+        // 4K CURATION LOGIC
+        // ==========================================
+        let selectedMovies = [];
+
+        async function load4KCuration() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', '4k_movies_today')
+                    .single();
+                
+                if (data && data.value) {
+                    selectedMovies = JSON.parse(data.value);
+                } else {
+                    selectedMovies = [];
+                }
+                renderCurationList();
+            } catch (err) {
+                console.warn('Could not load current 4K curation:', err);
+                selectedMovies = [];
+                renderCurationList();
+            }
+        }
+
+        async function handleSearch4K(event) {
+            if (event) event.preventDefault();
+            const query = document.getElementById('search-4k-input').value.trim();
+            if (!query) return;
+
+            const resultsContainer = document.getElementById('search-4k-results');
+            resultsContainer.style.display = 'block';
+            resultsContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--bone-400); font-size: 0.9rem;">Searching...</div>';
+
+            try {
+                // Fetch from TMDB proxy endpoint relative path
+                const res = await fetch(`/api/tmdb/3/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=1`);
+                const data = await res.json();
+                const results = data.results || [];
+                
+                if (results.length === 0) {
+                    resultsContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--bone-400); font-size: 0.9rem;">No movies found</div>';
+                    return;
+                }
+
+                resultsContainer.innerHTML = '';
+                results.forEach(movie => {
+                    const item = document.createElement('li');
+                    item.className = 'search-item';
+                    
+                    const details = document.createElement('div');
+                    details.className = 'item-details';
+                    
+                    const title = document.createElement('div');
+                    title.className = 'item-title';
+                    title.textContent = movie.title || movie.original_title;
+                    
+                    const meta = document.createElement('div');
+                    meta.className = 'item-meta';
+                    meta.textContent = movie.release_date ? movie.release_date.split('-')[0] : 'N/A';
+                    
+                    details.appendChild(title);
+                    details.appendChild(meta);
+                    
+                    const addBtn = document.createElement('button');
+                    addBtn.type = 'button';
+                    addBtn.className = 'btn btn-sm';
+                    addBtn.textContent = isAlreadyAdded(movie.id) ? 'Added' : 'Add';
+                    addBtn.disabled = isAlreadyAdded(movie.id) || selectedMovies.length >= 10;
+                    
+                    addBtn.onclick = () => {
+                        addMovieToCuration(movie);
+                        addBtn.textContent = 'Added';
+                        addBtn.disabled = true;
+                    };
+                    
+                    item.appendChild(details);
+                    item.appendChild(addBtn);
+                    resultsContainer.appendChild(item);
+                });
+            } catch (err) {
+                console.error(err);
+                resultsContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--danger); font-size: 0.9rem;">Error searching movies</div>';
+            }
+        }
+
+        function isAlreadyAdded(id) {
+            return selectedMovies.some(m => m.id === id);
+        }
+
+        function addMovieToCuration(movie) {
+            if (selectedMovies.length >= 10) return;
+            selectedMovies.push({
+                id: movie.id,
+                title: movie.title || movie.original_title,
+                originalTitle: movie.original_title,
+                posterPath: movie.poster_path,
+                rating: movie.vote_average,
+                releaseDate: movie.release_date,
+                genreIds: movie.genre_ids,
+                adult: movie.adult,
+                type: 'movie'
+            });
+            renderCurationList();
+        }
+
+        function removeMovieFromCuration(id) {
+            selectedMovies = selectedMovies.filter(m => m.id !== id);
+            renderCurationList();
+            
+            // If search results are showing, refresh search state
+            const query = document.getElementById('search-4k-input').value.trim();
+            if (query) {
+                handleSearch4K();
+            }
+        }
+
+        function moveCurationItem(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= selectedMovies.length) return;
+            const temp = selectedMovies[index];
+            selectedMovies[index] = selectedMovies[newIndex];
+            selectedMovies[newIndex] = temp;
+            renderCurationList();
+        }
+
+        function renderCurationList() {
+            const list = document.getElementById('curation-4k-list');
+            list.innerHTML = '';
+            
+            document.getElementById('curation-count').textContent = `(${selectedMovies.length}/10)`;
+
+            if (selectedMovies.length === 0) {
+                list.innerHTML = '<li style="padding: 1.5rem; text-align: center; color: var(--bone-400); font-size: 0.9rem;">No 4K movies selected yet</li>';
+                return;
+            }
+
+            selectedMovies.forEach((movie, index) => {
+                const item = document.createElement('li');
+                item.className = 'curation-item';
+                
+                const details = document.createElement('div');
+                details.className = 'item-details';
+                
+                const title = document.createElement('div');
+                title.className = 'item-title';
+                title.textContent = `${index + 1}. ${movie.title}`;
+                
+                const meta = document.createElement('div');
+                meta.className = 'item-meta';
+                meta.textContent = movie.releaseDate ? movie.releaseDate.split('-')[0] : 'N/A';
+                
+                details.appendChild(title);
+                details.appendChild(meta);
+                
+                const actions = document.createElement('div');
+                actions.className = 'curation-actions';
+                
+                const upBtn = document.createElement('button');
+                upBtn.type = 'button';
+                upBtn.className = 'action-icon-btn';
+                upBtn.textContent = '↑';
+                upBtn.disabled = index === 0;
+                upBtn.onclick = () => moveCurationItem(index, -1);
+                
+                const downBtn = document.createElement('button');
+                downBtn.type = 'button';
+                downBtn.className = 'action-icon-btn';
+                downBtn.textContent = '↓';
+                downBtn.disabled = index === selectedMovies.length - 1;
+                downBtn.onclick = () => moveCurationItem(index, 1);
+                
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'action-icon-btn danger';
+                delBtn.textContent = '✕';
+                delBtn.onclick = () => removeMovieFromCuration(movie.id);
+                
+                actions.appendChild(upBtn);
+                actions.appendChild(downBtn);
+                actions.appendChild(delBtn);
+                
+                item.appendChild(details);
+                item.appendChild(actions);
+                list.appendChild(item);
+            });
+        }
+
+        async function handleSave4K(event) {
+            event.preventDefault();
+            const btn = document.getElementById('save-4k-btn');
+            btn.disabled = true;
+            btn.textContent = 'Saving curation...';
+
+            try {
+                const { error } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: '4k_movies_today', value: JSON.stringify(selectedMovies), updated_at: new Date() }, { onConflict: 'key' });
+                
+                if (error) throw error;
+                showToast('4K curation saved successfully!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to save 4K curation in Supabase', false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save Curation';
             }
         }
 

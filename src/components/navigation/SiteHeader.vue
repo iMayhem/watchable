@@ -155,7 +155,7 @@ import SettingsModal from './SettingsModal.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
-import { getSettings, REGIONS } from '../../composables/useSettings';
+import { getSettings } from '../../composables/useSettings';
 
 interface NavItem {
     label: string;

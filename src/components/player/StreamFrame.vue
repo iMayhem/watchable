@@ -138,8 +138,7 @@ export default defineComponent({
             const url = props.embedUrl.toLowerCase();
             if (
                 url.includes('cinemaos.tech') ||
-                url.includes('smashystream.com') ||
-                url.includes('animeplay.cfd')
+                url.includes('smashystream.com')
             ) {
                 return 'allow-scripts allow-same-origin allow-forms allow-presentation';
             }

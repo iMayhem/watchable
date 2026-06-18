@@ -62,10 +62,7 @@
             <div class="spinner" />
             <span class="meta">Retrieving comments...</span>
         </div>
-        <div v-else-if="comments.length === 0" class="comments-panel__empty">
-            <p>No comments yet. Start the conversation!</p>
-        </div>
-        <div v-else class="comments-list">
+        <div v-else-if="comments.length > 0" class="comments-list">
             <transition-group name="comment-fade">
                 <article v-for="c in comments" :key="c.id" class="comment-card">
                     <div class="comment-card__header">

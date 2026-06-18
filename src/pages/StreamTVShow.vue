@@ -860,7 +860,7 @@ export default defineComponent({
             scroll-snap-align: start;
             scroll-snap-stop: always;
             height: 100dvh;
-            padding: 72px var(--s-5) var(--s-4) var(--s-5);
+            padding: 72px var(--s-5) var(--s-2) var(--s-5);
             grid-template-columns: 1fr;
             align-items: stretch;
         }
@@ -885,7 +885,7 @@ export default defineComponent({
         @media (min-width: 1024px) {
             :deep(.stream-frame__player) {
                 aspect-ratio: auto;
-                height: clamp(320px, 40vw, 580px);
+                height: clamp(300px, 38vw, 520px);
             }
         }
     }

@@ -30,6 +30,24 @@ export async function onRequest(context) {
         return new Response('Method Not Allowed', { status: 405 });
     }
 
+    // Attempt cache match using Cloudflare Cache API
+    const cacheUrl = new URL(request.url);
+    const cacheKey = new Request(cacheUrl.toString(), request);
+    const cache = caches.default;
+    
+    try {
+        const cachedResponse = await cache.match(cacheKey);
+        if (cachedResponse) {
+            // Clone the response to add custom headers for debug visibility
+            const response = new Response(cachedResponse.body, cachedResponse);
+            response.headers.set('X-Proxy-Cache', 'HIT');
+            return response;
+        }
+    } catch (cacheErr) {
+        // Log cache match errors but do not fail the request
+        console.error('Cache match error:', cacheErr);
+    }
+
     // catchall holds the path segments after /api/tmdb/
     // e.g. /api/tmdb/3/trending/movie/day → catchall = ["3","trending","movie","day"]
     const segments = Array.isArray(params.catchall)
@@ -55,14 +73,45 @@ export async function onRequest(context) {
 
         const body = await resp.arrayBuffer();
 
-        return new Response(body, {
+        // Configure cache lifetime based on endpoint type
+        // e.g. details, configurations, genres are highly static; trends/lists can change slightly
+        let maxAge = 3600; // 1 hour client max-age
+        let sMaxAge = 14400; // 4 hours Cloudflare edge cache max-age
+
+        const pathLower = tmdbPath.toLowerCase();
+        if (pathLower.includes('/search/') || pathLower.includes('search')) {
+            // Searches can be shorter-lived
+            maxAge = 600;
+            sMaxAge = 1800;
+        } else if (pathLower.includes('genre') || pathLower.includes('configuration')) {
+            // Genres/configurations almost never change
+            maxAge = 86400;
+            sMaxAge = 604800;
+        }
+
+        const responseHeaders = {
+            'Content-Type': resp.headers.get('Content-Type') || 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': `public, max-age=${maxAge}, s-maxage=${sMaxAge}`,
+            'X-Proxy-Cache': 'MISS',
+        };
+
+        const response = new Response(body, {
             status: resp.status,
-            headers: {
-                'Content-Type': resp.headers.get('Content-Type') || 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Cache-Control': 'public, max-age=300, s-maxage=300',
-            },
+            headers: responseHeaders,
         });
+
+        // Store successful GET responses in cache
+        if (resp.status === 200) {
+            try {
+                // cache.put requires response to be cloned
+                context.waitUntil(cache.put(cacheKey, response.clone()));
+            } catch (cachePutErr) {
+                console.error('Cache put error:', cachePutErr);
+            }
+        }
+
+        return response;
     } catch (err) {
         return new Response(
             JSON.stringify({ error: 'TMDB proxy error', message: String(err) }),

@@ -90,7 +90,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
+import { computed, defineComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
@@ -104,6 +104,7 @@ import { useHighlights, highLightOptions } from '../composables/useHighlights';
 import { useTvShows, newShows } from '../composables/useTvShows';
 import type { TVShowType } from '../composables/useTvShows';
 import { primeGenres } from '../composables/useGenreLookup';
+import { getSettings } from '../composables/useSettings';
 
 interface UpcomingTvResponse {
     results: TVShowType[];
@@ -124,6 +125,7 @@ export default defineComponent({
     setup() {
         const { fetchAllHighlights } = useHighlights();
         const { fetchNewShows } = useTvShows();
+        const { region } = getSettings();
 
         const upcomingTv = ref<TVShowType[]>([]);
         const isHomeLoading = ref(true);
@@ -277,6 +279,18 @@ export default defineComponent({
         onBeforeUnmount(() => {
             window.removeEventListener('movora_settings_change', handleSettingsChange);
         });
+
+        // Watch region changes to reload data - this catches the case where the event listener
+        // is removed during unmount before it fires
+        watch(
+            () => region.value,
+            (newRegion, oldRegion) => {
+                if (newRegion !== oldRegion && oldRegion !== undefined) {
+                    console.log('[📍 HOME PAGE] Region changed via watch:', { oldRegion, newRegion });
+                    loadData();
+                }
+            }
+        );
 
         return {
             hero,

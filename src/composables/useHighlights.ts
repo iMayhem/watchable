@@ -26,23 +26,23 @@ export const currentHighlightTitle = ref<"featured" | "popular" | "new">("featur
 export const highLightOptions = reactive<
     Record<"featured" | "popular" | "new", {
         title: string,
-        url: string,
+        path: string,   // relative path passed to useAxios — interceptor rewrites for regions
         data: Movie[]
     }>
 >({
     featured: {
         title: "Featured",
-        url: "https://api.themoviedb.org/3/trending/movie/day",
+        path: "trending/movie/day",
         data: []
     },
     popular: {
         title: "Popular",
-        url: "https://api.themoviedb.org/3/movie/popular",
+        path: "movie/popular",
         data: []
     },
     new: {
         title: "New",
-        url: "https://api.themoviedb.org/3/movie/now_playing",
+        path: "movie/now_playing",
         data: []
     }
 })
@@ -62,12 +62,14 @@ export const useHighlights = () => {
             loading.value = true
             error.value = ""
 
-            const req = useAxios().get(highLightOptions[targetHighlight].url)
+            const req = useAxios().get(highLightOptions[targetHighlight].path)
             const res = (await req).data
 
-            if (res.results && res.results.length > 0) {
-                highLightOptions[targetHighlight].data = res.results
-            } else {
+            // Always assign — even empty array — so components can exit skeleton state.
+            // Previously the `if (length > 0)` guard left data as [] forever when a
+            // region filter returned no results, pinning all CuratedRails in skeleton.
+            highLightOptions[targetHighlight].data = res.results ?? []
+            if (!res.results || res.results.length === 0) {
                 error.value = "No data found"
             }
         } catch (err: any) {
@@ -105,13 +107,15 @@ export const useHighlights = () => {
             const promises = Object.keys(highLightOptions).map(async (key) => {
                 const highlightKey = key as "featured" | "popular" | "new"
                 try {
-                    const req = useAxios().get(highLightOptions[highlightKey].url)
+                    // Use relative path so the axios interceptor can reliably
+                    // pattern-match and rewrite for non-global regions.
+                    const req = useAxios().get(highLightOptions[highlightKey].path)
                     const res = (await req).data
-                    if (res.results && res.results.length > 0) {
-                        highLightOptions[highlightKey].data = res.results
-                    }
+                    // Always assign — even empty — so rails exit skeleton state.
+                    highLightOptions[highlightKey].data = res.results ?? []
                 } catch (err) {
                     console.error(`Error fetching ${highlightKey}:`, err)
+                    highLightOptions[highlightKey].data = []
                 }
             })
 

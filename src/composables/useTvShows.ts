@@ -155,17 +155,17 @@ export const useTvShows = () => {
         try {
             console.log('[📺 TV Shows] Fetching new shows...')
             loading.value = true
-            const req = useAxios().get('https://api.themoviedb.org/3/trending/tv/day')
+            // Use relative path so the axios interceptor can rewrite for non-global regions.
+            const req = useAxios().get('trending/tv/day')
             const res = (await req).data
-            if (res.results) {
-                newShows.value = res.results
-                data.value = res.results
-                console.log('[📺 TV Shows] Fetched', res.results.length, 'shows ✅')
-            } else {
-                console.warn('[📺 TV Shows] No results in response')
-            }
+            // Always assign (even empty) so rails can exit skeleton state.
+            newShows.value = res.results ?? []
+            data.value = res.results ?? []
+            console.log('[📺 TV Shows] Fetched', newShows.value.length, 'shows ✅')
         } catch (err: any) {
             error.value = err.message
+            newShows.value = []
+            data.value = []
             console.error('[📺 TV Shows] Error:', err)
         } finally {
             loading.value = false

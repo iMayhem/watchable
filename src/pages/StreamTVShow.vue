@@ -171,46 +171,7 @@
                 </div>
             </section>
 
-            <section v-if="currentEpisodeDetails && show" class="watch-stage__feature">
-                <div class="watch-stage__poster">
-                    <img
-                        v-if="currentEpisodeDetails.still_path || show.poster_path"
-                        :src="episodeStill"
-                        :alt="currentEpisodeDetails.name"
-                        loading="lazy"
-                    />
-                    <span v-if="currentEpisodeDetails.vote_average" class="watch-stage__rating">
-                        <span class="watch-stage__rating-num">
-                            {{ currentEpisodeDetails.vote_average.toFixed(1) }}
-                        </span>
-                        <span class="meta">/ 10</span>
-                    </span>
-                </div>
 
-                <div class="watch-stage__feature-body">
-                    <p class="eyebrow">This episode</p>
-                    <h2 class="watch-stage__feature-title">{{ currentEpisodeDetails.name }}</h2>
-
-                    <ul class="watch-stage__meta">
-                        <li v-if="airYear">
-                            <span class="meta">Aired</span>
-                            <span>{{ airYear }}</span>
-                        </li>
-                        <li v-if="runtimeLabel">
-                            <span class="meta">Runtime</span>
-                            <span>{{ runtimeLabel }}</span>
-                        </li>
-                        <li>
-                            <span class="meta">Season</span>
-                            <span>{{ currentSeason }}</span>
-                        </li>
-                    </ul>
-
-                    <p v-if="currentEpisodeDetails.overview" class="watch-stage__overview">
-                        {{ currentEpisodeDetails.overview }}
-                    </p>
-                </div>
-            </section>
 
             <section v-if="show" class="watch-stage__rack">
                 <CommentsSection :media-id="show.id" media-type="tv" />
@@ -257,7 +218,7 @@ import {
     buildStreamUrl
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
-import { useWebImage } from '../utils/useWebImage';
+
 import { useAppPaths } from '../composables/useAppPaths';
 
 import StreamFrame from '../components/player/StreamFrame.vue';
@@ -361,30 +322,7 @@ export default defineComponent({
             );
         });
 
-        const episodeStill = computed(() => {
-            if (currentEpisodeDetails.value?.still_path) {
-                return useWebImage(currentEpisodeDetails.value.still_path, 'large');
-            }
-            if (show.value?.poster_path) {
-                return useWebImage(show.value.poster_path, 'medium');
-            }
-            return '';
-        });
 
-        const airYear = computed(() => {
-            if (!currentEpisodeDetails.value?.air_date) return '';
-            const d = new Date(currentEpisodeDetails.value.air_date);
-            return Number.isNaN(d.getTime()) ? '' : d.getFullYear().toString();
-        });
-
-        const runtimeLabel = computed(() => {
-            const r = currentEpisodeDetails.value?.runtime;
-            if (!r) return '';
-            const hours = Math.floor(r / 60);
-            const minutes = r % 60;
-            if (!hours) return `${minutes}m`;
-            return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
-        });
 
         const updateDocumentTitle = () => {
             if (show.value?.name) {
@@ -668,9 +606,6 @@ export default defineComponent({
             isLoadingEpisodes,
             seasonsDropdownList,
             currentEmbedUrl,
-            episodeStill,
-            airYear,
-            runtimeLabel,
             nextSeasonNumber,
             nextSeasonEpisodes,
             showShortcuts,

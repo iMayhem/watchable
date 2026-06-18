@@ -59,43 +59,7 @@
                 </div>
             </div>
 
-            <section v-if="movie" class="watch-stage__feature">
-                <div class="watch-stage__poster">
-                    <img
-                        v-if="movie.poster_path"
-                        :src="posterUrl"
-                        :alt="movie.title"
-                        loading="lazy"
-                    />
-                    <span v-if="movie.vote_average" class="watch-stage__rating">
-                        <span class="watch-stage__rating-num">{{ movie.vote_average.toFixed(1) }}</span>
-                        <span class="meta">/ 10</span>
-                    </span>
-                </div>
 
-                <div class="watch-stage__feature-body">
-                    <p class="eyebrow">The feature</p>
-                    <h2 class="watch-stage__feature-title">{{ movie.title }}</h2>
-                    <p v-if="movie.tagline" class="watch-stage__tagline">{{ movie.tagline }}</p>
-
-                    <ul class="watch-stage__meta">
-                        <li v-if="releaseYear">
-                            <span class="meta">Year</span>
-                            <span>{{ releaseYear }}</span>
-                        </li>
-                        <li v-if="runtimeLabel">
-                            <span class="meta">Runtime</span>
-                            <span>{{ runtimeLabel }}</span>
-                        </li>
-                        <li v-if="movie.genres?.length">
-                            <span class="meta">Genres</span>
-                            <span>{{ movie.genres.slice(0, 3).map(g => g.name).join(' · ') }}</span>
-                        </li>
-                    </ul>
-
-                    <p v-if="movie.overview" class="watch-stage__overview">{{ movie.overview }}</p>
-                </div>
-            </section>
 
             <section v-if="movie" class="watch-stage__rack">
                 <CommentsSection :media-id="movie.id" media-type="movie" />
@@ -120,7 +84,7 @@ import {
     buildStreamUrl
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
-import { useWebImage } from '../utils/useWebImage';
+
 import { useAppPaths } from '../composables/useAppPaths';
 
 import StreamFrame from '../components/player/StreamFrame.vue';
@@ -167,24 +131,7 @@ export default defineComponent({
             return base;
         });
 
-        const posterUrl = computed(() =>
-            movie.value?.poster_path ? useWebImage(movie.value.poster_path, 'medium') : ''
-        );
 
-        const releaseYear = computed(() => {
-            if (!movie.value?.release_date) return '';
-            const d = new Date(movie.value.release_date);
-            return Number.isNaN(d.getTime()) ? '' : d.getFullYear().toString();
-        });
-
-        const runtimeLabel = computed(() => {
-            const r = movie.value?.runtime;
-            if (!r) return '';
-            const hours = Math.floor(r / 60);
-            const minutes = r % 60;
-            if (!hours) return `${minutes}m`;
-            return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
-        });
 
         const loadMovie = async () => {
             if (!movieId.value) {
@@ -248,9 +195,6 @@ export default defineComponent({
             currentStreamData,
             availableServers,
             currentEmbedUrl,
-            posterUrl,
-            releaseYear,
-            runtimeLabel,
             changeServer,
             goBack,
             handleWatchTogether

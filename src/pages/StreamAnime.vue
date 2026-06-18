@@ -255,37 +255,7 @@
                 </div>
             </section>
 
-            <section v-if="anime" class="watch-stage__feature">
-                <div class="watch-stage__poster">
-                    <img
-                        :src="anime.coverImage.large"
-                        :alt="animeTitle"
-                        loading="lazy"
-                    />
-                </div>
 
-                <div class="watch-stage__feature-body">
-                    <p class="eyebrow">Project details</p>
-                    <h2 class="watch-stage__feature-title">{{ animeTitle }}</h2>
-
-                    <ul class="watch-stage__meta">
-                        <li v-if="anime.seasonYear">
-                            <span class="meta">Year</span>
-                            <span>{{ anime.seasonYear }}</span>
-                        </li>
-                        <li v-if="anime.format">
-                            <span class="meta">Format</span>
-                            <span>{{ anime.format }}</span>
-                        </li>
-                        <li v-if="anime.status">
-                            <span class="meta">Status</span>
-                            <span>{{ anime.status }}</span>
-                        </li>
-                    </ul>
-
-                    <p v-if="anime.description" class="watch-stage__overview" v-html="anime.description"></p>
-                </div>
-            </section>
 
             <section v-if="anime" class="watch-stage__rack">
                 <CommentsSection :media-id="animeId" media-type="anime" />

@@ -41,87 +41,6 @@
       /* Critical above-the-fold styles */
       *,*::before,*::after{box-sizing:border-box}*{margin:0}html{-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}body{min-height:100vh;min-height:100dvh;background:#0b0a08;color:#f5efe4;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}#app{isolation:isolate}.app-stage{position:relative;min-height:100vh;min-height:100dvh;isolation:isolate}
 
-      /* Initial App Skeleton Loader */
-      .app-skeleton {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-        background: #0b0a08;
-        padding: 0 2rem;
-        box-sizing: border-box;
-      }
-      .app-skeleton-header {
-        height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        margin-bottom: 2rem;
-      }
-      .app-skeleton-shimmer {
-        position: relative;
-        overflow: hidden;
-      }
-      .app-skeleton-shimmer::after {
-        content: '';
-        position: absolute;
-        top: 0; right: 0; bottom: 0; left: 0;
-        transform: translateX(-100%);
-        background: linear-gradient(
-          90deg,
-          rgba(255, 255, 255, 0) 0%,
-          rgba(255, 255, 255, 0.03) 20%,
-          rgba(255, 255, 255, 0.07) 60%,
-          rgba(255, 255, 255, 0) 100%
-        );
-        animation: app-shimmer-anim 1.6s infinite;
-      }
-      @keyframes app-shimmer-anim {
-        100% { transform: translateX(100%); }
-      }
-      .app-skeleton-text {
-        background: rgba(255, 255, 255, 0.06);
-        border-radius: 4px;
-      }
-      .app-skeleton-logo {
-        width: 120px;
-        height: 24px;
-        background: rgba(255, 255, 255, 0.08);
-        border-radius: 4px;
-      }
-      .app-skeleton-nav {
-        display: flex;
-        gap: 1.5rem;
-      }
-      .app-skeleton-nav-item {
-        width: 70px;
-        height: 16px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 4px;
-      }
-      .app-skeleton-hero {
-        height: 380px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        border-radius: 12px;
-        margin-bottom: 3rem;
-        padding: 2.5rem;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        gap: 1rem;
-      }
-      .app-skeleton-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 1.5rem;
-      }
-      .app-skeleton-card {
-        aspect-ratio: 2/3;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        border-radius: 8px;
-      }
     </style>
     
     <!-- Early Anti-Inspect Protection (runs before any other scripts) -->
@@ -248,32 +167,7 @@
     <script defer src="https://cloud.umami.is/script.js" data-website-id="584702db-6988-4367-9bb3-935742c17dd4"></script>
   </head>
   <body>
-    <div id="app">
-      <div class="app-skeleton">
-        <header class="app-skeleton-header">
-          <div class="app-skeleton-logo app-skeleton-shimmer"></div>
-          <div class="app-skeleton-nav">
-            <div class="app-skeleton-nav-item app-skeleton-shimmer"></div>
-            <div class="app-skeleton-nav-item app-skeleton-shimmer"></div>
-            <div class="app-skeleton-nav-item app-skeleton-shimmer"></div>
-          </div>
-        </header>
-        <div class="app-skeleton-hero app-skeleton-shimmer">
-          <div class="app-skeleton-text app-skeleton-shimmer" style="width: 40%; height: 32px;"></div>
-          <div class="app-skeleton-text app-skeleton-shimmer" style="width: 20%; height: 16px;"></div>
-          <div class="app-skeleton-text app-skeleton-shimmer" style="width: 60%; height: 12px; margin-top: 0.5rem;"></div>
-          <div class="app-skeleton-text app-skeleton-shimmer" style="width: 50%; height: 12px;"></div>
-        </div>
-        <div class="app-skeleton-grid">
-          <div class="app-skeleton-card app-skeleton-shimmer"></div>
-          <div class="app-skeleton-card app-skeleton-shimmer"></div>
-          <div class="app-skeleton-card app-skeleton-shimmer"></div>
-          <div class="app-skeleton-card app-skeleton-shimmer"></div>
-          <div class="app-skeleton-card app-skeleton-shimmer"></div>
-          <div class="app-skeleton-card app-skeleton-shimmer"></div>
-        </div>
-      </div>
-    </div>
+    <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

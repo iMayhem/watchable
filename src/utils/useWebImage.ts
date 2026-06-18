@@ -13,11 +13,11 @@ export type WebImageSize = 'small' | 'medium' | 'large' | 'xlarge' | 'hero';
 
 const selectSize = (size: WebImageSize) => {
     const sizeOptions: Record<WebImageSize, string> = {
-        small: 'w500',
-        medium: 'w780',
-        large: 'w780',
-        xlarge: 'w780',
-        hero: 'w780',
+        small: 'w780',
+        medium: 'w1280',
+        large: 'w1280',
+        xlarge: 'original',
+        hero: 'original',
     };
     return sizeOptions[size] || sizeOptions.medium;
 };

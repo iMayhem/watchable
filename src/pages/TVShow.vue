@@ -316,7 +316,7 @@ export default defineComponent({
 
                 if (show.value) {
                     const rawPosterUrl = show.value.poster_path 
-                        ? buildProxiedImageUrl(`w500${show.value.poster_path}`) 
+                        ? buildProxiedImageUrl(`original${show.value.poster_path}`) 
                         : '/og-image.png';
                     // SEO meta needs an absolute URL; in production buildProxiedImageUrl
                     // returns a relative /api/img?... path, so we prefix the canonical host.

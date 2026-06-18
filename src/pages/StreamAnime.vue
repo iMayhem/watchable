@@ -1643,7 +1643,7 @@ export default defineComponent({
             scroll-snap-stop: always;
             height: 100dvh;
             align-content: center;
-            padding: 0 var(--s-5);
+            padding: 72px var(--s-5) var(--s-4) var(--s-5);
         }
 
         @media (min-width: 768px) {
@@ -1674,7 +1674,7 @@ export default defineComponent({
             scroll-snap-stop: always;
             height: 100dvh;
             align-content: center;
-            padding: 0 var(--s-5);
+            padding: 72px var(--s-5) var(--s-4) var(--s-5);
             grid-template-columns: 280px 1fr;
             align-items: center;
         }
@@ -1949,7 +1949,7 @@ export default defineComponent({
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
     gap: var(--s-2);
-    max-height: 480px;
+    height: 280px;
     overflow-y: auto;
     padding-right: 4px;
 

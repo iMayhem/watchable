@@ -1113,7 +1113,7 @@ export default defineComponent({
             scroll-snap-stop: normal;
             height: 100dvh;
             align-content: center;
-            padding: 0 var(--s-5);
+            padding: 72px var(--s-5) var(--s-4) var(--s-5);
         }
 
         @media (min-width: 768px) and (max-width: 1023px) {

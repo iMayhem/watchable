@@ -239,7 +239,7 @@ export default defineComponent({
                 originalTitle: (s as any).original_name || s.name,
                 posterPath: s.poster_path,
                 rating: s.vote_average,
-                releaseDate: s.release_date,
+                releaseDate: s.first_air_date || s.release_date,
                 genreIds: s.genre_ids,
                 adult: s.adult,
                 type: 'tv' as const

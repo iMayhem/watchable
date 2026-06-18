@@ -29,12 +29,12 @@ watch(region, (newRegion, oldRegion) => {
 
 const getRouteKey = (route: any) => {
     if (route.name === 'StreamTVShow' && route.params.id) {
-        return `tv-stream-${route.params.id}`;
+        return `tv-stream-${route.params.id}-${region.value}`;
     }
     if ((route.name === 'StreamAnime' || route.name === 'StreamAnimeEpisode') && route.params.id) {
-        return `anime-stream-${route.params.id}`;
+        return `anime-stream-${route.params.id}-${region.value}`;
     }
-    return route.path;
+    return `${route.path}-${region.value}`;
 };
 
 const Toast = defineAsyncComponent(() => import('./components/feedback/Toast.vue'));

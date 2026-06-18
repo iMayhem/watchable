@@ -194,7 +194,7 @@ export default defineComponent({
                 originalTitle: (s as any).original_name || s.original_title,
                 posterPath: s.poster_path,
                 rating: s.vote_average,
-                releaseDate: s.release_date,
+                releaseDate: s.first_air_date || s.release_date,
                 genreIds: s.genre_ids,
                 adult: s.adult,
                 type: 'tv' as const
@@ -209,7 +209,7 @@ export default defineComponent({
                 backdropPath: s.backdrop_path,
                 posterPath: s.poster_path,
                 rating: s.vote_average,
-                releaseDate: s.release_date,
+                releaseDate: s.first_air_date || s.release_date,
                 type: 'tv' as const
             }))
         );

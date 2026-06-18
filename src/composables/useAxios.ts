@@ -4,7 +4,11 @@ import { getSettings } from './useSettings'
 const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.themoviedb.org/3/'
 const API_KEY = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672'
 
-const STRICT_REGION_PRODUCTION = ['IN', 'US', 'JP', 'KR', 'FR', 'DE', 'GB', 'CN', 'RU', 'IT', 'ES', 'BR', 'MX']
+const STRICT_REGION_PRODUCTION = [
+    'AR', 'AU', 'BR', 'CA', 'CL', 'CN', 'CO', 'EG', 'FR', 'DE',
+    'IN', 'ID', 'IT', 'JP', 'MY', 'MX', 'NL', 'PH', 'PL', 'RU',
+    'SA', 'ZA', 'KR', 'ES', 'SE', 'TW', 'TH', 'TR', 'GB', 'US'
+]
 
 const useAxios = () => {
     const { region, language } = getSettings()
@@ -173,38 +177,9 @@ const useAxios = () => {
         const regionVal = region.value
         const url = response.config.url || ''
         const currentSort = response.config.params?.sort_by
-
-        // Fallback retry: if the response results are empty and regionVal was not 'global'
-        if (
-            regionVal && 
-            regionVal !== 'global' && 
-            response.data && 
-            Array.isArray(response.data.results) && 
-            response.data.results.length === 0 &&
-            !response.config.params?.fallback_retry
-        ) {
-            console.log('[Axios Interceptor] Empty results for region:', regionVal, 'url:', url, '- retrying with global fallback')
-            const fallbackConfig = { ...response.config }
-            fallbackConfig.params = { 
-                ...fallbackConfig.params,
-                fallback_retry: 'true'
-            }
-            
-            // Strip region filtering so we retrieve global trending/popular movies/shows
-            delete fallbackConfig.params.with_origin_country
-            delete fallbackConfig.params.watch_region
-            delete fallbackConfig.params.region
-            
-            try {
-                const retryRes = await axiosInstance(fallbackConfig)
-                return retryRes
-            } catch (err) {
-                console.error('[Axios Interceptor] Fallback retry failed:', err)
-            }
-        }
-
         const isChronologicalSort = currentSort === 'primary_release_date.desc' || currentSort === 'first_air_date.desc'
 
+        // 1. First apply chronological filtering/sorting so empty results after filter can trigger fallback
         if (regionVal && regionVal !== 'global' && isChronologicalSort && response.data && Array.isArray(response.data.results)) {
             if (url.includes('discover/movie') || url.includes('discover/tv')) {
                 let items = response.data.results as any[]
@@ -266,6 +241,36 @@ const useAxios = () => {
                 response.data.results = items
             }
         }
+
+        // 2. Fallback retry: if the response results are empty (originally or after filter) and regionVal was not 'global'
+        if (
+            regionVal && 
+            regionVal !== 'global' && 
+            response.data && 
+            Array.isArray(response.data.results) && 
+            response.data.results.length === 0 &&
+            !response.config.params?.fallback_retry
+        ) {
+            console.log('[Axios Interceptor] Empty results (or empty after filter) for region:', regionVal, 'url:', url, '- retrying with global fallback')
+            const fallbackConfig = { ...response.config }
+            fallbackConfig.params = { 
+                ...fallbackConfig.params,
+                fallback_retry: 'true'
+            }
+            
+            // Strip region filtering so we retrieve global trending/popular movies/shows
+            delete fallbackConfig.params.with_origin_country
+            delete fallbackConfig.params.watch_region
+            delete fallbackConfig.params.region
+            
+            try {
+                const retryRes = await axiosInstance(fallbackConfig)
+                return retryRes
+            } catch (err) {
+                console.error('[Axios Interceptor] Fallback retry failed:', err)
+            }
+        }
+
         return response
     })
 

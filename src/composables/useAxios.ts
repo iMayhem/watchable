@@ -10,8 +10,6 @@ const useAxios = () => {
         api_key: API_KEY
     }
 
-    console.log('[useAxios] Creating new axios instance with region:', region.value, 'language:', language.value)
-
     if (language.value) {
         params.language = language.value
     }
@@ -48,8 +46,6 @@ const useAxios = () => {
         let url = config.url || ''
         const regionVal = region.value
 
-        console.log('[Axios] Request interceptor:', { url, region: regionVal, params: config.params })
-
         if (url.includes('?')) {
             const [base, queryStr] = url.split('?')
             config.url = base
@@ -67,7 +63,7 @@ const useAxios = () => {
         url = config.url || ''
 
         if (regionVal && regionVal !== 'global') {
-            console.log('[Axios] Applying region-specific transformations for region:', regionVal)
+            console.log('[🌐 API] Region applied to request:', regionVal)
             const currentSort = config.params.sort_by
             const defaultMovieSort = 'primary_release_date.desc'
             const defaultTVSort = 'first_air_date.desc'
@@ -90,7 +86,6 @@ const useAxios = () => {
                     'primary_release_date.gte': MIN_RELEASE_DATE,
                     'vote_count.gte': 7
                 }
-                console.log('[Axios] Rewrote popular/trending movie to discover/movie with params:', config.params)
             } else if (url.includes('movie/now_playing')) {
                 const dates = getRecentDateRange()
                 config.url = `${BASE_URL}discover/movie`
@@ -104,7 +99,6 @@ const useAxios = () => {
                     'primary_release_date.lte': dates.lte,
                     'vote_count.gte': 7
                 }
-                console.log('[Axios] Rewrote now_playing to discover/movie with params:', config.params)
             } else if (url.includes('trending/tv') || url.includes('tv/popular')) {
                 config.url = `${BASE_URL}discover/tv`
                 config.params = {
@@ -117,7 +111,6 @@ const useAxios = () => {
                     'first_air_date.gte': MIN_RELEASE_DATE,
                     'vote_count.gte': 7
                 }
-                console.log('[Axios] Rewrote popular/trending tv to discover/tv with params:', config.params)
             } else if (url.includes('tv/on_the_air')) {
                 const dates = getRecentDateRange()
                 config.url = `${BASE_URL}discover/tv`
@@ -132,7 +125,6 @@ const useAxios = () => {
                     'first_air_date.lte': dates.lte,
                     'vote_count.gte': 7
                 }
-                console.log('[Axios] Rewrote tv/on_the_air to discover/tv with params:', config.params)
             } else if (url.includes('discover/movie')) {
                 if (!config.params.with_original_language) {
                     config.params.with_origin_country = regionVal
@@ -146,7 +138,6 @@ const useAxios = () => {
                 if (config.params.sort_by === 'primary_release_date.desc') {
                     config.params['vote_count.gte'] = config.params['vote_count.gte'] || 7
                 }
-                console.log('[Axios] discover/movie updated params:', config.params)
             } else if (url.includes('discover/tv')) {
                 if (!config.params.with_original_language) {
                     config.params.with_origin_country = regionVal
@@ -161,15 +152,10 @@ const useAxios = () => {
                 if (config.params.sort_by === 'first_air_date.desc') {
                     config.params['vote_count.gte'] = config.params['vote_count.gte'] || 7
                 }
-                console.log('[Axios] discover/tv updated params:', config.params)
             } else if (url.includes('search/')) {
                 config.params.region = regionVal
-                console.log('[Axios] search updated params:', config.params)
             }
-        } else {
-            console.log('[Axios] Global region or no region specified, using default params')
         }
-        console.log('[Axios] Final request config:', { url: config.url, params: config.params })
         return config
     })
 
@@ -178,21 +164,14 @@ const useAxios = () => {
         const url = response.config.url || ''
         const currentSort = response.config.params?.sort_by
 
-        console.log('[Axios] Response received:', {
-            url,
-            status: response.status,
-            region: regionVal,
-            resultsCount: response.data?.results?.length || 0,
-            totalResults: response.data?.total_results,
-            hasResults: Array.isArray(response.data?.results)
-        })
+        console.log('[🌐 API] Response:', { status: response.status, items: response.data?.results?.length || 0, region: regionVal })
 
         const isChronologicalSort = currentSort === 'primary_release_date.desc' || currentSort === 'first_air_date.desc'
 
         if (regionVal && regionVal !== 'global' && isChronologicalSort && response.data && Array.isArray(response.data.results)) {
             if (url.includes('discover/movie') || url.includes('discover/tv')) {
                 let items = response.data.results as any[]
-                console.log('[Axios] Processing', items.length, 'items for regional sorting')
+                console.log('[🌐 API] Processing', items.length, 'items for regional sorting')
 
                 const getYear = (item: any) => {
                     const dateStr = item.release_date || item.first_air_date || ''
@@ -214,7 +193,7 @@ const useAxios = () => {
                 // Filter out items with vote count < 7
                 const beforeFilter = items.length
                 items = items.filter(item => getVoteCount(item) >= 7)
-                console.log('[Axios] Filtered items by vote count:', { before: beforeFilter, after: items.length, removed: beforeFilter - items.length })
+                console.log('[🌐 API] Filtered:', { before: beforeFilter, after: items.length })
 
                 // Sort: 
                 // 1. Year descending.
@@ -250,14 +229,9 @@ const useAxios = () => {
                     return timeB - timeA
                 })
 
-                console.log('[Axios] Sorted items, final count:', items.length)
                 response.data.results = items
             }
         }
-        console.log('[Axios] Response processing complete, returning:', {
-            resultsAfterProcessing: response.data?.results?.length,
-            region: regionVal
-        })
         return response
     })
 

@@ -128,17 +128,11 @@ export default defineComponent({
         const upcomingTv = ref<TVShowType[]>([]);
         const isHomeLoading = ref(true);
 
-        const hero = computed(() => {
-            const heroVal = highLightOptions.featured.data?.[0] ?? null;
-            console.log('[Home.vue] Computed hero:', { hasHero: !!heroVal, heroId: heroVal?.id });
-            return heroVal;
-        });
+        const hero = computed(() => highLightOptions.featured.data?.[0] ?? null);
 
         const spotlight = computed(() => {
             const pool = highLightOptions.featured.data ?? [];
-            const spotlightVal = pool[1] ?? pool[0] ?? null;
-            console.log('[Home.vue] Computed spotlight:', { hasSpotlight: !!spotlightVal, spotlightId: spotlightVal?.id, poolSize: pool.length });
-            return spotlightVal;
+            return pool[1] ?? pool[0] ?? null;
         });
 
         const heroTagline = computed(() => {
@@ -222,23 +216,23 @@ export default defineComponent({
 
         const fetchUpcomingTv = async () => {
             try {
-                console.log('[Home.vue] fetchUpcomingTv: Starting fetch');
+                console.log('[🎭 Upcoming] Fetching upcoming TV...');
                 const res = await useAxios().get('tv/on_the_air', {
                     params: {
                         page: 1
                     }
                 });
                 const data = res.data as UpcomingTvResponse;
-                console.log('[Home.vue] fetchUpcomingTv: Response received with', data.results?.length || 0, 'items');
+                console.log('[🎭 Upcoming] Loaded', data.results?.length || 0, 'items ✅');
                 upcomingTv.value = data.results ?? [];
             } catch (err) {
-                console.error('[Home.vue] fetchUpcomingTv: Error', err);
+                console.error('[🎭 Upcoming] Error', err);
                 upcomingTv.value = [];
             }
         };
 
         const loadData = async () => {
-            console.log('[Home.vue] loadData called - clearing data and fetching');
+            console.log('[📍 HOME PAGE] loadData starting');
             isHomeLoading.value = true;
             highLightOptions.featured.data = [];
             highLightOptions.popular.data = [];
@@ -247,36 +241,40 @@ export default defineComponent({
             upcomingTv.value = [];
 
             try {
+                console.log('[📍 HOME PAGE] Fetching all data from APIs...');
                 await Promise.all([
                     fetchAllHighlights(),
                     fetchNewShows(),
                     fetchUpcomingTv()
                 ]);
-                console.log('[Home.vue] Data loaded successfully');
-                console.log('[Home.vue] Featured data:', highLightOptions.featured.data.length, 'items');
-                console.log('[Home.vue] Popular data:', highLightOptions.popular.data.length, 'items');
-                console.log('[Home.vue] New data:', highLightOptions.new.data.length, 'items');
+                console.log('[📍 HOME PAGE] All data fetched ✅', {
+                    featured: highLightOptions.featured.data.length,
+                    popular: highLightOptions.popular.data.length,
+                    new: highLightOptions.new.data.length,
+                    newShows: newShows.value.length,
+                    upcoming: upcomingTv.value.length
+                });
             } catch (err) {
-                console.error('[Home.vue] Error loading data:', err);
+                console.error('[📍 HOME PAGE] Error loading data:', err);
             } finally {
                 isHomeLoading.value = false;
             }
         };
 
         const handleSettingsChange = () => {
-            console.log('[Home.vue] movora_settings_change event received - reloading data');
+            console.log('[📍 HOME PAGE] Region change event received - reloading homepage data');
             loadData();
         };
 
         onMounted(() => {
             document.title = 'Moovie — Stream Movies, TV Shows & Anime Free';
             primeGenres();
+            console.log('[📍 HOME PAGE] Mounted, loading initial data');
             loadData();
             window.addEventListener('movora_settings_change', handleSettingsChange);
         });
 
         onBeforeUnmount(() => {
-            console.log('[Home.vue] Unmounting - removing event listener');
             window.removeEventListener('movora_settings_change', handleSettingsChange);
         });
 

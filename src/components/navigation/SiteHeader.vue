@@ -277,12 +277,10 @@ export default defineComponent({
         };
 
         const selectRegion = (code: string) => {
-            console.log('[SiteHeader] Region selection initiated:', { selectedCode: code, currentRegion: currentRegion.value });
-            console.log('[SiteHeader] selectRegion called with code:', code);
+            console.log('[🎯 SiteHeader] User clicked region:', code);
             updateSettings(code, 'en-US');
             closeRegionDropdown();
-            console.log('[SiteHeader] updateSettings completed');
-            console.log('[SiteHeader] Region should now be:', { newRegion: currentRegion.value, selectedCode: code });
+            console.log('[🎯 SiteHeader] Region change request sent');
         };
 
         const getFlagEmoji = (code: string) => {

@@ -1,5 +1,6 @@
 import { useStorage } from '@vueuse/core';
-import { readonly } from 'vue';
+import { readonly, ref } from 'vue';
+import { getSupabaseClient } from '../lib/supabase';
 
 export interface RegionOption {
     code: string;
@@ -65,6 +66,28 @@ export const LANGUAGES: LanguageOption[] = [
 
 const selectedRegion = useStorage<string>('movora_user_region', 'global');
 const selectedLanguage = useStorage<string>('movora_user_language', 'en-US');
+const selectedTmdbImageQuality = ref<'low' | 'medium' | 'high'>('medium');
+let _globalSettingsLoaded = false;
+
+export async function loadGlobalSettings() {
+    if (_globalSettingsLoaded) return;
+    _globalSettingsLoaded = true;
+    try {
+        const supabase = await getSupabaseClient();
+        const { data } = await supabase
+            .from('app_settings')
+            .select('key, value')
+            .in('key', ['tmdb_image_quality']);
+
+        const rows = Array.isArray(data) ? data : [];
+        const quality = rows.find((row: any) => row.key === 'tmdb_image_quality')?.value;
+        if (quality === 'low' || quality === 'medium' || quality === 'high') {
+            selectedTmdbImageQuality.value = quality;
+        }
+    } catch (err) {
+        console.warn('[settings] Failed to load global settings:', err);
+    }
+}
 
 export const getSettings = () => {
     const updateSettings = (region: string, language: string) => {
@@ -78,6 +101,7 @@ export const getSettings = () => {
     return {
         region: readonly(selectedRegion),
         language: readonly(selectedLanguage),
+        tmdbImageQuality: readonly(selectedTmdbImageQuality),
         updateSettings
     };
 };

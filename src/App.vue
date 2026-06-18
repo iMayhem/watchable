@@ -15,7 +15,7 @@
 
 <script lang="ts" setup>
 import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
-import { getSettings } from './composables/useSettings';
+import { getSettings, loadGlobalSettings } from './composables/useSettings';
 
 const { region } = getSettings();
 
@@ -70,6 +70,7 @@ const initIdle = async () => {
 };
 
 onMounted(() => {
+    loadGlobalSettings();
     if ('requestIdleCallback' in window) {
         requestIdleCallback(() => initIdle());
     } else {

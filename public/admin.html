@@ -316,6 +316,7 @@
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1rem;
+            flex-wrap: wrap;
         }
 
         .search-results {
@@ -359,6 +360,20 @@
             font-size: 0.75rem;
             color: var(--bone-400);
             margin-top: 0.15rem;
+        }
+
+        .item-badge {
+            display: inline-flex;
+            align-items: center;
+            margin-top: 0.35rem;
+            padding: 0.2rem 0.45rem;
+            border-radius: 999px;
+            border: 1px solid var(--rule);
+            background: rgba(245, 239, 228, 0.04);
+            color: var(--bone-200);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .btn-sm {
@@ -482,6 +497,11 @@
                 
                 <!-- Search panel to query TMDB -->
                 <form onsubmit="handleSearch4K(event)" class="search-container">
+                    <select id="tmdb-quality-select" class="form-select" style="max-width: 160px;">
+                        <option value="low">Low image quality</option>
+                        <option value="medium" selected>Medium image quality</option>
+                        <option value="high">High image quality</option>
+                    </select>
                     <input type="text" id="search-4k-input" class="form-input" placeholder="Search movies to add..." autocomplete="off">
                     <button type="submit" class="btn btn-sm" style="width: auto;">Search</button>
                 </form>
@@ -604,6 +624,19 @@
             } catch (err) {
                 console.warn('Could not retrieve current default provider:', err);
             }
+
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'tmdb_image_quality')
+                    .single();
+                if (data && data.value) {
+                    document.getElementById('tmdb-quality-select').value = data.value;
+                }
+            } catch (err) {
+                console.warn('Could not retrieve current TMDB image quality:', err);
+            }
             
             // Load 4K curation
             await load4KCuration();
@@ -613,6 +646,16 @@
         // 4K CURATION LOGIC
         // ==========================================
         let selectedMovies = [];
+
+        function getSelectedTmdbQuality() {
+            const el = document.getElementById('tmdb-quality-select');
+            return el ? el.value : 'medium';
+        }
+
+        function formatQuality(quality) {
+            if (!quality) return 'Medium';
+            return quality.charAt(0).toUpperCase() + quality.slice(1);
+        }
 
         async function load4KCuration() {
             try {
@@ -626,6 +669,12 @@
                     selectedMovies = JSON.parse(data.value);
                 } else {
                     selectedMovies = [];
+                }
+                if (Array.isArray(selectedMovies)) {
+                    selectedMovies = selectedMovies.map(movie => ({
+                        ...movie,
+                        quality: movie.quality || 'medium'
+                    }));
                 }
                 renderCurationList();
             } catch (err) {
@@ -670,9 +719,14 @@
                     const meta = document.createElement('div');
                     meta.className = 'item-meta';
                     meta.textContent = movie.release_date ? movie.release_date.split('-')[0] : 'N/A';
+
+                    const badge = document.createElement('div');
+                    badge.className = 'item-badge';
+                    badge.textContent = `TMDB ${formatQuality(getSelectedTmdbQuality())}`;
                     
                     details.appendChild(title);
                     details.appendChild(meta);
+                    details.appendChild(badge);
                     
                     const addBtn = document.createElement('button');
                     addBtn.type = 'button';
@@ -711,6 +765,7 @@
                 releaseDate: movie.release_date,
                 genreIds: movie.genre_ids,
                 adult: movie.adult,
+                quality: getSelectedTmdbQuality(),
                 type: 'movie'
             });
             renderCurationList();
@@ -764,6 +819,11 @@
                 
                 details.appendChild(title);
                 details.appendChild(meta);
+
+                const badge = document.createElement('div');
+                badge.className = 'item-badge';
+                badge.textContent = `TMDB ${formatQuality(movie.quality)}`;
+                details.appendChild(badge);
                 
                 const actions = document.createElement('div');
                 actions.className = 'curation-actions';
@@ -825,6 +885,7 @@
             event.preventDefault();
             const saveBtn = document.getElementById('save-btn');
             const defaultProvider = document.getElementById('default-provider-select').value;
+            const tmdbImageQuality = document.getElementById('tmdb-quality-select').value;
             const newPasscode = document.getElementById('new-passcode-input').value.trim();
 
             saveBtn.disabled = true;
@@ -837,6 +898,12 @@
                     .upsert({ key: 'default_provider', value: defaultProvider, updated_at: new Date() }, { onConflict: 'key' });
 
                 if (providerError) throw providerError;
+
+                const { error: qualityError } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'tmdb_image_quality', value: tmdbImageQuality, updated_at: new Date() }, { onConflict: 'key' });
+
+                if (qualityError) throw qualityError;
 
                 // Save new passcode if provided
                 if (newPasscode) {

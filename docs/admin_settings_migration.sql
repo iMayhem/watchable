@@ -28,3 +28,8 @@ ON CONFLICT (key) DO NOTHING;
 INSERT INTO app_settings (key, value)
 VALUES ('admin_passcode', 'admin123')
 ON CONFLICT (key) DO NOTHING;
+
+-- Insert default value for TMDB image quality
+INSERT INTO app_settings (key, value)
+VALUES ('tmdb_image_quality', 'medium')
+ON CONFLICT (key) DO NOTHING;

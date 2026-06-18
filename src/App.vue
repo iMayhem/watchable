@@ -21,12 +21,8 @@ import { getSettings } from './composables/useSettings';
 const router = useRouter();
 const { region } = getSettings();
 
-watch(region, (newRegion, oldRegion) => {
-    if (newRegion !== oldRegion) {
-        console.log('[🔀 ROUTE] Region changed, redirecting home:', { from: oldRegion, to: newRegion });
-        router.push('/');
-    }
-});
+// Removed: watch(region) redirect that was causing Home.vue component unmount/remount
+// This breaks event listeners during region change. Let each page handle it via movora_settings_change event instead.
 
 const getRouteKey = (route: any) => {
     if (route.name === 'StreamTVShow' && route.params.id) {

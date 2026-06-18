@@ -19,6 +19,16 @@
                 :loading="isHomeLoading && !hero"
             />
 
+            <CuratedRail
+                v-if="fourKItems && fourKItems.length > 0"
+                class="home__section"
+                :items="fourKItems"
+                title="Trending 4K Today"
+                eyebrow="Ultra HD"
+                description="Experience cinema in stunning 4K quality with our dedicated player."
+                default-type="movie"
+            />
+
             <ContinueShelf class="home__section" />
 
             <TopTenRail
@@ -105,6 +115,7 @@ import { useTvShows, newShows } from '../composables/useTvShows';
 import type { TVShowType } from '../composables/useTvShows';
 import { primeGenres } from '../composables/useGenreLookup';
 import { getSettings } from '../composables/useSettings';
+import { getSupabaseClient } from '../lib/supabase';
 
 interface UpcomingTvResponse {
     results: TVShowType[];
@@ -128,7 +139,37 @@ export default defineComponent({
         getSettings(); // ensures settings store is initialised (region change fires movora_settings_change event)
 
         const upcomingTv = ref<TVShowType[]>([]);
+        const fourKItems = ref<any[]>([]);
         const isHomeLoading = ref(true);
+
+        const fetch4KMovies = async () => {
+            try {
+                const supabase = await getSupabaseClient();
+                const { data } = await supabase
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', '4k_movies_today')
+                    .single();
+                if (data && data.value) {
+                    const parsed = JSON.parse(data.value);
+                    fourKItems.value = parsed.map((m: any) => ({
+                        id: m.id,
+                        title: m.title,
+                        originalTitle: m.originalTitle || m.title,
+                        posterPath: m.posterPath,
+                        rating: m.rating || 0,
+                        releaseDate: m.releaseDate || '',
+                        genreIds: m.genreIds || [],
+                        adult: m.adult || false,
+                        type: 'movie' as const,
+                        query: { mode: '4k' }
+                    }));
+                }
+            } catch (err) {
+                console.error('[📍 HOME PAGE] Failed to fetch 4K movies today:', err);
+                fourKItems.value = [];
+            }
+        };
 
         const hero = computed(() => highLightOptions.featured.data?.[0] ?? null);
 
@@ -238,20 +279,23 @@ export default defineComponent({
             highLightOptions.new.data = [];
             newShows.value = [];
             upcomingTv.value = [];
+            fourKItems.value = [];
 
             try {
                 console.log('[📍 HOME PAGE] Fetching all data from APIs...');
                 await Promise.all([
                     fetchAllHighlights(),
                     fetchNewShows(),
-                    fetchUpcomingTv()
+                    fetchUpcomingTv(),
+                    fetch4KMovies()
                 ]);
                 console.log('[📍 HOME PAGE] All data fetched ✅', {
                     featured: highLightOptions.featured.data.length,
                     popular: highLightOptions.popular.data.length,
                     new: highLightOptions.new.data.length,
                     newShows: newShows.value.length,
-                    upcoming: upcomingTv.value.length
+                    upcoming: upcomingTv.value.length,
+                    fourKMoviesToday: fourKItems.value.length
                 });
             } catch (err) {
                 console.error('[📍 HOME PAGE] Error loading data:', err);
@@ -292,7 +336,8 @@ export default defineComponent({
             nowPlayingItems,
             pantheonItems,
             seriesItems,
-            upcomingItems
+            upcomingItems,
+            fourKItems
         };
     }
 });

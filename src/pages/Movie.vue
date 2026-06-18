@@ -263,7 +263,8 @@ export default defineComponent({
 
         const playRoute = computed(() => ({
             name: 'StreamMovie',
-            params: { id: String(route.params.id) }
+            params: { id: String(route.params.id) },
+            query: route.query
         }));
 
         const playLabel = computed(() => {

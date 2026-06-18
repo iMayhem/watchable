@@ -111,7 +111,8 @@ export default defineComponent({
             type: String as PropType<'sm' | 'md' | 'lg'>,
             default: 'md'
         },
-        loading: { type: Boolean, default: false }
+        loading: { type: Boolean, default: false },
+        query: { type: Object as PropType<Record<string, any>>, default: () => ({}) }
     },
     setup(props) {
         const imageLoaded = ref(false);
@@ -145,7 +146,10 @@ export default defineComponent({
 
         const routeTo = computed(() => {
             const kind = props.type === 'anime' ? 'anime' : props.type === 'tv' ? 'tv' : 'movie';
-            return detailPath(kind as 'movie' | 'tv' | 'anime', props.id);
+            return {
+                path: detailPath(kind as 'movie' | 'tv' | 'anime', props.id),
+                query: props.query
+            };
         });
 
         const inWatchlist = computed(() =>
@@ -165,12 +169,13 @@ export default defineComponent({
         };
 
         const goToStream = () => {
+            const query = props.query && Object.keys(props.query).length ? props.query : undefined;
             if (props.type === 'anime') {
-                router.push(`/stream/anime/${props.id}`);
+                router.push({ path: `/stream/anime/${props.id}`, query });
             } else if (props.type === 'tv') {
-                router.push(`/stream/tv-show/${props.id}/season/1/episode/1`);
+                router.push({ path: `/stream/tv-show/${props.id}/season/1/episode/1`, query });
             } else {
-                router.push(`/stream/movie/${props.id}`);
+                router.push({ path: `/stream/movie/${props.id}`, query });
             }
         };
 

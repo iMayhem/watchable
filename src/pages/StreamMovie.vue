@@ -21,7 +21,7 @@
                     <ServerAccordion
                         variant="dropdown"
                         :servers="availableServers"
-                        :active-server-index="currentStreamData.currentServer"
+                        :active-server-index="activeAccordionIndex"
                         @server-change="changeServer"
                     />
 
@@ -104,7 +104,19 @@ export default defineComponent({
         const error = ref<string | null>(null);
         const { fetchMovie } = useMovies();
 
-        const availableServers = computed(() => getServers('movie'));
+        const availableServers = computed(() => {
+            const allServers = getServers('movie');
+            if (route.query.mode === '4k') {
+                return allServers.filter(s => s.name === 'Kaju Katli');
+            }
+            return allServers;
+        });
+        const activeAccordionIndex = computed(() => {
+            if (route.query.mode === '4k') {
+                return 0;
+            }
+            return currentStreamData.value.currentServer;
+        });
         const reloadKey = ref(0);
         const resumeTimestamp = ref(0);
 
@@ -117,10 +129,19 @@ export default defineComponent({
             const ts = (resumeTimestamp.value > 0 && reloadKey.value === 0)
                 ? resumeTimestamp.value
                 : undefined;
+            
+            let serverIndex = currentStreamData.value.currentServer;
+            if (route.query.mode === '4k') {
+                const kajuIndex = getServers('movie').findIndex(s => s.name === 'Kaju Katli');
+                if (kajuIndex !== -1) {
+                    serverIndex = kajuIndex;
+                }
+            }
+
             const base = buildStreamUrl(
                 movieId.value,
                 'movie',
-                currentStreamData.value.currentServer,
+                serverIndex,
                 1,
                 1,
                 ts
@@ -156,6 +177,7 @@ export default defineComponent({
         };
 
         const changeServer = (index: number) => {
+            if (route.query.mode === '4k') return;
             if (index < 0 || index >= availableServers.value.length) return;
             savePreferredServer(movieId.value, index, 'movie');
             getPreferredStreamData(movieId.value, 'movie');
@@ -194,6 +216,7 @@ export default defineComponent({
             movie,
             currentStreamData,
             availableServers,
+            activeAccordionIndex,
             currentEmbedUrl,
             changeServer,
             goBack,

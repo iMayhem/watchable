@@ -110,6 +110,15 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/admin',
+        name: 'Admin',
+        component: () => import('../pages/Admin.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Admin Panel'
+        }
+    },
+    {
         'path': '/stream/movie/:id',
         alias: '/watch/movie/:id',
         'name': 'StreamMovie',

@@ -19,6 +19,7 @@
             :genre-ids="item.genreIds ?? []"
             :adult="item.adult ?? false"
             :loading="item.isMock"
+            :query="item.query || {}"
         />
     </LmRail>
 </template>
@@ -39,6 +40,7 @@ export interface CuratedItem {
     adult?: boolean;
     type?: 'movie' | 'tv';
     isMock?: boolean;
+    query?: Record<string, any>;
 }
 
 export default defineComponent({

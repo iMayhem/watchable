@@ -125,7 +125,7 @@ export default defineComponent({
     setup() {
         const { fetchAllHighlights } = useHighlights();
         const { fetchNewShows } = useTvShows();
-        const { region } = getSettings();
+        getSettings(); // ensures settings store is initialised (region change fires movora_settings_change event)
 
         const upcomingTv = ref<TVShowType[]>([]);
         const isHomeLoading = ref(true);

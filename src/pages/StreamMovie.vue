@@ -97,6 +97,10 @@
                 </div>
             </section>
 
+            <section v-if="movie" class="watch-stage__rack">
+                <CommentsSection :media-id="movie.id" media-type="movie" />
+            </section>
+
             <p class="watch-stage__disclaimer meta">
                 Streams are mirrored from third-party providers. moovie does not host video files.
             </p>
@@ -122,10 +126,11 @@ import { useAppPaths } from '../composables/useAppPaths';
 import StreamFrame from '../components/player/StreamFrame.vue';
 import ServerAccordion from '../components/player/ServerAccordion.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
+import CommentsSection from '../components/player/CommentsSection.vue';
 
 export default defineComponent({
     name: 'StreamMovie',
-    components: { StreamFrame, ServerAccordion, ArrowLeft },
+    components: { StreamFrame, ServerAccordion, ArrowLeft, CommentsSection },
     setup() {
         const route = useRoute();
         const router = useRouter();
@@ -596,6 +601,22 @@ export default defineComponent({
         padding: 0 var(--s-4);
         box-sizing: border-box;
 
+        @media (max-width: 1023px) {
+            height: auto;
+            min-height: 0;
+            scroll-snap-align: none;
+            align-content: start;
+            padding: var(--s-5) var(--s-3) var(--s-4);
+        }
+
+        @media (min-width: 1024px) {
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+            height: 100dvh;
+            align-content: center;
+            padding: 72px var(--s-5) var(--s-4) var(--s-5);
+        }
+
         @media (min-width: 768px) {
             padding: 0 var(--s-5);
         }
@@ -625,7 +646,7 @@ export default defineComponent({
             scroll-snap-stop: always;
             height: 100dvh;
             align-content: center;
-            padding: 0 var(--s-5);
+            padding: 72px var(--s-5) var(--s-4) var(--s-5);
         }
 
         @media (min-width: 768px) and (max-width: 1023px) {

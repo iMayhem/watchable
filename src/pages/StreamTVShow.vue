@@ -212,6 +212,10 @@
                 </div>
             </section>
 
+            <section v-if="show" class="watch-stage__rack">
+                <CommentsSection :media-id="show.id" media-type="tv" />
+            </section>
+
             <p class="watch-stage__disclaimer meta">
                 Streams are mirrored from third-party providers. moovie does not host video files.
             </p>
@@ -261,6 +265,7 @@ import ServerAccordion from '../components/player/ServerAccordion.vue';
 import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
+import CommentsSection from '../components/player/CommentsSection.vue';
 
 export default defineComponent({
     name: 'StreamTVShow',
@@ -269,7 +274,8 @@ export default defineComponent({
         ServerAccordion,
         EpisodeNavigator,
         UpNextDrawer,
-        ArrowLeft
+        ArrowLeft,
+        CommentsSection
     },
     setup() {
         const route = useRoute();
@@ -1080,9 +1086,17 @@ export default defineComponent({
         box-sizing: border-box;
 
         @media (max-width: 1023px) {
-            padding: 0 var(--s-3) var(--s-4);
+            padding: var(--s-5) var(--s-3) var(--s-4);
             scroll-snap-align: none;
             height: auto;
+        }
+
+        @media (min-width: 1024px) {
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+            height: 100dvh;
+            align-content: center;
+            padding: 72px var(--s-5) var(--s-4) var(--s-5);
         }
 
         @media (min-width: 768px) {

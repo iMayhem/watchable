@@ -287,6 +287,10 @@
                 </div>
             </section>
 
+            <section v-if="anime" class="watch-stage__rack">
+                <CommentsSection :media-id="animeId" media-type="anime" />
+            </section>
+
             <p class="watch-stage__disclaimer meta">
                 Streams are mirrored from third-party providers. moovie does not host video files.
             </p>
@@ -324,6 +328,7 @@ import ServerAccordion from '../components/player/ServerAccordion.vue';
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import { useAppPaths } from '../composables/useAppPaths';
+import CommentsSection from '../components/player/CommentsSection.vue';
 import {
     buildBrowsableEpisodes,
     findEpisodeByNumber,
@@ -339,7 +344,8 @@ export default defineComponent({
         ArrowLeft,
         ServerAccordion,
         StreamFrame,
-        UpNextDrawer
+        UpNextDrawer,
+        CommentsSection
     },
     setup() {
         const route = useRoute();

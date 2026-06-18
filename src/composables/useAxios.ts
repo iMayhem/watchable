@@ -76,7 +76,7 @@ const useAxios = () => {
             }
 
             if (url.includes('trending/movie') || url.includes('movie/popular')) {
-                config.url = `${BASE_URL}discover/movie`
+                config.url = 'discover/movie'
                 config.params = {
                     ...config.params,
                     sort_by: getOverriddenSort(defaultMovieSort),
@@ -88,7 +88,7 @@ const useAxios = () => {
                 }
             } else if (url.includes('movie/now_playing')) {
                 const dates = getRecentDateRange()
-                config.url = `${BASE_URL}discover/movie`
+                config.url = 'discover/movie'
                 config.params = {
                     ...config.params,
                     sort_by: getOverriddenSort(defaultMovieSort),
@@ -100,7 +100,7 @@ const useAxios = () => {
                     'vote_count.gte': 7
                 }
             } else if (url.includes('trending/tv') || url.includes('tv/popular')) {
-                config.url = `${BASE_URL}discover/tv`
+                config.url = 'discover/tv'
                 config.params = {
                     ...config.params,
                     sort_by: getOverriddenSort(defaultTVSort),
@@ -113,7 +113,7 @@ const useAxios = () => {
                 }
             } else if (url.includes('tv/on_the_air')) {
                 const dates = getRecentDateRange()
-                config.url = `${BASE_URL}discover/tv`
+                config.url = 'discover/tv'
                 config.params = {
                     ...config.params,
                     sort_by: getOverriddenSort(defaultTVSort),

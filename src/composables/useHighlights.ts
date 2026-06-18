@@ -105,25 +105,19 @@ export const useHighlights = () => {
             const promises = Object.keys(highLightOptions).map(async (key) => {
                 const highlightKey = key as "featured" | "popular" | "new"
                 try {
-                    console.log(`[fetchAllHighlights] Fetching ${highlightKey} from ${highLightOptions[highlightKey].url}`)
                     const req = useAxios().get(highLightOptions[highlightKey].url)
                     const res = (await req).data
-                    console.log(`[fetchAllHighlights] Response for ${highlightKey}:`, res)
                     if (res.results && res.results.length > 0) {
                         highLightOptions[highlightKey].data = res.results
-                        console.log(`[fetchAllHighlights] ${highlightKey} data updated with ${res.results.length} items`)
-                    } else {
-                        console.warn(`[fetchAllHighlights] ${highlightKey} returned no results`)
                     }
                 } catch (err) {
-                    console.error(`[fetchAllHighlights] Error fetching ${highlightKey}:`, err)
+                    console.error(`Error fetching ${highlightKey}:`, err)
                 }
             })
 
             await Promise.all(promises)
         } catch (err: any) {
             error.value = err.message || "Failed to fetch highlights"
-            console.error(`[fetchAllHighlights] Fatal error:`, err)
         } finally {
             loading.value = false
         }

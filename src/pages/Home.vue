@@ -122,17 +122,11 @@ export default defineComponent({
         UpcomingRail
     },
     setup() {
-        console.log('[Home.vue] Component setup starting');
         const { fetchAllHighlights } = useHighlights();
         const { fetchNewShows } = useTvShows();
 
         const upcomingTv = ref<TVShowType[]>([]);
         const isHomeLoading = ref(true);
-
-        console.log('[Home.vue] State refs created:', {
-            upcomingTvLength: upcomingTv.value.length,
-            isHomeLoading: isHomeLoading.value
-        });
 
         const hero = computed(() => {
             const heroVal = highLightOptions.featured.data?.[0] ?? null;

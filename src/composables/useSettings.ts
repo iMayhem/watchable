@@ -68,17 +68,11 @@ const selectedLanguage = useStorage<string>('movora_user_language', 'en-US');
 
 export const getSettings = () => {
     const updateSettings = (region: string, language: string) => {
-        console.log('[useSettings] updateSettings called:', { region, language, oldRegion: selectedRegion.value, oldLanguage: selectedLanguage.value });
         selectedRegion.value = region;
         selectedLanguage.value = language;
-        console.log('[useSettings] Refs updated:', { newRegion: selectedRegion.value, newLanguage: selectedLanguage.value });
-        
-        const event = new CustomEvent('movora_settings_change', {
+        window.dispatchEvent(new CustomEvent('movora_settings_change', {
             detail: { region, language }
-        });
-        console.log('[useSettings] Dispatching movora_settings_change event:', { region, language });
-        window.dispatchEvent(event);
-        console.log('[useSettings] Event dispatched successfully');
+        }));
     };
 
     return {

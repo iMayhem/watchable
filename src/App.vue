@@ -29,7 +29,13 @@ const getRouteKey = (route: any) => {
     if ((route.name === 'StreamAnime' || route.name === 'StreamAnimeEpisode') && route.params.id) {
         return `anime-stream-${route.params.id}-${region.value}`;
     }
-    return `${route.path}-${region.value}`;
+    // Do NOT include region in the key for Home/listing pages.
+    // Those pages handle region changes themselves via the movora_settings_change
+    // event + their own watch(region) watcher. Including region here would
+    // cause Vue to destroy+remount the component, which (a) loses scroll
+    // position, and (b) triggers loadData() twice (once from watcher, once
+    // from onMounted) creating a race that leaves all carousels in skeleton state.
+    return route.path;
 };
 
 const Toast = defineAsyncComponent(() => import('./components/feedback/Toast.vue'));

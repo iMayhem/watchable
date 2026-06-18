@@ -90,7 +90,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
@@ -276,16 +276,11 @@ export default defineComponent({
             window.removeEventListener('movora_settings_change', handleSettingsChange);
         });
 
-        // Watch region changes to reload data - this catches the case where the event listener
-        // is removed during unmount before it fires
-        watch(
-            () => region.value,
-            (newRegion, oldRegion) => {
-                if (newRegion !== oldRegion && oldRegion !== undefined) {
-                    loadData();
-                }
-            }
-        );
+        // NOTE: We rely solely on the movora_settings_change window event to reload
+        // data when the region changes (see handleSettingsChange above).
+        // A watch(region) watcher here would double-fire loadData() concurrently
+        // with the event listener, causing both to clear highLightOptions.data and
+        // race to repopulate it — leaving all carousels stuck in skeleton state.
 
         return {
             hero,

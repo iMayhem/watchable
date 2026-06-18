@@ -76,7 +76,7 @@ const useAxios = () => {
             const defaultTVSort = 'first_air_date.desc'
 
             const getOverriddenSort = (defaultSort: string) => {
-                if (!currentSort || currentSort === 'popularity.desc') {
+                if (!currentSort) {
                     return defaultSort
                 }
                 return currentSort
@@ -86,7 +86,7 @@ const useAxios = () => {
                 config.url = `${BASE_URL}discover/movie`
                 config.params = {
                     ...config.params,
-                    sort_by: getOverriddenSort(defaultMovieSort),
+                    sort_by: getOverriddenSort('popularity.desc'),
                     ...(STRICT_REGION_PRODUCTION.includes(regionVal) ? { with_origin_country: regionVal } : {}),
                     watch_region: regionVal,
                     region: regionVal,
@@ -112,7 +112,7 @@ const useAxios = () => {
                 config.url = `${BASE_URL}discover/tv`
                 config.params = {
                     ...config.params,
-                    sort_by: getOverriddenSort(defaultTVSort),
+                    sort_by: getOverriddenSort('popularity.desc'),
                     ...(STRICT_REGION_PRODUCTION.includes(regionVal) ? { with_origin_country: regionVal } : {}),
                     watch_region: regionVal,
                     region: regionVal,

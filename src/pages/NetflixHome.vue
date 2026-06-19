@@ -20,14 +20,6 @@
                 :detail-to="heroDetailRoute"
             />
 
-            <div v-if="!isLoading || trendingItems.length" class="home__lang-banner container-lm">
-                <span class="home__lang-chip">{{ activeCatalogue.label }}</span>
-                <span class="home__lang-copy">
-                    <strong>{{ activeCatalogue.label }}</strong> picks in
-                    <strong>{{ activeLang.label }}</strong>
-                </span>
-            </div>
-
             <CuratedRail
                 v-if="trendingItems.length || isLoading"
                 class="home__section"
@@ -290,38 +282,6 @@ export default defineComponent({
 
     &__main {
         position: relative;
-    }
-
-    &__lang-banner {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-top: clamp(var(--s-5), 4vw, var(--s-6));
-        padding: 0.65rem 0;
-    }
-
-    &__lang-chip {
-        flex-shrink: 0;
-        padding: 0.35rem 0.75rem;
-        border-radius: var(--r-pill);
-        background: rgba(229, 9, 20, 0.15);
-        border: 1px solid rgba(229, 9, 20, 0.35);
-        color: #ff6b6b;
-        font-family: var(--font-ui);
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-    }
-
-    &__lang-copy {
-        color: var(--bone-300);
-        font-size: var(--fs-sm);
-        line-height: var(--lh-base);
-
-        strong {
-            color: var(--bone-50);
-            font-weight: 600;
-        }
     }
 
     &__section {

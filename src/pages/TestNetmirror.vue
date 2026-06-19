@@ -104,14 +104,14 @@
 
             <div class="nm-test__player">
                 <video
-                    v-if="playerMode === 'direct' && activeStream"
-                    :key="activeStream.proxiedUrl"
+                    v-if="playerMode === 'direct' && videoSrc"
+                    :key="videoSrc"
                     ref="videoEl"
                     controls
                     autoplay
                     playsinline
-                    preload="auto"
-                    :src="activeStream.proxiedUrl"
+                    preload="metadata"
+                    :src="videoSrc"
                     @error="onVideoError"
                     @loadstart="onVideoEvent('loadstart')"
                     @loadedmetadata="onVideoLoadedMetadata"
@@ -241,7 +241,81 @@ export default defineComponent({
         const selectedStreamIndex = ref(0);
         const showDebug = ref(false);
         const playbackError = ref('');
+        const videoSrc = ref('');
         const videoEl = ref<HTMLVideoElement | null>(null);
+        let prepareToken = 0;
+
+        const toAbsoluteUrl = (path: string) => {
+            if (!path) return '';
+            if (/^https?:\/\//i.test(path)) return path;
+            return `${window.location.origin}${path}`;
+        };
+
+        const probeProxiedStream = async (proxiedUrl: string) => {
+            const abs = toAbsoluteUrl(proxiedUrl);
+            debug('proxy:probe-start', { url: abs });
+            const startedAt = performance.now();
+
+            const resp = await fetch(abs, {
+                method: 'GET',
+                headers: { Range: 'bytes=0-65535' },
+            });
+
+            const result = {
+                elapsedMs: Math.round(performance.now() - startedAt),
+                status: resp.status,
+                ok: resp.ok,
+                contentType: resp.headers.get('content-type'),
+                contentRange: resp.headers.get('content-range'),
+                acceptRanges: resp.headers.get('accept-ranges'),
+            };
+
+            if (resp.ok || resp.status === 206) {
+                debug('proxy:probe-ok', result);
+                return abs;
+            }
+
+            debugError('proxy:probe-failed', result);
+            throw new Error(`Proxy probe failed (${resp.status})`);
+        };
+
+        const prepareVideoPlayback = async (stream: NetmirrorStream | null) => {
+            const token = ++prepareToken;
+            videoSrc.value = '';
+
+            if (!stream || playerMode.value !== 'direct') {
+                debug('video:prepare-skipped', {
+                    hasStream: Boolean(stream),
+                    playerMode: playerMode.value,
+                });
+                return;
+            }
+
+            debug('video:prepare-start', {
+                quality: stream.quality,
+                proxiedUrl: stream.proxiedUrl,
+            });
+
+            try {
+                const abs = await probeProxiedStream(stream.proxiedUrl);
+                if (token !== prepareToken) {
+                    debug('video:prepare-stale', { quality: stream.quality });
+                    return;
+                }
+                videoSrc.value = abs;
+                playbackError.value = '';
+                debug('video:prepare-ready', { quality: stream.quality, src: abs });
+            } catch (err: any) {
+                if (token !== prepareToken) return;
+                playbackError.value =
+                    err?.message ||
+                    'Proxy probe failed. Click Resolve again for fresh signed URLs.';
+                debugError('video:prepare-failed', {
+                    quality: stream.quality,
+                    message: playbackError.value,
+                });
+            }
+        };
 
         const qualityRank: Record<string, number> = {
             '360P': 0,
@@ -322,15 +396,6 @@ export default defineComponent({
             runSearch();
         };
 
-        const setPlayerMode = (mode: 'iframe' | 'direct') => {
-            debug('player:mode-change', {
-                from: playerMode.value,
-                to: mode,
-                activeStream: activeStream.value?.quality || null,
-            });
-            playerMode.value = mode;
-        };
-
         const toggleDebug = () => {
             showDebug.value = !showDebug.value;
             debug('debug:toggle', { visible: showDebug.value });
@@ -368,8 +433,10 @@ export default defineComponent({
                 if (data.streams?.length) {
                     selectedStreamIndex.value = streamIndex;
                     playerMode.value = 'direct';
+                    await prepareVideoPlayback(data.streams[streamIndex]);
                 } else {
                     playerMode.value = 'iframe';
+                    videoSrc.value = '';
                 }
 
                 debug('resolve:success', {
@@ -463,6 +530,22 @@ export default defineComponent({
             selectedStreamIndex.value = index;
             playerMode.value = 'direct';
             playbackError.value = '';
+            prepareVideoPlayback(stream || null);
+        };
+
+        const setPlayerMode = (mode: 'iframe' | 'direct') => {
+            debug('player:mode-change', {
+                from: playerMode.value,
+                to: mode,
+                activeStream: activeStream.value?.quality || null,
+            });
+            playerMode.value = mode;
+            if (mode === 'direct') {
+                prepareVideoPlayback(activeStream.value);
+            } else {
+                prepareToken++;
+                videoSrc.value = '';
+            }
         };
 
         const onVideoLoadedMetadata = () => {
@@ -583,6 +666,7 @@ export default defineComponent({
             selectedStreamIndex,
             showDebug,
             playbackError,
+            videoSrc,
             videoEl,
             onVideoError,
             streams,

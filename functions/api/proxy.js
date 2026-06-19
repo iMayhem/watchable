@@ -93,17 +93,29 @@ export async function onRequest(context) {
         if (origin) headers.set('Origin', origin);
     }
     
+    const method = context.request.method === 'HEAD' ? 'HEAD' : 'GET';
     const clientRange = context.request.headers.get('Range');
+    const isMp4 = /\.mp4(\?|$)/i.test(targetUrl);
+
     if (clientRange) {
         headers.set('Range', clientRange);
+    } else if (isMovieboxCdn && isMp4 && method !== 'HEAD') {
+        // hakunaymatata often 403s on full GET; browsers may stall without an initial range
+        headers.set('Range', 'bytes=0-1048575');
     }
-    
+
+    async function fetchUpstream() {
+        return fetch(targetUrl, { method, headers, redirect: 'follow' });
+    }
+
     try {
-        const resp = await fetch(targetUrl, {
-            headers,
-            redirect: 'follow'
-        });
-        
+        let resp = await fetchUpstream();
+
+        if (resp.status === 403 && isMovieboxCdn && isMp4 && !clientRange) {
+            headers.set('Range', 'bytes=0-65535');
+            resp = await fetchUpstream();
+        }
+
         const contentType = resp.headers.get('Content-Type') || 'application/octet-stream';
         const isPlaylist = contentType.toLowerCase().includes('mpegurl') || 
                            contentType.toLowerCase().includes('x-mpegurl') || 
@@ -117,6 +129,10 @@ export async function onRequest(context) {
         for (let hName of ['Content-Range', 'Accept-Ranges', 'ETag', 'Cache-Control']) {
             const hVal = resp.headers.get(hName);
             if (hVal) responseHeaders.set(hName, hVal);
+        }
+
+        if (isMp4 && !responseHeaders.has('Accept-Ranges')) {
+            responseHeaders.set('Accept-Ranges', 'bytes');
         }
         
         if (isPlaylist) {

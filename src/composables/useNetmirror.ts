@@ -1,3 +1,5 @@
+import { nfDebug, nfDebugError } from './useNetflixDebug';
+
 export interface NetmirrorBrowseItem {
     id: string;
     title: string;
@@ -62,41 +64,67 @@ export async function browseNetmirror(
     category: string,
     page = 0
 ): Promise<NetmirrorBrowseResponse> {
+    nfDebug('netmirror:browse:start', { category, page });
     const params = new URLSearchParams({
         action: 'browse',
         category,
         page: String(page)
     });
-    const resp = await fetch(`/api/netmirror?${params}`);
-    const data = await resp.json();
-    if (!resp.ok) {
-        throw new Error(data.error || `Browse failed (${resp.status})`);
+    try {
+        const resp = await fetch(`/api/netmirror?${params}`);
+        const data = await resp.json();
+        if (!resp.ok) {
+            throw new Error(data.error || `Browse failed (${resp.status})`);
+        }
+        nfDebug('netmirror:browse:ok', {
+            category,
+            page,
+            count: data.results?.length ?? 0,
+            totalPages: data.pager?.total_pages
+        });
+        return data as NetmirrorBrowseResponse;
+    } catch (err) {
+        nfDebugError('netmirror:browse:fail', { category, page, err });
+        throw err;
     }
-    return data as NetmirrorBrowseResponse;
 }
 
 export async function searchNetmirror(query: string, page = 0): Promise<NetmirrorBrowseResponse> {
+    nfDebug('netmirror:search:start', { query, page });
     const params = new URLSearchParams({
         action: 'search',
         q: query,
         page: String(page)
     });
-    const resp = await fetch(`/api/netmirror?${params}`);
-    const data = await resp.json();
-    if (!resp.ok) {
-        throw new Error(data.error || `Search failed (${resp.status})`);
+    try {
+        const resp = await fetch(`/api/netmirror?${params}`);
+        const data = await resp.json();
+        if (!resp.ok) {
+            throw new Error(data.error || `Search failed (${resp.status})`);
+        }
+        nfDebug('netmirror:search:ok', { query, page, count: data.results?.length ?? 0 });
+        return { results: data.results || [], pager: data.pager };
+    } catch (err) {
+        nfDebugError('netmirror:search:fail', { query, page, err });
+        throw err;
     }
-    return { results: data.results || [], pager: data.pager };
 }
 
 export async function fetchNetmirrorMeta(type: 'movie' | 'tv', id: string) {
+    nfDebug('netmirror:meta:start', { type, id });
     const params = new URLSearchParams({ action: 'meta', type, id });
-    const resp = await fetch(`/api/netmirror?${params}`);
-    const data = await resp.json();
-    if (!resp.ok) {
-        throw new Error(data.error || `Metadata failed (${resp.status})`);
+    try {
+        const resp = await fetch(`/api/netmirror?${params}`);
+        const data = await resp.json();
+        if (!resp.ok) {
+            throw new Error(data.error || `Metadata failed (${resp.status})`);
+        }
+        nfDebug('netmirror:meta:ok', { type, id, title: data.meta?.title });
+        return data.meta;
+    } catch (err) {
+        nfDebugError('netmirror:meta:fail', { type, id, err });
+        throw err;
     }
-    return data.meta;
 }
 
 // Language catalogue config lives in useNetflixLanguage.ts

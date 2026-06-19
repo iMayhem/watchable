@@ -45,23 +45,17 @@ const CommandPalette = defineAsyncComponent(() => import('./components/navigatio
 
 // Lazy refs to cleanup functions — populated after dynamic import resolves
 let _stopReveal: (() => void) | null = null;
-let _uninstallAntiInspect: (() => void) | null = null;
 
 const initIdle = async () => {
-    // Dynamically import heavy composables — keeps them OUT of the initial bundle
-    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }, { installAntiInspect, uninstallAntiInspect }] =
-        await Promise.all([
-            import('./composables/useCommandPalette'),
-            import('./composables/useReveal'),
-            import('./composables/useAntiInspect')
-        ]);
+    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }] = await Promise.all([
+        import('./composables/useCommandPalette'),
+        import('./composables/useReveal')
+    ]);
 
     bindCommandPaletteHotkey();
     startReveal();
-    installAntiInspect();
 
     _stopReveal = stopReveal;
-    _uninstallAntiInspect = uninstallAntiInspect;
 
     // Prefetch main pages in the background
     import('./pages/Movies.vue');
@@ -82,7 +76,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     _stopReveal?.();
-    _uninstallAntiInspect?.();
 });
 </script>
 
@@ -179,70 +172,5 @@ input, textarea, [contenteditable="true"] {
     user-select: text;
 }
 
-img {
-    -webkit-user-drag: none;
-    user-drag: none;
-    -webkit-touch-callout: none;
-}
 
-// ── Anti-inspect: DevTools lock overlay ─────────────────────────────────────
-body.lm-locked {
-    overflow: hidden;
-
-    .app-stage {
-        filter: blur(14px) saturate(0.6);
-        pointer-events: none;
-        user-select: none;
-    }
-}
-
-.lm-lock-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 100000;
-    display: grid;
-    place-items: center;
-    background: rgba(11, 10, 8, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    padding: var(--s-5);
-    text-align: center;
-
-    &__panel {
-        max-width: 420px;
-        padding: var(--s-7) var(--s-6);
-        background: var(--ink-850);
-        border: 1px solid var(--rule-strong);
-        border-radius: var(--r-md);
-        box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7);
-    }
-
-    &__eyebrow {
-        font-family: var(--font-mono);
-        font-size: 0.72rem;
-        letter-spacing: var(--ls-micro);
-        text-transform: uppercase;
-        color: var(--ember);
-        margin: 0 0 var(--s-2);
-    }
-
-    &__title {
-        font-family: var(--font-display);
-        font-weight: 500;
-        font-size: clamp(1.6rem, 3vw, 2rem);
-        line-height: 1.1;
-        letter-spacing: var(--ls-tight);
-        color: var(--bone-50);
-        margin: 0 0 var(--s-3);
-        font-variation-settings: 'opsz' 144, 'SOFT' 30;
-    }
-
-    &__copy {
-        margin: 0;
-        color: var(--bone-300);
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
-        line-height: var(--lh-base);
-    }
-}
 </style>

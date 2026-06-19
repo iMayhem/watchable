@@ -1,5 +1,6 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useStreamExtension } from './useStreamExtension';
+import { nfDebug, nfDebugError } from './useNetflixDebug';
 
 export type PlayerSkin = 'default' | 'netflix';
 
@@ -98,6 +99,12 @@ export function formatPlayerTime(seconds: number): string {
 
 export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     const skin = options.skin ?? 'default';
+    const dbg = (step: string, detail?: unknown) => {
+        if (skin === 'netflix') nfDebug(step, detail);
+    };
+    const dbgError = (step: string, detail?: unknown) => {
+        if (skin === 'netflix') nfDebugError(step, detail);
+    };
     const { extensionActive, checkExtension, pingExtension } = useStreamExtension();
     const loading = ref(false);
     const playbackError = ref('');
@@ -116,6 +123,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     let refreshInFlight: Promise<NetmirrorResolve | null> | null = null;
     const destroyArt = () => {
         if (artInstance) {
+            dbg('player:destroy');
             try {
                 artInstance.destroy(false);
             } catch {
@@ -146,17 +154,21 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
 
         artInstance.on('video:timeupdate', syncTime);
         artInstance.on('video:loadedmetadata', () => {
+            dbg('player:metadata', { duration: artInstance.video?.duration });
             playbackError.value = '';
             syncTime();
         });
         artInstance.on('video:play', () => {
+            dbg('player:play');
             isPlaying.value = true;
         });
         artInstance.on('video:pause', () => {
+            dbg('player:pause');
             isPlaying.value = false;
         });
         artInstance.on('video:volumechange', syncTime);
         artInstance.on('error', () => {
+            dbgError('player:error');
             playbackError.value = 'Playback failed — try another quality or reload.';
         });
     };
@@ -208,6 +220,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     };
 
     const waitForContainer = async (timeoutMs = 4000) => {
+        dbg('player:wait-container');
         if (artContainer.value) return;
         const started = Date.now();
         while (!artContainer.value && Date.now() - started < timeoutMs) {
@@ -215,14 +228,20 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
             await new Promise((r) => window.setTimeout(r, 40));
         }
         if (!artContainer.value) {
+            dbgError('player:container-missing', { waitedMs: Date.now() - started });
             throw new Error('Player container missing');
         }
+        dbg('player:container-ready', { waitedMs: Date.now() - started });
     };
 
     const waitForExtension = async (timeoutMs = 1000) => {
+        dbg('player:wait-extension', { timeoutMs });
         pingExtension();
         checkExtension();
-        if (extensionActive.value) return;
+        if (extensionActive.value) {
+            dbg('player:extension-active');
+            return;
+        }
 
         await new Promise<void>((resolve) => {
             const started = Date.now();
@@ -231,6 +250,10 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
                 pingExtension();
                 if (extensionActive.value || Date.now() - started >= timeoutMs) {
                     window.clearInterval(timer);
+                    dbg('player:extension-wait-done', {
+                        active: extensionActive.value,
+                        waitedMs: Date.now() - started
+                    });
                     resolve();
                 }
             }, 120);
@@ -238,12 +261,14 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     };
 
     const mountArtplayer = async (stream: NetmirrorStream) => {
+        dbg('player:mount:start', { quality: stream.quality, extension: extensionActive.value });
         await loadArtplayerAssets();
         const container = artContainer.value;
         if (!container) throw new Error('Player container missing');
 
         destroyArt();
         const playUrl = resolvePlaybackUrl(stream);
+        dbg('player:mount:url', { quality: stream.quality, viaExtension: extensionActive.value });
         const ArtplayerCtor = (window as any).Artplayer;
         const isNetflix = skin === 'netflix';
 
@@ -269,6 +294,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
 
         bindPlaybackEvents();
         artReady.value = true;
+        dbg('player:mount:ready', { quality: stream.quality });
     };
 
     const togglePlay = () => {
@@ -330,8 +356,10 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
         destroyArt();
         if (!stream) return;
 
+        dbg('player:prepare', { quality: stream?.quality, allowRefresh });
         const ageSec = streamUrlAgeSec(stream.url);
         if (ageSec !== null && ageSec > 120 && allowRefresh) {
+            dbg('player:prepare:stale-url', { ageSec });
             const fresh = await refreshResolve(resolveUrl);
             if (token !== prepareToken || !fresh?.streams?.length) return;
             selectedStreamIndex.value = pickDefaultStreamIndex(fresh.streams);
@@ -351,6 +379,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
                 headers: { Range: 'bytes=0-65535' }
             });
             if (!resp.ok && resp.status !== 206 && allowRefresh) {
+                dbg('player:prepare:probe-fail', { status: resp.status });
                 const fresh = await refreshResolve(resolveUrl);
                 if (token !== prepareToken || !fresh?.streams?.length) return;
                 selectedStreamIndex.value = pickDefaultStreamIndex(fresh.streams);
@@ -366,6 +395,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
             playbackError.value = '';
         } catch (err: any) {
             if (token !== prepareToken) return;
+            dbgError('player:prepare:fail', err);
             playbackError.value =
                 err?.message || 'Playback failed. Install the Moovie Stream Boost extension.';
         }
@@ -378,6 +408,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
         episode?: number;
         server?: number;
     }) => {
+        dbg('player:resolve:start', opts);
         loading.value = true;
         playbackError.value = '';
         destroyArt();
@@ -395,9 +426,15 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
             const data = await fetchResolve(url);
             resolved.value = data;
             selectedStreamIndex.value = pickDefaultStreamIndex(data.streams || []);
+            dbg('player:resolve:ok', {
+                title: data.meta?.title,
+                streamCount: data.streams?.length ?? 0,
+                quality: data.streams?.[selectedStreamIndex.value]?.quality
+            });
             const stream = data.streams?.[selectedStreamIndex.value] || null;
             await preparePlayback(stream, url);
         } catch (err: any) {
+            dbgError('player:resolve:fail', err);
             playbackError.value = err?.message || 'Could not resolve stream.';
         } finally {
             loading.value = false;
@@ -405,6 +442,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     };
 
     const switchQuality = async (index: number, resolveUrl: string) => {
+        dbg('player:quality:switch', { index, quality: resolved.value?.streams?.[index]?.quality });
         selectedStreamIndex.value = index;
         const stream = resolved.value?.streams?.[index] || null;
         if (!stream) return;
@@ -419,11 +457,12 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
         if (!active || !artInstance || !resolved.value?.streams?.length) return;
         const stream = resolved.value.streams[selectedStreamIndex.value];
         if (!stream) return;
+        dbg('player:extension-switch-url', { quality: stream.quality });
         try {
             await artInstance.switchUrl(resolvePlaybackUrl(stream));
             playbackError.value = '';
-        } catch {
-            /* keep current stream */
+        } catch (err) {
+            dbgError('player:extension-switch-url:fail', err);
         }
     });
 

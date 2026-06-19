@@ -142,6 +142,7 @@ import {
     formatPlayerTime,
     type NetmirrorStream
 } from '../../composables/useNetmirrorPlayer';
+import { nfDebug } from '../../composables/useNetflixDebug';
 
 export default defineComponent({
     name: 'NetflixPlayer',
@@ -191,6 +192,7 @@ export default defineComponent({
         };
 
         const onShellClick = () => {
+            nfDebug('player-ui:click-toggle');
             revealControls();
             emit('toggle-play');
         };
@@ -199,11 +201,14 @@ export default defineComponent({
             const bar = event.currentTarget as HTMLElement;
             const rect = bar.getBoundingClientRect();
             const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-            emit('seek', ratio * (props.duration || 0));
+            const target = ratio * (props.duration || 0);
+            nfDebug('player-ui:seek', { ratio, target });
+            emit('seek', target);
         };
 
         const selectQuality = (index: number) => {
             qualityOpen.value = false;
+            nfDebug('player-ui:quality-select', { index });
             emit('quality', index);
         };
 
@@ -211,14 +216,17 @@ export default defineComponent({
             const el = shellRef.value;
             if (!el) return;
             if (!document.fullscreenElement) {
+                nfDebug('player-ui:fullscreen:enter');
                 await el.requestFullscreen?.();
             } else {
+                nfDebug('player-ui:fullscreen:exit');
                 await document.exitFullscreen?.();
             }
         };
 
         const onFullscreenChange = () => {
             isFullscreen.value = document.fullscreenElement === shellRef.value;
+            nfDebug('player-ui:fullscreen:change', { active: isFullscreen.value });
         };
 
         const onDocClick = (event: MouseEvent) => {
@@ -242,12 +250,28 @@ export default defineComponent({
         watch(
             stageRef,
             (el) => {
+                nfDebug('player-ui:stage-bind', { hasElement: Boolean(el) });
                 props.bindContainer(el);
             },
             { flush: 'post' }
         );
 
+        watch(
+            () => props.playbackError,
+            (err) => {
+                if (err) nfDebug('player-ui:error', err);
+            }
+        );
+
+        watch(
+            () => props.artReady,
+            (ready) => {
+                if (ready) nfDebug('player-ui:art-ready');
+            }
+        );
+
         onMounted(() => {
+            nfDebug('player-ui:mount');
             props.bindContainer(stageRef.value);
             document.addEventListener('fullscreenchange', onFullscreenChange);
             document.addEventListener('click', onDocClick);

@@ -83,6 +83,7 @@ import {
     mapWithConcurrency,
     resolveArtworkForNetmirrorItem
 } from '../composables/useTmdbArtwork';
+import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
 async function toCuratedItem(item: NetmirrorBrowseItem): Promise<CuratedItem> {
     const parsed = parseNetmirrorTitle(item.title || '');
@@ -146,6 +147,7 @@ export default defineComponent({
 
         const loadLanguageCatalogue = async () => {
             const lang = getLanguageOption(language.value);
+            nfDebug('home:load:start', { language: lang.category, label: lang.label });
             isLoading.value = true;
             trendingItems.value = [];
             movieItems.value = [];
@@ -169,21 +171,33 @@ export default defineComponent({
                 movieItems.value = movies.slice(0, 18);
                 seriesItems.value = series.slice(0, 18);
 
+                nfDebug('home:load:ok', {
+                    language: lang.category,
+                    pool: pool.length,
+                    curated: curated.length,
+                    movies: movieItems.value.length,
+                    series: seriesItems.value.length
+                });
+
                 updateSeo({
                     title: `${lang.label} — Netflix on Moovie`,
                     canonical: 'https://moovie.fun/',
                     image: 'https://moovie.fun/og-image.png'
                 });
             } catch (err) {
-                console.error('[NetflixHome] Failed to load catalogue:', err);
+                nfDebugError('home:load:fail', { language: lang.category, err });
             } finally {
                 isLoading.value = false;
             }
         };
 
-        const onLanguageChange = () => loadLanguageCatalogue();
+        const onLanguageChange = () => {
+            nfDebug('home:language-change');
+            loadLanguageCatalogue();
+        };
 
         onMounted(() => {
+            nfDebug('home:mount');
             loadLanguageCatalogue();
             window.addEventListener('movora_netflix_language_change', onLanguageChange);
         });

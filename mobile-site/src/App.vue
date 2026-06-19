@@ -21,22 +21,17 @@ const CommandPalette = defineAsyncComponent(() => import('@/components/navigatio
 
 // Lazy refs to cleanup functions — populated after dynamic import resolves
 let _stopReveal: (() => void) | null = null;
-let _uninstallAntiInspect: (() => void) | null = null;
 
 const initIdle = async () => {
-    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }, { installAntiInspect, uninstallAntiInspect }] =
-        await Promise.all([
-            import('@/composables/useCommandPalette'),
-            import('@/composables/useReveal'),
-            import('@/composables/useAntiInspect')
-        ]);
+    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }] = await Promise.all([
+        import('@/composables/useCommandPalette'),
+        import('@/composables/useReveal')
+    ]);
 
     bindCommandPaletteHotkey();
     startReveal();
-    installAntiInspect();
 
     _stopReveal = stopReveal;
-    _uninstallAntiInspect = uninstallAntiInspect;
 
     // Prefetch main mobile pages in the background
     import('./pages/Movies.vue');
@@ -56,7 +51,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     _stopReveal?.();
-    _uninstallAntiInspect?.();
 });
 </script>
 
@@ -147,19 +141,5 @@ input, textarea, [contenteditable="true"] {
     user-select: text;
 }
 
-img {
-    -webkit-user-drag: none;
-    user-drag: none;
-    -webkit-touch-callout: none;
-}
 
-body.lm-locked {
-    overflow: hidden;
-
-    .app-stage {
-        filter: blur(14px) saturate(0.6);
-        pointer-events: none;
-        user-select: none;
-    }
-}
 </style>

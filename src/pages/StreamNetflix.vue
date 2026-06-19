@@ -32,6 +32,7 @@ import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import { parseNetmirrorTitle } from '../composables/useNetmirror';
 import { useNetmirrorPlayer } from '../composables/useNetmirrorPlayer';
 import { useSeo } from '../composables/useSeo';
+import { nfDebug } from '../composables/useNetflixDebug';
 
 export default defineComponent({
     name: 'StreamNetflix',
@@ -63,6 +64,7 @@ export default defineComponent({
         } = player;
 
         const bindPlayerContainer = (el: HTMLElement | null) => {
+            nfDebug('stream:bind-container', { hasElement: Boolean(el) });
             artContainer.value = el;
         };
 
@@ -104,10 +106,17 @@ export default defineComponent({
         });
 
         const goBack = () => {
+            nfDebug('stream:back', { id: route.params.id, type: mediaType.value });
             router.push(`/nf/${mediaType.value}/${route.params.id}`);
         };
 
         const startPlayback = () => {
+            nfDebug('stream:playback:start', {
+                id: route.params.id,
+                type: mediaType.value,
+                season: route.params.season,
+                episode: route.params.episode
+            });
             resolveAndPlay({
                 type: mediaType.value,
                 id: String(route.params.id || ''),
@@ -117,10 +126,12 @@ export default defineComponent({
         };
 
         const onQuality = (index: number) => {
+            nfDebug('stream:quality', { index });
             switchQuality(index, resolveUrl.value);
         };
 
         onMounted(async () => {
+            nfDebug('stream:mount', { path: route.path });
             updateSeo({
                 title: 'Watch — Netflix on Moovie',
                 canonical: `https://moovie.fun${route.path}`,
@@ -132,7 +143,14 @@ export default defineComponent({
 
         watch(
             () => [route.params.id, route.params.season, route.params.episode],
-            startPlayback
+            () => {
+                nfDebug('stream:route-change', {
+                    id: route.params.id,
+                    season: route.params.season,
+                    episode: route.params.episode
+                });
+                startPlayback();
+            }
         );
 
         return {

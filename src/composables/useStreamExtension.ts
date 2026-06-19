@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { nfDebug } from './useNetflixDebug';
 
 export interface StreamExtensionInfo {
     active: boolean;
@@ -16,9 +17,10 @@ export function useStreamExtension() {
     const extensionActive = ref(false);
     const extensionInfo = ref<StreamExtensionInfo | null>(null);
 
-    const applyDetection = (info: StreamExtensionInfo | null) => {
+    const applyDetection = (info: StreamExtensionInfo | null, source: string) => {
         const active = Boolean(info?.active);
         if (active !== extensionActive.value) {
+            nfDebug('extension:detected', { active, source, version: info?.version, mode: info?.mode });
             extensionActive.value = active;
             extensionInfo.value = info;
         } else if (active && info) {
@@ -27,13 +29,14 @@ export function useStreamExtension() {
     };
 
     const checkExtension = () => {
-        applyDetection(readWindowFlag());
+        applyDetection(readWindowFlag(), 'window-flag');
     };
 
     const onExtensionReady = (event: Event) => {
         const detail = (event as CustomEvent<StreamExtensionInfo>).detail;
+        nfDebug('extension:ready-event', { active: detail?.active, version: detail?.version });
         if (detail?.active) {
-            applyDetection(detail);
+            applyDetection(detail, 'ready-event');
             return;
         }
         checkExtension();
@@ -42,8 +45,9 @@ export function useStreamExtension() {
     const onExtensionPong = (event: MessageEvent) => {
         if (event.source !== window || event.data?.type !== 'MOOVIE_EXT_PONG') return;
         const detail = event.data.detail as StreamExtensionInfo | undefined;
+        nfDebug('extension:pong', { active: detail?.active, version: detail?.version });
         if (detail?.active) {
-            applyDetection(detail);
+            applyDetection(detail, 'pong');
         }
     };
 
@@ -54,6 +58,7 @@ export function useStreamExtension() {
     let intervalId: number | null = null;
 
     onMounted(() => {
+        nfDebug('extension:init');
         checkExtension();
         pingExtension();
         window.addEventListener('moovie-stream-ext-ready', onExtensionReady);

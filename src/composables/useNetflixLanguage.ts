@@ -1,6 +1,7 @@
 import { useStorage } from '@vueuse/core';
 import { readonly } from 'vue';
 import { parseNetmirrorTitle, type NetmirrorBrowseItem } from './useNetmirror';
+import { nfDebug } from './useNetflixDebug';
 
 export interface NetflixLanguageOption {
     category: string;
@@ -53,6 +54,11 @@ export function itemMatchesLanguage(
 export function getNetflixLanguage() {
     const setLanguage = (category: string) => {
         const lang = getLanguageOption(category);
+        nfDebug('language:set', {
+            category: lang.category,
+            label: lang.label,
+            previous: selectedLanguage.value
+        });
         selectedLanguage.value = lang.category;
         window.dispatchEvent(
             new CustomEvent('movora_netflix_language_change', {

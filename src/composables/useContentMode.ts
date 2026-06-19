@@ -1,5 +1,6 @@
 import { useStorage } from '@vueuse/core';
 import { readonly } from 'vue';
+import { nfDebug } from './useNetflixDebug';
 
 export type ContentMode = 'global' | 'netflix';
 
@@ -14,6 +15,7 @@ export function isContentModeChosen(): boolean {
 
 export function getContentMode() {
     const setContentMode = (mode: ContentMode) => {
+        nfDebug('content-mode:set', { mode, previous: storedMode.value });
         storedMode.value = mode;
         window.dispatchEvent(
             new CustomEvent('movora_content_mode_change', { detail: { mode } })
@@ -21,6 +23,7 @@ export function getContentMode() {
     };
 
     const clearContentMode = () => {
+        nfDebug('content-mode:clear', { previous: storedMode.value });
         storedMode.value = UNSET;
         window.dispatchEvent(
             new CustomEvent('movora_content_mode_change', { detail: { mode: UNSET } })

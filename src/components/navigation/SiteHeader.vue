@@ -240,6 +240,7 @@ import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
 import { getNetflixLanguage, NETFLIX_LANGUAGES } from '../../composables/useNetflixLanguage';
+import { nfDebug } from '../../composables/useNetflixDebug';
 
 interface NavItem {
     label: string;
@@ -388,6 +389,7 @@ export default defineComponent({
 
         const toggleContentMode = () => {
             const next = contentMode.value === 'netflix' ? 'global' : 'netflix';
+            nfDebug('header:mode-toggle', { next });
             setContentMode(next);
             if (route.path === '/' || route.path.startsWith('/nf/') || route.path.startsWith('/stream/nf/')) {
                 router.push('/');
@@ -395,6 +397,7 @@ export default defineComponent({
         };
 
         const selectNetflixLanguage = (category: string) => {
+            nfDebug('header:language-select', { category });
             setNetflixLanguage(category);
             if (route.path !== '/') {
                 router.push('/');

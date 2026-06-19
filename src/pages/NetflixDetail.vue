@@ -61,6 +61,7 @@ import {
     resolveArtworkForNetmirrorItem,
     resolveTmdbArtwork
 } from '../composables/useTmdbArtwork';
+import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
 export default defineComponent({
     name: 'NetflixDetail',
@@ -115,11 +116,12 @@ export default defineComponent({
         };
 
         const loadDetail = async () => {
+            const id = String(route.params.id || '');
+            nfDebug('detail:load:start', { id, type: mediaType.value });
             loading.value = true;
             similarItems.value = [];
             artwork.value = { posterPath: null, backdropPath: null };
             try {
-                const id = String(route.params.id || '');
                 meta.value = await fetchNetmirrorMeta(mediaType.value, id);
 
                 const parsedTitle = parseNetmirrorTitle(meta.value?.title || '');
@@ -142,6 +144,14 @@ export default defineComponent({
                     .slice(0, 14);
                 similarItems.value = await mapWithConcurrency(similarPool, toCurated, 6);
 
+                nfDebug('detail:load:ok', {
+                    id,
+                    title: displayTitle.value,
+                    similar: similarItems.value.length,
+                    hasPoster: Boolean(artwork.value.posterPath),
+                    hasBackdrop: Boolean(artwork.value.backdropPath)
+                });
+
                 const seoImage = artwork.value.backdropPath || artwork.value.posterPath;
                 updateSeo({
                     title: `${displayTitle.value} — Netflix on Moovie`,
@@ -153,14 +163,20 @@ export default defineComponent({
                           : 'https://moovie.fun/og-image.png'
                 });
             } catch (err) {
-                console.error('[NetflixDetail] load failed:', err);
+                nfDebugError('detail:load:fail', { id, type: mediaType.value, err });
             } finally {
                 loading.value = false;
             }
         };
 
-        onMounted(loadDetail);
-        watch(() => route.params.id, loadDetail);
+        onMounted(() => {
+            nfDebug('detail:mount', { id: route.params.id, type: mediaType.value });
+            loadDetail();
+        });
+        watch(() => route.params.id, (newId) => {
+            nfDebug('detail:route-change', { id: newId });
+            loadDetail();
+        });
 
         return {
             loading,

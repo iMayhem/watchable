@@ -4,7 +4,7 @@
             type="button"
             class="ext-prompt__btn"
             :class="{ 'is-active': extensionActive }"
-            @click="open = true"
+            @click="openDialog"
         >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                 <path d="M12 2 2 7l10 5 10-5-10-5Z" />
@@ -41,10 +41,11 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 import LmDialog from '../primitives/Dialog.vue';
 import { getContentMode } from '../../composables/useContentMode';
 import { useStreamExtension } from '../../composables/useStreamExtension';
+import { nfDebug } from '../../composables/useNetflixDebug';
 
 export default defineComponent({
     name: 'ExtensionPrompt',
@@ -56,7 +57,16 @@ export default defineComponent({
 
         const showPrompt = computed(() => isNetflix());
 
-        return { open, extensionActive, showPrompt };
+        const openDialog = () => {
+            nfDebug('extension-prompt:open', { active: extensionActive.value });
+            open.value = true;
+        };
+
+        watch(extensionActive, (active) => {
+            nfDebug('extension-prompt:status', { active });
+        });
+
+        return { open, extensionActive, showPrompt, openDialog };
     }
 });
 </script>

@@ -33,6 +33,7 @@
 import { computed, defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { getContentMode, type ContentMode } from '../../composables/useContentMode';
+import { nfDebug } from '../../composables/useNetflixDebug';
 
 export default defineComponent({
     name: 'ContentModeGate',
@@ -43,6 +44,7 @@ export default defineComponent({
         const visible = computed(() => contentMode.value !== 'global' && contentMode.value !== 'netflix');
 
         const choose = (mode: ContentMode) => {
+            nfDebug('gate:choose', { mode });
             setContentMode(mode);
             if (router.currentRoute.value.path !== '/') {
                 router.push('/');

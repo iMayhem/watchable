@@ -1,4 +1,6 @@
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+
+export type PlayerSkin = 'default' | 'netflix';
 
 export interface NetmirrorStream {
     quality: string;
@@ -82,7 +84,19 @@ const loadArtplayerAssets = (() => {
     };
 })();
 
-export function useNetmirrorPlayer() {
+export function formatPlayerTime(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) {
+        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
+    const skin = options.skin ?? 'default';
     const extensionActive = ref(false);
     const loading = ref(false);
     const playbackError = ref('');
@@ -90,6 +104,11 @@ export function useNetmirrorPlayer() {
     const selectedStreamIndex = ref(0);
     const artReady = ref(false);
     const artContainer = ref<HTMLElement | null>(null);
+    const isPlaying = ref(false);
+    const currentTime = ref(0);
+    const duration = ref(0);
+    const buffered = ref(0);
+    const isMuted = ref(false);
 
     let artInstance: any = null;
     let prepareToken = 0;
@@ -111,6 +130,41 @@ export function useNetmirrorPlayer() {
             artInstance = null;
         }
         artReady.value = false;
+        isPlaying.value = false;
+        currentTime.value = 0;
+        duration.value = 0;
+        buffered.value = 0;
+    };
+
+    const bindPlaybackEvents = () => {
+        if (!artInstance) return;
+
+        const syncTime = () => {
+            const video = artInstance.video as HTMLVideoElement | undefined;
+            if (!video) return;
+            currentTime.value = video.currentTime || 0;
+            duration.value = video.duration || 0;
+            isMuted.value = video.muted;
+            if (video.buffered.length > 0) {
+                buffered.value = video.buffered.end(video.buffered.length - 1);
+            }
+        };
+
+        artInstance.on('video:timeupdate', syncTime);
+        artInstance.on('video:loadedmetadata', () => {
+            playbackError.value = '';
+            syncTime();
+        });
+        artInstance.on('video:play', () => {
+            isPlaying.value = true;
+        });
+        artInstance.on('video:pause', () => {
+            isPlaying.value = false;
+        });
+        artInstance.on('video:volumechange', syncTime);
+        artInstance.on('error', () => {
+            playbackError.value = 'Playback failed — try another quality or reload.';
+        });
     };
 
     const buildResolveUrl = (opts: {
@@ -167,31 +221,62 @@ export function useNetmirrorPlayer() {
         destroyArt();
         const playUrl = resolvePlaybackUrl(stream);
         const ArtplayerCtor = (window as any).Artplayer;
+        const isNetflix = skin === 'netflix';
+
         artInstance = new ArtplayerCtor({
             container,
             url: playUrl,
             type: 'mp4',
             autoplay: true,
             preload: 'auto',
-            playbackRate: true,
-            aspectRatio: true,
-            fullscreen: true,
-            fullscreenWeb: true,
-            miniProgressBar: true,
-            fastForward: true,
-            setting: true,
-            theme: '#4eb5ff'
+            theme: isNetflix ? '#e50914' : '#4eb5ff',
+            playbackRate: !isNetflix,
+            aspectRatio: !isNetflix,
+            fullscreen: !isNetflix,
+            fullscreenWeb: !isNetflix,
+            miniProgressBar: !isNetflix,
+            fastForward: !isNetflix,
+            setting: !isNetflix,
+            autoSize: isNetflix,
+            autoMini: false,
+            pip: false,
+            controls: isNetflix ? [] : undefined
         });
 
-        artInstance.on('video:loadedmetadata', () => {
-            playbackError.value = '';
-        });
-        artInstance.on('error', () => {
-            playbackError.value = 'Playback failed — try another quality or reload.';
-        });
-
+        bindPlaybackEvents();
         artReady.value = true;
     };
+
+    const togglePlay = () => {
+        if (!artInstance) return;
+        artInstance.toggle();
+    };
+
+    const seekTo = (time: number) => {
+        if (!artInstance) return;
+        artInstance.seek = Math.max(0, Math.min(time, duration.value || time));
+        currentTime.value = artInstance.currentTime;
+    };
+
+    const skipBack = (seconds = 10) => {
+        seekTo((currentTime.value || 0) - seconds);
+    };
+
+    const toggleMute = () => {
+        if (!artInstance?.video) return;
+        artInstance.video.muted = !artInstance.video.muted;
+        isMuted.value = artInstance.video.muted;
+    };
+
+    const progress = computed(() => {
+        if (!duration.value) return 0;
+        return Math.min(100, (currentTime.value / duration.value) * 100);
+    });
+
+    const bufferProgress = computed(() => {
+        if (!duration.value) return 0;
+        return Math.min(100, (buffered.value / duration.value) * 100);
+    });
 
     const refreshResolve = async (
         resolveUrl: string
@@ -321,8 +406,19 @@ export function useNetmirrorPlayer() {
         selectedStreamIndex,
         artReady,
         artContainer,
+        isPlaying,
+        currentTime,
+        duration,
+        buffered,
+        isMuted,
+        progress,
+        bufferProgress,
         resolveAndPlay,
         switchQuality,
+        togglePlay,
+        seekTo,
+        skipBack,
+        toggleMute,
         destroyArt,
         pickDefaultStreamIndex
     };

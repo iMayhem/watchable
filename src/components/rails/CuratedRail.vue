@@ -44,6 +44,7 @@ export interface CuratedItem {
     isMock?: boolean;
     query?: Record<string, any>;
     languageTags?: string[];
+    backdropPath?: string | null;
 }
 
 export default defineComponent({

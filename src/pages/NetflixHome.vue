@@ -10,7 +10,7 @@
                 :tagline="activeLang.nativeLabel"
                 :overview="hero ? hero.overview : ''"
                 :backdrop-path="hero ? hero.backdropPath : null"
-                :poster-path="hero ? hero.backdropPath : null"
+                :poster-path="hero ? hero.posterPath : null"
                 :rating="hero ? hero.rating : 0"
                 :release-date="hero ? hero.releaseDate : ''"
                 :genre-ids="[]"
@@ -79,14 +79,21 @@ import {
     type NetflixLanguageOption
 } from '../composables/useNetflixLanguage';
 import { useSeo } from '../composables/useSeo';
+import {
+    mapWithConcurrency,
+    resolveArtworkForNetmirrorItem
+} from '../composables/useTmdbArtwork';
 
-function toCuratedItem(item: NetmirrorBrowseItem): CuratedItem {
+async function toCuratedItem(item: NetmirrorBrowseItem): Promise<CuratedItem> {
     const parsed = parseNetmirrorTitle(item.title || '');
+    const artwork = await resolveArtworkForNetmirrorItem(item);
+
     return {
         id: item.id,
         title: parsed.displayTitle || item.title,
         originalTitle: parsed.languages.join(' · '),
-        posterPath: item.backdrop_path,
+        posterPath: artwork.posterPath || artwork.fallbackPath,
+        backdropPath: artwork.backdropPath || artwork.fallbackPath,
         rating: netmirrorRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: item.media_type === 'tv' ? 'tv' : 'movie',
@@ -115,7 +122,8 @@ export default defineComponent({
                 type: first.type || 'movie',
                 title: first.title,
                 overview: '',
-                backdropPath: first.posterPath,
+                backdropPath: first.backdropPath || first.posterPath,
+                posterPath: first.posterPath,
                 rating: first.rating || 0,
                 releaseDate: first.releaseDate || ''
             };
@@ -153,7 +161,7 @@ export default defineComponent({
                     (item) => itemMatchesLanguage(item, lang)
                 );
 
-                const curated = pool.map(toCuratedItem);
+                const curated = await mapWithConcurrency(pool, toCuratedItem, 6);
                 const movies = curated.filter((item) => item.type === 'movie');
                 const series = curated.filter((item) => item.type === 'tv');
 

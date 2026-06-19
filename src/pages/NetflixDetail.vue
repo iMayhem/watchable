@@ -10,8 +10,8 @@
                     :title="displayTitle"
                     :tagline="languageLine"
                     :eyebrow="mediaType === 'tv' ? 'Series' : 'Film'"
-                    :backdrop-path="meta ? meta.backdrop_path : null"
-                    :poster-path="meta ? meta.backdrop_path : null"
+                    :backdrop-path="artwork.backdropPath"
+                    :poster-path="artwork.posterPath"
                     :rating="rating"
                     :release-date="meta ? meta.release_date : ''"
                     :genres="languageTags"
@@ -56,6 +56,11 @@ import {
     itemMatchesLanguage
 } from '../composables/useNetflixLanguage';
 import { useSeo } from '../composables/useSeo';
+import {
+    mapWithConcurrency,
+    resolveArtworkForNetmirrorItem,
+    resolveTmdbArtwork
+} from '../composables/useTmdbArtwork';
 
 export default defineComponent({
     name: 'NetflixDetail',
@@ -66,6 +71,10 @@ export default defineComponent({
         const loading = ref(true);
         const meta = ref<any>(null);
         const similarItems = ref<CuratedItem[]>([]);
+        const artwork = ref<{ posterPath: string | null; backdropPath: string | null }>({
+            posterPath: null,
+            backdropPath: null
+        });
 
         const mediaType = computed(() =>
             route.params.type === 'tv' ? 'tv' : 'movie'
@@ -89,13 +98,15 @@ export default defineComponent({
             return `/stream/nf/movie/${id}`;
         });
 
-        const toCurated = (item: NetmirrorBrowseItem): CuratedItem => {
+        const toCurated = async (item: NetmirrorBrowseItem): Promise<CuratedItem> => {
             const p = parseNetmirrorTitle(item.title || '');
+            const art = await resolveArtworkForNetmirrorItem(item);
             return {
                 id: item.id,
                 title: p.displayTitle || item.title,
                 originalTitle: p.languages.join(' · '),
-                posterPath: item.backdrop_path,
+                posterPath: art.posterPath || art.fallbackPath,
+                backdropPath: art.backdropPath || art.fallbackPath,
                 rating: netmirrorRating(item.vote_average),
                 releaseDate: item.release_date || '',
                 type: item.media_type === 'tv' ? 'tv' : 'movie',
@@ -106,22 +117,40 @@ export default defineComponent({
         const loadDetail = async () => {
             loading.value = true;
             similarItems.value = [];
+            artwork.value = { posterPath: null, backdropPath: null };
             try {
                 const id = String(route.params.id || '');
                 meta.value = await fetchNetmirrorMeta(mediaType.value, id);
 
+                const parsedTitle = parseNetmirrorTitle(meta.value?.title || '');
+                const tmdbArt = await resolveTmdbArtwork({
+                    title: parsedTitle.displayTitle || meta.value?.title || '',
+                    year: meta.value?.release_date,
+                    type: mediaType.value,
+                    cacheKey: `nm-detail-${mediaType.value}-${id}`
+                });
+                artwork.value = {
+                    posterPath: tmdbArt.posterPath || meta.value?.backdrop_path || null,
+                    backdropPath: tmdbArt.backdropPath || meta.value?.backdrop_path || null
+                };
+
                 const { language } = getNetflixLanguage();
                 const lang = getLanguageOption(language.value);
                 const browse = await browseNetmirror(lang.category, 0);
-                similarItems.value = (browse.results || [])
+                const similarPool = (browse.results || [])
                     .filter((item) => item.id !== id && itemMatchesLanguage(item, lang))
-                    .slice(0, 14)
-                    .map(toCurated);
+                    .slice(0, 14);
+                similarItems.value = await mapWithConcurrency(similarPool, toCurated, 6);
 
+                const seoImage = artwork.value.backdropPath || artwork.value.posterPath;
                 updateSeo({
                     title: `${displayTitle.value} — Netflix on Moovie`,
                     canonical: `https://moovie.fun/nf/${mediaType.value}/${id}`,
-                    image: meta.value?.backdrop_path || 'https://moovie.fun/og-image.png'
+                    image: seoImage?.startsWith('http')
+                        ? seoImage
+                        : seoImage
+                          ? `https://moovie.fun/api/img?path=${encodeURIComponent(seoImage)}`
+                          : 'https://moovie.fun/og-image.png'
                 });
             } catch (err) {
                 console.error('[NetflixDetail] load failed:', err);
@@ -142,7 +171,8 @@ export default defineComponent({
             languageTags,
             rating,
             playRoute,
-            similarItems
+            similarItems,
+            artwork
         };
     }
 });

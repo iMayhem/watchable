@@ -26,8 +26,8 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, nextTick, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, defineComponent, onBeforeUnmount, onMounted, watch } from 'vue';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import { parseCatalogTitle } from '../composables/useMoovieCatalog';
 import { useMooviePlayer } from '../composables/useMooviePlayer';
@@ -60,11 +60,13 @@ export default defineComponent({
             togglePlay,
             seekTo,
             skipBack,
-            toggleMute
+            toggleMute,
+            destroyArt
         } = player;
 
+        let started = false;
+
         const bindPlayerContainer = (el: HTMLElement | null) => {
-            nfDebug('stream:bind-container', { hasElement: Boolean(el) });
             artContainer.value = el;
         };
 
@@ -105,9 +107,25 @@ export default defineComponent({
             return `/api/moovie-catalog?${params.toString()}`;
         });
 
+        const teardown = () => {
+            destroyArt();
+        };
+
+        const scheduleTeardown = () => {
+            // Let the cached detail/home route paint first, then drop the player.
+            queueMicrotask(() => teardown());
+        };
+
         const goBack = () => {
             nfDebug('stream:back', { id: route.params.id, type: mediaType.value });
-            router.push(`/nf/${mediaType.value}/${route.params.id}`);
+            const fallback = `/nf/${mediaType.value}/${route.params.id}`;
+            if (window.history.length > 1) {
+                router.back();
+                scheduleTeardown();
+                return;
+            }
+            router.replace(fallback);
+            scheduleTeardown();
         };
 
         const startPlayback = () => {
@@ -130,15 +148,25 @@ export default defineComponent({
             switchQuality(index, resolveUrl.value);
         };
 
-        onMounted(async () => {
+        onBeforeRouteLeave(() => {
+            scheduleTeardown();
+        });
+
+        onMounted(() => {
             nfDebug('stream:mount', { path: route.path });
             updateSeo({
                 title: 'Watch — Netflix on Moovie',
                 canonical: `https://moovie.fun${route.path}`,
                 image: 'https://moovie.fun/og-image.png'
             });
-            await nextTick();
-            startPlayback();
+            if (!started) {
+                started = true;
+                startPlayback();
+            }
+        });
+
+        onBeforeUnmount(() => {
+            teardown();
         });
 
         watch(

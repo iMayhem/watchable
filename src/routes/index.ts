@@ -211,6 +211,13 @@ const router = createRouter({
     routes,
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) return savedPosition;
+        // Back from Netflix player → restore detail scroll instead of jumping to top.
+        if (
+            (from.name === 'StreamNetflixMovie' || from.name === 'StreamNetflixTV') &&
+            to.name === 'NetflixDetail'
+        ) {
+            return false;
+        }
         if (
             to.params.id &&
             from.params.id &&

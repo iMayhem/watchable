@@ -66,7 +66,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
@@ -115,6 +115,7 @@ async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
 
 export default defineComponent({
     name: 'NetflixHome',
+    // Cached via parent HomeShell KeepAlive — skip reload when returning from player.
     components: { SiteHeader, SiteFooter, BillboardHero, CuratedRail },
     setup() {
         const { updateSeo } = useSeo();
@@ -209,10 +210,22 @@ export default defineComponent({
             loadLanguageCatalogue();
         };
 
+        const hasCatalogue = () =>
+            trendingItems.value.length > 0 || catalogueRails.value.length > 0;
+
         onMounted(() => {
             nfDebug('home:mount');
             loadLanguageCatalogue();
             window.addEventListener('movora_netflix_language_change', onLanguageChange);
+        });
+
+        onActivated(() => {
+            if (hasCatalogue()) {
+                nfDebug('home:reactivate');
+                isLoading.value = false;
+                return;
+            }
+            loadLanguageCatalogue();
         });
 
         onBeforeUnmount(() => {

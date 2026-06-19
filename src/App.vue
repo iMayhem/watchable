@@ -5,7 +5,9 @@
         <span class="grain" aria-hidden="true" />
 
         <router-view v-slot="{ Component, route }">
-            <component :is="Component" :key="getRouteKey(route)" />
+            <KeepAlive :include="['HomeShell', 'NetflixDetail']">
+                <component :is="Component" :key="getRouteKey(route)" />
+            </KeepAlive>
         </router-view>
 
         <ContentModeGate />

@@ -18,7 +18,7 @@
                     :genre-ids="[]"
                     :play-route="playRoute"
                     :show-trailer="false"
-                    :loading="loading"
+                    :loading="loading && !meta"
                 />
             </section>
 
@@ -37,7 +37,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, onActivated, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
@@ -99,6 +99,13 @@ export default defineComponent({
             return `/stream/nf/movie/${id}`;
         });
 
+        const routeId = () => String(route.params.id || '');
+
+        const isHydratedForRoute = () => {
+            const id = routeId();
+            return Boolean(meta.value && String(meta.value.id) === id);
+        };
+
         const toCurated = async (item: MoovieCatalogItem): Promise<CuratedItem> => {
             const p = parseCatalogTitle(item.title || '');
             const art = await resolveArtworkForCatalogItem(item);
@@ -115,52 +122,69 @@ export default defineComponent({
             };
         };
 
-        const loadDetail = async () => {
-            const id = String(route.params.id || '');
-            nfDebug('detail:load:start', { id, type: mediaType.value });
-            loading.value = true;
-            similarItems.value = [];
-            artwork.value = { posterPath: null, backdropPath: null };
+        const applySeo = (id: string) => {
+            const seoImage = artwork.value.backdropPath || artwork.value.posterPath;
+            updateSeo({
+                title: `${displayTitle.value} — Netflix on Moovie`,
+                canonical: `https://moovie.fun/nf/${mediaType.value}/${id}`,
+                image: seoImage?.startsWith('http')
+                    ? seoImage
+                    : seoImage
+                      ? `https://moovie.fun/api/img?path=${encodeURIComponent(seoImage)}`
+                      : 'https://moovie.fun/og-image.png'
+            });
+        };
+
+        const loadSimilar = async (id: string) => {
+            const { language } = getNetflixLanguage();
+            const lang = getLanguageOption(language.value);
+            const browse = await browseMoovieCatalog(lang.category, 0);
+            const similarPool = (browse.results || [])
+                .filter((item) => item.id !== id && itemMatchesLanguage(item, lang))
+                .slice(0, 10);
+            similarItems.value = await mapWithConcurrency(similarPool, toCurated, 4);
+        };
+
+        const loadDetail = async (opts: { background?: boolean } = {}) => {
+            const id = routeId();
+            const background = opts.background ?? isHydratedForRoute();
+            nfDebug('detail:load:start', { id, type: mediaType.value, background });
+
+            if (!background) {
+                loading.value = true;
+                similarItems.value = [];
+                artwork.value = { posterPath: null, backdropPath: null };
+            }
+
             try {
-                meta.value = await fetchMoovieCatalogMeta(mediaType.value, id);
+                const metaPromise = background && meta.value
+                    ? Promise.resolve(meta.value)
+                    : fetchMoovieCatalogMeta(mediaType.value, id);
+
+                meta.value = await metaPromise;
 
                 const parsedTitle = parseCatalogTitle(meta.value?.title || '');
                 const tmdbArt = await resolveTmdbArtwork({
                     title: parsedTitle.displayTitle || meta.value?.title || '',
                     year: meta.value?.release_date,
                     type: mediaType.value,
-                    cacheKey: `nm-detail-${mediaType.value}-${id}`
+                    cacheKey: `moovie-detail-${mediaType.value}-${id}`
                 });
                 artwork.value = {
                     posterPath: tmdbArt.posterPath || meta.value?.backdrop_path || null,
                     backdropPath: tmdbArt.backdropPath || meta.value?.backdrop_path || null
                 };
 
-                const { language } = getNetflixLanguage();
-                const lang = getLanguageOption(language.value);
-                const browse = await browseMoovieCatalog(lang.category, 0);
-                const similarPool = (browse.results || [])
-                    .filter((item) => item.id !== id && itemMatchesLanguage(item, lang))
-                    .slice(0, 14);
-                similarItems.value = await mapWithConcurrency(similarPool, toCurated, 6);
+                applySeo(id);
+
+                if (!background || !similarItems.value.length) {
+                    void loadSimilar(id);
+                }
 
                 nfDebug('detail:load:ok', {
                     id,
                     title: displayTitle.value,
-                    similar: similarItems.value.length,
-                    hasPoster: Boolean(artwork.value.posterPath),
-                    hasBackdrop: Boolean(artwork.value.backdropPath)
-                });
-
-                const seoImage = artwork.value.backdropPath || artwork.value.posterPath;
-                updateSeo({
-                    title: `${displayTitle.value} — Netflix on Moovie`,
-                    canonical: `https://moovie.fun/nf/${mediaType.value}/${id}`,
-                    image: seoImage?.startsWith('http')
-                        ? seoImage
-                        : seoImage
-                          ? `https://moovie.fun/api/img?path=${encodeURIComponent(seoImage)}`
-                          : 'https://moovie.fun/og-image.png'
+                    background
                 });
             } catch (err) {
                 nfDebugError('detail:load:fail', { id, type: mediaType.value, err });
@@ -173,7 +197,19 @@ export default defineComponent({
             nfDebug('detail:mount', { id: route.params.id, type: mediaType.value });
             loadDetail();
         });
-        watch(() => route.params.id, (newId) => {
+
+        onActivated(() => {
+            if (isHydratedForRoute()) {
+                nfDebug('detail:reactivate', { id: routeId() });
+                loading.value = false;
+                applySeo(routeId());
+                return;
+            }
+            loadDetail();
+        });
+
+        watch(() => route.params.id, (newId, oldId) => {
+            if (!newId || newId === oldId) return;
             nfDebug('detail:route-change', { id: newId });
             loadDetail();
         });

@@ -122,10 +122,21 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     let prepareToken = 0;
     let refreshInFlight: Promise<MoovieResolve | null> | null = null;
     const destroyArt = () => {
+        prepareToken++;
+        const video = artInstance?.video as HTMLVideoElement | undefined;
+        if (video) {
+            try {
+                video.pause();
+                video.removeAttribute('src');
+                video.load();
+            } catch {
+                /* ignore */
+            }
+        }
         if (artInstance) {
             dbg('player:destroy');
             try {
-                artInstance.destroy(false);
+                artInstance.destroy(true);
             } catch {
                 /* ignore */
             }
@@ -136,6 +147,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         currentTime.value = 0;
         duration.value = 0;
         buffered.value = 0;
+        loading.value = false;
     };
 
     const bindPlaybackEvents = () => {
@@ -234,7 +246,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         dbg('player:container-ready', { waitedMs: Date.now() - started });
     };
 
-    const waitForExtension = async (timeoutMs = 1000) => {
+    const waitForExtension = async (timeoutMs = 450) => {
         dbg('player:wait-extension', { timeoutMs });
         pingExtension();
         checkExtension();
@@ -371,23 +383,23 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         }
 
         try {
-            const probeUrl = extensionActive.value
-                ? stream.url
-                : toAbsoluteUrl(stream.proxiedUrl);
-            const resp = await fetch(probeUrl, {
-                method: 'GET',
-                headers: { Range: 'bytes=0-65535' }
-            });
-            if (!resp.ok && resp.status !== 206 && allowRefresh) {
-                dbg('player:prepare:probe-fail', { status: resp.status });
-                const fresh = await refreshResolve(resolveUrl);
-                if (token !== prepareToken || !fresh?.streams?.length) return;
-                selectedStreamIndex.value = pickDefaultStreamIndex(fresh.streams);
-                return preparePlayback(
-                    fresh.streams[selectedStreamIndex.value],
-                    resolveUrl,
-                    { allowRefresh: false }
-                );
+            if (!extensionActive.value) {
+                const probeUrl = toAbsoluteUrl(stream.proxiedUrl);
+                const resp = await fetch(probeUrl, {
+                    method: 'GET',
+                    headers: { Range: 'bytes=0-65535' }
+                });
+                if (!resp.ok && resp.status !== 206 && allowRefresh) {
+                    dbg('player:prepare:probe-fail', { status: resp.status });
+                    const fresh = await refreshResolve(resolveUrl);
+                    if (token !== prepareToken || !fresh?.streams?.length) return;
+                    selectedStreamIndex.value = pickDefaultStreamIndex(fresh.streams);
+                    return preparePlayback(
+                        fresh.streams[selectedStreamIndex.value],
+                        resolveUrl,
+                        { allowRefresh: false }
+                    );
+                }
             }
             if (token !== prepareToken) return;
             await waitForContainer();

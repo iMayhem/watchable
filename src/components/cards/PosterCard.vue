@@ -112,7 +112,9 @@ export default defineComponent({
             default: 'md'
         },
         loading: { type: Boolean, default: false },
-        query: { type: Object as PropType<Record<string, any>>, default: () => ({}) }
+        query: { type: Object as PropType<Record<string, any>>, default: () => ({}) },
+        catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' },
+        languageTags: { type: Array as PropType<string[]>, default: () => [] }
     },
     setup(props) {
         const imageLoaded = ref(false);
@@ -140,11 +142,18 @@ export default defineComponent({
         });
 
         const genreLabel = computed(() => {
+            if (props.catalog === 'netflix' && props.languageTags.length) {
+                return props.languageTags.join(' · ');
+            }
             if (props.type === 'anime' || !props.genreIds?.length) return '';
             return genreName(props.genreIds[0], props.type as 'movie' | 'tv') ?? '';
         });
 
         const routeTo = computed(() => {
+            if (props.catalog === 'netflix') {
+                const kind = props.type === 'tv' ? 'tv' : 'movie';
+                return { path: `/nf/${kind}/${props.id}` };
+            }
             const kind = props.type === 'anime' ? 'anime' : props.type === 'tv' ? 'tv' : 'movie';
             return {
                 path: detailPath(kind as 'movie' | 'tv' | 'anime', props.id),
@@ -170,6 +179,14 @@ export default defineComponent({
 
         const goToStream = () => {
             const query = props.query && Object.keys(props.query).length ? props.query : undefined;
+            if (props.catalog === 'netflix') {
+                if (props.type === 'tv') {
+                    router.push({ path: `/stream/nf/tv/${props.id}/season/1/episode/1` });
+                } else {
+                    router.push({ path: `/stream/nf/movie/${props.id}` });
+                }
+                return;
+            }
             if (props.type === 'anime') {
                 router.push({ path: `/stream/anime/${props.id}`, query });
             } else if (props.type === 'tv') {

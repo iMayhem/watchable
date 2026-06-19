@@ -8,6 +8,7 @@
             <component :is="Component" :key="getRouteKey(route)" />
         </router-view>
 
+        <ContentModeGate />
         <CommandPalette />
         <Toast />
     </div>
@@ -16,6 +17,7 @@
 <script lang="ts" setup>
 import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
+import ContentModeGate from './components/navigation/ContentModeGate.vue';
 
 const { region } = getSettings();
 

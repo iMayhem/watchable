@@ -20,10 +20,37 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/',
         name: 'Home',
-        component: () => import('../pages/Home.vue'),
+        component: () => import('../pages/HomeShell.vue'),
         meta: {
             showInHeader: true,
             title: 'Home'
+        }
+    },
+    {
+        path: '/nf/:type(movie|tv)/:id',
+        name: 'NetflixDetail',
+        component: () => import('../pages/NetflixDetail.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Netflix Title'
+        }
+    },
+    {
+        path: '/stream/nf/movie/:id',
+        name: 'StreamNetflixMovie',
+        component: () => import('../pages/StreamNetflix.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Stream'
+        }
+    },
+    {
+        path: '/stream/nf/tv/:id/season/:season/episode/:episode',
+        name: 'StreamNetflixTV',
+        component: () => import('../pages/StreamNetflix.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Stream'
         }
     },
     {
@@ -203,7 +230,7 @@ const router = createRouter({
 const { updateSeo } = useSeo();
 
 router.afterEach((to) => {
-    const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode'];
+    const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode', 'NetflixDetail', 'StreamNetflixMovie', 'StreamNetflixTV'];
     if (to.name && dynamicRoutes.includes(to.name as string)) {
         return;
     }

@@ -24,6 +24,17 @@
             </nav>
 
             <div class="site-header__actions">
+                <ExtensionPrompt />
+
+                <button
+                    v-if="showModeSwitch"
+                    type="button"
+                    class="site-header__mode-btn"
+                    @click="toggleContentMode"
+                >
+                    {{ modeLabel }}
+                </button>
+
                 <button
                     class="site-header__search"
                     type="button"
@@ -181,15 +192,17 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import LmDrawer from '../primitives/Drawer.vue';
 import AuthModal from './AuthModal.vue';
 import SettingsModal from './SettingsModal.vue';
+import ExtensionPrompt from './ExtensionPrompt.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
+import { getContentMode } from '../../composables/useContentMode';
 
 interface NavItem {
     label: string;
@@ -229,9 +242,11 @@ const primaryNav: NavItem[] = [
 
 export default defineComponent({
     name: 'SiteHeader',
-    components: { LmDrawer, AuthModal, SettingsModal },
+    components: { LmDrawer, AuthModal, SettingsModal, ExtensionPrompt },
     setup() {
         const route = useRoute();
+        const router = useRouter();
+        const { contentMode, setContentMode, isChosen } = getContentMode();
         const scrolled = ref(false);
         const drawerOpen = ref(false);
 
@@ -326,6 +341,20 @@ export default defineComponent({
             }
         };
 
+        const showModeSwitch = computed(() => isChosen());
+
+        const modeLabel = computed(() =>
+            contentMode.value === 'netflix' ? 'Switch to Global' : 'Switch to Netflix'
+        );
+
+        const toggleContentMode = () => {
+            const next = contentMode.value === 'netflix' ? 'global' : 'netflix';
+            setContentMode(next);
+            if (route.path === '/' || route.path.startsWith('/nf/') || route.path.startsWith('/stream/nf/')) {
+                router.push('/');
+            }
+        };
+
         onMounted(() => {
             onScroll();
             window.addEventListener('scroll', onScroll, { passive: true });
@@ -361,7 +390,11 @@ export default defineComponent({
             regionContainer,
             toggleRegionDropdown,
             selectRegion,
-            getFlagEmoji
+            getFlagEmoji,
+
+            showModeSwitch,
+            modeLabel,
+            toggleContentMode
         };
     }
 });
@@ -655,6 +688,31 @@ export default defineComponent({
         &:hover {
             background: rgba(255, 90, 31, 0.16);
             border-color: rgba(255, 90, 31, 0.45);
+            transform: translateY(-1px);
+        }
+    }
+
+    &__mode-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        background: var(--ink-800);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-sm);
+        color: var(--bone-200);
+        font-family: var(--font-ui);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+        letter-spacing: var(--ls-wide);
+        cursor: pointer;
+        transition:
+            border-color var(--dur-fast),
+            color var(--dur-fast),
+            transform var(--dur-fast);
+
+        &:hover {
+            border-color: var(--rule-strong);
+            color: var(--bone-50);
             transform: translateY(-1px);
         }
     }

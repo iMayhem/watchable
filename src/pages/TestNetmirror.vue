@@ -474,7 +474,7 @@ export default defineComponent({
         const prepareArtPlayback = async (
             stream: NetmirrorStream | null,
             options: { allowRefresh?: boolean } = {}
-        ) => {
+        ): Promise<void> => {
             const { allowRefresh = true } = options;
             const token = ++prepareToken;
             destroyArt();

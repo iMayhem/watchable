@@ -239,17 +239,54 @@ export async function onRequest(context) {
   const server = parseInt(searchParams.get('server') || '1', 10);
 
   try {
-    if (action === 'search') {
-      const query = searchParams.get('q') || '';
+    if (action === 'search' || action === 'browse') {
+      const query =
+        action === 'browse'
+          ? searchParams.get('category') || ''
+          : searchParams.get('q') || '';
       if (!query.trim()) {
-        return jsonResponse({ error: 'Missing q parameter' }, 400);
+        return jsonResponse(
+          { error: action === 'browse' ? 'Missing category parameter' : 'Missing q parameter' },
+          400
+        );
       }
+      const page = parseInt(searchParams.get('page') || '0', 10);
       const encoded = encodeURIComponent(query.trim()).replace(/%20/g, '+');
-      const resp = await fetch(`https://api2.imdb4.shop/api/search2/${encoded}?page=0`, {
-        headers: { 'User-Agent': UA },
-      });
+      const resp = await fetch(
+        `https://api2.imdb4.shop/api/search2/${encoded}?page=${Number.isFinite(page) ? page : 0}`,
+        { headers: { 'User-Agent': UA } }
+      );
       const data = await resp.json();
-      return jsonResponse({ results: data?.results || [] });
+      return jsonResponse({
+        results: data?.results || [],
+        pager: data?.pager || null,
+      });
+    }
+
+    if (action === 'meta') {
+      if (!id) {
+        return jsonResponse({ error: 'Missing id parameter' }, 400);
+      }
+      if (!['movie', 'tv'].includes(type)) {
+        return jsonResponse({ error: 'type must be movie or tv' }, 400);
+      }
+      const meta = await fetchMetadata(type, id);
+      return jsonResponse({
+        meta: {
+          id: meta.id,
+          title: (meta.title || '').trim(),
+          subjectid: meta.subjectid,
+          media_type: meta.media_type || type,
+          season: meta.season || null,
+          trailer: meta.trailer || null,
+          backdrop_path: meta.backdrop_path || null,
+          dp: meta.dp || null,
+          vote_average: meta.vote_average || null,
+          release_date: meta.release_date || null,
+          channel: meta.channel || null,
+          cn: meta.cn || null,
+        },
+      });
     }
 
     if (!id) {

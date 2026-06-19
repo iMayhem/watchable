@@ -131,7 +131,9 @@ export default defineComponent({
         adult: { type: Boolean, default: false },
         eyebrow: { type: String, default: 'This week’s feature' },
         dwellMs: { type: Number, default: 2000 },
-        loading: { type: Boolean, default: false }
+        loading: { type: Boolean, default: false },
+        playTo: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: null },
+        detailTo: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: null }
     },
     setup(props) {
         const rootRef = ref<HTMLElement | null>(null);
@@ -166,15 +168,17 @@ export default defineComponent({
 
         const paths = useAppPaths();
 
-        const playRoute = computed(() =>
-            props.type === 'tv'
+        const playRoute = computed(() => {
+            if (props.playTo) return props.playTo;
+            return props.type === 'tv'
                 ? paths.streamTvShow(props.id, 1, 1)
-                : paths.streamMovie(props.id)
-        );
+                : paths.streamMovie(props.id);
+        });
 
-        const detailRoute = computed(() =>
-            paths.detailPath(props.type === 'tv' ? 'tv' : 'movie', props.id)
-        );
+        const detailRoute = computed(() => {
+            if (props.detailTo) return props.detailTo;
+            return paths.detailPath(props.type === 'tv' ? 'tv' : 'movie', props.id);
+        });
 
 
 

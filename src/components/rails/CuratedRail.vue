@@ -8,7 +8,7 @@
     >
         <PosterCard
             v-for="item in displayItems"
-            :key="item.isMock ? `mock-curated-${item.id}` : `curated-${item.type ?? defaultType}-${item.id}`"
+            :key="item.isMock ? `mock-curated-${item.id}` : `curated-${catalog}-${item.type ?? defaultType}-${item.id}`"
             :id="item.id"
             :type="item.type ?? defaultType"
             :title="item.title"
@@ -18,8 +18,10 @@
             :release-date="item.releaseDate"
             :genre-ids="item.genreIds ?? []"
             :adult="item.adult ?? false"
-            :loading="item.isMock"
+            :loading="item.isMock || loading"
             :query="item.query || {}"
+            :catalog="catalog"
+            :language-tags="item.languageTags || []"
         />
     </LmRail>
 </template>
@@ -41,6 +43,7 @@ export interface CuratedItem {
     type?: 'movie' | 'tv';
     isMock?: boolean;
     query?: Record<string, any>;
+    languageTags?: string[];
 }
 
 export default defineComponent({
@@ -52,11 +55,13 @@ export default defineComponent({
         eyebrow: { type: String, default: '' },
         description: { type: String, default: '' },
         moreTo: { type: [String, Object], default: null },
-        defaultType: { type: String as PropType<'movie' | 'tv'>, default: 'movie' }
+        defaultType: { type: String as PropType<'movie' | 'tv'>, default: 'movie' },
+        catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' },
+        loading: { type: Boolean, default: false }
     },
     setup(props) {
         const displayItems = computed(() => {
-            if (props.items.length > 0) return props.items;
+            if (props.items.length > 0 || props.loading) return props.items;
             return Array.from({ length: 8 }, (_, i) => ({
                 id: i,
                 title: '',

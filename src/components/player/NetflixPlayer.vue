@@ -3,7 +3,7 @@
         ref="shellRef"
         class="nf-watch"
         :class="{
-            'is-idle': !controlsVisible && artReady && !switchingAudioLabel && !switchingEpisodeLabel && !menuOpen && !episodesOpen,
+            'is-idle': !controlsVisible && artReady && !switchingAudioLabel && !switchingEpisodeLabel && !menuOpen && !episodesOpen && !upNextActive,
             'is-fs': isFullscreen,
             'is-switching-audio': Boolean(switchingAudioLabel),
             'is-switching-episode': Boolean(switchingEpisodeLabel),
@@ -47,6 +47,14 @@
                     <span class="nf-watch__spinner nf-watch__status-spinner" aria-hidden="true" />
                 </div>
             </div>
+
+            <NetflixUpNext
+                :active="upNextActive"
+                :episode="upNextEpisode"
+                @play-now="$emit('up-next-play')"
+                @cancel="$emit('up-next-cancel')"
+                @complete="$emit('up-next-complete')"
+            />
 
             <div
                 v-if="switchingEpisodeLabel"
@@ -300,6 +308,7 @@ import {
     type NetflixLanguageOption
 } from '../../composables/useNetflixLanguage';
 import NetflixEpisodePicker from './NetflixEpisodePicker.vue';
+import NetflixUpNext, { type NetflixUpNextEpisode } from './NetflixUpNext.vue';
 import type {
     NetflixCatalogEpisode,
     NetflixCatalogSeason
@@ -307,7 +316,7 @@ import type {
 
 export default defineComponent({
     name: 'NetflixPlayer',
-    components: { NetflixEpisodePicker },
+    components: { NetflixEpisodePicker, NetflixUpNext },
     props: {
         title: { type: String, default: '' },
         subtitle: { type: String, default: '' },
@@ -340,6 +349,11 @@ export default defineComponent({
         currentSeason: { type: Number, default: 1 },
         currentEpisode: { type: Number, default: 1 },
         episodesLoading: { type: Boolean, default: false },
+        upNextActive: { type: Boolean, default: false },
+        upNextEpisode: {
+            type: Object as PropType<NetflixUpNextEpisode | null>,
+            default: null
+        },
         bindContainer: {
             type: Function as PropType<(el: HTMLElement | null) => void>,
             required: true
@@ -356,7 +370,10 @@ export default defineComponent({
         'episode-select',
         'episode-season-change',
         'episode-previous',
-        'episode-next'
+        'episode-next',
+        'up-next-play',
+        'up-next-cancel',
+        'up-next-complete'
     ],
     setup(props, { emit }) {
         const shellRef = ref<HTMLElement | null>(null);

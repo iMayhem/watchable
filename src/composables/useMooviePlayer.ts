@@ -141,6 +141,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const duration = ref(0);
     const buffered = ref(0);
     const isMuted = ref(false);
+    const playbackEnded = ref(false);
 
     let artInstance: any = null;
     let prepareToken = 0;
@@ -176,6 +177,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         currentTime.value = 0;
         duration.value = 0;
         buffered.value = 0;
+        playbackEnded.value = false;
     };
 
     const destroyArt = () => {
@@ -238,6 +240,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                         artInstance.pause();
                     }
                     playbackError.value = '';
+                    playbackEnded.value = false;
                     finish(true);
                 } catch (err) {
                     dbgError('player:switch-url:resume-fail', err);
@@ -265,6 +268,13 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             if (video.buffered.length > 0) {
                 buffered.value = video.buffered.end(video.buffered.length - 1);
             }
+            if (
+                playbackEnded.value &&
+                video.duration > 0 &&
+                video.duration - video.currentTime > 2
+            ) {
+                playbackEnded.value = false;
+            }
         };
 
         artInstance.on('video:timeupdate', syncTime);
@@ -279,6 +289,11 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         });
         artInstance.on('video:pause', () => {
             dbg('player:pause');
+            isPlaying.value = false;
+        });
+        artInstance.on('video:ended', () => {
+            dbg('player:ended');
+            playbackEnded.value = true;
             isPlaying.value = false;
         });
         artInstance.on('video:volumechange', syncTime);
@@ -746,6 +761,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         duration,
         buffered,
         isMuted,
+        playbackEnded,
         progress,
         bufferProgress,
         resolveAndPlay,

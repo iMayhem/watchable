@@ -38,12 +38,18 @@
             @episode-season-change="onEpisodeSeasonChange"
             @episode-previous="onEpisodePrevious"
             @episode-next="onEpisodeNext"
+            :up-next-active="upNextActive"
+            :up-next-episode="upNextEpisode"
+            @up-next-play="onUpNextPlay"
+            @up-next-cancel="onUpNextCancel"
+            @up-next-complete="onUpNextPlay"
         />
     </div>
 </template>
 
 <script lang="ts">
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { NetflixUpNextEpisode } from '../components/player/NetflixUpNext.vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import {
@@ -91,6 +97,8 @@ export default defineComponent({
         const playingLanguageCategory = ref<string | null>(null);
         const switchingAudioLabel = ref('');
         const switchingEpisodeLabel = ref('');
+        const upNextActive = ref(false);
+        const upNextDismissed = ref(false);
 
         const formatEpisodeLabel = (season: number, episode: number) =>
             `S${season} · E${String(episode).padStart(2, '0')}`;
@@ -117,7 +125,8 @@ export default defineComponent({
             seekTo,
             skipBack,
             toggleMute,
-            destroyArt
+            destroyArt,
+            playbackEnded
         } = player;
 
         let started = false;
@@ -449,6 +458,7 @@ export default defineComponent({
             if (!id || !supportsEpisodes.value || switchingEpisodeLabel.value) return;
 
             nfDebug('stream:episode:switch', { id, season, episode });
+            dismissUpNext();
             switchingEpisodeLabel.value = formatEpisodeLabel(season, episode);
 
             try {
@@ -483,12 +493,75 @@ export default defineComponent({
             }
         };
 
-        const onEpisodeNext = () => {
-            if (!episodeList.value.length) return;
+        const nextSeasonNumber = computed(() => {
+            const next = episodeSeasons.value.find(
+                (row) => row.season_number === currentSeason.value + 1
+            );
+            return next?.season_number ?? 0;
+        });
+
+        const nextEpisodeTarget = computed((): { season: number; episode: number } | null => {
+            if (!supportsEpisodes.value || !episodeList.value.length) return null;
+
             const max = Math.max(...episodeList.value.map((ep) => ep.episode_number));
             if (currentEpisode.value < max) {
-                switchEpisode(currentSeason.value, currentEpisode.value + 1);
+                return {
+                    season: currentSeason.value,
+                    episode: currentEpisode.value + 1
+                };
             }
+            if (nextSeasonNumber.value) {
+                return { season: nextSeasonNumber.value, episode: 1 };
+            }
+            return null;
+        });
+
+        const upNextEpisode = computed((): NetflixUpNextEpisode | null => {
+            const target = nextEpisodeTarget.value;
+            if (!target) return null;
+
+            const code = `S${target.season} · E${String(target.episode).padStart(2, '0')}`;
+            if (target.season === currentSeason.value) {
+                const row = episodeList.value.find(
+                    (ep) => ep.episode_number === target.episode
+                );
+                return {
+                    season: target.season,
+                    episode: target.episode,
+                    code,
+                    name: row?.name || `Episode ${target.episode}`,
+                    still_path: row?.still_path
+                };
+            }
+
+            return {
+                season: target.season,
+                episode: target.episode,
+                code,
+                name: `Episode ${target.episode}`
+            };
+        });
+
+        const dismissUpNext = () => {
+            upNextActive.value = false;
+            upNextDismissed.value = true;
+        };
+
+        const onUpNextCancel = () => {
+            dismissUpNext();
+        };
+
+        const onUpNextPlay = async () => {
+            const target = nextEpisodeTarget.value;
+            dismissUpNext();
+            if (!target) return;
+            await switchEpisode(target.season, target.episode);
+        };
+
+        const onEpisodeNext = () => {
+            const target = nextEpisodeTarget.value;
+            if (!target) return;
+            switchEpisode(target.season, target.episode);
         };
 
         const onLanguage = async (category: string) => {
@@ -587,6 +660,28 @@ export default defineComponent({
 
         onBeforeUnmount(() => {
             teardown();
+        });
+
+        watch(
+            () => [currentSeason.value, currentEpisode.value],
+            () => {
+                upNextDismissed.value = false;
+                upNextActive.value = false;
+            }
+        );
+
+        watch(playbackEnded, (ended) => {
+            if (
+                !ended ||
+                !supportsEpisodes.value ||
+                !nextEpisodeTarget.value ||
+                upNextDismissed.value ||
+                switchingAudioLabel.value ||
+                switchingEpisodeLabel.value
+            ) {
+                return;
+            }
+            upNextActive.value = true;
         });
 
         watch(
@@ -689,7 +784,11 @@ export default defineComponent({
             onEpisodeSelect,
             onEpisodeSeasonChange,
             onEpisodePrevious,
-            onEpisodeNext
+            onEpisodeNext,
+            upNextActive,
+            upNextEpisode,
+            onUpNextPlay,
+            onUpNextCancel
         };
     }
 });

@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { cloudflareFunctionsDev } from './vite-plugins/cloudflare-functions-dev'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
+    cloudflareFunctionsDev(),
     vue({
       template: {
         compilerOptions: {

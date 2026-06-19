@@ -159,6 +159,16 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/test',
+        name: 'TestNetmirror',
+        component: () => import('../pages/TestNetmirror.vue'),
+        meta: {
+            showInHeader: false,
+            hidden: true,
+            title: 'Test'
+        }
+    },
+    {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: () => import('../pages/NotFound.vue'),
@@ -195,6 +205,10 @@ const { updateSeo } = useSeo();
 router.afterEach((to) => {
     const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode'];
     if (to.name && dynamicRoutes.includes(to.name as string)) {
+        return;
+    }
+
+    if (to.name === 'TestNetmirror') {
         return;
     }
 

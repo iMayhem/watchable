@@ -6,6 +6,9 @@
             <p class="nm-test__sub">
                 Test stream resolution through moovie proxy. Not linked anywhere on the site.
             </p>
+            <p class="nm-test__ext" :class="{ 'is-active': extensionActive }">
+                Extension: {{ extensionActive ? 'active · direct CDN' : 'not detected · using /api/proxy' }}
+            </p>
         </header>
 
         <section class="nm-test__panel">
@@ -90,7 +93,7 @@
                     :disabled="!activeStream"
                     @click="setPlayerMode('direct')"
                 >
-                    Proxied MP4
+                    {{ extensionActive ? 'Direct MP4' : 'Proxied MP4' }}
                 </button>
                 <button
                     type="button"
@@ -134,7 +137,7 @@
 
             <p v-if="playbackError" class="nm-test__error" role="alert">{{ playbackError }}</p>
             <p v-if="activeStream && playerMode === 'direct'" class="nm-test__stream-url">
-                {{ activeStream.quality }} · proxied via /api/proxy
+                {{ activeStream.quality }} · {{ extensionActive ? 'direct CDN (extension)' : 'proxied via /api/proxy' }}
             </p>
 
             <div v-if="streams.length" class="nm-test__qualities">
@@ -161,7 +164,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useSeo } from '../composables/useSeo';
 
 const LOG_PREFIX = '[NetMirror Test]';
@@ -241,6 +244,7 @@ export default defineComponent({
         const selectedStreamIndex = ref(0);
         const showDebug = ref(false);
         const playbackError = ref('');
+        const extensionActive = ref(false);
         const videoSrc = ref('');
         const videoEl = ref<HTMLVideoElement | null>(null);
         let prepareToken = 0;
@@ -260,6 +264,39 @@ export default defineComponent({
             if (!path) return '';
             if (/^https?:\/\//i.test(path)) return path;
             return `${window.location.origin}${path}`;
+        };
+
+        const checkExtension = () => {
+            const ext = (window as any).__MOOVIE_STREAM_EXT__;
+            const active = Boolean(ext?.active);
+            if (active !== extensionActive.value) {
+                extensionActive.value = active;
+                debug('extension:status', { active, version: ext?.version, mode: ext?.mode });
+            }
+            return active;
+        };
+
+        const probeDirectStream = async (rawUrl: string) => {
+            debug('cdn:probe-start', { url: rawUrl });
+            const startedAt = performance.now();
+            const resp = await fetch(rawUrl, {
+                method: 'GET',
+                headers: { Range: 'bytes=0-65535' },
+            });
+            const result = {
+                elapsedMs: Math.round(performance.now() - startedAt),
+                status: resp.status,
+                ok: resp.ok,
+                contentRange: resp.headers.get('content-range'),
+            };
+            if (resp.ok || resp.status === 206) {
+                debug('cdn:probe-ok', result);
+                return rawUrl;
+            }
+            debugError('cdn:probe-failed', result);
+            const err = new Error(`Direct CDN probe failed (${resp.status})`) as Error & { status?: number };
+            err.status = resp.status;
+            throw err;
         };
 
         const probeProxiedStream = async (proxiedUrl: string) => {
@@ -357,8 +394,26 @@ export default defineComponent({
             debug('video:prepare-start', {
                 quality: stream.quality,
                 proxiedUrl: stream.proxiedUrl,
+                rawUrl: stream.url,
+                direct: extensionActive.value,
                 urlAgeSec: ageSec,
             });
+
+            if (extensionActive.value) {
+                try {
+                    await probeDirectStream(stream.url);
+                    if (token !== prepareToken) return;
+                    videoSrc.value = withPlaybackCacheBuster(stream.url);
+                    playbackError.value = '';
+                    debug('video:prepare-ready-direct', {
+                        quality: stream.quality,
+                        src: videoSrc.value,
+                    });
+                    return;
+                } catch (err: any) {
+                    debugWarn('video:prepare-direct-fallback', { message: err?.message });
+                }
+            }
 
             if (ageSec !== null && ageSec > 120 && allowRefresh) {
                 debugWarn('video:prepare-stale-url', { urlAgeSec: ageSec });
@@ -429,7 +484,13 @@ export default defineComponent({
 
         const streams = computed(() => resolved.value?.streams || []);
         const activeStream = computed(() => streams.value[selectedStreamIndex.value] || null);
-        const playerProxyUrl = computed(() => resolved.value?.playerProxyUrl || '');
+        const playerProxyUrl = computed(() => {
+            const base = resolved.value?.playerProxyUrl || '';
+            if (!base || !extensionActive.value) return base;
+            const url = new URL(base, window.location.origin);
+            url.searchParams.set('exten', 'true');
+            return `${url.pathname}${url.search}`;
+        });
         const debugJson = computed(() => JSON.stringify(resolved.value, null, 2));
 
         const buildApiUrl = (action = 'resolve') => {
@@ -719,7 +780,20 @@ export default defineComponent({
             debug('player:iframe-url', { url });
         });
 
+        const onExtensionReady = () => checkExtension();
+
+        const onExtensionPong = (event: MessageEvent) => {
+            if (event.source !== window || event.data?.type !== 'MOOVIE_EXT_PONG') return;
+            extensionActive.value = true;
+            debug('extension:pong', event.data.detail);
+        };
+
         onMounted(() => {
+            checkExtension();
+            window.addEventListener('moovie-stream-ext-ready', onExtensionReady);
+            window.addEventListener('message', onExtensionPong);
+            window.postMessage({ type: 'MOOVIE_EXT_PING' }, '*');
+
             debug('page:mounted', {
                 preset: {
                     mediaId: mediaId.value,
@@ -729,6 +803,7 @@ export default defineComponent({
                     server: server.value,
                     playerMode: playerMode.value,
                 },
+                extensionActive: extensionActive.value,
             });
             updateSeo({
                 title: 'Test',
@@ -743,6 +818,17 @@ export default defineComponent({
                 document.head.appendChild(robotsMeta);
             }
             robotsMeta.setAttribute('content', 'noindex, nofollow');
+        });
+
+        onUnmounted(() => {
+            window.removeEventListener('moovie-stream-ext-ready', onExtensionReady);
+            window.removeEventListener('message', onExtensionPong);
+        });
+
+        watch(extensionActive, (active) => {
+            if (active && activeStream.value && playerMode.value === 'direct') {
+                prepareVideoPlayback(activeStream.value, { allowRefresh: false });
+            }
         });
 
         return {
@@ -760,6 +846,7 @@ export default defineComponent({
             selectedStreamIndex,
             showDebug,
             playbackError,
+            extensionActive,
             videoSrc,
             videoEl,
             onVideoError,
@@ -819,6 +906,16 @@ export default defineComponent({
     margin: 0.5rem 0 0;
     color: rgba(244, 247, 251, 0.65);
     max-width: 52ch;
+}
+
+.nm-test__ext {
+    margin: 0.65rem 0 0;
+    font-size: 0.78rem;
+    color: rgba(255, 143, 143, 0.85);
+
+    &.is-active {
+        color: #7dffb0;
+    }
 }
 
 .nm-test__panel {

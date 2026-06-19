@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://fmoviesunblocked.net/" },
+        { "header": "Origin", "operation": "set", "value": "https://h5.aoneroom.com" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "hakunaymatata.com",
+      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://fmoviesunblocked.net/" },
+        { "header": "Origin", "operation": "set", "value": "https://h5.aoneroom.com" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "aoneroom.com",
+      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame"]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://fmoviesunblocked.net/" },
+        { "header": "Origin", "operation": "set", "value": "https://h5.aoneroom.com" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "watch21.shop",
+      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame"]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://fmoviesunblocked.net/" },
+        { "header": "Origin", "operation": "set", "value": "https://h5.aoneroom.com" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "watch22.shop",
+      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame"]
+    }
+  }
+]

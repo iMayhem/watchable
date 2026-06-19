@@ -340,6 +340,10 @@ export interface EnsureBrowsePickOptions {
     skipTmdbEnrich?: boolean;
     /** Filter to a specific media type (tv or movie) */
     typeFilter?: 'tv' | 'movie';
+    /** Cap catalogue page fetches per call — keeps infinite scroll responsive. */
+    maxPageFetches?: number;
+    /** Rebuild genre sub-rails (expensive — only on first paint). */
+    refreshGenreRails?: boolean;
 }
 
 export async function ensureBrowsePickCount(
@@ -369,8 +373,12 @@ export async function ensureBrowsePickCount(
     }
 
     let idleRounds = 0;
+    let pageFetches = 0;
+    const maxPageFetches = opts.maxPageFetches ?? Number.POSITIVE_INFINITY;
 
     while (state.pickedItems.length < targetCount && state.canFetchMoreApi) {
+        if (pageFetches >= maxPageFetches) break;
+
         const before = state.pickedItems.length;
         const batch =
             state.fetchMode === 'language' && catalogue.id === 'korean'
@@ -384,6 +392,7 @@ export async function ensureBrowsePickCount(
         }
 
         await fetchBrowseCatalogPages(state, lang, batch);
+        pageFetches += 1;
         rebuildBrowsePicks(state, rowId, catalogue, lang, opts.typeFilter);
 
         if (state.pickedItems.length === before) {

@@ -719,13 +719,16 @@ export default defineComponent({
                     typeFilter: typeFilter.value
                 }
             );
-            await rebuildGenreRails(
-                filterCataloguePool(
-                    poolState.value.browsePool,
-                    activeCatalogue.value.id,
-                    activeLang.value
-                )
-            );
+
+            if (pickOptions?.refreshGenreRails) {
+                await rebuildGenreRails(
+                    filterCataloguePool(
+                        poolState.value.browsePool,
+                        activeCatalogue.value.id,
+                        activeLang.value
+                    )
+                );
+            }
         };
 
         const mapBatchToCurated = (
@@ -1040,7 +1043,7 @@ export default defineComponent({
 
             try {
                 await appendDisplayedBatch(initialBatchSize.value, {
-                    pickOptions: fastPick
+                    pickOptions: { ...fastPick, refreshGenreRails: isGenreBrowse.value }
                 });
                 if (isStale()) return;
 
@@ -1099,7 +1102,9 @@ export default defineComponent({
             }
             isLoadingMore.value = true;
             try {
-                await appendDisplayedBatch(BROWSE_PAGE_SIZE);
+                await appendDisplayedBatch(BROWSE_PAGE_SIZE, {
+                    pickOptions: { maxPageFetches: 2 }
+                });
             } catch (err) {
                 nfDebugError('browse:load-more:fail', { err });
             } finally {

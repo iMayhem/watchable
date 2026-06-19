@@ -217,20 +217,45 @@ export default defineComponent({
                 )
             );
 
-        /** Paint grid immediately from API backdrop_path; never block on Supabase/audio. */
-        const syncResultsFromPool = (): CuratedItem[] => {
-            const deduped = sortCatalogByBrowseRank(
+        const rankExplorePool = () =>
+            sortCatalogByBrowseRank(
                 dedupeCatalogItemsByVariantFamily(variantPool.value)
             );
+
+        /** Paint grid immediately from API backdrop_path; never block on Supabase/audio. */
+        const syncResultsFromPool = (): CuratedItem[] => {
+            const deduped = rankExplorePool();
             if (!deduped.length) return [];
             const languageMap = buildCatalogLanguageMap(variantPool.value);
             return mapDedupedPool(deduped, languageMap);
         };
 
-        const upgradeExploreGrid = async (seq: number) => {
-            const deduped = sortCatalogByBrowseRank(
-                dedupeCatalogItemsByVariantFamily(variantPool.value)
+        const appendExploreResults = (previousCount: number): boolean => {
+            const ranked = rankExplorePool();
+            if (ranked.length <= previousCount) return false;
+
+            const headStable = ranked
+                .slice(0, previousCount)
+                .every(
+                    (item, index) =>
+                        String(results.value[index]?.id) === String(item.id)
+                );
+            if (!headStable) return false;
+
+            const languageMap = buildCatalogLanguageMap(variantPool.value);
+            const appended = mapDedupedPool(
+                ranked.slice(previousCount),
+                languageMap
             );
+            results.value = [...results.value, ...appended];
+            return true;
+        };
+
+        const upgradeExploreGrid = async (
+            seq: number,
+            targets?: MoovieCatalogItem[]
+        ) => {
+            const deduped = targets ?? rankExplorePool();
             if (!deduped.length || seq !== loadSeq) return;
 
             const languageMap = buildCatalogLanguageMap(variantPool.value);
@@ -240,12 +265,25 @@ export default defineComponent({
                     fetchCatalogArtworkUrlsByIds(deduped.map((item) => item.id))
                 ]);
                 if (seq !== loadSeq) return;
-                results.value = mapDedupedPool(
+
+                const curated = mapDedupedPool(
                     deduped,
                     languageMap,
                     audioCache,
                     artworkUrls
                 );
+
+                if (targets?.length) {
+                    const startIndex = results.value.length - targets.length;
+                    const next = [...results.value];
+                    for (let i = 0; i < curated.length; i += 1) {
+                        next[startIndex + i] = curated[i];
+                    }
+                    results.value = next;
+                    return;
+                }
+
+                results.value = curated;
             } catch (err) {
                 nfDebugError('explore:grid-upgrade:fail', { err });
             }
@@ -353,8 +391,17 @@ export default defineComponent({
 
                 appendVariantPool(merged);
                 if (seq !== loadSeq) return;
-                results.value = syncResultsFromPool();
-                void upgradeExploreGrid(seq);
+
+                const previousCount = results.value.length;
+                const appended = appendExploreResults(previousCount);
+                if (!appended) {
+                    results.value = syncResultsFromPool();
+                    void upgradeExploreGrid(seq);
+                    return;
+                }
+
+                const ranked = rankExplorePool();
+                void upgradeExploreGrid(seq, ranked.slice(previousCount));
             } catch (err) {
                 nfDebugError('explore:load-more:fail', { err });
             } finally {

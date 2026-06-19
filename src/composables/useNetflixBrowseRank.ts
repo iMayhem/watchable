@@ -62,16 +62,56 @@ function catalogRatingTierBoost(item: MoovieCatalogItem): number {
     return -8;
 }
 
-/** Recently opened titles (global + Netflix) float up in browse grids. */
-function watchHistoryBoost(item: MoovieCatalogItem): number {
-    if (typeof window === 'undefined') return 0;
+function buildWatchHistoryBoostMap(): Map<string, number> {
+    const out = new Map<string, number>();
+    if (typeof window === 'undefined') return out;
 
-    const idx = viewHistory.value.findIndex(
-        (row) => String(row.id) === String(item.id)
-    );
-    if (idx === -1) return 0;
+    viewHistory.value.forEach((row, idx) => {
+        out.set(String(row.id), Math.max(6, 32 - idx * 4));
+    });
+    return out;
+}
 
-    return Math.max(6, 32 - idx * 4);
+export function createCatalogBrowseRanker(ctx: CatalogBrowseRankContext = {}) {
+    const nfIndex = getNetflixAvailabilityIndex();
+    const watchBoostById = buildWatchHistoryBoostMap();
+    const scoreCache = new Map<string, number>();
+
+    const score = (item: MoovieCatalogItem): number => {
+        const id = String(item.id);
+        const cached = scoreCache.get(id);
+        if (cached !== undefined) return cached;
+
+        const rating = itemRating(item);
+        const tmdbId = ctx.tmdbById?.get(id)?.tmdbId;
+        const computed =
+            rating * 12 +
+            catalogRecencyBoost(item) +
+            catalogRatingTierBoost(item) +
+            (watchBoostById.get(id) ?? 0) +
+            netflixAvailabilityBoost(tmdbId, nfIndex);
+
+        scoreCache.set(id, computed);
+        return computed;
+    };
+
+    const compare = (a: MoovieCatalogItem, b: MoovieCatalogItem): number => {
+        const scoreDiff = score(b) - score(a);
+        if (scoreDiff !== 0) return scoreDiff;
+
+        const yearDiff = releaseTimestamp(b) - releaseTimestamp(a);
+        if (yearDiff !== 0) return yearDiff;
+
+        return itemRating(b) - itemRating(a);
+    };
+
+    return {
+        score,
+        compare,
+        sort(pool: MoovieCatalogItem[]) {
+            return [...pool].sort(compare);
+        }
+    };
 }
 
 /**
@@ -82,16 +122,7 @@ export function catalogBrowseRankScore(
     item: MoovieCatalogItem,
     ctx: CatalogBrowseRankContext = {}
 ): number {
-    const rating = itemRating(item);
-    const tmdbId = ctx.tmdbById?.get(String(item.id))?.tmdbId;
-
-    return (
-        rating * 12 +
-        catalogRecencyBoost(item) +
-        catalogRatingTierBoost(item) +
-        watchHistoryBoost(item) +
-        netflixAvailabilityBoost(tmdbId, getNetflixAvailabilityIndex())
-    );
+    return createCatalogBrowseRanker(ctx).score(item);
 }
 
 export function compareCatalogBrowseRank(
@@ -99,19 +130,13 @@ export function compareCatalogBrowseRank(
     b: MoovieCatalogItem,
     ctx: CatalogBrowseRankContext = {}
 ): number {
-    const scoreDiff =
-        catalogBrowseRankScore(b, ctx) - catalogBrowseRankScore(a, ctx);
-    if (scoreDiff !== 0) return scoreDiff;
-
-    const yearDiff = releaseTimestamp(b) - releaseTimestamp(a);
-    if (yearDiff !== 0) return yearDiff;
-
-    return itemRating(b) - itemRating(a);
+    return createCatalogBrowseRanker(ctx).compare(a, b);
 }
 
 export function sortCatalogByBrowseRank(
     pool: MoovieCatalogItem[],
     ctx: CatalogBrowseRankContext = {}
 ): MoovieCatalogItem[] {
-    return [...pool].sort((a, b) => compareCatalogBrowseRank(a, b, ctx));
+    if (pool.length < 2) return [...pool];
+    return createCatalogBrowseRanker(ctx).sort(pool);
 }

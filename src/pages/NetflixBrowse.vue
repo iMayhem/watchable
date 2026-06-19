@@ -116,10 +116,12 @@ import {
     type NetflixLanguageOption
 } from '../composables/useNetflixLanguage';
 import {
+    enrichCatalogPoolWithTmdb,
     filterCataloguePool,
     getNetflixRowMeta,
     isValidNetflixBrowseRow,
     pickNetflixBrowseItems,
+    type CatalogTmdbMeta,
     type NetflixBrowseRowId
 } from '../composables/useNetflixRails';
 import { useSeo } from '../composables/useSeo';
@@ -131,7 +133,10 @@ import {
 
 const INITIAL_PAGES = 3;
 
-async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
+async function toCuratedItem(
+    item: MoovieCatalogItem,
+    genreIds: number[] = []
+): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
     const artwork = await resolveArtworkForCatalogItem(item);
 
@@ -144,7 +149,8 @@ async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: inferCatalogMediaType(item),
-        languageTags: parsed.languages
+        languageTags: parsed.languages,
+        genreIds: genreIds.length ? genreIds : artwork.genreIds || []
     };
 }
 
@@ -161,6 +167,7 @@ export default defineComponent({
         const isLoadingMore = ref(false);
         const results = ref<CuratedItem[]>([]);
         const browsePool = ref<MoovieCatalogItem[]>([]);
+        const tmdbById = ref<Map<string, CatalogTmdbMeta>>(new Map());
         const loadedPageCount = ref(0);
         const totalPages = ref(1);
 
@@ -200,17 +207,29 @@ export default defineComponent({
         const nextPage = computed(() => loadedPageCount.value);
         const hasMore = computed(() => loadedPageCount.value < totalPages.value);
 
+        const syncTmdbForPool = async (pool: MoovieCatalogItem[]) => {
+            const fresh = await enrichCatalogPoolWithTmdb(pool, 8);
+            const merged = new Map(tmdbById.value);
+            fresh.forEach((meta, id) => merged.set(id, meta));
+            tmdbById.value = merged;
+        };
+
         const rebuildResults = async () => {
             const lang = activeLang.value;
             const cat = activeCatalogue.value;
             const pool = filterCataloguePool(browsePool.value, cat.id, lang);
+            await syncTmdbForPool(pool);
             const picked = pickNetflixBrowseItems(
                 pool,
                 rowId.value as NetflixBrowseRowId,
                 cat,
-                lang
+                lang,
+                tmdbById.value
             );
-            results.value = await mapWithConcurrency(picked, toCuratedItem, 5);
+            results.value = await mapWithConcurrency(picked, (item) => {
+                const meta = tmdbById.value.get(String(item.id));
+                return toCuratedItem(item, meta?.genreIds || []);
+            }, 5);
         };
 
         const loadPages = async (fromPage: number, count: number) => {
@@ -251,6 +270,7 @@ export default defineComponent({
             isLoading.value = true;
             results.value = [];
             browsePool.value = [];
+            tmdbById.value = new Map();
             loadedPageCount.value = 0;
             totalPages.value = 1;
 

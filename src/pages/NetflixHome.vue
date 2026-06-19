@@ -88,6 +88,7 @@ import {
     buildNetflixCuratedSections,
     buildTrendingItems,
     collectArtworkIdsForCurated,
+    enrichCatalogPoolWithTmdb,
     filterCataloguePool,
     netflixBrowsePath,
     type NetflixRailSection
@@ -99,7 +100,10 @@ import {
 } from '../composables/useTmdbArtwork';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
-async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
+async function toCuratedItem(
+    item: MoovieCatalogItem,
+    genreIds: number[] = []
+): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
     const artwork = await resolveArtworkForCatalogItem(item);
 
@@ -112,7 +116,8 @@ async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: inferCatalogMediaType(item),
-        languageTags: parsed.languages
+        languageTags: parsed.languages,
+        genreIds: genreIds.length ? genreIds : artwork.genreIds || []
     };
 }
 
@@ -198,13 +203,18 @@ export default defineComponent({
                     .filter((item) => itemMatchesLanguage(item, lang));
 
                 const pool = filterCataloguePool(browsePool, cat.id, lang);
+                const tmdbById = await enrichCatalogPoolWithTmdb(pool, 8);
                 const artworkTargets = collectArtworkIdsForCurated(
                     browsePool,
                     cat.id,
                     lang,
-                    cat.label
+                    cat.label,
+                    tmdbById
                 );
-                const curated = await mapWithConcurrency(artworkTargets, toCuratedItem, 5);
+                const curated = await mapWithConcurrency(artworkTargets, (item) => {
+                    const meta = tmdbById.get(String(item.id));
+                    return toCuratedItem(item, meta?.genreIds || []);
+                }, 5);
                 const byId = new Map(curated.map((item) => [String(item.id), item]));
 
                 trendingItems.value = buildTrendingItems(pool, byId);
@@ -213,7 +223,8 @@ export default defineComponent({
                     cat.id,
                     cat.label,
                     lang,
-                    byId
+                    byId,
+                    tmdbById
                 );
 
                 lastLoadKey.value = loadKey;
@@ -222,8 +233,10 @@ export default defineComponent({
                     catalogue: cat.id,
                     language: lang.category,
                     pool: pool.length,
+                    tmdbEnriched: tmdbById.size,
                     trending: trendingItems.value.length,
-                    rails: catalogueRails.value.length
+                    rails: catalogueRails.value.length,
+                    railTitles: catalogueRails.value.slice(0, 12).map((r) => r.title)
                 });
 
                 updateSeo({

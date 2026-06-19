@@ -1,4 +1,5 @@
 import type { NetflixLanguageOption } from './useNetflixLanguage';
+import { resolveTmdbGenreSpec, type TmdbGenreSpec } from './netflixTmdbGenres';
 import genreRows from '../data/netflixGenreCodes.json';
 
 export type NetflixRowSection = 'editorial' | 'genre';
@@ -8,7 +9,8 @@ export type NetflixRowPickKind =
     | 'newest'
     | 'all'
     | 'keywords'
-    | 'keyword-groups';
+    | 'keyword-groups'
+    | 'tmdb-genre';
 
 export interface NetflixCuratedRowDef {
     id: string;
@@ -24,6 +26,9 @@ export interface NetflixCuratedRowDef {
     pick: NetflixRowPickKind;
     minRating?: number;
     homeDedupe?: boolean;
+    /** Foreign/regional row — take top titles from the already-filtered catalogue pool. */
+    cataloguePoolOnly?: boolean;
+    tmdbGenres?: TmdbGenreSpec;
     description?: (catalogueLabel: string, lang: NetflixLanguageOption) => string;
 }
 
@@ -136,22 +141,28 @@ const IMPORTED_GENRE_ROWS: NetflixCuratedRowDef[] = (genreRows as Array<{
     catalogues?: string[];
     priority: number;
     section: 'genre';
-}>).map((row) => ({
-    id: row.id,
-    netflixCode: row.netflixCode,
-    title: row.title,
-    eyebrow: row.eyebrow,
-    defaultType: row.defaultType,
-    section: 'genre',
-    priority: row.priority,
-    catalogues: row.catalogues,
-    keywords: row.keywords,
-    keywordGroups: row.keywordGroups,
-    pick: row.keywordGroups?.length ? 'keyword-groups' : 'keywords',
-    homeDedupe: false,
-    description: (catalogueLabel, lang) =>
-        genreRowDescription(row.title, row.eyebrow, catalogueLabel, lang)
-}));
+}>).map((row) => {
+    const cataloguePoolOnly =
+        row.eyebrow === 'Foreign movies' && Boolean(row.catalogues?.length);
+    return {
+        id: row.id,
+        netflixCode: row.netflixCode,
+        title: row.title,
+        eyebrow: row.eyebrow,
+        defaultType: row.defaultType,
+        section: 'genre' as const,
+        priority: row.priority,
+        catalogues: row.catalogues,
+        keywords: row.keywords,
+        keywordGroups: row.keywordGroups,
+        pick: cataloguePoolOnly ? 'top-rated' : 'tmdb-genre',
+        cataloguePoolOnly,
+        tmdbGenres: resolveTmdbGenreSpec(row.id, row.eyebrow, row.title),
+        homeDedupe: false,
+        description: (catalogueLabel, lang) =>
+            genreRowDescription(row.title, row.eyebrow, catalogueLabel, lang)
+    };
+});
 
 export const NETFLIX_CURATED_ROW_DEFS: NetflixCuratedRowDef[] = [
     ...EDITORIAL_ROWS,

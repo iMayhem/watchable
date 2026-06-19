@@ -11,6 +11,13 @@ import {
     type NetflixLanguageOption
 } from './useNetflixLanguage';
 import type { CuratedItem } from '../components/rails/CuratedRail.vue';
+import { genreIdsMatchSpec } from './netflixTmdbGenres';
+import {
+    enrichCatalogPoolWithTmdb,
+    type CatalogTmdbMeta
+} from './useTmdbArtwork';
+
+export { enrichCatalogPoolWithTmdb, type CatalogTmdbMeta };
 
 export {
     NETFLIX_BROWSE_ROW_IDS,
@@ -528,11 +535,52 @@ interface NetflixCuratedPlan {
     items: MoovieCatalogItem[];
 }
 
+function itemMatchesGenreRow(
+    item: MoovieCatalogItem,
+    def: NetflixCuratedRowDef,
+    tmdbById: Map<string, CatalogTmdbMeta>
+): boolean {
+    if (!matchesRowMediaType(item, def)) return false;
+    if (def.cataloguePoolOnly) return true;
+
+    const meta = tmdbById.get(item.id);
+    const genreIds = meta?.genreIds ?? [];
+    const text = `${haystack(item)} ${(meta?.overview || '').toLowerCase()}`;
+
+    if (def.eyebrow === 'Anime' || def.id.startsWith('anime')) {
+        if (
+            channelOf(item).includes('anime') ||
+            hasAny(item, ['anime', 'naruto', 'one piece', 'dragon ball', 'demon slayer'])
+        ) {
+            return true;
+        }
+    }
+
+    if (genreIds.length && def.tmdbGenres) {
+        if (genreIdsMatchSpec(genreIds, isSeries(item), def.tmdbGenres)) {
+            return true;
+        }
+    }
+
+    if (def.keywordGroups?.length) {
+        return def.keywordGroups.every((group) =>
+            group.some((kw) => text.includes(kw.toLowerCase()))
+        );
+    }
+
+    if (def.keywords?.length) {
+        return def.keywords.some((kw) => text.includes(kw.toLowerCase()));
+    }
+
+    return false;
+}
+
 function pickFromRowDef(
     filtered: MoovieCatalogItem[],
     def: NetflixCuratedRowDef,
     used: Set<string>,
-    limit: number
+    limit: number,
+    tmdbById: Map<string, CatalogTmdbMeta> = new Map()
 ): MoovieCatalogItem[] {
     switch (def.pick) {
         case 'top-rated':
@@ -557,6 +605,10 @@ function pickFromRowDef(
                     matchesRowMediaType(item, def) &&
                     hasKeywordGroups(item, def.keywordGroups || [])
             );
+        case 'tmdb-genre':
+            return takeUnique(filtered, used, limit, (item) =>
+                itemMatchesGenreRow(item, def, tmdbById)
+            );
         case 'keywords':
         default:
             return takeByKeywords(filtered, used, limit, def.keywords || [], {
@@ -571,7 +623,8 @@ function planNetflixCuratedRows(
     filtered: MoovieCatalogItem[],
     catalogueId: string,
     catalogueLabel: string,
-    lang: NetflixLanguageOption
+    lang: NetflixLanguageOption,
+    tmdbById: Map<string, CatalogTmdbMeta>
 ): NetflixCuratedPlan[] {
     const editorialUsed = new Set<string>();
     const rows: NetflixCuratedPlan[] = [];
@@ -582,7 +635,7 @@ function planNetflixCuratedRows(
             def.section === 'editorial' && def.id.startsWith('top10')
                 ? TOP_CHART_SIZE
                 : MAX_PER_RAIL;
-        const items = pickFromRowDef(filtered, def, used, limit);
+        const items = pickFromRowDef(filtered, def, used, limit, tmdbById);
         if (items.length < MIN_RAIL_ITEMS) continue;
 
         const meta = getNetflixRowMeta(def.id as NetflixBrowseRowId, { label: catalogueLabel }, lang);
@@ -606,12 +659,13 @@ function pickRowItems(
     rowId: NetflixBrowseRowId,
     _catalogueLabel: string,
     _lang: NetflixLanguageOption,
-    limit: number
+    limit: number,
+    tmdbById: Map<string, CatalogTmdbMeta>
 ): MoovieCatalogItem[] {
     if (rowId === 'trending') return filtered.slice(0, limit);
     const def = getNetflixCuratedRowDef(rowId);
     if (!def) return [];
-    return pickFromRowDef(filtered, def, new Set<string>(), limit);
+    return pickFromRowDef(filtered, def, new Set<string>(), limit, tmdbById);
 }
 
 export function pickNetflixBrowseItems(
@@ -619,9 +673,10 @@ export function pickNetflixBrowseItems(
     rowId: NetflixBrowseRowId,
     catalogue: { label: string },
     lang: NetflixLanguageOption,
+    tmdbById: Map<string, CatalogTmdbMeta>,
     limit = BROWSE_POOL_LIMIT
 ): MoovieCatalogItem[] {
-    return pickRowItems(pool, rowId, catalogue.label, lang, limit);
+    return pickRowItems(pool, rowId, catalogue.label, lang, limit, tmdbById);
 }
 
 export function railTitleWithLanguage(base: string, lang: NetflixLanguageOption) {
@@ -660,10 +715,17 @@ export function buildNetflixCuratedSections(
     catalogueId: string,
     catalogueLabel: string,
     lang: NetflixLanguageOption,
-    byId: Map<string, CuratedItem>
+    byId: Map<string, CuratedItem>,
+    tmdbById: Map<string, CatalogTmdbMeta>
 ): NetflixRailSection[] {
     const filtered = filterCataloguePool(pool, catalogueId, lang);
-    const plans = planNetflixCuratedRows(filtered, catalogueId, catalogueLabel, lang);
+    const plans = planNetflixCuratedRows(
+        filtered,
+        catalogueId,
+        catalogueLabel,
+        lang,
+        tmdbById
+    );
 
     return plans
         .map((plan) => {
@@ -688,7 +750,8 @@ export function collectArtworkIdsForCurated(
     pool: MoovieCatalogItem[],
     catalogueId: string,
     lang: NetflixLanguageOption,
-    catalogueLabel: string
+    catalogueLabel: string,
+    tmdbById: Map<string, CatalogTmdbMeta>
 ): MoovieCatalogItem[] {
     const filtered = filterCataloguePool(pool, catalogueId, lang);
     const seen = new Set<string>();
@@ -701,7 +764,13 @@ export function collectArtworkIdsForCurated(
     };
 
     filtered.slice(0, MAX_TRENDING).forEach(push);
-    for (const plan of planNetflixCuratedRows(filtered, catalogueId, catalogueLabel, lang)) {
+    for (const plan of planNetflixCuratedRows(
+        filtered,
+        catalogueId,
+        catalogueLabel,
+        lang,
+        tmdbById
+    )) {
         plan.items.forEach(push);
     }
 

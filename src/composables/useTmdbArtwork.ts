@@ -6,6 +6,8 @@ export interface TmdbArtwork {
     posterPath: string | null;
     backdropPath: string | null;
     tmdbId?: number;
+    genreIds?: number[];
+    overview?: string;
 }
 
 interface TmdbSearchResult {
@@ -18,6 +20,8 @@ interface TmdbSearchResult {
     backdrop_path?: string | null;
     release_date?: string;
     first_air_date?: string;
+    genre_ids?: number[];
+    overview?: string;
 }
 
 const artworkCache = new Map<string, TmdbArtwork>();
@@ -117,7 +121,9 @@ export async function resolveTmdbArtwork(opts: {
         const artwork: TmdbArtwork = {
             posterPath: match?.poster_path || null,
             backdropPath: match?.backdrop_path || null,
-            tmdbId: match?.id
+            tmdbId: match?.id,
+            genreIds: match?.genre_ids || [],
+            overview: match?.overview || ''
         };
         artworkCache.set(cacheId, artwork);
         return artwork;
@@ -149,6 +155,38 @@ export async function resolveArtworkForCatalogItem(item: {
         ...tmdb,
         fallbackPath: item.backdrop_path || null
     };
+}
+
+export interface CatalogTmdbMeta {
+    genreIds: number[];
+    overview: string;
+}
+
+export async function enrichCatalogPoolWithTmdb(
+    items: Array<{
+        id: string;
+        title: string;
+        release_date?: string;
+        media_type: 'movie' | 'tv';
+        backdrop_path?: string | null;
+    }>,
+    concurrency = 8
+): Promise<Map<string, CatalogTmdbMeta>> {
+    const pairs = await mapWithConcurrency(
+        items,
+        async (item) => {
+            const art = await resolveArtworkForCatalogItem(item);
+            return [
+                String(item.id),
+                {
+                    genreIds: art.genreIds || [],
+                    overview: art.overview || ''
+                }
+            ] as const;
+        },
+        concurrency
+    );
+    return new Map(pairs);
 }
 
 export async function mapWithConcurrency<T, R>(

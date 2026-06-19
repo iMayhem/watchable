@@ -91,6 +91,10 @@ import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
 import CuratedRail, { type CuratedItem } from '../components/rails/CuratedRail.vue';
 import TopTenRail from '../components/rails/TopTenRail.vue';
+import {
+    NETFLIX_MOVIE_EXPLORE_PATH,
+    NETFLIX_TV_EXPLORE_PATH
+} from '../data/netmirrorExploreCategories';
 import { browseMoovieCatalog } from '../composables/useMoovieCatalog';
 import { getCatalogueHomeFetchSources } from '../data/netflixCatalogCategories';
 import { netflixCatalogDetailPath } from '../composables/useNetflixCatalogLookup';
@@ -109,22 +113,22 @@ import {
     buildNetflixHomeSections,
     buildTrendingItems,
     collectArtworkIdsForCurated,
-    enrichCatalogPoolWithTmdb,
     filterCataloguePool,
     netflixBrowsePath,
     type NetflixRailSection
 } from '../composables/useNetflixRails';
 import { loadNetflixAvailabilityIndex } from '../composables/useNetflixProvider';
 import { useSeo } from '../composables/useSeo';
-import { mapWithConcurrency } from '../composables/useTmdbArtwork';
 import {
-    toCuratedItemFast,
-    toCuratedItemUpgraded
+    toCuratedItemFast
 } from '../composables/useNetflixArtwork';
 import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
 import { prefetchArtworkImages } from '../utils/useWebImage';
 import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
-import { fetchEnrichmentByCatalogIds } from '../composables/useCatalogEnrichmentCache';
+import {
+    enrichmentRowToTmdbMeta,
+    fetchEnrichmentByCatalogIds
+} from '../composables/useCatalogEnrichmentCache';
 import {
     buildCatalogLanguageMap,
     catalogStreamTarget,
@@ -134,7 +138,13 @@ import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
 export default defineComponent({
     name: 'NetflixHome',
-    components: { SiteHeader, SiteFooter, BillboardHero, CuratedRail, TopTenRail },
+    components: {
+        SiteHeader,
+        SiteFooter,
+        BillboardHero,
+        CuratedRail,
+        TopTenRail
+    },
     setup() {
         const route = useRoute();
         const router = useRouter();
@@ -216,14 +226,12 @@ export default defineComponent({
             const t = route.query.type;
             if (t !== 'tv' && t !== 'movie') return false;
 
-            const cat = catalogue.value;
             if (t === 'tv') {
-                router.replace(netflixBrowsePath(cat, 'exciting-tv'));
+                router.replace(NETFLIX_TV_EXPLORE_PATH);
                 return true;
             }
 
-            const moviesCat = cat === 'korean' ? 'hollywood' : cat;
-            router.replace(netflixBrowsePath(moviesCat, 'blockbuster-movies'));
+            router.replace(NETFLIX_MOVIE_EXPLORE_PATH);
             return true;
         };
 
@@ -338,36 +346,20 @@ export default defineComponent({
                         const enrichmentMap = await fetchEnrichmentByCatalogIds(
                             artworkTargets.map((item) => item.id)
                         );
-                        const tmdbById = await enrichCatalogPoolWithTmdb(
-                            artworkTargets.map((item) => ({
-                                id: String(item.id),
-                                title: item.title,
-                                release_date: item.release_date,
-                                media_type: item.media_type,
-                                tmdbId: enrichmentMap.get(String(item.id))?.tmdb_id
-                            })),
-                            14
-                        );
-                        const upgraded = await mapWithConcurrency(
-                            artworkTargets,
-                            (item) => {
-                                const meta = tmdbById.get(String(item.id));
-                                const enrichment = enrichmentMap.get(String(item.id));
-                                return toCuratedItemUpgraded(
-                                    item,
-                                    meta?.genreIds || [],
-                                    languageMap,
-                                    audioCache,
-                                    enrichment
-                                );
-                            },
-                            10
-                        );
                         if (currentLoadKey() !== loadKey) return;
-                        const byId = new Map(upgraded.map((item) => [String(item.id), item]));
-                        applyHomeSections(byId, tmdbById);
+
+                        const tmdbById = new Map<
+                            string,
+                            import('../composables/useTmdbArtwork').CatalogTmdbMeta
+                        >();
+                        enrichmentMap.forEach((row, id) => {
+                            if (row.tmdb_genre_ids.length) {
+                                tmdbById.set(id, enrichmentRowToTmdbMeta(row));
+                            }
+                        });
+                        applyHomeSections(fastById, tmdbById);
                     } catch (err) {
-                        nfDebugError('home:artwork-upgrade:fail', { err });
+                        nfDebugError('home:enrichment-rebuild:fail', { err });
                     }
                 })();
 

@@ -11,8 +11,8 @@
                     :title="displayTitle"
                     :tagline="tagline"
                     eyebrow="Anime"
-                    :backdrop-path="backdropPath"
-                    :poster-path="posterPath"
+                    :backdrop-path="artwork.backdropPath"
+                    :poster-path="artwork.posterPath"
                     :rating="rating"
                     :release-date="releaseYear"
                     :genres="mastheadGenres"
@@ -21,7 +21,8 @@
                     :play-route="playRoute"
                     play-label="Play"
                     :show-trailer="false"
-                    :loading="loading"
+                    strict-backdrop
+                    :loading="mastheadLoading"
                 />
             </section>
 
@@ -76,6 +77,9 @@ import { useNetflixCatalogEpisodes } from '../composables/useNetflixCatalogEpiso
 import { fetchAnimeBrowseMedia, fetchAnimeMediaById, type AnimeMedia } from '../composables/useAniList';
 import { resolveMoovieCatalogForAnilist } from '../composables/useNetflixAnimeResolve';
 import { animeMediaToCuratedItem } from '../composables/useNetflixAnimeBrowse';
+import { resolveInstantCatalogArtwork } from '../composables/useNetflixArtwork';
+import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
+import { prefetchArtworkImages } from '../utils/useWebImage';
 import {
     catalogStreamPath,
     catalogStreamTarget
@@ -96,8 +100,13 @@ export default defineComponent({
 
         const loading = ref(true);
         const resolvingCatalog = ref(true);
+        const artworkReady = ref(false);
         const anime = ref<AnimeMedia | null>(null);
         const catalogMatch = ref<MoovieCatalogItem | null>(null);
+        const artwork = ref<{ posterPath: string | null; backdropPath: string | null }>({
+            posterPath: null,
+            backdropPath: null
+        });
         const languageTags = ref<string[]>([]);
         const similarItems = ref<CuratedItem[]>([]);
         const selectedSeason = ref(1);
@@ -132,21 +141,60 @@ export default defineComponent({
             return '';
         });
 
-        const posterPath = computed(
-            () =>
-                anime.value?.coverImage.extraLarge ||
-                anime.value?.coverImage.large ||
-                anime.value?.coverImage.medium ||
-                null
-        );
+        const mastheadLoading = computed(() => loading.value || !artworkReady.value);
 
-        const backdropPath = computed(
-            () =>
-                anime.value?.bannerImage ||
-                anime.value?.coverImage.extraLarge ||
-                anime.value?.coverImage.large ||
-                null
-        );
+        const anilistArtwork = (media: AnimeMedia) => {
+            const posterPath =
+                media.coverImage.extraLarge ||
+                media.coverImage.large ||
+                media.coverImage.medium ||
+                null;
+            return {
+                posterPath,
+                backdropPath:
+                    media.bannerImage ||
+                    media.coverImage.extraLarge ||
+                    media.coverImage.large ||
+                    null
+            };
+        };
+
+        const applyArtwork = async (
+            media: AnimeMedia,
+            catalogItem: MoovieCatalogItem | null
+        ) => {
+            const anilist = anilistArtwork(media);
+
+            if (catalogItem) {
+                const artworkUrls = await fetchCatalogArtworkUrlsByIds([catalogItem.id]);
+                const catalogArt = resolveInstantCatalogArtwork(
+                    {
+                        id: String(catalogItem.id),
+                        title: catalogItem.title || '',
+                        release_date: catalogItem.release_date,
+                        media_type: catalogItem.media_type,
+                        vote_average: catalogItem.vote_average ?? 0,
+                        backdrop_path: catalogItem.backdrop_path || null
+                    },
+                    undefined,
+                    artworkUrls
+                );
+
+                artwork.value = {
+                    posterPath: catalogArt.posterPath || anilist.posterPath,
+                    backdropPath: catalogArt.backdropPath || anilist.backdropPath
+                };
+            } else {
+                artwork.value = anilist;
+            }
+
+            artworkReady.value = Boolean(
+                artwork.value.backdropPath || artwork.value.posterPath
+            );
+            if (artwork.value.backdropPath) {
+                prefetchArtworkImages([artwork.value.backdropPath], 'hero', 1);
+            }
+        };
 
         const rating = computed(() =>
             anime.value?.averageScore ? anime.value.averageScore / 10 : 0
@@ -226,7 +274,7 @@ export default defineComponent({
         };
 
         const applySeo = () => {
-            const image = backdropPath.value || posterPath.value;
+            const image = artwork.value.backdropPath || artwork.value.posterPath;
             updateSeo({
                 title: `${displayTitle.value} — Anime on Moovie`,
                 canonical: `https://moovie.fun/nf/anime/${anilistId.value}`,
@@ -282,6 +330,9 @@ export default defineComponent({
             try {
                 const lang = getLanguageOption(language.value);
                 const resolved = await resolveMoovieCatalogForAnilist(id, lang);
+                if (anime.value) {
+                    await applyArtwork(anime.value, resolved.item);
+                }
                 await applyCatalogResolve(resolved);
             } catch (err) {
                 nfDebugError('anime-detail:catalog:fail', { id, err });
@@ -300,6 +351,8 @@ export default defineComponent({
 
             loading.value = true;
             resolvingCatalog.value = true;
+            artworkReady.value = false;
+            artwork.value = { posterPath: null, backdropPath: null };
             nfDebug('anime-detail:load:start', { id });
 
             try {
@@ -318,6 +371,7 @@ export default defineComponent({
                     return;
                 }
 
+                await applyArtwork(anime.value, resolved.item);
                 await applyCatalogResolve(resolved);
                 applySeo();
                 void loadSimilar(id);
@@ -352,8 +406,8 @@ export default defineComponent({
             anilistId,
             displayTitle,
             tagline,
-            posterPath,
-            backdropPath,
+            artwork,
+            mastheadLoading,
             rating,
             releaseYear,
             mastheadGenres,

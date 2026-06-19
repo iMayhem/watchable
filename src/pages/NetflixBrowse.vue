@@ -204,16 +204,15 @@
                         />
                     </div>
 
-                    <div v-if="hasMore" class="discover__more">
-                        <button
-                            type="button"
-                            class="discover__more-btn"
-                            :disabled="isLoadingMore"
-                            @click="loadMore"
-                        >
-                            <span v-if="isLoadingMore">Loading…</span>
-                            <span v-else>Load more</span>
-                        </button>
+                    <div
+                        v-if="results.length && (hasMore || isLoadingMore)"
+                        ref="scrollSentinel"
+                        class="nf-explore-scroll-sentinel"
+                        aria-hidden="true"
+                    >
+                        <span v-if="isLoadingMore" class="nf-explore-scroll-sentinel__label">
+                            Loading…
+                        </span>
                     </div>
 
                     <CuratedRail
@@ -262,6 +261,8 @@ import {
     getCatalogueOption,
     getNetflixCatalogue,
     NETFLIX_CATALOGUES,
+    netflixMovieBrowseRow,
+    netflixTvBrowseRow,
     type NetflixCatalogueOption
 } from '../composables/useNetflixCatalogue';
 import {
@@ -270,7 +271,6 @@ import {
     type NetflixLanguageOption
 } from '../composables/useNetflixLanguage';
 import {
-    enrichCatalogPoolWithTmdb,
     filterCataloguePool,
     getNetflixRowMeta,
     isNetflixGenreBrowsePage,
@@ -288,10 +288,8 @@ import {
     fetchCatalogVariantSnapshot
 } from '../composables/useNetflixCatalogLookup';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
-import { mapWithConcurrency } from '../composables/useTmdbArtwork';
 import {
-    toCuratedItemFast,
-    toCuratedItemUpgraded
+    toCuratedItemFast
 } from '../composables/useNetflixArtwork';
 import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
 import {
@@ -309,10 +307,11 @@ import {
     netflixCatalogDetailPath
 } from '../composables/useNetflixCatalogLookup';
 import { buildPartyHref } from '../utils/partyRoom';
+import { useInfiniteScroll } from '../composables/useLazyLoad';
 
 const BROWSE_PAGE_SIZE = BROWSE_GRID_BATCH;
 const BROWSE_FAST_BATCH = BROWSE_FAST_GRID_BATCH;
-const TMDB_CONCURRENCY = 12;
+
 
 interface GenreRailDisplay {
     id: string;
@@ -370,9 +369,9 @@ export default defineComponent({
         const genresList = computed(() => {
             const list = [];
             const isTv = browseMediaType.value === 'tv';
-            const mainRowId = catalogueId.value === 'korean' 
-                ? (isTv ? 'korean-series' : 'korean-movies')
-                : (isTv ? 'exciting-tv' : 'blockbuster-movies');
+            const mainRowId = isTv
+                ? netflixTvBrowseRow(catalogueId.value)
+                : netflixMovieBrowseRow(catalogueId.value);
                 
             list.push({ id: mainRowId, label: 'All Genres' });
             
@@ -397,18 +396,17 @@ export default defineComponent({
 
         const selectIndustry = (newCatalogueId: string) => {
             isIndustryOpen.value = false;
+            setNetflixCatalogue(newCatalogueId);
+
             let targetRow = rowId.value;
-            
-            if (newCatalogueId === 'korean') {
-                targetRow = browseMediaType.value === 'tv' ? 'korean-series' : 'korean-movies';
-            } else {
-                if (rowId.value === 'korean-movies' || rowId.value === 'blockbuster-movies') {
-                    targetRow = 'blockbuster-movies';
-                } else if (rowId.value === 'korean-series' || rowId.value === 'exciting-tv') {
-                    targetRow = 'exciting-tv';
+            if (browseMediaType.value === 'tv') {
+                if (rowId.value === 'korean-series' || rowId.value === 'exciting-tv') {
+                    targetRow = netflixTvBrowseRow(newCatalogueId);
                 }
+            } else if (rowId.value === 'korean-movies' || rowId.value === 'blockbuster-movies') {
+                targetRow = netflixMovieBrowseRow(newCatalogueId);
             }
-            
+
             const query = typeFilter.value ? { type: typeFilter.value } : undefined;
             router.push({
                 name: 'NetflixBrowse',
@@ -504,6 +502,8 @@ export default defineComponent({
 
         const isAnimeBrowse = computed(() => rowId.value === 'anime');
 
+        const scrollSentinel = ref<HTMLElement | null>(null);
+
         const hasMore = computed(() => {
             if (isAnimeBrowse.value) return animeHasMore.value;
             return (
@@ -574,24 +574,6 @@ export default defineComponent({
             return url ? { backgroundImage: `url(${url})` } : undefined;
         });
 
-        const syncTmdbForPool = async (pool: MoovieCatalogItem[]) => {
-            const pending = pool.filter(
-                (item) => !poolState.value.tmdbById.has(String(item.id))
-            );
-            if (!pending.length) return;
-            const fresh = await enrichCatalogPoolWithTmdb(
-                pending.map((item) => ({
-                    id: String(item.id),
-                    title: item.title,
-                    release_date: item.release_date,
-                    media_type: item.media_type,
-                    tmdbId: enrichmentFor(item)?.tmdb_id
-                })),
-                TMDB_CONCURRENCY
-            );
-            fresh.forEach((meta, id) => poolState.value.tmdbById.set(id, meta));
-        };
-
         const planToGenreRailDisplay = (
             plans: GenreBrowseRailPlan[],
             audioCache?: Map<string, string[]>,
@@ -641,8 +623,6 @@ export default defineComponent({
             if (!genreRailPlans.value.length) return;
 
             try {
-                const allItems = genreRailPlans.value.flatMap((rail) => rail.items);
-                await syncTmdbForPool(allItems);
                 if (loadGeneration.value !== generation) return;
                 await ensureVariantSnapshot();
                 if (loadGeneration.value !== generation) return;
@@ -653,27 +633,21 @@ export default defineComponent({
                     railPool.map((item) => item.id)
                 );
                 if (loadGeneration.value !== generation) return;
-                const upgraded = await Promise.all(
-                    genreRailPlans.value.map(async (plan) => ({
-                        id: plan.id,
-                        title: plan.title,
-                        defaultType: plan.defaultType,
-                        items: await mapWithConcurrency(
-                            plan.items,
-                            (item) => {
-                                const meta = tmdbById.value.get(String(item.id));
-                                return toCuratedItemUpgraded(
-                                    item,
-                                    meta?.genreIds || [],
-                                    languageMap.value,
-                                    railAudioCache,
-                                    enrichmentFor(item)
-                                );
-                            },
-                            TMDB_CONCURRENCY
-                        )
-                    }))
-                );
+                const upgraded = genreRailPlans.value.map((plan) => ({
+                    id: plan.id,
+                    title: plan.title,
+                    defaultType: plan.defaultType,
+                    items: plan.items.map((item) => {
+                        const meta = tmdbById.value.get(String(item.id));
+                        return toCuratedItemFast(
+                            item,
+                            meta?.genreIds || [],
+                            languageMap.value,
+                            railAudioCache,
+                            enrichmentFor(item)
+                        );
+                    })
+                }));
                 if (loadGeneration.value !== generation) return;
                 genreRails.value = upgraded;
             } catch (err) {
@@ -706,25 +680,22 @@ export default defineComponent({
             if (!batch.length) return;
 
             try {
-                await Promise.all([
-                    syncTmdbForPool(batch),
-                    ensureVariantSnapshot()
-                ]);
+                await ensureVariantSnapshot();
                 if (loadGeneration.value !== generation) return;
                 refreshLanguageMap();
 
                 const audioCache = await fetchCatalogAudioCacheByIds(batch.map((item) => item.id));
                 if (loadGeneration.value !== generation) return;
-                const curated = await mapWithConcurrency(batch, (item) => {
+                const curated = batch.map((item) => {
                     const meta = tmdbById.value.get(String(item.id));
-                    return toCuratedItemUpgraded(
+                    return toCuratedItemFast(
                         item,
                         meta?.genreIds || [],
                         languageMap.value,
                         audioCache,
                         enrichmentFor(item)
                     );
-                }, TMDB_CONCURRENCY);
+                });
                 if (loadGeneration.value !== generation) return;
 
                 patchResultRange(startIndex, curated);
@@ -757,38 +728,30 @@ export default defineComponent({
             );
         };
 
-        const mapBatchToCurated = async (
+        const mapBatchToCurated = (
             batch: MoovieCatalogItem[],
-            fastPaint = false
-        ): Promise<CuratedItem[]> => {
+            opts: {
+                audioCache?: Map<string, string[]>;
+                artworkUrls?: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>>;
+            } = {}
+        ): CuratedItem[] => {
             if (!batch.length) return [];
-            await fetchAnimeCatalogCacheByMoovieIds(batch.map((item) => item.id));
-
-            let audioCache: Map<string, string[]> | undefined;
-            let artworkUrls: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>> | undefined;
-            if (!fastPaint) {
-                [audioCache, artworkUrls] = await Promise.all([
-                    fetchCatalogAudioCacheByIds(batch.map((item) => item.id)),
-                    fetchCatalogArtworkUrlsByIds(batch.map((item) => item.id))
-                ]);
-            }
-
             return batch.map((item) => {
                 const meta = tmdbById.value.get(String(item.id));
                 return toCuratedItemFast(
                     item,
                     meta?.genreIds || [],
                     languageMap.value,
-                    audioCache,
+                    opts.audioCache,
                     enrichmentFor(item),
-                    artworkUrls
+                    opts.artworkUrls
                 );
             });
         };
 
         const appendDisplayedBatch = async (
             size: number,
-            opts: { fastPaint?: boolean; pickOptions?: EnsureBrowsePickOptions } = {}
+            opts: { pickOptions?: EnsureBrowsePickOptions } = {}
         ) => {
             const loadKeyAtStart = currentLoadKey();
             const generationAtStart = loadGeneration.value;
@@ -805,7 +768,8 @@ export default defineComponent({
             }
 
             const startIndex = displayedCount.value === 0 ? 0 : results.value.length;
-            const fast = await mapBatchToCurated(batch, opts.fastPaint);
+            void fetchAnimeCatalogCacheByMoovieIds(batch.map((item) => item.id));
+            const fast = mapBatchToCurated(batch);
             if (loadGeneration.value !== generationAtStart || currentLoadKey() !== loadKeyAtStart) return;
 
             results.value =
@@ -1076,7 +1040,6 @@ export default defineComponent({
 
             try {
                 await appendDisplayedBatch(initialBatchSize.value, {
-                    fastPaint: true,
                     pickOptions: fastPick
                 });
                 if (isStale()) return;
@@ -1144,6 +1107,11 @@ export default defineComponent({
             }
         };
 
+        useInfiniteScroll(scrollSentinel, loadMore, {
+            enabled: hasMore,
+            busy: isLoadingMore
+        });
+
         onMounted(() => {
             lastLoadKey.value = currentLoadKey();
         });
@@ -1207,7 +1175,7 @@ export default defineComponent({
             activeLang,
             activeCatalogue,
             hasMore,
-            loadMore,
+            scrollSentinel,
             isGenreBrowse,
             genreHeroFeatured,
             genreHeroPlayRoute,
@@ -1615,6 +1583,23 @@ export default defineComponent({
         color: var(--ink-900);
         background: var(--ember);
         font-weight: 600;
+    }
+}
+
+.nf-explore-scroll-sentinel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 72px;
+    padding: var(--s-5) 0 var(--s-8);
+    pointer-events: none;
+
+    &__label {
+        font-family: var(--font-mono);
+        font-size: var(--fs-xs);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--bone-400);
     }
 }
 </style>

@@ -14,6 +14,7 @@
                     'NetflixSearch',
                     'NetflixDetail',
                     'NetflixCategories',
+                    'NetflixExplore',
                     'StreamNetflix'
                 ]"
             >
@@ -70,6 +71,13 @@ const getRouteKey = (route: any) => {
         const typeSuffix =
             type === 'tv' || type === 'movie' ? `-${type}` : '';
         return `nf-categories${typeSuffix}`;
+    }
+    if (route.name === 'NetflixExplore') {
+        return `nf-explore-${route.params.mediaType || 'all'}-${route.fullPath}`;
+    }
+    // Canonical movie/tv type is corrected in-page — key by id only to avoid remount flicker.
+    if (route.name === 'NetflixDetail') {
+        return `nf-detail-${route.params.id}`;
     }
 
     // Do NOT include region in the key for Home/listing pages.

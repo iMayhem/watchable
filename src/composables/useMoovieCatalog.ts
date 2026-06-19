@@ -96,6 +96,39 @@ export function inferCatalogMediaType(item: {
     return 'movie';
 }
 
+/**
+ * Stricter gate for season/episode UI — movie routes need explicit series signals.
+ */
+export function catalogHasEpisodeGuide(
+    item: { title?: string; media_type?: string },
+    routeType?: 'movie' | 'tv' | string
+): boolean {
+    const raw = item.title || '';
+    const parsed = parseCatalogTitle(raw);
+
+    if (parsed.season != null || /\bS\d{1,2}(?:-S\d+)?\b/i.test(raw)) {
+        return true;
+    }
+
+    if (CATALOG_FEATURE_FILM_PATTERN.test(raw)) {
+        return false;
+    }
+
+    const mt = String(item.media_type || '').toLowerCase();
+    if (mt === 'movie') return false;
+
+    // Movie player/detail routes: only explicit season markers qualify.
+    if (routeType === 'movie') {
+        return false;
+    }
+
+    if (CATALOG_SERIES_PATTERN.test(raw)) {
+        return true;
+    }
+
+    return mt === 'tv';
+}
+
 const CATALOG_API = '/api/moovie-catalog';
 
 export interface BrowseCatalogOptions {
@@ -103,6 +136,11 @@ export interface BrowseCatalogOptions {
     country?: string;
     type?: string;
     genre?: string;
+    genre_ids?: string[];
+    sort_by?: string;
+    countryNot?: string;
+    countryNot2?: string;
+    title_not?: string[];
 }
 
 export async function browseMoovieCatalog(
@@ -123,6 +161,19 @@ export async function browseMoovieCatalog(
     if (options?.country) params.set('country', options.country);
     if (options?.type) params.set('type', options.type);
     if (options?.genre) params.set('genre', options.genre);
+    if (options?.genre_ids?.length) {
+        for (const value of options.genre_ids) {
+            params.append('genre_ids[]', value);
+        }
+    }
+    if (options?.sort_by) params.set('sort_by', options.sort_by);
+    if (options?.countryNot) params.set('countryNot', options.countryNot);
+    if (options?.countryNot2) params.set('countryNot2', options.countryNot2);
+    if (options?.title_not?.length) {
+        for (const value of options.title_not) {
+            params.append('title_not[]', value);
+        }
+    }
     try {
         const resp = await fetch(`${CATALOG_API}?${params}`);
         const data = await resp.json();

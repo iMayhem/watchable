@@ -57,7 +57,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onActivated, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, onActivated, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
@@ -90,15 +90,8 @@ import {
 } from '../composables/useNetflixLanguage';
 import { useSeo } from '../composables/useSeo';
 import {
-    getCachedArtworkForCatalogItem,
-    mapWithConcurrency,
-    pickCatalogArtwork,
-    resolveArtworkForCatalogItem
-} from '../composables/useTmdbArtwork';
-import {
     resolveInstantCatalogArtwork,
-    toCuratedItemFast,
-    toCuratedItemUpgraded
+    toCuratedItemFast
 } from '../composables/useNetflixArtwork';
 import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
 import { prefetchArtworkImages } from '../utils/useWebImage';
@@ -227,16 +220,9 @@ export default defineComponent({
 
         const applyInstantArtwork = (
             item: MoovieCatalogItem,
-            trustedTmdbId?: number | null,
             artworkUrls?: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>>
         ) => {
-            const cached = getCachedArtworkForCatalogItem(item, { trustedTmdbId });
-            const cachedArt = cached ? pickCatalogArtwork(cached) : null;
-            const instant = resolveInstantCatalogArtwork(
-                item,
-                cachedArt || { posterPath: null, backdropPath: null },
-                artworkUrls
-            );
+            const instant = resolveInstantCatalogArtwork(item, undefined, artworkUrls);
             artwork.value = instant;
             artworkReady.value = Boolean(instant.backdropPath || instant.posterPath);
             if (instant.backdropPath) {
@@ -305,22 +291,6 @@ export default defineComponent({
                     artworkUrls
                 )
             );
-
-            void mapWithConcurrency(
-                similarPool,
-                (item) =>
-                    toCuratedItemUpgraded(
-                        item,
-                        enrichmentMap.get(String(item.id))?.tmdb_genre_ids || [],
-                        languageMap,
-                        audioCache,
-                        enrichmentMap.get(String(item.id))
-                    ),
-                8
-            ).then((upgraded) => {
-                if (routeId() !== id) return;
-                similarItems.value = upgraded;
-            });
         };
 
         const loadEpisodeCatalog = async (item: MoovieCatalogItem) => {
@@ -335,7 +305,10 @@ export default defineComponent({
                     release_date: item.release_date,
                     media_type: item.media_type
                 },
-                { season: selectedSeason.value }
+                {
+                    season: selectedSeason.value,
+                    routeType: route.params.type === 'tv' ? 'tv' : 'movie'
+                }
             );
         };
 
@@ -452,9 +425,8 @@ export default defineComponent({
                     background && meta.value
                         ? Promise.resolve(meta.value)
                         : fetchMoovieCatalogMetaResolved(mediaType.value, id);
-                const [resolvedMeta, enrichmentMap, artworkUrls] = await Promise.all([
+                const [resolvedMeta, artworkUrls] = await Promise.all([
                     metaPromise,
-                    fetchEnrichmentByCatalogIds([id]),
                     fetchCatalogArtworkUrlsByIds([id])
                 ]);
                 if (!isCurrentDetailLoad(seq, id)) return;
@@ -475,12 +447,10 @@ export default defineComponent({
                     }
                 }
 
-                const enrichment = enrichmentMap.get(String(meta.value.id));
                 const resolvedType = inferCatalogMediaType({
                     title: meta.value.title,
                     media_type: meta.value.media_type
                 });
-                const trustedTmdbId = enrichment?.tmdb_id ?? null;
 
                 applyInstantArtwork(
                     {
@@ -491,32 +461,14 @@ export default defineComponent({
                         vote_average: meta.value.vote_average ?? 0,
                         backdrop_path: meta.value.backdrop_path || null
                     },
-                    trustedTmdbId,
                     artworkUrls
                 );
 
-                const [, art] = await Promise.all([
-                    Promise.all([
-                        loadVerifiedLanguages(meta.value),
-                        loadEpisodeCatalog(meta.value)
-                    ]),
-                    resolveArtworkForCatalogItem({
-                        id: String(meta.value.id),
-                        title: meta.value?.title || '',
-                        release_date: meta.value?.release_date,
-                        media_type: resolvedType,
-                        tmdbId: trustedTmdbId ?? undefined
-                    }).then((resolved) => pickCatalogArtwork(resolved))
-                ]);
                 if (!isCurrentDetailLoad(seq, id)) return;
 
-                artwork.value = {
-                    posterPath: art.posterPath || artwork.value.posterPath,
-                    backdropPath: art.backdropPath || artwork.value.backdropPath
-                };
-                artworkReady.value = Boolean(
-                    artwork.value.backdropPath || artwork.value.posterPath
-                );
+                void loadVerifiedLanguages(meta.value);
+                void loadEpisodeCatalog(meta.value);
+
                 void warmMooviePlayerAssets();
                 prefetchMoovieResolve({
                     type: supportsEpisodes.value ? 'tv' : mediaType.value,
@@ -546,17 +498,22 @@ export default defineComponent({
             }
         };
 
-        onMounted(() => {
-            nfDebug('detail:mount', { id: route.params.id, type: mediaType.value });
+        const ensureDetailLoaded = (reason: string) => {
+            const id = routeId();
+            if (!id) return;
+            if (isHydratedForRoute()) {
+                nfDebug('detail:skip-reload', { id, reason });
+                loading.value = false;
+                applySeo(id);
+                return;
+            }
+            nfDebug('detail:load:trigger', { id, reason });
             const seq = resetDetailState();
             void loadDetail({ seq });
-        });
+        };
 
         onActivated(() => {
-            if (!isHydratedForRoute()) return;
-            nfDebug('detail:reactivate', { id: routeId() });
-            loading.value = false;
-            applySeo(routeId());
+            ensureDetailLoaded('activate');
         });
 
         watch(() => route.params.id, (newId, oldId) => {

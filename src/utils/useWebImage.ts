@@ -58,6 +58,55 @@ export function posterPixelWidth(size: WebImageSize, quality: TmdbImageQuality):
     return size === 'hero' || size === 'xlarge' ? 1280 : 500;
 }
 
+/** JPEG/WebP quality for catalogue OSS resize (q_1–q_100). */
+export function catalogOssQuality(quality: TmdbImageQuality = 'medium'): number {
+    if (quality === 'low') return 82;
+    if (quality === 'high') return 92;
+    return 88;
+}
+
+/**
+ * Catalogue CDN OSS widths — ~2× grid cell width for crisp retina posters.
+ * NetMirror uses w_250–300; we target sharper 2-up/5-up grids without full-source hops.
+ */
+export function catalogOssResizeWidth(
+    size: WebImageSize,
+    quality: TmdbImageQuality = 'medium'
+): number {
+    if (quality === 'low') {
+        if (size === 'small' || size === 'medium') return 300;
+        if (size === 'large') return 400;
+        if (size === 'xlarge') return 560;
+        return 840;
+    }
+    if (quality === 'high') {
+        if (size === 'small' || size === 'medium') return 480;
+        if (size === 'large') return 640;
+        if (size === 'xlarge') return 960;
+        return 1280;
+    }
+    // medium (default)
+    if (size === 'small' || size === 'medium') return 420;
+    if (size === 'large') return 520;
+    if (size === 'xlarge') return 720;
+    return 1080;
+}
+
+/**
+ * Direct catalogue CDN resize — OSS edge WebP/JPEG, no /api/catalog-img hop.
+ */
+export function buildCatalogOssImageUrl(
+    url: string,
+    width: number,
+    jpegQuality = 88
+): string {
+    if (!url || !CATALOG_CDN_PATTERN.test(url)) return url;
+    const base = url.split('?')[0];
+    const clamped = Math.min(Math.max(Math.round(width), 64), 1280);
+    const q = Math.min(Math.max(Math.round(jpegQuality), 60), 95);
+    return `${base}?x-oss-process=image/resize,w_${clamped}/quality,q_${q}`;
+}
+
 export interface WsrvImageOptions {
     width?: number;
     quality?: number;
@@ -89,13 +138,12 @@ export function buildProxiedImageUrl(tmdbPath: string): string {
     return `/api/img?path=${encodeURIComponent(path)}`;
 }
 
-/** Catalogue CDN posters via same-origin proxy with WebP resize. */
+/** Catalogue CDN posters — direct OSS resize (NetMirror parity). */
 export function buildCatalogCdnImageUrl(url: string, size: WebImageSize = 'medium'): string {
     if (!url || !CATALOG_CDN_PATTERN.test(url)) return url;
-    if (IS_DEV) return url;
     const quality = getTmdbImageQuality();
-    const width = posterPixelWidth(size, quality);
-    return `/api/catalog-img?url=${encodeURIComponent(url)}&w=${width}`;
+    const width = catalogOssResizeWidth(size, quality);
+    return buildCatalogOssImageUrl(url, width, catalogOssQuality(quality));
 }
 
 /** AniList covers via catalog-img proxy when in production. */

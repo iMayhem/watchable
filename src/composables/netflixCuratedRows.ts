@@ -41,7 +41,6 @@ export const MAX_NETFLIX_HOME_PER_RAIL = 20;
 const NETFLIX_HOME_EDITORIAL_IDS = [
     'new-on-netflix',
     'blockbuster-movies',
-    'critically-acclaimed',
     'exciting-tv'
 ] as const;
 
@@ -70,7 +69,6 @@ export function homeRowIdsForCatalogue(catalogueId: string): string[] {
                   'new-on-netflix',
                   'korean-movies',
                   'korean-series',
-                  'critically-acclaimed',
                   'exciting-tv'
               ]
             : [...NETFLIX_HOME_EDITORIAL_IDS];
@@ -166,18 +164,6 @@ const EDITORIAL_ROWS: NetflixCuratedRowDef[] = [
         homeDedupe: true,
         description: (_catalogueLabel, lang) =>
             `Korean dramas and series in ${lang.label}.`
-    },
-    {
-        id: 'critically-acclaimed',
-        title: 'Critically Acclaimed Movies',
-        eyebrow: 'Award season',
-        defaultType: 'movie',
-        section: 'editorial',
-        priority: 3160,
-        pick: 'top-rated',
-        minRating: 7.5,
-        homeDedupe: true,
-        description: (catalogueLabel) => `Standout ${catalogueLabel} movies rated 7.5+.`
     },
     {
         id: 'exciting-tv',

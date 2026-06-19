@@ -47,6 +47,23 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/nf/explore/:mediaType(all|movie|tv|animated)?',
+        name: 'NetflixExplore',
+        component: () => import('../pages/NetflixExplore.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Netflix Explore'
+        }
+    },
+    {
+        path: '/nf/browse/:catalogue/:row(exciting-tv|korean-series|top10-tv)',
+        redirect: '/nf/explore/tv'
+    },
+    {
+        path: '/nf/browse/:catalogue/:row(blockbuster-movies|top10-movies|korean-movies)',
+        redirect: '/nf/explore/movie'
+    },
+    {
         path: '/nf/browse/:catalogue/:row',
         name: 'NetflixBrowse',
         component: () => import('../pages/NetflixBrowse.vue'),

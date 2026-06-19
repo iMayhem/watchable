@@ -6,6 +6,7 @@ import {
 import { peekCatalogAudioCache } from './useCatalogAudioCache';
 import {
     browseMoovieCatalog,
+    catalogHasEpisodeGuide,
     inferCatalogMediaType,
     parseCatalogTitle,
     searchMoovieCatalog,
@@ -106,6 +107,9 @@ export function pickCatalogPlayVariant(
 
     const tagged = labeled.find((row) => row.labels.length);
     if (tagged) return tagged.item;
+
+    const withArtwork = variants.find((item) => Boolean(item.backdrop_path));
+    if (withArtwork) return withArtwork;
 
     return variants[0];
 }
@@ -248,12 +252,23 @@ export function catalogStreamTarget(
     const season = opts.season ?? parsed.season ?? 1;
     const episode = opts.episode ?? 1;
 
-    if (opts.supportsEpisodes) {
+    const hasEpisodeGuide = catalogHasEpisodeGuide(item);
+
+    if (opts.supportsEpisodes && hasEpisodeGuide) {
         return {
             mediaType: 'tv',
             season,
             episode,
             path: catalogStreamPath(item.id, season, episode)
+        };
+    }
+
+    if (!hasEpisodeGuide) {
+        return {
+            mediaType: 'movie',
+            season: 0,
+            episode: 0,
+            path: `/stream/nf/movie/${item.id}`
         };
     }
 
@@ -308,22 +323,25 @@ export async function findCatalogueLanguageVariants(
     return matches;
 }
 
-/** First season only — S1-S2 and S1-S3 are the same dub family as S1. */
-function seasonSignature(title: string): string {
-    const match = title.match(/\bS(\d+)(?:-S\d+)?\b/i);
-    return match ? `S${match[1]}` : '';
+function cleanRawCatalogTitle(raw: string): string {
+    return raw.replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
-/** Groups true dub variants — same clean title, media type, and season marker. */
+function variantDisplayTitle(item: { title?: string; media_type?: string }): string {
+    const raw = cleanRawCatalogTitle(item.title || '');
+    const parsed = parseCatalogTitle(raw);
+    return normalizeCatalogTitle(parsed.displayTitle || raw);
+}
+
+/** Groups dub variants — same clean title + media type (season markers ignored for TV). */
 export function catalogVariantFamilyKey(item: {
     title?: string;
     media_type?: string;
 }): string {
-    const parsed = parseCatalogTitle(item.title || '');
-    const display = normalizeCatalogTitle(parsed.displayTitle || item.title || '');
-    const mediaType = inferCatalogMediaType(item);
-    const season = seasonSignature(item.title || '');
-    return `${mediaType}:${display}:${season}`;
+    const raw = cleanRawCatalogTitle(item.title || '');
+    const display = variantDisplayTitle({ ...item, title: raw });
+    const mediaType = inferCatalogMediaType({ ...item, title: raw });
+    return `${mediaType}:${display}`;
 }
 
 export function isSameCatalogueVariantFamily(
@@ -441,6 +459,35 @@ export function playbackLanguageCategoryForItem(
     return lang?.category ?? null;
 }
 
+/**
+ * Collapse dub variants (e.g. Title [Hindi] S1 + Title [Telugu] S1) into one row.
+ * Picks a play target (English first) while language tags come from the full pool.
+ */
+export function dedupeCatalogItemsByVariantFamily(
+    items: MoovieCatalogItem[],
+    opts: { preferredLang?: NetflixLanguageOption } = {}
+): MoovieCatalogItem[] {
+    if (!items.length) return [];
+
+    const groups = new Map<string, MoovieCatalogItem[]>();
+    const order: string[] = [];
+
+    for (const item of items) {
+        const key = catalogVariantFamilyKey(item);
+        const bucket = groups.get(key);
+        if (bucket) {
+            bucket.push(item);
+        } else {
+            order.push(key);
+            groups.set(key, [item]);
+        }
+    }
+
+    return order
+        .map((key) => pickCatalogPlayVariant(groups.get(key)!, opts.preferredLang))
+        .filter((item): item is MoovieCatalogItem => item != null);
+}
+
 /** Group verified dub variants and collect only explicit [Language] tags. */
 export function buildCatalogLanguageMap(
     pool: MoovieCatalogItem[]
@@ -456,10 +503,33 @@ export function buildCatalogLanguageMap(
 
     const out = new Map<string, string[]>();
     for (const [key, items] of groups) {
-        const labels = languagesForCatalogueItems(items).map((lang) => lang.label);
+        const labels = collectMergedLanguageLabels(items);
         if (labels.length) out.set(key, labels);
     }
     return out;
+}
+
+/** Merge explicit [Tag] + channel dub hints from every row in a variant family. */
+function collectMergedLanguageLabels(items: MoovieCatalogItem[]): string[] {
+    const seen = new Set<string>();
+    const labels: string[] = [];
+
+    const push = (label: string | null) => {
+        if (!label || seen.has(label)) return;
+        seen.add(label);
+        labels.push(label);
+    };
+
+    for (const item of items) {
+        for (const label of explicitLanguageLabels(item)) {
+            push(label);
+        }
+        for (const label of channelLanguageLabels(item)) {
+            push(label);
+        }
+    }
+
+    return sortLanguageTagsForDisplay(labels);
 }
 
 export function resolveLanguageTagsForItem(

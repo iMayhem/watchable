@@ -22,7 +22,7 @@ export interface NetflixBrowseCacheSnapshot {
 
 const CACHE_TTL_MS = 8 * 60 * 1000;
 /** Bump when browse pick / media-type logic changes — invalidates stale snapshots. */
-const BROWSE_CACHE_VERSION = 4;
+const BROWSE_CACHE_VERSION = 5;
 const MAX_CACHE_ENTRIES = 12;
 const browseCache = new Map<string, NetflixBrowseCacheSnapshot>();
 const warmInflight = new Set<string>();

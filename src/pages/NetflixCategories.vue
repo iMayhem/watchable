@@ -8,10 +8,25 @@
                     {{ typeFilter === 'tv' ? 'TV Show ' : typeFilter === 'movie' ? 'Movie ' : '' }}Categories
                 </h1>
                 <p class="nf-categories__desc">
-                    Browse {{ activeCatalogue.label }} {{ typeFilter === 'tv' ? 'TV Shows' : typeFilter === 'movie' ? 'Movies' : 'titles' }} by genre — the same kinds of categories
-                    you see on Netflix.
+                    Browse by dub language and genre — use the Country menu in the header
+                    to filter by region.
                 </p>
             </header>
+
+            <section class="nf-categories__section">
+                <h2 class="nf-categories__section-title">Category</h2>
+                <div class="nf-categories__grid" role="list">
+                    <router-link
+                        v-for="cat in exploreCategories"
+                        :key="cat.id"
+                        :to="explorePath(cat)"
+                        class="nf-categories__tile"
+                        role="listitem"
+                    >
+                        <span class="nf-categories__tile-label">{{ cat.title }}</span>
+                    </router-link>
+                </div>
+            </section>
 
             <section
                 v-for="section in categorySections"
@@ -46,6 +61,12 @@ import SiteFooter from '../components/navigation/SiteFooter.vue';
 import { getCatalogueOption, getNetflixCatalogue } from '../composables/useNetflixCatalogue';
 import { getNetflixCategorySections } from '../composables/netflixCuratedRows';
 import { netflixBrowsePath } from '../composables/useNetflixRails';
+import {
+    NETMIRROR_EXPLORE_CATEGORIES,
+    netflixExplorePath,
+    resolveExplorePathMediaType,
+    type NetmirrorExploreMediaType
+} from '../data/netmirrorExploreCategories';
 import { useSeo } from '../composables/useSeo';
 
 export default defineComponent({
@@ -64,7 +85,16 @@ export default defineComponent({
 
         const activeCatalogue = computed(() => resolveCatalogue());
         const categorySections = computed(() => getNetflixCategorySections(catalogue.value));
-
+        const exploreCategories = NETMIRROR_EXPLORE_CATEGORIES;
+        const explorePath = (cat: (typeof exploreCategories)[number]) => {
+            const routeMediaType: NetmirrorExploreMediaType =
+                typeFilter.value === 'movie' || typeFilter.value === 'tv'
+                    ? typeFilter.value
+                    : cat.mediaType;
+            return netflixExplorePath(cat, {
+                mediaType: resolveExplorePathMediaType(cat, routeMediaType)
+            });
+        };
         const browsePath = (rowId: string) => {
             const query = typeFilter.value ? `?type=${typeFilter.value}` : '';
             if (catalogue.value === 'korean' && rowId === 'anime') {
@@ -89,6 +119,8 @@ export default defineComponent({
         return {
             activeCatalogue,
             categorySections,
+            exploreCategories,
+            explorePath,
             browsePath,
             typeFilter
         };

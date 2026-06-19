@@ -15,6 +15,7 @@ import {
     type CatalogTmdbMeta,
     type NetflixBrowseRowId
 } from './useNetflixRails';
+import { dedupeCatalogItemsByVariantFamily } from './useNetflixCatalogLookup';
 import { itemMatchesLanguage, type NetflixLanguageOption } from './useNetflixLanguage';
 import { loadNetflixAvailabilityIndex } from './useNetflixProvider';
 import {
@@ -215,7 +216,10 @@ export function rebuildBrowsePicks(
         picks = picks.filter((item) => inferCatalogMediaType(item) === 'movie');
     }
 
-    state.pickedItems = filterItemsForBrowseRow(picks, rowId);
+    state.pickedItems = dedupeCatalogItemsByVariantFamily(
+        filterItemsForBrowseRow(picks, rowId),
+        { preferredLang: lang }
+    );
 }
 
 export async function enrichBrowsePoolForPicking(
@@ -344,13 +348,9 @@ export async function ensureBrowsePickCount(
 ) {
     void loadNetflixAvailabilityIndex();
 
-    if (opts.deferEnrichment) {
-        void loadBrowseEnrichment(state, rowId).then(() => {
-            rebuildBrowsePicks(state, rowId, catalogue, lang, opts.typeFilter);
-        });
-    } else {
-        await loadBrowseEnrichment(state, rowId);
-    }
+    void loadBrowseEnrichment(state, rowId).then(() => {
+        rebuildBrowsePicks(state, rowId, catalogue, lang, opts.typeFilter);
+    });
 
     const defaultInitial =
         state.fetchMode === 'native'
@@ -362,9 +362,6 @@ export async function ensureBrowsePickCount(
     if (!state.browsePool.length) {
         await fetchBrowseCatalogPages(state, lang, initialPages);
         rebuildBrowsePicks(state, rowId, catalogue, lang, opts.typeFilter);
-        if (!opts.skipTmdbEnrich) {
-            await enrichBrowsePoolForPicking(state, rowId, catalogue, lang, targetCount, opts.typeFilter);
-        }
     }
 
     let idleRounds = 0;
@@ -383,9 +380,6 @@ export async function ensureBrowsePickCount(
         }
 
         await fetchBrowseCatalogPages(state, lang, batch);
-        if (!opts.skipTmdbEnrich) {
-            await enrichBrowsePoolForPicking(state, rowId, catalogue, lang, targetCount, opts.typeFilter);
-        }
         rebuildBrowsePicks(state, rowId, catalogue, lang, opts.typeFilter);
 
         if (state.pickedItems.length === before) {

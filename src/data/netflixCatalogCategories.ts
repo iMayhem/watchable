@@ -38,7 +38,6 @@ const CATALOGUE_CATEGORY_SLUGS: Record<string, string> = {
 const MOVIE_EDITORIAL_ROW_IDS = new Set<NetflixBrowseRowId>([
     'blockbuster-movies',
     'top10-movies',
-    'critically-acclaimed',
     'new-on-netflix',
     'korean-movies'
 ]);

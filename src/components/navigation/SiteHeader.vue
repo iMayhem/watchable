@@ -15,20 +15,99 @@
                 class="site-header__nav site-header__nav--catalogues"
                 aria-label="Netflix"
             >
-                <a
-                    v-for="item in netflixNav"
-                    :key="item.label"
-                    href="#"
-                    class="site-header__link"
-                    :class="{ 'is-active': item.isActive() }"
-                    @click.prevent="navigateNetflixNav(item)"
-                    @mouseenter="prefetchNetflixNav(item)"
-                    @focus="prefetchNetflixNav(item)"
-                >
-                    {{ item.label }}
-                </a>
+                <div class="site-header__nav-scroll">
+                    <a
+                        v-for="item in netflixNavLeading"
+                        :key="item.label"
+                        href="#"
+                        class="site-header__link"
+                        :class="{ 'is-active': item.isActive() }"
+                        @click.prevent="navigateNetflixNav(item)"
+                        @mouseenter="prefetchNetflixNav(item)"
+                        @focus="prefetchNetflixNav(item)"
+                    >
+                        {{ item.label }}
+                    </a>
 
+                    <div
+                        class="site-header__nav-group"
+                        :class="{ 'is-active': isMovieSectionActive }"
+                    >
+                        <a
+                            href="#"
+                            class="site-header__link site-header__nav-group-main"
+                            :class="{ 'is-active': isMovieSectionActive }"
+                            @click.prevent="navigateToMovies"
+                        >
+                            Movies
+                        </a>
+                        <div ref="industryContainer" class="site-header__browse">
+                            <button
+                                ref="industryTrigger"
+                                type="button"
+                                class="site-header__link site-header__browse-trigger"
+                                :class="{ 'is-active': isIndustryOpen }"
+                                :aria-expanded="isIndustryOpen"
+                                aria-haspopup="listbox"
+                                @click.stop="toggleIndustryDropdown"
+                            >
+                                {{ activeIndustryLabel }}
+                                <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
+                                    <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
+                <div ref="countryContainer" class="site-header__browse site-header__country">
+                    <button
+                        ref="countryTrigger"
+                        type="button"
+                        class="site-header__link site-header__browse-trigger site-header__country-trigger"
+                        :class="{ 'is-active': isCountryOpen || isCountryNavActive }"
+                        :aria-expanded="isCountryOpen"
+                        aria-haspopup="listbox"
+                        @click.stop="toggleCountryDropdown"
+                    >
+                        {{ activeCountryLabel }}
+                        <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
+                            <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div ref="categoryContainer" class="site-header__browse site-header__category">
+                    <button
+                        ref="categoryTrigger"
+                        type="button"
+                        class="site-header__link site-header__browse-trigger site-header__category-trigger"
+                        :class="{ 'is-active': isCategoryOpen || isCategoryNavActive }"
+                        :aria-expanded="isCategoryOpen"
+                        aria-haspopup="listbox"
+                        @click.stop="toggleCategoryDropdown"
+                    >
+                        {{ activeCategoryLabel }}
+                        <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
+                            <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="site-header__nav-scroll site-header__nav-scroll--tail">
+                    <a
+                        v-for="item in netflixNavTrailing"
+                        :key="item.label"
+                        href="#"
+                        class="site-header__link"
+                        :class="{ 'is-active': item.isActive() }"
+                        @click.prevent="navigateNetflixNav(item)"
+                        @mouseenter="prefetchNetflixNav(item)"
+                        @focus="prefetchNetflixNav(item)"
+                    >
+                        {{ item.label }}
+                    </a>
+                </div>
             </nav>
 
             <nav v-else class="site-header__nav" aria-label="Primary">
@@ -156,11 +235,129 @@
             </div>
         </div>
 
+        <Teleport to="body">
+            <div
+                v-if="isIndustryOpen"
+                ref="industryMenuRef"
+                class="site-header__browse-menu region-dropdown site-header__floating-menu"
+                :style="industryMenuStyle"
+                @click.stop
+            >
+                <div class="region-dropdown__header eyebrow">Industry</div>
+                <div class="region-dropdown__list" role="listbox">
+                    <button
+                        v-for="cat in netflixCatalogues"
+                        :key="cat.id"
+                        type="button"
+                        class="region-dropdown__item"
+                        :class="{ 'is-active': netflixCatalogue === cat.id }"
+                        role="option"
+                        @click="selectMovieIndustry(cat.id)"
+                    >
+                        <span class="region-dropdown__name">{{ cat.label }}</span>
+                        <svg
+                            v-if="netflixCatalogue === cat.id"
+                            class="region-dropdown__check"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                        >
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div
+                v-if="isCountryOpen"
+                ref="countryMenuRef"
+                class="site-header__browse-menu site-header__country-menu region-dropdown site-header__floating-menu"
+                :style="countryMenuStyle"
+                @click.stop
+            >
+                <div class="region-dropdown__header eyebrow">Country</div>
+                <div class="region-dropdown__list" role="listbox">
+                    <button
+                        type="button"
+                        class="region-dropdown__item"
+                        :class="{ 'is-active': !activeExploreCountry }"
+                        role="option"
+                        @click.stop="clearExploreCountry"
+                    >
+                        <span class="region-dropdown__name">All Countries</span>
+                        <svg
+                            v-if="!activeExploreCountry"
+                            class="region-dropdown__check"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                        >
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </button>
+                    <button
+                        v-for="country in exploreCountries"
+                        :key="country.value"
+                        type="button"
+                        class="region-dropdown__item"
+                        :class="{ 'is-active': activeExploreCountry === country.value }"
+                        role="option"
+                        @click.stop="selectExploreCountry(country)"
+                    >
+                        <span class="region-dropdown__name">{{ country.name }}</span>
+                        <svg
+                            v-if="activeExploreCountry === country.value"
+                            class="region-dropdown__check"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                        >
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div
+                v-if="isCategoryOpen"
+                ref="categoryMenuRef"
+                class="site-header__browse-menu site-header__category-menu region-dropdown site-header__floating-menu"
+                :style="categoryMenuStyle"
+                @click.stop
+            >
+                <div class="region-dropdown__header eyebrow">Category</div>
+                <div class="region-dropdown__list" role="listbox">
+                    <button
+                        v-for="cat in exploreCategories"
+                        :key="cat.id"
+                        type="button"
+                        class="region-dropdown__item"
+                        :class="{ 'is-active': activeExploreCategory === cat.id }"
+                        role="option"
+                        @click="selectExploreCategory(cat)"
+                    >
+                        <span class="region-dropdown__name">{{ cat.title }}</span>
+                        <svg
+                            v-if="activeExploreCategory === cat.id"
+                            class="region-dropdown__check"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                        >
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </Teleport>
+
         <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Browse' : 'moovie'">
             <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Netflix' : 'Mobile'">
                 <template v-if="isNetflixMode">
                     <a
-                        v-for="(item, index) in netflixNav"
+                        v-for="(item, index) in netflixNavLeading"
                         :key="item.label"
                         href="#"
                         class="site-header__drawer-link"
@@ -171,7 +368,70 @@
                         <span class="site-header__drawer-label">{{ item.label }}</span>
                     </a>
 
+                    <a
+                        href="#"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': isMovieSectionActive }"
+                        @click.prevent="navigateToMovies(); drawerOpen = false"
+                    >
+                        <span class="eyebrow site-header__drawer-num">03</span>
+                        <span class="site-header__drawer-label">Movies</span>
+                    </a>
+                    <p class="site-header__drawer-section eyebrow">Industry</p>
+                    <button
+                        v-for="cat in netflixCatalogues"
+                        :key="cat.id"
+                        type="button"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': netflixCatalogue === cat.id }"
+                        @click="selectMovieIndustry(cat.id); drawerOpen = false"
+                    >
+                        <span class="site-header__drawer-label">{{ cat.label }}</span>
+                    </button>
 
+                    <p class="site-header__drawer-section eyebrow">Country</p>
+                    <button
+                        type="button"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': !activeExploreCountry }"
+                        @click="clearExploreCountry(); drawerOpen = false"
+                    >
+                        <span class="site-header__drawer-label">All Countries</span>
+                    </button>
+                    <button
+                        v-for="country in exploreCountries"
+                        :key="country.value"
+                        type="button"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': activeExploreCountry === country.value }"
+                        @click="selectExploreCountry(country); drawerOpen = false"
+                    >
+                        <span class="site-header__drawer-label">{{ country.name }}</span>
+                    </button>
+
+                    <p class="site-header__drawer-section eyebrow">Category</p>
+                    <button
+                        v-for="cat in exploreCategories"
+                        :key="cat.id"
+                        type="button"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': activeExploreCategory === cat.id }"
+                        @click="selectExploreCategory(cat); drawerOpen = false"
+                    >
+                        <span class="site-header__drawer-label">{{ cat.title }}</span>
+                    </button>
+
+                    <a
+                        v-for="(item, index) in netflixNavTrailing"
+                        :key="item.label"
+                        href="#"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': item.isActive() }"
+                        @click.prevent="navigateNetflixNav(item); drawerOpen = false"
+                    >
+                        <span class="eyebrow site-header__drawer-num">0{{ index + 4 }}</span>
+                        <span class="site-header__drawer-label">{{ item.label }}</span>
+                    </a>
 
                     <button
                         type="button"
@@ -246,7 +506,14 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
+import {
+    computed,
+    defineComponent,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LmDrawer from '../primitives/Drawer.vue';
 import AuthModal from './AuthModal.vue';
@@ -257,39 +524,39 @@ import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
-import { getNetflixCatalogue, NETFLIX_CATALOGUES } from '../../composables/useNetflixCatalogue';
+import {
+    getCatalogueOption,
+    getNetflixCatalogue,
+    NETFLIX_CATALOGUES,
+    netflixMovieBrowseRow
+} from '../../composables/useNetflixCatalogue';
 import { netflixBrowsePath, isNetflixGenreBrowsePage } from '../../composables/useNetflixRails';
 import { getNetflixLanguage } from '../../composables/useNetflixLanguage';
 import { prefetchNetflixBrowseRoute } from '../../composables/useNetflixBrowsePrefetch';
 import { nfDebug } from '../../composables/useNetflixDebug';
+import {
+    activeExploreCategoryId,
+    activeExploreCountryId,
+    exploreMediaTypeFromPath,
+    NETMIRROR_EXPLORE_CATEGORIES,
+    NETMIRROR_EXPLORE_COUNTRIES,
+    netflixExploreCountryPath,
+    NETFLIX_ANIMATED_EXPLORE_PATH,
+    NETFLIX_MOVIE_EXPLORE_PATH,
+    NETFLIX_TV_EXPLORE_PATH,
+    netflixExplorePath,
+    resolveExplorePathMediaType,
+    type NetmirrorExploreCategory,
+    type NetmirrorExploreCountry,
+    type NetmirrorExploreMediaType
+} from '../../data/netmirrorExploreCategories';
 
-/** Korean header tab — not shared rows like anime/movies under the korean feed */
-const KOREAN_NAV_ROW_IDS = new Set([
-    'korean-movies',
-    'korean-series',
-    'dramas',
-    'thrillers',
-    'romantic-movies',
-    'action-adventure',
-    'new-on-netflix',
-    'critically-acclaimed',
-    'exciting-tv'
-]);
-
-function isKoreanNavActive(path: string, catalogueId?: string): boolean {
-    const match = path.match(/^\/nf\/browse\/korean\/([^/?#]+)/);
-    if (match) {
-        return KOREAN_NAV_ROW_IDS.has(match[1]);
-    }
-    const isNetflixDetailOrPlayer =
-        path.startsWith('/nf/movie/') ||
-        path.startsWith('/nf/tv/') ||
-        path.includes('/stream/nf/');
-    return Boolean(isNetflixDetailOrPlayer && catalogueId === 'korean');
-}
+const PRIMARY_MOVIE_ROW_IDS = new Set(['blockbuster-movies', 'top10-movies', 'korean-movies']);
+const PRIMARY_TV_ROW_IDS = new Set(['exciting-tv', 'top10-tv', 'korean-series']);
 
 function isAnimeNavActive(path: string, catalogueId: string): boolean {
     return (
+        path.startsWith(NETFLIX_ANIMATED_EXPLORE_PATH) ||
         path === netflixBrowsePath(catalogueId, 'anime') ||
         /^\/nf\/browse\/[^/]+\/anime\/?$/.test(path) ||
         path.startsWith('/nf/anime/')
@@ -306,7 +573,6 @@ interface NavItem {
 interface NetflixNavItem {
     label: string;
     path: string;
-    setCatalogue?: string;
     isActive: () => boolean;
 }
 
@@ -317,6 +583,39 @@ function parseNavDestination(path: string) {
         path: path.slice(0, qIndex),
         query: Object.fromEntries(new URLSearchParams(path.slice(qIndex + 1)))
     };
+}
+
+type FloatingMenuStyle = Record<string, string>;
+
+function positionFloatingMenu(trigger: HTMLElement | null, minWidth = 220): FloatingMenuStyle {
+    if (!trigger || typeof window === 'undefined') return {};
+    const rect = trigger.getBoundingClientRect();
+    const gap = 8;
+    const viewportPadding = 8;
+    const menuWidth = minWidth;
+
+    // Align menu under trigger; clamp so it stays on-screen.
+    let left = rect.left;
+    if (left + menuWidth > window.innerWidth - viewportPadding) {
+        left = Math.max(viewportPadding, rect.right - menuWidth);
+    }
+    left = Math.max(viewportPadding, left);
+
+    const top = rect.bottom + gap;
+
+    return {
+        position: 'fixed',
+        top: `${top}px`,
+        left: `${left}px`,
+        right: 'unset',
+        bottom: 'unset',
+        minWidth: `${minWidth}px`,
+        zIndex: '62'
+    };
+}
+
+function containsNode(root: HTMLElement | null | undefined, target: Node) {
+    return Boolean(root && root.contains(target));
 }
 
 const primaryNav: NavItem[] = [
@@ -446,51 +745,191 @@ export default defineComponent({
             }
         };
 
-        const browseContainer = ref<HTMLElement | null>(null);
-        const isBrowseOpen = ref(false);
+        const industryContainer = ref<HTMLElement | null>(null);
+        const industryTrigger = ref<HTMLElement | null>(null);
+        const industryMenuRef = ref<HTMLElement | null>(null);
+        const industryMenuStyle = ref<FloatingMenuStyle>({});
+        const isIndustryOpen = ref(false);
+        const countryContainer = ref<HTMLElement | null>(null);
+        const countryTrigger = ref<HTMLElement | null>(null);
+        const countryMenuRef = ref<HTMLElement | null>(null);
+        const countryMenuStyle = ref<FloatingMenuStyle>({});
+        const isCountryOpen = ref(false);
+        const categoryContainer = ref<HTMLElement | null>(null);
+        const categoryTrigger = ref<HTMLElement | null>(null);
+        const categoryMenuRef = ref<HTMLElement | null>(null);
+        const categoryMenuStyle = ref<FloatingMenuStyle>({});
+        const isCategoryOpen = ref(false);
+        const exploreCountries = NETMIRROR_EXPLORE_COUNTRIES;
+        const exploreCategories = NETMIRROR_EXPLORE_CATEGORIES;
 
-        const toggleBrowseDropdown = (e: Event) => {
+        const closeAllBrowseMenus = () => {
+            isIndustryOpen.value = false;
+            isCountryOpen.value = false;
+            isCategoryOpen.value = false;
+        };
+
+        const syncFloatingMenuPosition = async (
+            open: boolean,
+            trigger: HTMLElement | null,
+            styleRef: { value: FloatingMenuStyle },
+            minWidth = 220
+        ) => {
+            if (!open || !trigger) return;
+            await nextTick();
+            styleRef.value = positionFloatingMenu(trigger, minWidth);
+            requestAnimationFrame(() => {
+                styleRef.value = positionFloatingMenu(trigger, minWidth);
+            });
+        };
+
+        const syncOpenFloatingMenus = () => {
+            if (isIndustryOpen.value) {
+                industryMenuStyle.value = positionFloatingMenu(industryTrigger.value, 200);
+            }
+            if (isCountryOpen.value) {
+                countryMenuStyle.value = positionFloatingMenu(countryTrigger.value);
+            }
+            if (isCategoryOpen.value) {
+                categoryMenuStyle.value = positionFloatingMenu(categoryTrigger.value);
+            }
+        };
+
+        const resolveExploreMediaTypeForNav = (): NetmirrorExploreMediaType => {
+            if (route.path.startsWith('/nf/explore')) {
+                return exploreMediaTypeFromPath(route.path);
+            }
+            const { isTvSection, isMovieSection } = netflixBrowseContext.value;
+            if (isTvSection) return 'tv';
+            if (isMovieSection) return 'movie';
+            return 'all';
+        };
+
+        const activeIndustryLabel = computed(
+            () => getCatalogueOption(netflixCatalogue.value).label
+        );
+
+        const activeExploreCountry = computed(() => {
+            if (!route.path.startsWith('/nf/explore')) return '';
+            return activeExploreCountryId(
+                route.query as Record<string, string | string[] | null | undefined>
+            );
+        });
+
+        const activeCountryLabel = computed(() => {
+            if (activeExploreCountry.value) {
+                const match = exploreCountries.find(
+                    (row) => row.value === activeExploreCountry.value
+                );
+                return match?.name || activeExploreCountry.value;
+            }
+            return 'Country';
+        });
+
+        const isCountryNavActive = computed(
+            () => route.path.startsWith('/nf/explore') && Boolean(activeExploreCountry.value)
+        );
+
+        const activeExploreCategory = computed(() => {
+            if (!route.path.startsWith('/nf/explore')) return '';
+            return activeExploreCategoryId(
+                route.query as Record<string, string | string[] | null | undefined>
+            );
+        });
+
+        const activeCategoryLabel = computed(() => {
+            if (activeExploreCategory.value) {
+                const match = exploreCategories.find(
+                    (cat) => cat.id === activeExploreCategory.value
+                );
+                return match?.title || 'Category';
+            }
+            return 'Category';
+        });
+
+        const isCategoryNavActive = computed(
+            () => route.path.startsWith('/nf/explore') && Boolean(activeExploreCategory.value)
+        );
+
+        const toggleIndustryDropdown = async (e: Event) => {
             e.stopPropagation();
-            isBrowseOpen.value = !isBrowseOpen.value;
+            const opening = !isIndustryOpen.value;
+            const trigger = (e.currentTarget as HTMLElement | null) ?? industryTrigger.value;
+            closeAllBrowseMenus();
+            if (opening) {
+                isIndustryOpen.value = true;
+                await syncFloatingMenuPosition(true, trigger, industryMenuStyle, 200);
+            }
         };
 
-        const closeBrowseDropdown = () => {
-            isBrowseOpen.value = false;
+        const closeIndustryDropdown = () => {
+            isIndustryOpen.value = false;
         };
 
-        const netflixNav = computed(() => {
-            const cat = netflixCatalogue.value;
+        const toggleCountryDropdown = async (e: Event) => {
+            e.stopPropagation();
+            const opening = !isCountryOpen.value;
+            const trigger = (e.currentTarget as HTMLElement | null) ?? countryTrigger.value;
+            closeAllBrowseMenus();
+            if (opening) {
+                isCountryOpen.value = true;
+                await syncFloatingMenuPosition(true, trigger, countryMenuStyle);
+            }
+        };
+
+        const closeCountryDropdown = () => {
+            isCountryOpen.value = false;
+        };
+
+        const toggleCategoryDropdown = async (e: Event) => {
+            e.stopPropagation();
+            const opening = !isCategoryOpen.value;
+            const trigger = (e.currentTarget as HTMLElement | null) ?? categoryTrigger.value;
+            closeAllBrowseMenus();
+            if (opening) {
+                isCategoryOpen.value = true;
+                await syncFloatingMenuPosition(true, trigger, categoryMenuStyle);
+            }
+        };
+
+        const closeCategoryDropdown = () => {
+            isCategoryOpen.value = false;
+        };
+
+        const scrollNavToTop = () => {
+            if (typeof window !== 'undefined') {
+                window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+            }
+        };
+
+        const netflixBrowseContext = computed(() => {
             const path = route.path;
-
-            const generalCatalogue = cat === 'korean' ? 'hollywood' : cat;
-
-            const isNetflixDetailOrPlayer =
-                path.startsWith('/nf/movie/') ||
-                path.startsWith('/nf/tv/') ||
-                path.includes('/stream/nf/');
+            const browseMatch = path.match(/^\/nf\/browse\/([^/]+)\/([^/?#]+)/);
+            const browseRow = browseMatch?.[2] || '';
 
             const isTvSection =
-                (cat !== 'korean' || !isNetflixDetailOrPlayer) && (
-                    path === netflixBrowsePath(cat, 'exciting-tv') ||
-                    path === netflixBrowsePath(cat, 'top10-tv') ||
-                    path.startsWith('/nf/tv/') ||
-                    path.includes('/stream/nf/tv/') ||
-                    (path === '/nf/categories' && route.query.type === 'tv') ||
-                    (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'tv')
-                );
+                path.startsWith('/nf/explore/tv') ||
+                (browseMatch && PRIMARY_TV_ROW_IDS.has(browseRow)) ||
+                path.startsWith('/nf/tv/') ||
+                path.includes('/stream/nf/tv/') ||
+                (path === '/nf/categories' && route.query.type === 'tv') ||
+                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'tv');
 
             const isMovieSection =
-                (cat !== 'korean' || !isNetflixDetailOrPlayer) && (
-                    path === netflixBrowsePath(generalCatalogue, 'blockbuster-movies') ||
-                    path === netflixBrowsePath(generalCatalogue, 'top10-movies') ||
-                    (cat !== 'korean' &&
-                        (path === netflixBrowsePath(cat, 'blockbuster-movies') ||
-                            path === netflixBrowsePath(cat, 'top10-movies'))) ||
-                    path.startsWith('/nf/movie/') ||
-                    path.includes('/stream/nf/movie/') ||
-                    (path === '/nf/categories' && route.query.type === 'movie') ||
-                    (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'movie')
-                );
+                path.startsWith('/nf/explore/movie') ||
+                (browseMatch && PRIMARY_MOVIE_ROW_IDS.has(browseRow)) ||
+                path.startsWith('/nf/movie/') ||
+                path.includes('/stream/nf/movie/') ||
+                (path === '/nf/categories' && route.query.type === 'movie') ||
+                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'movie');
+
+            return { path, isTvSection, isMovieSection };
+        });
+
+        const isMovieSectionActive = computed(() => netflixBrowseContext.value.isMovieSection);
+
+        const netflixNavLeading = computed(() => {
+            const { path, isTvSection } = netflixBrowseContext.value;
 
             return [
                 {
@@ -500,61 +939,99 @@ export default defineComponent({
                 },
                 {
                     label: 'TV Shows',
-                    path: netflixBrowsePath(generalCatalogue, 'exciting-tv'),
-                    setCatalogue: cat === 'korean' ? 'hollywood' : undefined,
+                    path: NETFLIX_TV_EXPLORE_PATH,
                     isActive: () => isTvSection
-                },
-                {
-                    label: 'Movies',
-                    path: netflixBrowsePath(generalCatalogue, 'blockbuster-movies'),
-                    setCatalogue: cat === 'korean' ? 'hollywood' : undefined,
-                    isActive: () => isMovieSection
-                },
-                {
-                    label: 'Anime',
-                    path: netflixBrowsePath(generalCatalogue, 'anime'),
-                    setCatalogue: cat === 'korean' ? 'hollywood' : undefined,
-                    isActive: () => isAnimeNavActive(path, cat)
-                },
-                {
-                    label: 'Korean',
-                    path: netflixBrowsePath('korean', 'korean-movies'),
-                    setCatalogue: 'korean',
-                    isActive: () => isKoreanNavActive(path, cat)
-                },
-
-                {
-                    label: 'Categories',
-                    path: isTvSection
-                        ? '/nf/categories?type=tv'
-                        : isMovieSection
-                            ? '/nf/categories?type=movie'
-                            : '/nf/categories',
-                    isActive: () => path === '/nf/categories'
                 }
             ];
         });
 
-        const selectBrowseCatalogue = (id: string) => {
-            selectNetflixCatalogue(id);
-            closeBrowseDropdown();
+        const netflixNavTrailing = computed(() => {
+            const cat = netflixCatalogue.value;
+            const { path } = netflixBrowseContext.value;
+
+            return [
+                {
+                    label: 'Animated',
+                    path: NETFLIX_ANIMATED_EXPLORE_PATH,
+                    isActive: () => isAnimeNavActive(path, cat)
+                }
+            ];
+        });
+
+        const navigateToMovies = async () => {
+            try {
+                await router.push(NETFLIX_MOVIE_EXPLORE_PATH);
+            } catch {
+                // duplicate navigation
+            }
+            scrollNavToTop();
+        };
+
+        const selectMovieIndustry = async (id: string) => {
+            closeIndustryDropdown();
+            setNetflixCatalogue(id);
+            const destination = netflixBrowsePath(id, netflixMovieBrowseRow(id));
+            try {
+                await router.push(destination);
+            } catch {
+                // duplicate navigation
+            }
+            scrollNavToTop();
+        };
+
+        const clearExploreCountry = async () => {
+            closeCountryDropdown();
+            const mediaType = resolveExploreMediaTypeForNav();
+            const destination = `/nf/explore/${mediaType}`;
+            try {
+                await router.push(destination);
+            } catch {
+                // duplicate navigation
+            }
+            scrollNavToTop();
+        };
+
+        const selectExploreCountry = async (country: NetmirrorExploreCountry) => {
+            closeCountryDropdown();
+            const destination = netflixExploreCountryPath(
+                country,
+                resolveExploreMediaTypeForNav()
+            );
+            try {
+                await router.push(destination);
+            } catch {
+                // duplicate navigation
+            }
+            scrollNavToTop();
+        };
+
+        const selectExploreCategory = async (category: NetmirrorExploreCategory) => {
+            closeCategoryDropdown();
+            const routeMediaType = resolveExploreMediaTypeForNav();
+            const mediaType =
+                routeMediaType === 'movie' || routeMediaType === 'tv'
+                    ? resolveExplorePathMediaType(category, routeMediaType)
+                    : undefined;
+            const destination = netflixExplorePath(
+                category,
+                mediaType ? { mediaType } : {}
+            );
+            try {
+                await router.push(destination);
+            } catch {
+                // duplicate navigation
+            }
+            scrollNavToTop();
         };
 
         const navigateNetflixNav = async (item: NetflixNavItem) => {
-            if (item.setCatalogue) {
-                setNetflixCatalogue(item.setCatalogue);
-            }
-
             const destination = parseNavDestination(item.path);
             try {
                 await router.push(destination);
             } catch {
                 // duplicate navigation — still scroll so repeat clicks feel responsive
             }
-
-            if (typeof window !== 'undefined') {
-                window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-            }
+            scrollNavToTop();
         };
 
         const { language: netflixLanguage } = getNetflixLanguage();
@@ -566,12 +1043,39 @@ export default defineComponent({
         };
 
         const handleClickOutside = (event: MouseEvent) => {
-            if (regionContainer.value && !regionContainer.value.contains(event.target as Node)) {
+            const target = event.target as Node;
+
+            if (regionContainer.value && !regionContainer.value.contains(target)) {
                 closeRegionDropdown();
             }
-            if (browseContainer.value && !browseContainer.value.contains(event.target as Node)) {
-                closeBrowseDropdown();
+
+            if (
+                isIndustryOpen.value &&
+                !containsNode(industryContainer.value, target) &&
+                !containsNode(industryMenuRef.value, target)
+            ) {
+                closeIndustryDropdown();
             }
+
+            if (
+                isCountryOpen.value &&
+                !containsNode(countryContainer.value, target) &&
+                !containsNode(countryMenuRef.value, target)
+            ) {
+                closeCountryDropdown();
+            }
+
+            if (
+                isCategoryOpen.value &&
+                !containsNode(categoryContainer.value, target) &&
+                !containsNode(categoryMenuRef.value, target)
+            ) {
+                closeCategoryDropdown();
+            }
+        };
+
+        const handleViewportResize = () => {
+            syncOpenFloatingMenus();
         };
 
         const showModeSwitch = computed(() => isChosen());
@@ -589,19 +1093,11 @@ export default defineComponent({
             }
         };
 
-        const selectNetflixCatalogue = (id: string) => {
-            nfDebug('header:catalogue-select', { id });
-            setNetflixCatalogue(id);
-            void router.push('/').then(() => {
-                if (typeof window !== 'undefined') {
-                    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-                }
-            });
-        };
-
         onMounted(() => {
             onScroll();
             window.addEventListener('scroll', onScroll, { passive: true });
+            window.addEventListener('scroll', syncOpenFloatingMenus, { passive: true, capture: true });
+            window.addEventListener('resize', handleViewportResize, { passive: true });
             updateCurrentUser();
             window.addEventListener('movora_auth_change', updateCurrentUser);
             document.addEventListener('click', handleClickOutside);
@@ -609,8 +1105,11 @@ export default defineComponent({
 
         onBeforeUnmount(() => {
             window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('scroll', syncOpenFloatingMenus, true);
+            window.removeEventListener('resize', handleViewportResize);
             window.removeEventListener('movora_auth_change', updateCurrentUser);
             document.removeEventListener('click', handleClickOutside);
+            closeAllBrowseMenus();
         });
 
         return {
@@ -643,12 +1142,41 @@ export default defineComponent({
             isNetflixMode,
             netflixCatalogues: NETFLIX_CATALOGUES,
             netflixCatalogue,
-            selectNetflixCatalogue,
-            netflixNav,
-            browseContainer,
-            isBrowseOpen,
-            toggleBrowseDropdown,
-            selectBrowseCatalogue,
+            activeIndustryLabel,
+            netflixNavLeading,
+            netflixNavTrailing,
+            isMovieSectionActive,
+            industryContainer,
+            industryTrigger,
+            industryMenuRef,
+            isIndustryOpen,
+            industryMenuStyle,
+            toggleIndustryDropdown,
+            countryContainer,
+            countryTrigger,
+            countryMenuRef,
+            isCountryOpen,
+            countryMenuStyle,
+            exploreCountries,
+            activeExploreCountry,
+            activeCountryLabel,
+            isCountryNavActive,
+            toggleCountryDropdown,
+            clearExploreCountry,
+            selectExploreCountry,
+            categoryContainer,
+            categoryTrigger,
+            categoryMenuRef,
+            isCategoryOpen,
+            categoryMenuStyle,
+            exploreCategories,
+            activeExploreCategory,
+            activeCategoryLabel,
+            isCategoryNavActive,
+            toggleCategoryDropdown,
+            selectExploreCategory,
+            navigateToMovies,
+            selectMovieIndustry,
             navigateNetflixNav,
             prefetchNetflixNav
         };
@@ -752,20 +1280,35 @@ export default defineComponent({
         &--catalogues {
             flex: 1;
             min-width: 0;
-            overflow-x: auto;
-            flex-wrap: nowrap;
-            scrollbar-width: none;
-            padding-bottom: 2px;
-
-            &::-webkit-scrollbar {
-                display: none;
-            }
+            display: flex;
+            align-items: center;
+            gap: var(--s-1);
+            overflow: visible;
 
             .site-header__link {
                 flex-shrink: 0;
                 padding: var(--s-2) var(--s-3);
                 font-size: 0.82rem;
             }
+        }
+    }
+
+    &__nav-scroll {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-1);
+        min-width: 0;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+
+        &--tail {
+            margin-left: auto;
         }
     }
 
@@ -1105,6 +1648,38 @@ export default defineComponent({
         }
     }
 
+    &__nav-group {
+        display: inline-flex;
+        align-items: center;
+        flex-shrink: 0;
+        border-radius: var(--r-pill);
+        background: transparent;
+        transition: background-color var(--dur-fast) var(--ease-out);
+
+        &:hover {
+            background: var(--surface-tint);
+        }
+
+        &.is-active .site-header__nav-group-main.is-active::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: -2px;
+            width: 6px;
+            height: 6px;
+            background: var(--ember);
+            border-radius: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 12px var(--ember-glow);
+        }
+    }
+
+    &__nav-group-main {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        padding-right: var(--s-2);
+    }
+
     &__browse {
         position: relative;
         flex-shrink: 0;
@@ -1114,14 +1689,82 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        padding-left: var(--s-2);
+        font-size: 0.78rem;
+        color: var(--bone-400);
+
+        &:hover,
+        &.is-active {
+            color: var(--bone-50);
+        }
+
+        &.is-active::after {
+            display: none;
+        }
     }
 
-    &__browse-menu {
+    &__nav-group-main.is-active::after {
+        display: none;
+    }
+
+    &__browse-menu:not(&__floating-menu) {
         position: absolute;
         top: calc(100% + 8px);
         left: 0;
         min-width: 200px;
         z-index: calc(var(--z-header) + 2);
+    }
+
+    &__floating-menu {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: unset;
+        bottom: unset;
+        width: auto;
+        margin: 0;
+        z-index: calc(var(--z-header) + 12);
+    }
+
+    &__country {
+        margin-left: 0;
+    }
+
+    &__country-trigger {
+        border-radius: var(--r-sm);
+        padding-left: var(--s-3);
+        padding-right: var(--s-2);
+        font-size: 0.82rem;
+        color: var(--bone-300);
+
+        &:hover,
+        &.is-active {
+            color: var(--bone-50);
+        }
+    }
+
+    &__country-menu,
+    &__category-menu {
+        min-width: 220px;
+    }
+
+    &__category {
+        margin-left: 0;
+    }
+
+    &__category-trigger {
+        border-radius: var(--r-sm);
+        padding-left: var(--s-3);
+        padding-right: var(--s-2);
+        font-size: 0.82rem;
+        color: var(--bone-300);
+
+        &:hover,
+        &.is-active {
+            color: var(--bone-50);
+        }
     }
 
     &__search--compact {
@@ -1202,6 +1845,17 @@ export default defineComponent({
     overflow: hidden;
     z-index: 100;
     animation: dropdown-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &.site-header__floating-menu {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: unset;
+        bottom: unset;
+        width: auto;
+        min-width: 220px;
+        z-index: calc(var(--z-header) + 12);
+    }
 
     &__header {
         padding: var(--s-3) var(--s-4) var(--s-2);

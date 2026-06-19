@@ -417,9 +417,27 @@ export async function onRequest(context) {
       const page = parseInt(searchParams.get('page') || '0', 10);
       const upstream = new URLSearchParams();
       upstream.set('page', String(Number.isFinite(page) ? page : 0));
-      for (const key of ['dubbing', 'country', 'type', 'genre']) {
+      for (const key of [
+        'dubbing',
+        'country',
+        'type',
+        'genre',
+        'sort_by',
+        'countryNot',
+        'countryNot2',
+        'countryNotParam'
+      ]) {
         const value = searchParams.get(key);
         if (value) upstream.set(key, value);
+      }
+      for (const value of searchParams.getAll('title_not[]')) {
+        upstream.append('title_not[]', value);
+      }
+      for (const value of searchParams.getAll('genre_ids[]')) {
+        upstream.append('genre_ids[]', value);
+      }
+      for (const value of searchParams.getAll('genre_id[]')) {
+        upstream.append('genre_id[]', value);
       }
 
       let url;

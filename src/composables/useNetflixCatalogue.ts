@@ -21,6 +21,21 @@ export function getCatalogueOption(id: string): NetflixCatalogueOption {
     return NETFLIX_CATALOGUES.find((c) => c.id === id) || NETFLIX_CATALOGUES[0];
 }
 
+/** Primary movie browse row for Hollywood / Bollywood / Korean. */
+export function netflixMovieBrowseRow(catalogueId: string): string {
+    return catalogueId === 'korean' ? 'korean-movies' : 'blockbuster-movies';
+}
+
+/** Primary TV browse row for Hollywood / Bollywood / Korean. */
+export function netflixTvBrowseRow(catalogueId: string): string {
+    return catalogueId === 'korean' ? 'korean-series' : 'exciting-tv';
+}
+
+/** Anime lives on the language catalogues — not the Korean feed index. */
+export function netflixAnimeCatalogueId(catalogueId: string): string {
+    return catalogueId === 'korean' ? 'hollywood' : catalogueId;
+}
+
 export function getNetflixCatalogue() {
     const setCatalogue = (id: string) => {
         const catalogue = getCatalogueOption(id);

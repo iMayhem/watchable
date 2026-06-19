@@ -130,6 +130,11 @@ import {
 } from '../../composables/useHistory';
 import { getContentMode } from '../../composables/useContentMode';
 import { getNetflixCatalogue } from '../../composables/useNetflixCatalogue';
+import {
+    NETFLIX_ANIMATED_EXPLORE_PATH,
+    NETFLIX_MOVIE_EXPLORE_PATH,
+    NETFLIX_TV_EXPLORE_PATH
+} from '../../data/netmirrorExploreCategories';
 import { netflixBrowsePath } from '../../composables/useNetflixRails';
 import { searchPathForMode } from '../../utils/contentModeRoutes';
 
@@ -199,6 +204,12 @@ const NETFLIX_JUMP: JumpItem[] = [
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 14h4M17 9h4M17 14h4"/></svg>'
     },
     {
+        label: 'Animated',
+        path: '__nf_animated__',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6z"/><circle cx="9" cy="11" r="1.2" fill="currentColor"/><circle cx="15" cy="11" r="1.2" fill="currentColor"/></svg>'
+    },
+    {
         label: 'New & Popular',
         path: '__nf_new__',
         hint: '',
@@ -252,11 +263,13 @@ export default defineComponent({
             const cat = catalogue.value;
             return NETFLIX_JUMP.map((item) => {
                 if (item.path === '__nf_tv__') {
-                    return { ...item, path: netflixBrowsePath(cat, 'exciting-tv') };
+                    return { ...item, path: NETFLIX_TV_EXPLORE_PATH };
                 }
                 if (item.path === '__nf_movies__') {
-                    const moviesCat = cat === 'korean' ? 'hollywood' : cat;
-                    return { ...item, path: netflixBrowsePath(moviesCat, 'blockbuster-movies') };
+                    return { ...item, path: NETFLIX_MOVIE_EXPLORE_PATH };
+                }
+                if (item.path === '__nf_animated__') {
+                    return { ...item, path: NETFLIX_ANIMATED_EXPLORE_PATH };
                 }
                 if (item.path === '__nf_new__') {
                     return { ...item, path: netflixBrowsePath(cat, 'new-on-netflix') };

@@ -22,7 +22,7 @@
             :languages-loading="languagesLoading"
             :switching-audio-label="switchingAudioLabel"
             :switching-episode-label="switchingEpisodeLabel"
-            :show-episodes="supportsEpisodes"
+            :show-episodes="showEpisodePicker"
             :episode-seasons="episodeSeasons"
             :episode-list="episodeList"
             :current-season="pickerSeason"
@@ -61,6 +61,7 @@ import type { NetflixUpNextEpisode } from '../components/player/NetflixUpNext.vu
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import {
+    catalogHasEpisodeGuide,
     fetchMoovieCatalogMeta,
     fetchMoovieCatalogMetaResolved,
     inferCatalogMediaType,
@@ -157,7 +158,8 @@ export default defineComponent({
             supportsEpisodes,
             currentSeason: pickerSeason,
             load: loadEpisodes,
-            setSeason: setPickerSeason
+            setSeason: setPickerSeason,
+            reset: resetEpisodes
         } = useNetflixCatalogEpisodes();
 
         const currentSeason = computed(() =>
@@ -198,11 +200,19 @@ export default defineComponent({
             return routeMediaType.value;
         });
 
+        const showEpisodePicker = computed(() => {
+            if (!supportsEpisodes.value) return false;
+            const meta = resolved.value?.meta;
+            if (!meta?.title) return false;
+            return catalogHasEpisodeGuide(
+                { title: meta.title, media_type: meta.media_type },
+                routeMediaType.value
+            );
+        });
+
         const streamType = computed((): 'movie' | 'tv' => {
-            if (supportsEpisodes.value || isTvRoute.value) {
-                return 'tv';
-            }
-            return mediaType.value;
+            if (showEpisodePicker.value) return 'tv';
+            return 'movie';
         });
 
         const parsedMeta = computed(() => {
@@ -217,7 +227,7 @@ export default defineComponent({
             if (parsedMeta.value.languages.length) {
                 parts.push(parsedMeta.value.languages.join(' · '));
             }
-            if (supportsEpisodes.value || isTvRoute.value) {
+            if (showEpisodePicker.value) {
                 const season = parseInt(String(route.params.season || '1'), 10);
                 const episode = parseInt(String(route.params.episode || '1'), 10);
                 parts.push(`S${season} · E${episode}`);
@@ -231,7 +241,7 @@ export default defineComponent({
 
             const season = currentSeason.value;
             const episode = currentEpisode.value;
-            const isTv = supportsEpisodes.value || isTvRoute.value;
+            const isTv = showEpisodePicker.value;
             const partyTitle = isTv
                 ? `${title.value} - S${season}E${episode}`
                 : title.value;
@@ -381,6 +391,8 @@ export default defineComponent({
             if (!id) return true;
             if (isPartyEmbed.value) return true;
 
+            resetEpisodes();
+
             try {
                 const meta = await fetchMoovieCatalogMeta(routeMediaType.value, id);
                 const season = parseInt(String(route.params.season || '1'), 10);
@@ -393,7 +405,7 @@ export default defineComponent({
                         release_date: meta.release_date,
                         media_type: meta.media_type
                     },
-                    { season }
+                    { season, routeType: routeMediaType.value }
                 );
 
                 const target = catalogStreamTarget(
@@ -433,19 +445,25 @@ export default defineComponent({
             id: string,
             meta?: { title?: string; media_type?: string } | null
         ): 'movie' | 'tv' => {
-            if (meta?.title && String(resolved.value?.meta?.id || '') === String(id)) {
-                return inferCatalogMediaType(meta);
-            }
             if (meta?.title) {
+                if (
+                    !catalogHasEpisodeGuide(
+                        { title: meta.title, media_type: meta.media_type },
+                        routeMediaType.value
+                    )
+                ) {
+                    return 'movie';
+                }
                 return inferCatalogMediaType(meta);
             }
-            return routeMediaType.value;
+            return routeMediaType.value === 'tv' ? 'tv' : 'movie';
         };
 
         const startPlayback = async () => {
             const id = playbackEntryId.value;
             if (!id) return;
 
+            resetEpisodes();
             languagesLoading.value = true;
             let catalogMeta: {
                 title?: string;
@@ -505,7 +523,7 @@ export default defineComponent({
                               release_date: catalogMeta.release_date,
                               media_type: type
                           },
-                          { season }
+                          { season, routeType: routeMediaType.value }
                       )
                     : Promise.resolve();
 
@@ -543,13 +561,13 @@ export default defineComponent({
                             ? meta.media_type
                             : mediaType.value
                 },
-                { season: currentSeason.value }
+                { season: currentSeason.value, routeType: routeMediaType.value }
             );
         };
 
         const switchEpisode = async (season: number, episode: number) => {
             const id = playbackEntryId.value;
-            if (!id || !supportsEpisodes.value || switchingEpisodeLabel.value) return;
+            if (!id || !showEpisodePicker.value || switchingEpisodeLabel.value) return;
 
             nfDebug('stream:episode:switch', { id, season, episode });
             dismissUpNext();
@@ -601,7 +619,7 @@ export default defineComponent({
         });
 
         const nextEpisodeTarget = computed((): { season: number; episode: number } | null => {
-            if (!supportsEpisodes.value || !episodeList.value.length) return null;
+            if (!showEpisodePicker.value || !episodeList.value.length) return null;
 
             const max = Math.max(...episodeList.value.map((ep) => ep.episode_number));
             if (currentEpisode.value < max) {
@@ -778,7 +796,7 @@ export default defineComponent({
         watch(playbackEnded, (ended) => {
             if (
                 !ended ||
-                !supportsEpisodes.value ||
+                !showEpisodePicker.value ||
                 !nextEpisodeTarget.value ||
                 upNextDismissed.value ||
                 switchingAudioLabel.value ||
@@ -824,7 +842,7 @@ export default defineComponent({
                     return;
                 }
 
-                if (!supportsEpisodes.value) return;
+                if (!showEpisodePicker.value) return;
 
                 const nextSeason = parseInt(String(season || '1'), 10);
                 const nextEpisode = parseInt(String(episode || '1'), 10);
@@ -884,6 +902,7 @@ export default defineComponent({
             switchingAudioLabel,
             switchingEpisodeLabel,
             mediaType,
+            showEpisodePicker,
             supportsEpisodes,
             episodeSeasons,
             episodeList,

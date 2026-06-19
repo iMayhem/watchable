@@ -1184,7 +1184,6 @@ export function pickKoreanCatalogueBrowseItems(
             });
         case 'korean-movies':
         case 'blockbuster-movies':
-        case 'critically-acclaimed':
             return takeTopRated(available, used, limit, {
                 movie: true,
                 minRating: def.minRating ?? 0
@@ -1363,19 +1362,15 @@ export function isNetflixGenreBrowsePage(rowId: string): boolean {
     return isStandardNetflixGenre(rowId);
 }
 
-/** Genre browse rows need TMDB metadata before items can be matched. */
+/**
+ * Netflix browse never blocks on live TMDB — picks use native slugs,
+ * catalog heuristics, and pre-synced enrichment cache only.
+ */
 export function browseRowNeedsTmdbForPick(
-    rowId: NetflixBrowseRowId,
-    enrichmentLoaded = false
+    _rowId: NetflixBrowseRowId,
+    _enrichmentLoaded = false
 ): boolean {
-    if (enrichmentLoaded) return false;
-    if (rowId === 'trending' || rowId === 'top10-movies' || rowId === 'top10-tv') {
-        return false;
-    }
-    if (rowId === 'lgbtq') return true;
-    if (hasNativeBrowseCategory(rowId)) return false;
-    const def = getNetflixCuratedRowDef(rowId);
-    return def?.pick === 'tmdb-genre';
+    return false;
 }
 
 export function railTitleWithLanguage(base: string, lang: NetflixLanguageOption) {

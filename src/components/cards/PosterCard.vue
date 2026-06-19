@@ -187,7 +187,9 @@ export default defineComponent({
                     ? 'large'
                     : props.size === 'sm'
                       ? 'small'
-                      : 'medium';
+                      : props.catalog === 'netflix'
+                        ? 'large'
+                        : 'medium';
             return useWebImage(path, size);
         });
 

@@ -3,7 +3,7 @@
  * Provides intersection observer-based lazy loading for Vue components
  */
 
-import { ref, onMounted, onUnmounted, Ref } from 'vue';
+import { ref, onMounted, onUnmounted, watch, type Ref } from 'vue';
 
 interface LazyLoadOptions {
   rootMargin?: string;
@@ -187,6 +187,54 @@ export function useLazyBackground(
   return {
     isLoaded
   };
+}
+
+interface InfiniteScrollOptions {
+    enabled: Ref<boolean>;
+    busy?: Ref<boolean>;
+    rootMargin?: string;
+}
+
+/** Trigger loadMore when a bottom sentinel enters the viewport. */
+export function useInfiniteScroll(
+    sentinelRef: Ref<HTMLElement | null>,
+    onLoad: () => void | Promise<void>,
+    options: InfiniteScrollOptions
+) {
+    let observer: IntersectionObserver | null = null;
+
+    const bind = () => {
+        observer?.disconnect();
+        observer = null;
+        if (!sentinelRef.value || !options.enabled.value) return;
+
+        observer = new IntersectionObserver(
+            (entries) => {
+                if (!options.enabled.value || options.busy?.value) return;
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    void onLoad();
+                }
+            },
+            {
+                rootMargin: options.rootMargin ?? '480px 0px',
+                threshold: 0
+            }
+        );
+        observer.observe(sentinelRef.value);
+    };
+
+    watch(
+        [sentinelRef, options.enabled, () => options.busy?.value],
+        () => bind(),
+        { flush: 'post' }
+    );
+
+    onMounted(() => bind());
+
+    onUnmounted(() => {
+        observer?.disconnect();
+        observer = null;
+    });
 }
 
 /**

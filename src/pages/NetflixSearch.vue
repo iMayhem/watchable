@@ -192,12 +192,13 @@ import { filterCataloguePool } from '../composables/useNetflixRails';
 import { addNetflixSearchTerm, netflixSearchHistory } from '../composables/useHistory';
 import { useSeo } from '../composables/useSeo';
 import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
-import { buildCatalogLanguageMap } from '../composables/useNetflixCatalogLookup';
-import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
-import { mapWithConcurrency } from '../composables/useTmdbArtwork';
 import {
-    toCuratedItemFast,
-    toCuratedItemUpgraded
+    buildCatalogLanguageMap,
+    dedupeCatalogItemsByVariantFamily
+} from '../composables/useNetflixCatalogLookup';
+import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
+import {
+    toCuratedItemFast
 } from '../composables/useNetflixArtwork';
 import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
 
@@ -284,30 +285,13 @@ export default defineComponent({
         const mapFilteredResults = (
             pool: MoovieCatalogItem[],
             languageMap: Map<string, string[]>,
-            audioCache: Map<string, string[]>,
+            audioCache?: Map<string, string[]>,
             artworkUrls?: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>>
         ) => {
             const curated = pool.map((item) =>
                 toCuratedItemFast(item, [], languageMap, audioCache, undefined, artworkUrls)
             );
             return splitCuratedByType(curated);
-        };
-
-        const upgradeSearchArtwork = async (
-            pool: MoovieCatalogItem[],
-            languageMap: Map<string, string[]>,
-            audioCache: Map<string, string[]>,
-            generation: number
-        ) => {
-            const upgraded = await mapWithConcurrency(
-                pool,
-                (item) => toCuratedItemUpgraded(item, [], languageMap, audioCache),
-                8
-            );
-            if (searchGeneration.value !== generation) return;
-            const { nextMovies, nextShows } = splitCuratedByType(upgraded);
-            movies.value = nextMovies;
-            shows.value = nextShows;
         };
 
         const performSearch = async (query: string, page = 0) => {
@@ -339,35 +323,42 @@ export default defineComponent({
                 }
 
                 const languageMap = buildCatalogLanguageMap(searchVariantPool.value);
-                const filtered = filterCataloguePool(rawResults, cat.id, lang);
-                const [audioCache, artworkUrls] = await Promise.all([
-                    fetchCatalogAudioCacheByIds(searchVariantPool.value.map((item) => item.id)),
-                    fetchCatalogArtworkUrlsByIds(filtered.map((item) => item.id))
-                ]);
-                const { nextMovies, nextShows } = mapFilteredResults(
-                    filtered,
-                    languageMap,
-                    audioCache,
-                    artworkUrls
-                );
+                const filtered = filterCataloguePool(searchVariantPool.value, cat.id, lang);
+                const deduped = dedupeCatalogItemsByVariantFamily(filtered, {
+                    preferredLang: lang
+                });
                 const generation = searchGeneration.value + 1;
                 searchGeneration.value = generation;
 
-                if (page === 0) {
-                    movies.value = nextMovies;
-                    shows.value = nextShows;
-                    chooseDefaultTab();
-                    void upgradeSearchArtwork(filtered, languageMap, audioCache, generation);
-                } else {
-                    const seenMovies = new Set(movies.value.map((item) => String(item.id)));
-                    const seenShows = new Set(shows.value.map((item) => String(item.id)));
-                    for (const item of nextMovies) {
-                        if (!seenMovies.has(String(item.id))) movies.value.push(item);
+                const { nextMovies, nextShows } = mapFilteredResults(
+                    deduped,
+                    languageMap
+                );
+                movies.value = nextMovies;
+                shows.value = nextShows;
+                if (page === 0) chooseDefaultTab();
+
+                void (async () => {
+                    try {
+                        const [audioCache, artworkUrls] = await Promise.all([
+                            fetchCatalogAudioCacheByIds(
+                                searchVariantPool.value.map((item) => item.id)
+                            ),
+                            fetchCatalogArtworkUrlsByIds(deduped.map((item) => item.id))
+                        ]);
+                        if (generation !== searchGeneration.value) return;
+                        const upgraded = mapFilteredResults(
+                            deduped,
+                            languageMap,
+                            audioCache,
+                            artworkUrls
+                        );
+                        movies.value = upgraded.nextMovies;
+                        shows.value = upgraded.nextShows;
+                    } catch (err) {
+                        nfDebugError('search:grid-upgrade:fail', { err });
                     }
-                    for (const item of nextShows) {
-                        if (!seenShows.has(String(item.id))) shows.value.push(item);
-                    }
-                }
+                })();
             } catch (err) {
                 nfDebugError('search:fail', { query: q, page, err });
                 if (page === 0) clearResults();

@@ -126,6 +126,11 @@ import {
     type NetflixBrowseRowId
 } from '../composables/useNetflixRails';
 import { useSeo } from '../composables/useSeo';
+import {
+    buildCatalogLanguageMap,
+    fetchCatalogVariantSnapshot,
+    resolveLanguageTagsForItem
+} from '../composables/useNetflixCatalogLookup';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 import {
     mapWithConcurrency,
@@ -138,7 +143,8 @@ const MAX_API_PAGE_FETCHES = 60;
 
 async function toCuratedItem(
     item: MoovieCatalogItem,
-    genreIds: number[] = []
+    genreIds: number[] = [],
+    languageMap?: Map<string, string[]>
 ): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
     const resolved = await resolveArtworkForCatalogItem(item);
@@ -154,7 +160,7 @@ async function toCuratedItem(
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: inferCatalogMediaType(item),
-        languageTags: parsed.languages,
+        languageTags: resolveLanguageTagsForItem(item, languageMap),
         genreIds: genreIds.length ? genreIds : resolved.genreIds || []
     };
 }
@@ -173,6 +179,8 @@ export default defineComponent({
         const results = ref<CuratedItem[]>([]);
         const pickedItems = ref<MoovieCatalogItem[]>([]);
         const browsePool = ref<MoovieCatalogItem[]>([]);
+        const variantSnapshot = ref<MoovieCatalogItem[]>([]);
+        const languageMap = ref<Map<string, string[]>>(new Map());
         const tmdbById = ref<Map<string, CatalogTmdbMeta>>(new Map());
         const displayedCount = ref(0);
         const apiPageCursor = ref(0);
@@ -237,11 +245,24 @@ export default defineComponent({
             );
         };
 
+        const ensureVariantSnapshot = async () => {
+            if (variantSnapshot.value.length) return;
+            variantSnapshot.value = await fetchCatalogVariantSnapshot();
+        };
+
+        const refreshLanguageMap = () => {
+            languageMap.value = buildCatalogLanguageMap([
+                ...browsePool.value,
+                ...variantSnapshot.value
+            ]);
+        };
+
         const mapPickedToCurated = async (items: MoovieCatalogItem[]) => {
-            await syncTmdbForPool(items);
+            await Promise.all([syncTmdbForPool(items), ensureVariantSnapshot()]);
+            refreshLanguageMap();
             return mapWithConcurrency(items, (item) => {
                 const meta = tmdbById.value.get(String(item.id));
-                return toCuratedItem(item, meta?.genreIds || []);
+                return toCuratedItem(item, meta?.genreIds || [], languageMap.value);
             }, 5);
         };
 

@@ -121,12 +121,18 @@ import {
     pickCatalogArtwork,
     resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
-import { catalogStreamTarget } from '../composables/useNetflixCatalogLookup';
+import {
+    buildCatalogLanguageMap,
+    catalogStreamTarget,
+    fetchCatalogVariantSnapshot,
+    resolveLanguageTagsForItem
+} from '../composables/useNetflixCatalogLookup';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
 async function toCuratedItem(
     item: MoovieCatalogItem,
-    genreIds: number[] = []
+    genreIds: number[] = [],
+    languageMap?: Map<string, string[]>
 ): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
     const resolved = await resolveArtworkForCatalogItem(item);
@@ -142,7 +148,7 @@ async function toCuratedItem(
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: inferCatalogMediaType(item),
-        languageTags: parsed.languages,
+        languageTags: resolveLanguageTagsForItem(item, languageMap),
         genreIds: genreIds.length ? genreIds : resolved.genreIds || []
     };
 }
@@ -234,15 +240,23 @@ export default defineComponent({
             catalogueRails.value = [];
 
             try {
-                const pages = await Promise.all(
-                    Array.from({ length: 5 }, (_, page) =>
-                        browseMoovieCatalog(lang.category, page)
-                    )
-                );
+                const [pages, variantSnapshot] = await Promise.all([
+                    Promise.all(
+                        Array.from({ length: 5 }, (_, page) =>
+                            browseMoovieCatalog(lang.category, page)
+                        )
+                    ),
+                    fetchCatalogVariantSnapshot()
+                ]);
 
                 const browsePool = pages
                     .flatMap((page) => page.results || [])
                     .filter((item) => itemMatchesLanguage(item, lang));
+
+                const languageMap = buildCatalogLanguageMap([
+                    ...browsePool,
+                    ...variantSnapshot
+                ]);
 
                 const pool = filterCataloguePool(browsePool, cat.id, lang);
                 const tmdbById = await enrichCatalogPoolWithTmdb(pool, 8);
@@ -255,7 +269,7 @@ export default defineComponent({
                 );
                 const curated = await mapWithConcurrency(artworkTargets, (item) => {
                     const meta = tmdbById.get(String(item.id));
-                    return toCuratedItem(item, meta?.genreIds || []);
+                    return toCuratedItem(item, meta?.genreIds || [], languageMap);
                 }, 5);
                 const byId = new Map(curated.map((item) => [String(item.id), item]));
 

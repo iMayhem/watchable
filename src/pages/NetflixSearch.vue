@@ -194,6 +194,10 @@ import { getNetflixLanguage, getLanguageOption } from '../composables/useNetflix
 import { filterCataloguePool } from '../composables/useNetflixRails';
 import { addNetflixSearchTerm, netflixSearchHistory } from '../composables/useHistory';
 import { useSeo } from '../composables/useSeo';
+import {
+    buildCatalogLanguageMap,
+    resolveLanguageTagsForItem
+} from '../composables/useNetflixCatalogLookup';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 import {
     mapWithConcurrency,
@@ -203,7 +207,10 @@ import {
 
 type TabKey = 'movies' | 'shows';
 
-async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
+async function toCuratedItem(
+    item: MoovieCatalogItem,
+    languageMap?: Map<string, string[]>
+): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
     const resolved = await resolveArtworkForCatalogItem(item);
     const artwork = pickCatalogArtwork(resolved);
@@ -218,7 +225,7 @@ async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: inferCatalogMediaType(item),
-        languageTags: parsed.languages,
+        languageTags: resolveLanguageTagsForItem(item, languageMap),
         genreIds: resolved.genreIds || []
     };
 }
@@ -246,6 +253,7 @@ export default defineComponent({
         const shows = ref<CuratedItem[]>([]);
         const loadedPage = ref(-1);
         const totalPages = ref(1);
+        const searchVariantPool = ref<MoovieCatalogItem[]>([]);
 
         const popularSearches = [
             'Stranger Things', 'Wednesday', 'RRR', 'Sacred Games',
@@ -278,6 +286,7 @@ export default defineComponent({
         const clearResults = () => {
             movies.value = [];
             shows.value = [];
+            searchVariantPool.value = [];
             loadedPage.value = -1;
             totalPages.value = 1;
         };
@@ -288,8 +297,15 @@ export default defineComponent({
             syncRoute();
         };
 
-        const mapFilteredResults = async (pool: MoovieCatalogItem[]) => {
-            const curated = await mapWithConcurrency(pool, toCuratedItem, 5);
+        const mapFilteredResults = async (
+            pool: MoovieCatalogItem[],
+            languageMap: Map<string, string[]>
+        ) => {
+            const curated = await mapWithConcurrency(
+                pool,
+                (item) => toCuratedItem(item, languageMap),
+                5
+            );
             const nextMovies: CuratedItem[] = [];
             const nextShows: CuratedItem[] = [];
 
@@ -317,8 +333,21 @@ export default defineComponent({
                 totalPages.value = Math.max(1, data.pager?.total_pages ?? 1);
                 loadedPage.value = page;
 
-                const filtered = filterCataloguePool(data.results || [], cat.id, lang);
-                const { nextMovies, nextShows } = await mapFilteredResults(filtered);
+                const rawResults = data.results || [];
+                if (page === 0) {
+                    searchVariantPool.value = rawResults;
+                } else {
+                    const seen = new Set(searchVariantPool.value.map((item) => item.id));
+                    for (const item of rawResults) {
+                        if (seen.has(item.id)) continue;
+                        seen.add(item.id);
+                        searchVariantPool.value.push(item);
+                    }
+                }
+
+                const languageMap = buildCatalogLanguageMap(searchVariantPool.value);
+                const filtered = filterCataloguePool(rawResults, cat.id, lang);
+                const { nextMovies, nextShows } = await mapFilteredResults(filtered, languageMap);
 
                 if (page === 0) {
                     movies.value = nextMovies;

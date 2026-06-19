@@ -51,7 +51,11 @@ import {
     parseCatalogTitle,
     type MoovieCatalogItem
 } from '../composables/useMoovieCatalog';
-import { catalogStreamTarget } from '../composables/useNetflixCatalogLookup';
+import {
+    buildCatalogLanguageMap,
+    catalogStreamTarget,
+    resolveLanguageTagsForItem
+} from '../composables/useNetflixCatalogLookup';
 import {
     getNetflixLanguage,
     getLanguageOption,
@@ -126,7 +130,10 @@ export default defineComponent({
             return Boolean(meta.value && String(meta.value.id) === id);
         };
 
-        const toCurated = async (item: MoovieCatalogItem): Promise<CuratedItem> => {
+        const toCurated = async (
+            item: MoovieCatalogItem,
+            languageMap?: Map<string, string[]>
+        ): Promise<CuratedItem> => {
             const p = parseCatalogTitle(item.title || '');
             const art = pickCatalogArtwork(await resolveArtworkForCatalogItem(item));
             return {
@@ -139,7 +146,7 @@ export default defineComponent({
                 rating: catalogRating(item.vote_average),
                 releaseDate: item.release_date || '',
                 type: inferCatalogMediaType(item),
-                languageTags: p.languages
+                languageTags: resolveLanguageTagsForItem(item, languageMap)
             };
         };
 
@@ -160,10 +167,14 @@ export default defineComponent({
             const { language } = getNetflixLanguage();
             const lang = getLanguageOption(language.value);
             const browse = await browseMoovieCatalog(lang.category, 0);
-            const similarPool = (browse.results || [])
+            const browseResults = browse.results || [];
+            const similarPool = browseResults
                 .filter((item) => item.id !== id && itemMatchesLanguage(item, lang))
                 .slice(0, 10);
-            similarItems.value = await mapWithConcurrency(similarPool, toCurated, 4);
+            const languageMap = buildCatalogLanguageMap(browseResults);
+            similarItems.value = await mapWithConcurrency(similarPool, (item) =>
+                toCurated(item, languageMap)
+            , 4);
         };
 
         const loadDetail = async (opts: { background?: boolean } = {}) => {

@@ -1,4 +1,5 @@
 import {
+    browseMoovieCatalog,
     inferCatalogMediaType,
     parseCatalogTitle,
     searchMoovieCatalog,
@@ -121,4 +122,80 @@ export function languageTagsForItem(item: MoovieCatalogItem): string[] {
     if (parsed.languages.length) return parsed.languages;
 
     return languagesForCatalogueItems([item]).map((lang) => lang.label);
+}
+
+export function catalogTitleKey(item: {
+    title?: string;
+    media_type?: string;
+}): string {
+    const parsed = parseCatalogTitle(item.title || '');
+    const display = normalizeCatalogTitle(parsed.displayTitle || item.title || '');
+    const mediaType = inferCatalogMediaType(item);
+    return `${mediaType}:${display}`;
+}
+
+/** Group catalogue rows by title and collect every audio language offered. */
+export function buildCatalogLanguageMap(
+    pool: MoovieCatalogItem[]
+): Map<string, string[]> {
+    const groups = new Map<string, MoovieCatalogItem[]>();
+
+    for (const item of pool) {
+        const key = catalogTitleKey(item);
+        const bucket = groups.get(key);
+        if (bucket) bucket.push(item);
+        else groups.set(key, [item]);
+    }
+
+    const out = new Map<string, string[]>();
+    for (const [key, items] of groups) {
+        const labels = languagesForCatalogueItems(items).map((lang) => lang.label);
+        if (labels.length) out.set(key, labels);
+    }
+    return out;
+}
+
+export function resolveLanguageTagsForItem(
+    item: MoovieCatalogItem,
+    map?: Map<string, string[]>
+): string[] {
+    const fromMap = map?.get(catalogTitleKey(item));
+    if (fromMap?.length) return fromMap;
+    return languageTagsForItem(item);
+}
+
+const VARIANT_SNAPSHOT_TTL_MS = 10 * 60 * 1000;
+let variantSnapshotCache: { fetchedAt: number; items: MoovieCatalogItem[] } | null = null;
+
+/** One browse page per language category — cached for cross-language poster labels. */
+export async function fetchCatalogVariantSnapshot(
+    opts: { force?: boolean } = {}
+): Promise<MoovieCatalogItem[]> {
+    const now = Date.now();
+    if (
+        !opts.force &&
+        variantSnapshotCache &&
+        now - variantSnapshotCache.fetchedAt < VARIANT_SNAPSHOT_TTL_MS
+    ) {
+        return variantSnapshotCache.items;
+    }
+
+    const pages = await Promise.all(
+        NETFLIX_LANGUAGES.map((lang) =>
+            browseMoovieCatalog(lang.category, 0).catch(() => ({ results: [] }))
+        )
+    );
+
+    const seen = new Set<string>();
+    const items: MoovieCatalogItem[] = [];
+    for (const page of pages) {
+        for (const item of page.results || []) {
+            if (seen.has(item.id)) continue;
+            seen.add(item.id);
+            items.push(item);
+        }
+    }
+
+    variantSnapshotCache = { fetchedAt: now, items };
+    return items;
 }

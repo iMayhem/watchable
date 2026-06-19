@@ -12,26 +12,26 @@
             <div class="nm-test__row">
                 <label>
                     <span>NetMirror ID</span>
-                    <input v-model="mediaId" type="text" placeholder="111489" />
+                    <input v-model="mediaId" type="text" placeholder="111489" @change="onFieldChange('mediaId', mediaId)" />
                 </label>
                 <label>
                     <span>Type</span>
-                    <select v-model="mediaType">
+                    <select v-model="mediaType" @change="onFieldChange('mediaType', mediaType)">
                         <option value="movie">movie</option>
                         <option value="tv">tv</option>
                     </select>
                 </label>
                 <label>
                     <span>Season</span>
-                    <input v-model.number="season" type="number" min="0" />
+                    <input v-model.number="season" type="number" min="0" @change="onFieldChange('season', season)" />
                 </label>
                 <label>
                     <span>Episode</span>
-                    <input v-model.number="episode" type="number" min="0" />
+                    <input v-model.number="episode" type="number" min="0" @change="onFieldChange('episode', episode)" />
                 </label>
                 <label>
                     <span>Server mirror</span>
-                    <select v-model.number="server">
+                    <select v-model.number="server" @change="onFieldChange('server', server)">
                         <option :value="1">1 · spedostream2</option>
                         <option :value="2">2 · watch22</option>
                         <option :value="3">3 · watch21</option>
@@ -47,7 +47,7 @@
                         v-model="searchQuery"
                         type="text"
                         placeholder="Disclosure Day"
-                        @keydown.enter="runSearch"
+                        @keydown.enter="onSearchEnter"
                     />
                 </label>
                 <button type="button" class="nm-test__btn nm-test__btn--ghost" :disabled="loading" @click="runSearch">
@@ -88,7 +88,7 @@
                     class="nm-test__mode-btn"
                     :class="{ 'is-active': playerMode === 'direct' }"
                     :disabled="!activeStream"
-                    @click="playerMode = 'direct'"
+                    @click="setPlayerMode('direct')"
                 >
                     Proxied MP4
                 </button>
@@ -96,7 +96,7 @@
                     type="button"
                     class="nm-test__mode-btn"
                     :class="{ 'is-active': playerMode === 'iframe' }"
-                    @click="playerMode = 'iframe'"
+                    @click="setPlayerMode('iframe')"
                 >
                     Proxied iframe
                 </button>
@@ -113,7 +113,13 @@
                     preload="auto"
                     :src="activeStream.proxiedUrl"
                     @error="onVideoError"
-                    @loadedmetadata="playbackError = ''"
+                    @loadstart="onVideoEvent('loadstart')"
+                    @loadedmetadata="onVideoLoadedMetadata"
+                    @canplay="onVideoEvent('canplay')"
+                    @playing="onVideoEvent('playing')"
+                    @waiting="onVideoEvent('waiting')"
+                    @stalled="onVideoEvent('stalled')"
+                    @progress="onVideoProgress"
                 />
                 <iframe
                     v-else-if="playerMode === 'iframe' && playerProxyUrl"
@@ -146,7 +152,7 @@
         </section>
 
         <section v-if="resolved" class="nm-test__panel nm-test__debug">
-            <button type="button" class="nm-test__debug-toggle" @click="showDebug = !showDebug">
+            <button type="button" class="nm-test__debug-toggle" @click="toggleDebug">
                 {{ showDebug ? 'Hide' : 'Show' }} debug JSON
             </button>
             <pre v-if="showDebug">{{ debugJson }}</pre>
@@ -155,8 +161,10 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import { useSeo } from '../composables/useSeo';
+
+const LOG_PREFIX = '[NetMirror Test]';
 
 interface NetmirrorStream {
     quality: string;
@@ -191,6 +199,31 @@ export default defineComponent({
     name: 'TestNetmirror',
     setup() {
         const { updateSeo } = useSeo();
+
+        const debug = (action: string, detail?: unknown) => {
+            // console.warn survives production terser (log/info/debug are stripped)
+            if (detail !== undefined) {
+                console.warn(`${LOG_PREFIX} ${action}`, detail);
+            } else {
+                console.warn(`${LOG_PREFIX} ${action}`);
+            }
+        };
+
+        const debugWarn = (action: string, detail?: unknown) => {
+            if (detail !== undefined) {
+                console.warn(`${LOG_PREFIX} ${action}`, detail);
+            } else {
+                console.warn(`${LOG_PREFIX} ${action}`);
+            }
+        };
+
+        const debugError = (action: string, detail?: unknown) => {
+            if (detail !== undefined) {
+                console.error(`${LOG_PREFIX} ${action}`, detail);
+            } else {
+                console.error(`${LOG_PREFIX} ${action}`);
+            }
+        };
 
         const mediaId = ref('111489');
         const mediaType = ref<'movie' | 'tv'>('movie');
@@ -249,74 +282,169 @@ export default defineComponent({
             return `/api/netmirror?${params.toString()}`;
         };
 
-        const parseApiResponse = async (resp: Response) => {
+        const parseApiResponse = async (resp: Response, context: string) => {
             const contentType = resp.headers.get('content-type') || '';
+            debug(`${context}:response`, {
+                status: resp.status,
+                ok: resp.ok,
+                contentType,
+            });
+
             const text = await resp.text();
             const looksLikeHtml =
                 text.trimStart().startsWith('<') || /<!doctype/i.test(text.slice(0, 200));
 
             if (!contentType.includes('application/json') && looksLikeHtml) {
+                debugError(`${context}:html-fallback`, { preview: text.slice(0, 120) });
                 throw new Error(
                     'API returned HTML instead of JSON. Deploy /api/netmirror to Cloudflare Pages, or run npm run dev locally (functions middleware is enabled).'
                 );
             }
 
             try {
-                return JSON.parse(text);
-            } catch {
+                const data = JSON.parse(text);
+                debug(`${context}:parsed`, {
+                    keys: data && typeof data === 'object' ? Object.keys(data) : [],
+                });
+                return data;
+            } catch (parseErr) {
+                debugError(`${context}:parse-failed`, { preview: text.slice(0, 160) });
                 throw new Error(`Invalid API response (${resp.status}): ${text.slice(0, 160)}`);
             }
         };
 
+        const onFieldChange = (field: string, value: unknown) => {
+            debug(`field:${field}`, { value });
+        };
+
+        const onSearchEnter = () => {
+            debug('search:enter-key');
+            runSearch();
+        };
+
+        const setPlayerMode = (mode: 'iframe' | 'direct') => {
+            debug('player:mode-change', {
+                from: playerMode.value,
+                to: mode,
+                activeStream: activeStream.value?.quality || null,
+            });
+            playerMode.value = mode;
+        };
+
+        const toggleDebug = () => {
+            showDebug.value = !showDebug.value;
+            debug('debug:toggle', { visible: showDebug.value });
+        };
+
         const resolve = async () => {
+            const url = buildApiUrl('resolve');
+            debug('resolve:start', {
+                url,
+                mediaId: mediaId.value,
+                mediaType: mediaType.value,
+                season: season.value,
+                episode: episode.value,
+                server: server.value,
+            });
+
             loading.value = true;
             error.value = '';
+            const startedAt = performance.now();
+
             try {
-                const resp = await fetch(buildApiUrl('resolve'));
-                const data = await parseApiResponse(resp);
+                const resp = await fetch(url);
+                const data = await parseApiResponse(resp, 'resolve');
                 if (!resp.ok) {
                     throw new Error(data.error || `Request failed (${resp.status})`);
                 }
+
                 resolved.value = data;
                 playbackError.value = '';
+
+                const streamIndex = data.streams?.length
+                    ? pickDefaultStreamIndex(data.streams)
+                    : 0;
+
                 if (data.streams?.length) {
-                    selectedStreamIndex.value = pickDefaultStreamIndex(data.streams);
+                    selectedStreamIndex.value = streamIndex;
                     playerMode.value = 'direct';
                 } else {
                     playerMode.value = 'iframe';
                 }
+
+                debug('resolve:success', {
+                    elapsedMs: Math.round(performance.now() - startedAt),
+                    title: data.meta?.title,
+                    subjectid: data.meta?.subjectid,
+                    streamCount: data.streams?.length || 0,
+                    qualities: (data.streams || []).map((s: NetmirrorStream) => s.quality),
+                    defaultQuality: data.streams?.[streamIndex]?.quality || null,
+                    playerMode: playerMode.value,
+                    watchboxUrl: data.watchboxUrl,
+                    defaultProxiedUrl: data.streams?.[streamIndex]?.proxiedUrl || null,
+                });
             } catch (err: any) {
                 error.value = err?.message || 'Failed to resolve stream';
                 resolved.value = null;
+                debugError('resolve:failed', {
+                    elapsedMs: Math.round(performance.now() - startedAt),
+                    message: error.value,
+                });
             } finally {
                 loading.value = false;
+                debug('resolve:done', { loading: loading.value });
             }
         };
 
         const runSearch = async () => {
-            if (!searchQuery.value.trim()) return;
+            const query = searchQuery.value.trim();
+            if (!query) {
+                debugWarn('search:skipped', { reason: 'empty query' });
+                return;
+            }
+
+            const url = `/api/netmirror?${new URLSearchParams({ action: 'search', q: query }).toString()}`;
+            debug('search:start', { query, url });
+
             loading.value = true;
             error.value = '';
+            const startedAt = performance.now();
+
             try {
-                const params = new URLSearchParams({
-                    action: 'search',
-                    q: searchQuery.value.trim(),
-                });
-                const resp = await fetch(`/api/netmirror?${params.toString()}`);
-                const data = await parseApiResponse(resp);
+                const resp = await fetch(url);
+                const data = await parseApiResponse(resp, 'search');
                 if (!resp.ok) {
                     throw new Error(data.error || `Search failed (${resp.status})`);
                 }
                 searchResults.value = data.results || [];
+                debug('search:success', {
+                    elapsedMs: Math.round(performance.now() - startedAt),
+                    resultCount: searchResults.value.length,
+                    results: searchResults.value.map((r) => ({
+                        id: r.id,
+                        title: r.title?.trim(),
+                        media_type: r.media_type,
+                    })),
+                });
             } catch (err: any) {
                 error.value = err?.message || 'Search failed';
                 searchResults.value = [];
+                debugError('search:failed', {
+                    elapsedMs: Math.round(performance.now() - startedAt),
+                    message: error.value,
+                });
             } finally {
                 loading.value = false;
+                debug('search:done', { loading: loading.value });
             }
         };
 
         const applySearchResult = (item: SearchResult) => {
+            debug('search:apply-result', {
+                id: item.id,
+                title: item.title?.trim(),
+                media_type: item.media_type,
+            });
             mediaId.value = item.id;
             mediaType.value = item.media_type === 'tv' ? 'tv' : 'movie';
             season.value = 0;
@@ -325,9 +453,54 @@ export default defineComponent({
         };
 
         const selectStream = (index: number) => {
+            const stream = streams.value[index];
+            debug('stream:select', {
+                index,
+                quality: stream?.quality,
+                rawUrl: stream?.url,
+                proxiedUrl: stream?.proxiedUrl,
+            });
             selectedStreamIndex.value = index;
             playerMode.value = 'direct';
             playbackError.value = '';
+        };
+
+        const onVideoLoadedMetadata = () => {
+            playbackError.value = '';
+            const video = videoEl.value;
+            debug('video:loadedmetadata', {
+                quality: activeStream.value?.quality,
+                duration: video?.duration,
+                videoWidth: video?.videoWidth,
+                videoHeight: video?.videoHeight,
+                src: video?.currentSrc,
+            });
+        };
+
+        const onVideoEvent = (eventName: string) => {
+            debug(`video:${eventName}`, {
+                quality: activeStream.value?.quality,
+                currentTime: videoEl.value?.currentTime,
+                readyState: videoEl.value?.readyState,
+                networkState: videoEl.value?.networkState,
+            });
+        };
+
+        let lastProgressLog = 0;
+        const onVideoProgress = () => {
+            const now = performance.now();
+            if (now - lastProgressLog < 2000) return;
+            lastProgressLog = now;
+
+            const video = videoEl.value;
+            if (!video || !video.buffered.length) return;
+
+            debug('video:progress', {
+                quality: activeStream.value?.quality,
+                bufferedEnd: video.buffered.end(video.buffered.length - 1),
+                currentTime: video.currentTime,
+                duration: video.duration,
+            });
         };
 
         const onVideoError = () => {
@@ -342,9 +515,44 @@ export default defineComponent({
             playbackError.value =
                 (code !== undefined ? messages[code] : undefined) ||
                 'Video failed to play. Try 360P/480P or click Resolve again for fresh signed URLs.';
+
+            debugError('video:error', {
+                code,
+                message: playbackError.value,
+                quality: activeStream.value?.quality,
+                rawUrl: activeStream.value?.url,
+                proxiedUrl: activeStream.value?.proxiedUrl,
+                currentSrc: videoEl.value?.currentSrc,
+                networkState: videoEl.value?.networkState,
+                readyState: videoEl.value?.readyState,
+            });
         };
 
+        watch(activeStream, (stream, prev) => {
+            if (!stream && !prev) return;
+            debug('stream:active-changed', {
+                from: prev?.quality || null,
+                to: stream?.quality || null,
+                proxiedUrl: stream?.proxiedUrl || null,
+            });
+        });
+
+        watch(playerProxyUrl, (url) => {
+            if (!url) return;
+            debug('player:iframe-url', { url });
+        });
+
         onMounted(() => {
+            debug('page:mounted', {
+                preset: {
+                    mediaId: mediaId.value,
+                    mediaType: mediaType.value,
+                    season: season.value,
+                    episode: episode.value,
+                    server: server.value,
+                    playerMode: playerMode.value,
+                },
+            });
             updateSeo({
                 title: 'Test',
                 canonical: 'https://moovie.fun/test',
@@ -381,6 +589,13 @@ export default defineComponent({
             activeStream,
             playerProxyUrl,
             debugJson,
+            onFieldChange,
+            onSearchEnter,
+            setPlayerMode,
+            toggleDebug,
+            onVideoLoadedMetadata,
+            onVideoEvent,
+            onVideoProgress,
             resolve,
             runSearch,
             applySearchResult,

@@ -21,7 +21,7 @@
                             v-model="q"
                             type="text"
                             class="lm-palette__input"
-                            placeholder="Search movies, shows, people — or jump to a page"
+                            :placeholder="searchPlaceholder"
                             autocomplete="off"
                             spellcheck="false"
                             @keydown="onKey"
@@ -100,7 +100,7 @@
                         </div>
 
                         <div v-if="!hasAnyResult" class="lm-palette__empty">
-                            No matches. Press <kbd>↵</kbd> to search TMDB for
+                            No matches. Press <kbd>↵</kbd> to search {{ searchScopeLabel }} for
                             <em>&ldquo;{{ q.trim() }}&rdquo;</em>
                         </div>
                     </div>
@@ -120,9 +120,18 @@
 
 <script lang="ts">
 import { computed, defineComponent, nextTick, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { paletteOpen, closePalette } from '../../composables/useCommandPalette';
-import { searchHistory, addSearchTerm } from '../../composables/useHistory';
+import {
+    searchHistory,
+    netflixSearchHistory,
+    addSearchTerm,
+    addNetflixSearchTerm
+} from '../../composables/useHistory';
+import { getContentMode } from '../../composables/useContentMode';
+import { getNetflixCatalogue } from '../../composables/useNetflixCatalogue';
+import { netflixBrowsePath } from '../../composables/useNetflixRails';
+import { searchPathForMode } from '../../utils/contentModeRoutes';
 
 interface JumpItem {
     label: string;
@@ -170,20 +179,95 @@ const JUMP: JumpItem[] = [
     }
 ];
 
+const NETFLIX_JUMP: JumpItem[] = [
+    {
+        label: 'Home',
+        path: '/',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>'
+    },
+    {
+        label: 'TV Shows',
+        path: '__nf_tv__',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="m8 3 4 3 4-3"/></svg>'
+    },
+    {
+        label: 'Movies',
+        path: '__nf_movies__',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 14h4M17 9h4M17 14h4"/></svg>'
+    },
+    {
+        label: 'New & Popular',
+        path: '__nf_new__',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M3 12h18"/></svg>'
+    },
+    {
+        label: 'Categories',
+        path: '/nf/categories',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'
+    },
+    {
+        label: 'Search',
+        path: '/nf/search',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>'
+    }
+];
+
 export default defineComponent({
     name: 'CommandPalette',
     setup() {
         const router = useRouter();
+        const route = useRoute();
+        const { contentMode } = getContentMode();
+        const { catalogue } = getNetflixCatalogue();
         const q = ref('');
         const activeIdx = ref(0);
         const input = ref<HTMLInputElement | null>(null);
         const list = ref<HTMLElement | null>(null);
         const shell = ref<HTMLElement | null>(null);
 
+        const isNetflixMode = computed(() => contentMode.value === 'netflix');
+
+        const searchPlaceholder = computed(() =>
+            isNetflixMode.value
+                ? 'Search Netflix catalogue — or jump to a page'
+                : 'Search movies, shows, people — or jump to a page'
+        );
+
+        const searchScopeLabel = computed(() =>
+            isNetflixMode.value ? 'the catalogue' : 'TMDB'
+        );
+
+        const activeSearchHistory = computed(() =>
+            isNetflixMode.value ? netflixSearchHistory.value : searchHistory.value
+        );
+
+        const resolvedJump = computed(() => {
+            if (!isNetflixMode.value) return JUMP;
+            const cat = catalogue.value;
+            return NETFLIX_JUMP.map((item) => {
+                if (item.path === '__nf_tv__') {
+                    return { ...item, path: netflixBrowsePath(cat, 'exciting-tv') };
+                }
+                if (item.path === '__nf_movies__') {
+                    return { ...item, path: netflixBrowsePath(cat, 'blockbuster-movies') };
+                }
+                if (item.path === '__nf_new__') {
+                    return { ...item, path: netflixBrowsePath(cat, 'new-on-netflix') };
+                }
+                return item;
+            });
+        });
+
         const filteredJump = computed(() => {
             const needle = q.value.trim().toLowerCase();
-            if (!needle) return JUMP;
-            return JUMP.filter(j =>
+            if (!needle) return resolvedJump.value;
+            return resolvedJump.value.filter(j =>
                 j.label.toLowerCase().includes(needle) || j.path.includes(needle)
             );
         });
@@ -191,12 +275,14 @@ export default defineComponent({
         // Rows: [search?] + [recent*] + [jump*]
         const jumpOffset = computed(() => {
             if (q.value.trim()) return 1;
-            return searchHistory.value.length ? Math.min(5, searchHistory.value.length) : 0;
+            return activeSearchHistory.value.length
+                ? Math.min(5, activeSearchHistory.value.length)
+                : 0;
         });
 
         const rowCount = computed(() => {
             const searchRow = q.value.trim() ? 1 : 0;
-            const recent = q.value.trim() ? 0 : Math.min(5, searchHistory.value.length);
+            const recent = q.value.trim() ? 0 : Math.min(5, activeSearchHistory.value.length);
             return searchRow + recent + filteredJump.value.length;
         });
 
@@ -209,8 +295,13 @@ export default defineComponent({
         const runSearch = () => {
             const term = q.value.trim();
             if (!term) return;
-            addSearchTerm(term);
-            router.push({ name: 'Search', query: { search: term } });
+            if (isNetflixMode.value) {
+                addNetflixSearchTerm(term);
+            } else {
+                addSearchTerm(term);
+            }
+            const path = searchPathForMode(isNetflixMode.value ? 'netflix' : 'global');
+            router.push({ path, query: { search: term } });
             close();
         };
 
@@ -236,8 +327,8 @@ export default defineComponent({
                 return;
             }
             const recentIdx = activeIdx.value;
-            if (!q.value.trim() && recentIdx < searchHistory.value.length) {
-                runRecent(searchHistory.value[recentIdx]);
+            if (!q.value.trim() && recentIdx < activeSearchHistory.value.length) {
+                runRecent(activeSearchHistory.value[recentIdx]);
                 return;
             }
             if (q.value.trim()) runSearch();
@@ -280,6 +371,14 @@ export default defineComponent({
             activeIdx.value = 0;
         });
 
+        watch(
+            () => [contentMode.value, catalogue.value, route.path],
+            () => {
+                if (!paletteOpen.value) return;
+                activeIdx.value = 0;
+            }
+        );
+
         return {
             paletteOpen,
             q,
@@ -287,7 +386,9 @@ export default defineComponent({
             jumpOffset,
             filteredJump,
             hasAnyResult,
-            searchHistory,
+            searchHistory: activeSearchHistory,
+            searchPlaceholder,
+            searchScopeLabel,
             input,
             list,
             shell,

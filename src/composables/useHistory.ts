@@ -14,23 +14,33 @@ import { watch } from 'vue';
 import { getCurrentUser, pushUserDataToSupabase } from '../lib/auth';
 
 export const searchHistory = useStorage<string[]>('searchHistory', []);
+export const netflixSearchHistory = useStorage<string[]>('netflixSearchHistory', []);
 export const viewHistory = useStorage<ViewedItem[]>('viewHistory', []);
+
+function pushSearchTerm(store: typeof searchHistory, value: string): void {
+  const index = store.value.indexOf(value);
+  if (index !== -1) store.value.splice(index, 1);
+  store.value.unshift(value);
+  if (store.value.length > MAX_HISTORY_LENGTH) {
+    store.value = store.value.slice(0, 20);
+  }
+}
 
 export function addSearchTerm(term: string): void {
   const value = term.trim();
   if (!value) return;
-  const index = searchHistory.value.indexOf(value);
-  if (index !== -1) searchHistory.value.splice(index, 1);
-  searchHistory.value.unshift(value);
-  if (searchHistory.value.length > MAX_HISTORY_LENGTH) {
-    searchHistory.value = searchHistory.value.slice(0, 20);
-  }
-  
-  // Sync to Supabase if user is logged in
+  pushSearchTerm(searchHistory, value);
+
   const user = getCurrentUser();
   if (user) {
     pushUserDataToSupabase(user, [], undefined, searchHistory.value);
   }
+}
+
+export function addNetflixSearchTerm(term: string): void {
+  const value = term.trim();
+  if (!value) return;
+  pushSearchTerm(netflixSearchHistory, value);
 }
 
 export function addViewedItem(item: ViewedItem): void {
@@ -67,8 +77,10 @@ if (typeof window !== 'undefined') {
 export function useHistory() {
   return {
     searchHistory,
+    netflixSearchHistory,
     viewHistory,
     addSearchTerm,
+    addNetflixSearchTerm,
     addViewedItem
   };
 }

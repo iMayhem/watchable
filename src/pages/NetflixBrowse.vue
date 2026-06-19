@@ -20,7 +20,7 @@
 
                     <div v-if="isLoading && !results.length" class="discover__grid">
                         <PosterCard
-                            v-for="n in 20"
+                            v-for="n in BROWSE_PAGE_SIZE"
                             :key="n"
                             loading
                             id=""
@@ -79,7 +79,7 @@
                             @click="loadMore"
                         >
                             <span v-if="isLoadingMore">Loading…</span>
-                            <span v-else>Load more · page {{ nextPage }}/{{ totalPages }}</span>
+                            <span v-else>Load more</span>
                         </button>
                     </div>
                 </div>
@@ -131,7 +131,8 @@ import {
     resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
 
-const INITIAL_PAGES = 3;
+const BROWSE_PAGE_SIZE = 40;
+const MAX_API_PAGE_FETCHES = 60;
 
 async function toCuratedItem(
     item: MoovieCatalogItem,
@@ -166,10 +167,13 @@ export default defineComponent({
         const isLoading = ref(true);
         const isLoadingMore = ref(false);
         const results = ref<CuratedItem[]>([]);
+        const pickedItems = ref<MoovieCatalogItem[]>([]);
         const browsePool = ref<MoovieCatalogItem[]>([]);
         const tmdbById = ref<Map<string, CatalogTmdbMeta>>(new Map());
-        const loadedPageCount = ref(0);
-        const totalPages = ref(1);
+        const displayedCount = ref(0);
+        const apiPageCursor = ref(0);
+        const apiTotalPages = ref(1);
+        const canFetchMoreApi = ref(true);
 
         const catalogueId = computed(() => String(route.params.catalogue || ''));
         const rowId = computed(() => String(route.params.row || ''));
@@ -204,56 +208,84 @@ export default defineComponent({
             );
         });
 
-        const nextPage = computed(() => loadedPageCount.value);
-        const hasMore = computed(() => loadedPageCount.value < totalPages.value);
+        const hasMore = computed(
+            () => displayedCount.value < pickedItems.value.length || canFetchMoreApi.value
+        );
 
         const syncTmdbForPool = async (pool: MoovieCatalogItem[]) => {
+            if (!pool.length) return;
             const fresh = await enrichCatalogPoolWithTmdb(pool, 8);
             const merged = new Map(tmdbById.value);
             fresh.forEach((meta, id) => merged.set(id, meta));
             tmdbById.value = merged;
         };
 
-        const rebuildResults = async () => {
+        const rebuildPickedItems = () => {
             const lang = activeLang.value;
             const cat = activeCatalogue.value;
             const pool = filterCataloguePool(browsePool.value, cat.id, lang);
-            await syncTmdbForPool(pool);
-            const picked = pickNetflixBrowseItems(
+            pickedItems.value = pickNetflixBrowseItems(
                 pool,
                 rowId.value as NetflixBrowseRowId,
                 cat,
                 lang,
                 tmdbById.value
             );
-            results.value = await mapWithConcurrency(picked, (item) => {
+        };
+
+        const mapPickedToCurated = async (items: MoovieCatalogItem[]) => {
+            await syncTmdbForPool(items);
+            return mapWithConcurrency(items, (item) => {
                 const meta = tmdbById.value.get(String(item.id));
                 return toCuratedItem(item, meta?.genreIds || []);
             }, 5);
         };
 
-        const loadPages = async (fromPage: number, count: number) => {
+        const loadNextApiPage = async () => {
+            if (!canFetchMoreApi.value) return false;
+
             const lang = activeLang.value;
-            const pages = await Promise.all(
-                Array.from({ length: count }, (_, i) =>
-                    browseMoovieCatalog(lang.category, fromPage + i)
-                )
-            );
+            const page = await browseMoovieCatalog(lang.category, apiPageCursor.value);
+            apiTotalPages.value = Math.max(apiTotalPages.value, page.pager?.total_pages ?? 1);
 
+            const seen = new Set(browsePool.value.map((item) => item.id));
             const merged = [...browsePool.value];
-            const seen = new Set(merged.map((item) => item.id));
 
-            for (const page of pages) {
-                totalPages.value = Math.max(totalPages.value, page.pager?.total_pages ?? 1);
-                for (const item of page.results || []) {
-                    if (!itemMatchesLanguage(item, lang) || seen.has(item.id)) continue;
-                    seen.add(item.id);
-                    merged.push(item);
-                }
+            for (const item of page.results || []) {
+                if (!itemMatchesLanguage(item, lang) || seen.has(item.id)) continue;
+                seen.add(item.id);
+                merged.push(item);
             }
 
             browsePool.value = merged;
-            loadedPageCount.value = fromPage + count;
+            apiPageCursor.value += 1;
+            canFetchMoreApi.value = apiPageCursor.value < apiTotalPages.value;
+            rebuildPickedItems();
+            return true;
+        };
+
+        const ensurePickedCount = async (needed: number) => {
+            let attempts = 0;
+            while (
+                pickedItems.value.length < needed &&
+                canFetchMoreApi.value &&
+                attempts < MAX_API_PAGE_FETCHES
+            ) {
+                attempts += 1;
+                await loadNextApiPage();
+            }
+        };
+
+        const appendDisplayedBatch = async (size: number) => {
+            const target = displayedCount.value + size;
+            await ensurePickedCount(target);
+
+            const batch = pickedItems.value.slice(displayedCount.value, target);
+            if (!batch.length) return;
+
+            const curated = await mapPickedToCurated(batch);
+            results.value = [...results.value, ...curated];
+            displayedCount.value += batch.length;
         };
 
         const loadBrowse = async () => {
@@ -269,14 +301,16 @@ export default defineComponent({
             nfDebug('browse:load:start', { catalogue: cat.id, row, language: lang.category });
             isLoading.value = true;
             results.value = [];
+            pickedItems.value = [];
             browsePool.value = [];
             tmdbById.value = new Map();
-            loadedPageCount.value = 0;
-            totalPages.value = 1;
+            displayedCount.value = 0;
+            apiPageCursor.value = 0;
+            apiTotalPages.value = 1;
+            canFetchMoreApi.value = true;
 
             try {
-                await loadPages(0, INITIAL_PAGES);
-                await rebuildResults();
+                await appendDisplayedBatch(BROWSE_PAGE_SIZE);
 
                 const meta = getNetflixRowMeta(row as NetflixBrowseRowId, cat, lang);
                 updateSeo({
@@ -288,7 +322,8 @@ export default defineComponent({
                 nfDebug('browse:load:ok', {
                     catalogue: cat.id,
                     row,
-                    count: results.value.length,
+                    displayed: results.value.length,
+                    picked: pickedItems.value.length,
                     pool: browsePool.value.length
                 });
             } catch (err) {
@@ -302,8 +337,7 @@ export default defineComponent({
             if (!hasMore.value || isLoadingMore.value) return;
             isLoadingMore.value = true;
             try {
-                await loadPages(loadedPageCount.value, 1);
-                await rebuildResults();
+                await appendDisplayedBatch(BROWSE_PAGE_SIZE);
             } catch (err) {
                 nfDebugError('browse:load-more:fail', { err });
             } finally {
@@ -321,6 +355,7 @@ export default defineComponent({
         );
 
         return {
+            BROWSE_PAGE_SIZE,
             isLoading,
             isLoadingMore,
             results,
@@ -328,8 +363,6 @@ export default defineComponent({
             activeLang,
             activeCatalogue,
             hasMore,
-            nextPage,
-            totalPages,
             loadMore
         };
     }

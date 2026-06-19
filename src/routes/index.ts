@@ -7,6 +7,8 @@ import StreamMovie from '../pages/StreamMovie.vue'
 import StreamTVShow from '../pages/StreamTVShow.vue'
 import StreamAnime from '../pages/StreamAnime.vue'
 import { useSeo } from '../composables/useSeo'
+import { getContentMode, isContentModeChosen } from '../composables/useContentMode'
+import { redirectPathForMode } from '../utils/contentModeRoutes'
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -24,6 +26,15 @@ const routes: Array<RouteRecordRaw> = [
         meta: {
             showInHeader: true,
             title: 'Home'
+        }
+    },
+    {
+        path: '/nf/search',
+        name: 'NetflixSearch',
+        component: () => import('../pages/NetflixSearch.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Netflix Search'
         }
     },
     {
@@ -253,6 +264,34 @@ const router = createRouter({
 });
 
 const { updateSeo } = useSeo();
+
+router.beforeEach((to, _from, next) => {
+    if (!isContentModeChosen()) {
+        next();
+        return;
+    }
+
+    const mode = getContentMode().isNetflix() ? 'netflix' : 'global';
+    const redirect = redirectPathForMode(to.path, mode);
+    if (redirect && redirect !== to.path) {
+        next({ path: redirect, query: to.query, hash: to.hash, replace: true });
+        return;
+    }
+
+    next();
+});
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('movora_content_mode_change', () => {
+        if (!isContentModeChosen()) return;
+        const mode = getContentMode().isNetflix() ? 'netflix' : 'global';
+        const current = router.currentRoute.value;
+        const redirect = redirectPathForMode(current.path, mode);
+        if (redirect && redirect !== current.path) {
+            router.replace({ path: redirect, query: current.query, hash: current.hash });
+        }
+    });
+}
 
 router.afterEach((to) => {
     const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode', 'NetflixDetail', 'StreamNetflixMovie', 'StreamNetflixTV'];

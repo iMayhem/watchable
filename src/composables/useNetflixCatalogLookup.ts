@@ -6,7 +6,6 @@ import {
     type MoovieCatalogItem
 } from './useMoovieCatalog';
 import {
-    itemMatchesLanguage,
     NETFLIX_LANGUAGES,
     type NetflixLanguageOption
 } from './useNetflixLanguage';
@@ -53,8 +52,12 @@ export function catalogStreamTarget(item: {
 
 export async function findCatalogueLanguageVariants(
     displayTitle: string,
-    maxPages = 3
+    opts: {
+        maxPages?: number;
+        anchor?: MoovieCatalogItem | { title?: string; media_type?: string };
+    } = {}
 ): Promise<MoovieCatalogItem[]> {
+    const maxPages = opts.maxPages ?? 3;
     const needle = normalizeCatalogTitle(displayTitle);
     if (!needle) return [];
 
@@ -66,6 +69,7 @@ export async function findCatalogueLanguageVariants(
         for (const item of data.results || []) {
             const parsed = parseCatalogTitle(item.title || '');
             if (normalizeCatalogTitle(parsed.displayTitle) !== needle) continue;
+            if (opts.anchor && !isSameCatalogueVariantFamily(item, opts.anchor)) continue;
             if (seen.has(item.id)) continue;
             seen.add(item.id);
             matches.push(item);
@@ -78,19 +82,78 @@ export async function findCatalogueLanguageVariants(
     return matches;
 }
 
+function seasonSignature(title: string): string {
+    const match = title.match(/\bS\d+(?:-S\d+)?\b/i);
+    return match ? match[0].toUpperCase() : '';
+}
+
+/** Groups true dub variants — same clean title, media type, and season marker. */
+export function catalogVariantFamilyKey(item: {
+    title?: string;
+    media_type?: string;
+}): string {
+    const parsed = parseCatalogTitle(item.title || '');
+    const display = normalizeCatalogTitle(parsed.displayTitle || item.title || '');
+    const mediaType = inferCatalogMediaType(item);
+    const season = seasonSignature(item.title || '');
+    return `${mediaType}:${display}:${season}`;
+}
+
+export function isSameCatalogueVariantFamily(
+    a: { title?: string; media_type?: string },
+    b: { title?: string; media_type?: string }
+): boolean {
+    return catalogVariantFamilyKey(a) === catalogVariantFamilyKey(b);
+}
+
+function normalizeLanguageTag(tag: string): string | null {
+    const compact = tag.toLowerCase().replace(/[^a-z]/g, '');
+    if (!compact) return null;
+
+    for (const lang of NETFLIX_LANGUAGES) {
+        for (const label of lang.matchLabels) {
+            const needle = label.toLowerCase().replace(/[^a-z]/g, '');
+            if (compact === needle || compact.startsWith(needle) || needle.startsWith(compact)) {
+                return lang.label;
+            }
+        }
+    }
+
+    return null;
+}
+
+/** Only languages explicitly tagged in the catalogue title, e.g. [Hindi] [Telugu]. */
+export function explicitLanguageLabels(item: MoovieCatalogItem): string[] {
+    const parsed = parseCatalogTitle(item.title || '');
+    const labels: string[] = [];
+
+    for (const tag of parsed.languages) {
+        const label = normalizeLanguageTag(tag);
+        if (label && !labels.includes(label)) {
+            labels.push(label);
+        }
+    }
+
+    return labels;
+}
+
 export function languagesForCatalogueItems(
-    items: MoovieCatalogItem[]
+    items: MoovieCatalogItem[],
+    anchor?: MoovieCatalogItem
 ): NetflixLanguageOption[] {
+    const scoped = anchor
+        ? items.filter((item) => isSameCatalogueVariantFamily(item, anchor))
+        : items;
+
     const out: NetflixLanguageOption[] = [];
     const seen = new Set<string>();
 
-    for (const item of items) {
-        for (const lang of NETFLIX_LANGUAGES) {
-            if (seen.has(lang.category)) continue;
-            if (itemMatchesLanguage(item, lang)) {
-                seen.add(lang.category);
-                out.push(lang);
-            }
+    for (const item of scoped) {
+        for (const label of explicitLanguageLabels(item)) {
+            const lang = NETFLIX_LANGUAGES.find((row) => row.label === label);
+            if (!lang || seen.has(lang.category)) continue;
+            seen.add(lang.category);
+            out.push(lang);
         }
     }
 
@@ -100,16 +163,20 @@ export function languagesForCatalogueItems(
 export async function findCatalogueVariantForLanguage(
     displayTitle: string,
     lang: NetflixLanguageOption,
-    opts: { excludeId?: string; mediaType?: 'movie' | 'tv' } = {}
+    opts: {
+        excludeId?: string;
+        mediaType?: 'movie' | 'tv';
+        anchorTitle?: string;
+    } = {}
 ): Promise<MoovieCatalogItem | null> {
-    const variants = await findCatalogueLanguageVariants(displayTitle);
-    const needle = normalizeCatalogTitle(displayTitle);
+    const anchor = opts.anchorTitle
+        ? { title: opts.anchorTitle, media_type: opts.mediaType }
+        : undefined;
+    const variants = await findCatalogueLanguageVariants(displayTitle, { anchor });
 
     for (const item of variants) {
         if (opts.excludeId && item.id === opts.excludeId) continue;
-        const parsed = parseCatalogTitle(item.title || '');
-        if (normalizeCatalogTitle(parsed.displayTitle) !== needle) continue;
-        if (!itemMatchesLanguage(item, lang)) continue;
+        if (!explicitLanguageLabels(item).includes(lang.label)) continue;
         if (opts.mediaType && inferCatalogMediaType(item) !== opts.mediaType) continue;
         return item;
     }
@@ -118,30 +185,17 @@ export async function findCatalogueVariantForLanguage(
 }
 
 export function languageTagsForItem(item: MoovieCatalogItem): string[] {
-    const parsed = parseCatalogTitle(item.title || '');
-    if (parsed.languages.length) return parsed.languages;
-
-    return languagesForCatalogueItems([item]).map((lang) => lang.label);
+    return explicitLanguageLabels(item);
 }
 
-export function catalogTitleKey(item: {
-    title?: string;
-    media_type?: string;
-}): string {
-    const parsed = parseCatalogTitle(item.title || '');
-    const display = normalizeCatalogTitle(parsed.displayTitle || item.title || '');
-    const mediaType = inferCatalogMediaType(item);
-    return `${mediaType}:${display}`;
-}
-
-/** Group catalogue rows by title and collect every audio language offered. */
+/** Group verified dub variants and collect only explicit [Language] tags. */
 export function buildCatalogLanguageMap(
     pool: MoovieCatalogItem[]
 ): Map<string, string[]> {
     const groups = new Map<string, MoovieCatalogItem[]>();
 
     for (const item of pool) {
-        const key = catalogTitleKey(item);
+        const key = catalogVariantFamilyKey(item);
         const bucket = groups.get(key);
         if (bucket) bucket.push(item);
         else groups.set(key, [item]);
@@ -159,9 +213,17 @@ export function resolveLanguageTagsForItem(
     item: MoovieCatalogItem,
     map?: Map<string, string[]>
 ): string[] {
-    const fromMap = map?.get(catalogTitleKey(item));
+    const fromMap = map?.get(catalogVariantFamilyKey(item));
     if (fromMap?.length) return fromMap;
-    return languageTagsForItem(item);
+    return explicitLanguageLabels(item);
+}
+
+export function resolveVerifiedLanguageTags(
+    item: MoovieCatalogItem,
+    variants: MoovieCatalogItem[]
+): string[] {
+    const labels = languagesForCatalogueItems(variants, item).map((lang) => lang.label);
+    return labels.length ? labels : explicitLanguageLabels(item);
 }
 
 const VARIANT_SNAPSHOT_TTL_MS = 10 * 60 * 1000;

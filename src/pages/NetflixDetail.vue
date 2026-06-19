@@ -54,7 +54,9 @@ import {
 import {
     buildCatalogLanguageMap,
     catalogStreamTarget,
-    resolveLanguageTagsForItem
+    findCatalogueLanguageVariants,
+    resolveLanguageTagsForItem,
+    resolveVerifiedLanguageTags
 } from '../composables/useNetflixCatalogLookup';
 import {
     getNetflixLanguage,
@@ -95,7 +97,8 @@ export default defineComponent({
         );
 
         const displayTitle = computed(() => parsed.value.displayTitle || meta.value?.title || '');
-        const languageTags = computed(() => parsed.value.languages);
+        const verifiedLanguageTags = ref<string[]>([]);
+        const languageTags = computed(() => verifiedLanguageTags.value);
         const languageLine = computed(() => languageTags.value.join(' · '));
         const rating = computed(() => catalogRating(meta.value?.vote_average));
 
@@ -150,6 +153,19 @@ export default defineComponent({
             };
         };
 
+        const loadVerifiedLanguages = async (item: MoovieCatalogItem) => {
+            const parsedTitle = parseCatalogTitle(item.title || '');
+            if (!parsedTitle.displayTitle) {
+                verifiedLanguageTags.value = [];
+                return;
+            }
+
+            const variants = await findCatalogueLanguageVariants(parsedTitle.displayTitle, {
+                anchor: item
+            });
+            verifiedLanguageTags.value = resolveVerifiedLanguageTags(item, variants);
+        };
+
         const applySeo = (id: string) => {
             const seoImage = artwork.value.backdropPath || artwork.value.posterPath;
             updateSeo({
@@ -185,6 +201,7 @@ export default defineComponent({
             if (!background) {
                 loading.value = true;
                 similarItems.value = [];
+                verifiedLanguageTags.value = [];
                 artwork.value = { posterPath: null, backdropPath: null };
             }
 
@@ -209,6 +226,7 @@ export default defineComponent({
                     backdropPath: art.backdropPath
                 };
 
+                await loadVerifiedLanguages(meta.value);
                 applySeo(id);
                 syncRouteMediaType();
 

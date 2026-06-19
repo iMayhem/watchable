@@ -166,11 +166,7 @@ export default defineComponent({
 
         const audioLabels = computed(() => {
             if (props.catalog !== 'netflix') return [];
-            if (props.languageTags.length) return props.languageTags;
-            if (props.originalTitle && props.originalTitle !== props.title) {
-                return props.originalTitle.split(' · ').filter(Boolean);
-            }
-            return [];
+            return props.languageTags;
         });
 
         const genreLabel = computed(() => {

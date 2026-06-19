@@ -42,6 +42,7 @@ import { useMooviePlayer } from '../composables/useMooviePlayer';
 import { useSeo } from '../composables/useSeo';
 import {
     catalogStreamTarget,
+    explicitLanguageLabels,
     findCatalogueLanguageVariants,
     findCatalogueVariantForLanguage,
     languagesForCatalogueItems
@@ -49,6 +50,7 @@ import {
 import {
     getNetflixLanguage,
     getLanguageOption,
+    NETFLIX_LANGUAGES,
     type NetflixLanguageOption
 } from '../composables/useNetflixLanguage';
 import { useToast } from '../composables/useToast';
@@ -164,11 +166,26 @@ export default defineComponent({
             scheduleTeardown();
         };
 
-        const loadAvailableLanguages = async (displayTitle: string) => {
-            const variants = await findCatalogueLanguageVariants(displayTitle);
-            availableLanguages.value = languagesForCatalogueItems(variants);
-            if (!availableLanguages.value.length) {
-                availableLanguages.value = [getLanguageOption(playbackLanguage.value)];
+        const loadAvailableLanguages = async (displayTitle: string, anchorTitle?: string) => {
+            const anchor = anchorTitle
+                ? { title: anchorTitle, media_type: mediaType.value }
+                : undefined;
+            const variants = await findCatalogueLanguageVariants(displayTitle, { anchor });
+            const anchorItem = anchor
+                ? ({ title: anchorTitle, media_type: mediaType.value } as const)
+                : undefined;
+            availableLanguages.value = languagesForCatalogueItems(
+                variants,
+                anchorItem as any
+            );
+            if (!availableLanguages.value.length && anchorTitle) {
+                const labels = explicitLanguageLabels({
+                    title: anchorTitle,
+                    media_type: mediaType.value
+                } as any);
+                availableLanguages.value = labels
+                    .map((label) => NETFLIX_LANGUAGES.find((row) => row.label === label))
+                    .filter((row): row is NetflixLanguageOption => Boolean(row));
             }
         };
 
@@ -219,7 +236,7 @@ export default defineComponent({
             const title = resolved.value?.meta?.title || '';
             const parsed = parseCatalogTitle(title);
             if (parsed.displayTitle) {
-                void loadAvailableLanguages(parsed.displayTitle);
+                void loadAvailableLanguages(parsed.displayTitle, title);
             }
         };
 
@@ -242,7 +259,8 @@ export default defineComponent({
 
             const variant = await findCatalogueVariantForLanguage(displayTitle, lang, {
                 excludeId: String(route.params.id || ''),
-                mediaType: mediaType.value
+                mediaType: mediaType.value,
+                anchorTitle: currentTitle
             });
 
             if (!variant) {
@@ -271,7 +289,10 @@ export default defineComponent({
                 syncBrowserUrl(target.path);
 
                 if (parsed.displayTitle) {
-                    void loadAvailableLanguages(parsed.displayTitle);
+                    void loadAvailableLanguages(
+                        parsed.displayTitle,
+                        resolved.value?.meta?.title || currentTitle
+                    );
                 }
             } catch (err: any) {
                 playbackEntryId.value = String(route.params.id || playbackEntryId.value);

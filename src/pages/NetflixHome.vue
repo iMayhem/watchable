@@ -74,6 +74,7 @@ import CuratedRail, { type CuratedItem } from '../components/rails/CuratedRail.v
 import {
     browseMoovieCatalog,
     catalogRating,
+    inferCatalogMediaType,
     parseCatalogTitle,
     type MoovieCatalogItem
 } from '../composables/useMoovieCatalog';
@@ -108,7 +109,7 @@ async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
         backdropPath: artwork.backdropPath || artwork.fallbackPath,
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
-        type: item.media_type === 'tv' ? 'tv' : 'movie',
+        type: inferCatalogMediaType(item),
         languageTags: parsed.languages
     };
 }

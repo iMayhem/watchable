@@ -20,6 +20,24 @@ export interface MoovieResolve {
     };
     streams: MoovieStream[];
     playerProxyUrl: string;
+    streamWarning?: string | null;
+    resolveType?: string;
+    resolveSeason?: number;
+    resolveEpisode?: number;
+}
+
+function titleSuggestsAnime(title: string) {
+    const t = title.toLowerCase();
+    return /\banime\b|kimetsu|naruto|one piece|demon slayer|gachiakuta|jujutsu|solo leveling|dragon ball|bleach\b|hunter x hunter|attack on titan/.test(
+        t
+    );
+}
+
+export function streamsLookCorrupt(title: string, streams: MoovieStream[]) {
+    if (!streams.length) return false;
+    const allAnimeCdn = streams.every((s) => /\/animekai\//i.test(s.url));
+    if (!allAnimeCdn) return false;
+    return !titleSuggestsAnime(title);
 }
 
 const qualityRank: Record<string, number> = {
@@ -108,6 +126,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const { extensionActive, checkExtension, pingExtension } = useStreamExtension();
     const loading = ref(false);
     const playbackError = ref('');
+    const streamWarning = ref('');
     const resolved = ref<MoovieResolve | null>(null);
     const selectedStreamIndex = ref(0);
     const artReady = ref(false);
@@ -428,6 +447,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         dbg('player:resolve:start', opts);
         loading.value = true;
         playbackError.value = '';
+        streamWarning.value = '';
         destroyArt();
 
         try {
@@ -441,7 +461,14 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                 server: opts.server
             });
             const data = await fetchResolve(url);
+            const title = data.meta?.title || '';
+            if (streamsLookCorrupt(title, data.streams || [])) {
+                throw new Error(
+                    'Stream mismatch — the catalogue returned the wrong video for this title. Try another entry or search again.'
+                );
+            }
             resolved.value = data;
+            streamWarning.value = data.streamWarning || '';
             selectedStreamIndex.value = pickDefaultStreamIndex(data.streams || []);
             dbg('player:resolve:ok', {
                 title: data.meta?.title,
@@ -491,6 +518,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         extensionActive,
         loading,
         playbackError,
+        streamWarning,
         resolved,
         selectedStreamIndex,
         artReady,

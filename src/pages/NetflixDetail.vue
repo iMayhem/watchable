@@ -38,7 +38,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, onActivated, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import TitleMasthead from '../components/detail/TitleMasthead.vue';
@@ -47,6 +47,7 @@ import {
     browseMoovieCatalog,
     fetchMoovieCatalogMeta,
     catalogRating,
+    inferCatalogMediaType,
     parseCatalogTitle,
     type MoovieCatalogItem
 } from '../composables/useMoovieCatalog';
@@ -68,6 +69,7 @@ export default defineComponent({
     components: { SiteHeader, SiteFooter, TitleMasthead, CuratedRail },
     setup() {
         const route = useRoute();
+        const router = useRouter();
         const { updateSeo } = useSeo();
         const loading = ref(true);
         const meta = ref<any>(null);
@@ -77,9 +79,11 @@ export default defineComponent({
             backdropPath: null
         });
 
-        const mediaType = computed(() =>
-            route.params.type === 'tv' ? 'tv' : 'movie'
-        );
+        const mediaType = computed((): 'movie' | 'tv' => {
+            const fromMeta = meta.value?.media_type;
+            if (fromMeta === 'tv' || fromMeta === 'movie') return fromMeta;
+            return route.params.type === 'tv' ? 'tv' : 'movie';
+        });
 
         const parsed = computed(() =>
             parseCatalogTitle(meta.value?.title || '')
@@ -99,6 +103,19 @@ export default defineComponent({
             return `/stream/nf/movie/${id}`;
         });
 
+        const syncRouteMediaType = () => {
+            const id = routeId();
+            if (!meta.value || String(meta.value.id) !== id) return;
+            const canonical = mediaType.value;
+            if (route.params.type === canonical) return;
+            nfDebug('detail:canonical-type', {
+                id,
+                routeType: route.params.type,
+                canonical
+            });
+            router.replace(`/nf/${canonical}/${id}`);
+        };
+
         const routeId = () => String(route.params.id || '');
 
         const isHydratedForRoute = () => {
@@ -117,7 +134,7 @@ export default defineComponent({
                 backdropPath: art.backdropPath || art.fallbackPath,
                 rating: catalogRating(item.vote_average),
                 releaseDate: item.release_date || '',
-                type: item.media_type === 'tv' ? 'tv' : 'movie',
+                type: inferCatalogMediaType(item),
                 languageTags: p.languages
             };
         };
@@ -176,6 +193,7 @@ export default defineComponent({
                 };
 
                 applySeo(id);
+                syncRouteMediaType();
 
                 if (!background || !similarItems.value.length) {
                     void loadSimilar(id);

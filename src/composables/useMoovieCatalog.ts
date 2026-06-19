@@ -60,6 +60,18 @@ export function catalogRating(value: string | number | undefined): number {
     return Number.isFinite(n) ? n : 0;
 }
 
+/** Browse/search media_type is often wrong — prefer title season hints + metadata. */
+export function inferCatalogMediaType(item: {
+    title?: string;
+    media_type?: string;
+}): 'movie' | 'tv' {
+    const parsed = parseCatalogTitle(item.title || '');
+    if (parsed.mediaTypeHint === 'tv') return 'tv';
+    const mt = String(item.media_type || '').toLowerCase();
+    if (mt === 'tv') return 'tv';
+    return 'movie';
+}
+
 const CATALOG_API = '/api/moovie-catalog';
 
 export async function browseMoovieCatalog(

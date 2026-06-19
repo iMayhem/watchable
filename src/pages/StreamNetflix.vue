@@ -7,6 +7,7 @@
             :loading="loading"
             :art-ready="artReady"
             :playback-error="playbackError"
+            :stream-warning="streamWarning"
             :is-playing="isPlaying"
             :current-time="currentTime"
             :duration="duration"
@@ -45,6 +46,7 @@ export default defineComponent({
         const {
             loading,
             playbackError,
+            streamWarning,
             resolved,
             selectedStreamIndex,
             artReady,
@@ -185,6 +187,7 @@ export default defineComponent({
             bindPlayerContainer,
             loading,
             playbackError,
+            streamWarning,
             resolved,
             selectedStreamIndex,
             artReady,

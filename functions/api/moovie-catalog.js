@@ -114,6 +114,8 @@ function rewritePlayerHtml(html, server, { proxyStreams = false } = {}) {
   return rewritten;
 }
 
+const QUALITY_RANK = { '1080P': 0, '720P': 1, '480P': 2, '360P': 3, unknown: 4 };
+
 function extractStreams(html) {
   const streams = [];
   const seen = new Set();
@@ -140,12 +142,45 @@ function extractStreams(html) {
     }
   }
 
-  const qualityRank = { '1080P': 0, '720P': 1, '480P': 2, '360P': 3, unknown: 4 };
   streams.sort(
-    (a, b) => (qualityRank[a.quality] ?? 5) - (qualityRank[b.quality] ?? 5)
+    (a, b) => (QUALITY_RANK[a.quality] ?? 5) - (QUALITY_RANK[b.quality] ?? 5)
   );
 
   return streams;
+}
+
+function canonicalMediaType(meta, fallbackType) {
+  const mt = String(meta?.media_type || '').toLowerCase();
+  if (mt === 'tv' || mt === 'movie') return mt;
+  return fallbackType;
+}
+
+function titleSuggestsAnime(title) {
+  const t = String(title || '').toLowerCase();
+  return /\banime\b|kimetsu|naruto|one piece|demon slayer|gachiakuta|jujutsu|solo leveling|dragon ball|bleach\b|hunter x hunter|attack on titan/.test(
+    t
+  );
+}
+
+function streamLooksAnimeOnly(url) {
+  return /\/animekai\//i.test(url);
+}
+
+function streamsLookCorrupt(meta, streams) {
+  if (!streams.length) return false;
+  const allAnimeCdn = streams.every((s) => streamLooksAnimeOnly(s.url));
+  if (!allAnimeCdn) return false;
+  return !titleSuggestsAnime(meta.title);
+}
+
+function trailerStream(meta) {
+  const trailer = meta?.trailer;
+  if (!trailer || !/\.mp4/i.test(trailer)) return null;
+  return {
+    quality: '720P',
+    url: trailer,
+    proxiedUrl: buildProxyUrl(trailer, CDN_REFERER, CDN_ORIGIN),
+  };
 }
 
 async function fetchMetadata(type, id) {
@@ -195,29 +230,115 @@ async function fetchWatchboxHtml(watchboxUrl) {
   return html;
 }
 
-async function resolveCatalogStream(type, id, season, episode, server) {
-  const meta = await fetchMetadata(type, id);
+function buildResolveAttempts(requestType, season, episode, canonicalType) {
+  const attempts = [];
+  const push = (type, se, ep) => {
+    const key = `${type}:${se}:${ep}`;
+    if (attempts.some((a) => a.key === key)) return;
+    attempts.push({ key, type, season: se, episode: ep });
+  };
+
+  push(requestType, season, episode);
+  if (canonicalType !== requestType) {
+    push(canonicalType, season, episode);
+  }
+  if (canonicalType === 'tv' && season === 0 && episode === 0) {
+    push('tv', 1, 1);
+  }
+
+  return attempts;
+}
+
+async function tryResolveAttempt(meta, attempt, server) {
   const ts = Math.floor(Date.now() / 1000);
   const sig = await signTimestamp(ts);
-  const watchboxUrl = buildWatchboxUrl(meta, ts, sig, server, season, episode);
+  const watchboxUrl = buildWatchboxUrl(
+    meta,
+    ts,
+    sig,
+    server,
+    attempt.season,
+    attempt.episode
+  );
   const html = await fetchWatchboxHtml(watchboxUrl);
   const streams = extractStreams(html);
+  if (!streams.length || streamsLookCorrupt(meta, streams)) {
+    return null;
+  }
+
+  return {
+    streams,
+    auth: { timestamp: ts, signature: sig },
+    watchboxUrl,
+    resolveType: attempt.type,
+    season: attempt.season,
+    episode: attempt.episode,
+    server,
+  };
+}
+
+async function resolveCatalogStream(type, id, season, episode, server) {
+  const meta = await fetchMetadata(type, id);
+  const canonicalType = canonicalMediaType(meta, type);
+  const attempts = buildResolveAttempts(type, season, episode, canonicalType);
+  const servers = [...new Set([server, 1, 2, 3, 5])];
+
+  let resolved = null;
+  for (const attempt of attempts) {
+    for (const srv of servers) {
+      try {
+        const hit = await tryResolveAttempt(meta, attempt, srv);
+        if (hit) {
+          resolved = hit;
+          break;
+        }
+      } catch {
+        /* try next server / attempt */
+      }
+    }
+    if (resolved) break;
+  }
+
+  let streamWarning = '';
+  let streams = resolved?.streams || [];
+
+  if (!streams.length) {
+    const preview = trailerStream(meta);
+    if (preview) {
+      streams = [preview];
+      streamWarning =
+        'Full stream unavailable for this title — playing the catalogue preview instead.';
+    } else {
+      throw new Error(
+        'Stream mismatch — the catalogue returned the wrong video for this title. Try another entry or search again.'
+      );
+    }
+  }
+
+  const resolveType = resolved?.resolveType || canonicalType;
+  const resolveSeason = resolved?.season ?? season;
+  const resolveEpisode = resolved?.episode ?? episode;
+  const resolveServer = resolved?.server ?? server;
 
   return {
     meta: {
       id: meta.id,
       title: (meta.title || '').trim(),
       subjectid: meta.subjectid,
-      media_type: meta.media_type || type,
+      media_type: canonicalType,
       season: meta.season || null,
       trailer: meta.trailer || null,
       backdrop_path: meta.backdrop_path || null,
     },
-    auth: { timestamp: ts, signature: sig },
-    watchboxUrl,
-    playerProxyUrl: `/api/moovie-catalog?action=player&type=${type}&id=${id}&se=${season}&ep=${episode}&server=${server}`,
+    auth: resolved?.auth || null,
+    watchboxUrl: resolved?.watchboxUrl || null,
+    playerProxyUrl: `/api/moovie-catalog?action=player&type=${resolveType}&id=${id}&se=${resolveSeason}&ep=${resolveEpisode}&server=${resolveServer}`,
     streams,
-    defaultStream: streams[streams.length - 1] || streams[0] || null,
+    defaultStream: streams[0] || null,
+    streamWarning: streamWarning || null,
+    resolveType,
+    resolveSeason,
+    resolveEpisode,
   };
 }
 

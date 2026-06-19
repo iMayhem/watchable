@@ -124,6 +124,7 @@
             </div>
         </div>
 
+        <p v-if="streamWarning && !playbackError" class="nf-watch__warning" role="status">{{ streamWarning }}</p>
         <p v-if="playbackError" class="nf-watch__error" role="alert">{{ playbackError }}</p>
     </div>
 </template>
@@ -152,6 +153,7 @@ export default defineComponent({
         loading: { type: Boolean, default: false },
         artReady: { type: Boolean, default: false },
         playbackError: { type: String, default: '' },
+        streamWarning: { type: String, default: '' },
         isPlaying: { type: Boolean, default: false },
         currentTime: { type: Number, default: 0 },
         duration: { type: Number, default: 0 },
@@ -618,6 +620,7 @@ export default defineComponent({
         }
     }
 
+    &__warning,
     &__error {
         position: absolute;
         left: 50%;
@@ -626,9 +629,21 @@ export default defineComponent({
         transform: translateX(-50%);
         margin: 0;
         padding: 0.65rem 1rem;
-        background: rgba(180, 20, 20, 0.9);
         border-radius: 4px;
         font-size: 0.85rem;
+        max-width: min(92vw, 520px);
+        text-align: center;
+        line-height: 1.4;
+    }
+
+    &__warning {
+        background: rgba(20, 20, 20, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #f5f5f5;
+    }
+
+    &__error {
+        background: rgba(180, 20, 20, 0.9);
         white-space: nowrap;
     }
 

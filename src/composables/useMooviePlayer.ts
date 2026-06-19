@@ -81,6 +81,28 @@ async function parseApiResponse(resp: Response) {
     return JSON.parse(text);
 }
 
+const RESOLVE_CACHE_TTL_MS = 5 * 60 * 1000;
+const resolveCache = new Map<string, { data: MoovieResolve; at: number }>();
+const resolveInFlight = new Map<string, Promise<MoovieResolve>>();
+
+export function buildMoovieResolveUrl(opts: {
+    type: 'movie' | 'tv';
+    id: string;
+    season?: number;
+    episode?: number;
+    server?: number;
+}) {
+    const params = new URLSearchParams({
+        action: 'resolve',
+        type: opts.type,
+        id: opts.id,
+        se: String(opts.season ?? 0),
+        ep: String(opts.episode ?? 0),
+        server: String(opts.server ?? 1)
+    });
+    return `/api/moovie-catalog?${params.toString()}`;
+}
+
 const loadArtplayerAssets = (() => {
     let promise: Promise<void> | null = null;
     return () => {
@@ -103,6 +125,65 @@ const loadArtplayerAssets = (() => {
         return promise;
     };
 })();
+
+/** Warm ArtPlayer CDN assets before the user hits Play. */
+export function warmMooviePlayerAssets() {
+    return loadArtplayerAssets();
+}
+
+async function fetchMoovieResolve(url: string): Promise<MoovieResolve> {
+    const cached = resolveCache.get(url);
+    if (cached && Date.now() - cached.at < RESOLVE_CACHE_TTL_MS) {
+        return cached.data;
+    }
+
+    const pending = resolveInFlight.get(url);
+    if (pending) return pending;
+
+    const task = (async () => {
+        const resp = await fetch(url);
+        const data = await parseApiResponse(resp);
+        if (!resp.ok) throw new Error(data.error || `Resolve failed (${resp.status})`);
+        const resolved = data as MoovieResolve;
+        resolveCache.set(url, { data: resolved, at: Date.now() });
+        return resolved;
+    })();
+
+    resolveInFlight.set(url, task);
+    try {
+        return await task;
+    } finally {
+        resolveInFlight.delete(url);
+    }
+}
+
+/** Prefetch stream resolve in the background (hover / detail page). */
+export function prefetchMoovieResolve(opts: {
+    type: 'movie' | 'tv';
+    id: string;
+    season?: number;
+    episode?: number;
+    server?: number;
+}) {
+    const id = String(opts.id || '').trim();
+    if (!id) return;
+
+    const url = buildMoovieResolveUrl({
+        type: opts.type,
+        id,
+        season: opts.season ?? (opts.type === 'tv' ? 1 : 0),
+        episode: opts.episode ?? (opts.type === 'tv' ? 1 : 0),
+        server: opts.server
+    });
+
+    const cached = resolveCache.get(url);
+    if (cached && Date.now() - cached.at < RESOLVE_CACHE_TTL_MS) return;
+    if (resolveInFlight.has(url)) return;
+
+    void fetchMoovieResolve(url).catch(() => {
+        /* prefetch is best-effort */
+    });
+}
 
 export interface PlaybackResumeOptions {
     resumeAt?: number;
@@ -305,30 +386,8 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         bindVideoClickToggle();
     };
 
-    const buildResolveUrl = (opts: {
-        type: 'movie' | 'tv';
-        id: string;
-        season: number;
-        episode: number;
-        server?: number;
-    }) => {
-        const params = new URLSearchParams({
-            action: 'resolve',
-            type: opts.type,
-            id: opts.id,
-            se: String(opts.season),
-            ep: String(opts.episode),
-            server: String(opts.server ?? 1)
-        });
-        return `/api/moovie-catalog?${params.toString()}`;
-    };
-
-    const fetchResolve = async (url: string) => {
-        const resp = await fetch(url);
-        const data = await parseApiResponse(resp);
-        if (!resp.ok) throw new Error(data.error || `Resolve failed (${resp.status})`);
-        return data as MoovieResolve;
-    };
+    const buildResolveUrl = buildMoovieResolveUrl;
+    const fetchResolve = fetchMoovieResolve;
 
     const pickDefaultStreamIndex = (streams: MoovieStream[]) => {
         if (!streams.length) return 0;
@@ -366,7 +425,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         dbg('player:container-ready', { waitedMs: Date.now() - started });
     };
 
-    const waitForExtension = async (timeoutMs = 1000) => {
+    const waitForExtension = async (timeoutMs = 200) => {
         dbg('player:wait-extension', { timeoutMs });
         pingExtension();
         checkExtension();
@@ -585,7 +644,6 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
         try {
             await waitForContainer();
-            await waitForExtension();
             const url = buildResolveUrl({
                 type: opts.type,
                 id: opts.id,
@@ -593,32 +651,45 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                 episode: opts.episode ?? 0,
                 server: opts.server
             });
-            let data = await fetchResolve(url);
-            const title = data.meta?.title || '';
 
-            if (data.streamWarning) {
-                const altType = opts.type === 'tv' ? 'movie' : 'tv';
-                const altUrl = buildResolveUrl({
-                    type: altType,
-                    id: opts.id,
-                    season: altType === 'movie' ? 0 : opts.season ?? 0,
-                    episode: altType === 'movie' ? 0 : opts.episode ?? 0,
-                    server: opts.server
-                });
-                try {
-                    const altData = await fetchResolve(altUrl);
-                    if (!altData.streamWarning && (altData.streams?.length || 0) > 0) {
-                        dbg('player:resolve:fallback-type', {
-                            from: opts.type,
-                            to: altType,
-                            title: altData.meta?.title
-                        });
-                        data = altData;
+            const resolveTask = (async () => {
+                let data = await fetchResolve(url);
+
+                if (data.streamWarning) {
+                    const altType = opts.type === 'tv' ? 'movie' : 'tv';
+                    const altUrl = buildResolveUrl({
+                        type: altType,
+                        id: opts.id,
+                        season: altType === 'movie' ? 0 : opts.season ?? 0,
+                        episode: altType === 'movie' ? 0 : opts.episode ?? 0,
+                        server: opts.server
+                    });
+                    try {
+                        const altData = await fetchResolve(altUrl);
+                        if (!altData.streamWarning && (altData.streams?.length || 0) > 0) {
+                            dbg('player:resolve:fallback-type', {
+                                from: opts.type,
+                                to: altType,
+                                title: altData.meta?.title
+                            });
+                            data = altData;
+                        }
+                    } catch {
+                        /* keep original resolve */
                     }
-                } catch {
-                    /* keep original resolve */
                 }
-            }
+
+                return data;
+            })();
+
+            await Promise.all([
+                resolveTask,
+                waitForExtension(),
+                loadArtplayerAssets()
+            ]);
+
+            let data = await resolveTask;
+            const title = data.meta?.title || '';
 
             if (streamsLookCorrupt(title, data.streams || [])) {
                 throw new Error(

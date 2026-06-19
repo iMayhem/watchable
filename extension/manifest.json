@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Moovie Stream Boost",
-  "version": "1.2.1",
-  "description": "Moovie stream headers for direct CDN playback on moovie.fun and player mirrors.",
+  "name": "Moovie",
+  "version": "1.5.2",
+  "description": "Your little popcorn sidekick for moovie.fun — smooth playback, zero fuss, maximum vibes.",
   "permissions": ["declarativeNetRequest", "declarativeNetRequestWithHostAccess", "storage"],
   "host_permissions": [
     "*://*.hakunaymatata.com/*",
@@ -13,30 +13,55 @@
     "*://play.watch21.shop/*",
     "*://play.watch22.shop/*",
     "https://moovie.fun/*",
-    "http://localhost:5173/*",
-    "http://127.0.0.1:5173/*"
+    "https://*.moovie.fun/*",
+    "http://moovie.fun/*",
+    "http://*.moovie.fun/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": [
         "https://moovie.fun/*",
         "https://www.moovie.fun/*",
-        "http://localhost:5173/*",
-        "http://127.0.0.1:5173/*",
+        "https://*.moovie.fun/*",
+        "http://moovie.fun/*",
+        "http://www.moovie.fun/*",
+        "http://*.moovie.fun/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://localhost/*",
+        "https://127.0.0.1/*",
         "https://*.spedostream2.shop/*",
         "https://play.watch21.shop/*",
         "https://play.watch22.shop/*"
       ],
-      "js": ["content.js"],
+      "js": ["ext-api.js", "content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://moovie.fun/*",
+        "https://www.moovie.fun/*",
+        "https://*.moovie.fun/*",
+        "http://moovie.fun/*",
+        "http://www.moovie.fun/*",
+        "http://*.moovie.fun/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://localhost/*",
+        "https://127.0.0.1/*"
+      ],
+      "js": ["page-bridge.js"],
+      "world": "MAIN",
       "run_at": "document_start"
     }
   ],
   "action": {
-    "default_title": "Moovie Stream Boost",
+    "default_title": "Moovie — you're gonna enjoy this",
     "default_popup": "popup.html"
   },
   "declarative_net_request": {
@@ -52,5 +77,15 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "moovie@moovie.fun",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "optional": []
+      }
+    }
   }
 }

@@ -185,6 +185,10 @@ import TrailerIframe from '../hero/TrailerIframe.vue';
 import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { usePrefetch } from '../../composables/usePrefetch';
+import {
+    prefetchMoovieResolve,
+    warmMooviePlayerAssets
+} from '../../composables/useMooviePlayer';
 import { useDetailBackNavigation } from '../../composables/useDetailBackNavigation';
 import { useWebImage } from '../../utils/useWebImage';
 
@@ -217,30 +221,49 @@ export default defineComponent({
         const ambientPath = computed(() => props.backdropPath || props.posterPath);
         useAmbientColor(ambientPath, rootRef);
 
-        // Priority 3: Prefetch stream data on hover
         const { prefetchStream } = usePrefetch();
+
+        const isNetflixStreamPlay = computed(() => {
+            const route = props.playRoute;
+            const path =
+                typeof route === 'string'
+                    ? route
+                    : route && typeof route === 'object' && 'path' in route
+                      ? String((route as { path?: string }).path || '')
+                      : '';
+            return path.includes('/stream/nf/');
+        });
+
+        const warmPlayback = () => {
+            void warmMooviePlayerAssets();
+            const id = String(props.id || '').trim();
+            if (!id) return;
+
+            if (isNetflixStreamPlay.value && (props.type === 'movie' || props.type === 'tv')) {
+                prefetchMoovieResolve({
+                    type: props.type,
+                    id,
+                    season: props.type === 'tv' ? 1 : 0,
+                    episode: props.type === 'tv' ? 1 : 0
+                });
+                return;
+            }
+
+            if (props.type === 'movie' || props.type === 'tv' || props.type === 'anime') {
+                prefetchStream(
+                    props.id,
+                    props.type,
+                    props.title,
+                    year.value || undefined
+                );
+            }
+        };
+
         const handlePlayHover = () => {
-            // Debounce prefetch to avoid excessive API calls
             if ('requestIdleCallback' in window) {
-                requestIdleCallback(() => {
-                    console.log('[TitleMasthead] Prefetching stream on hover');
-                    prefetchStream(
-                        props.id,
-                        props.type,
-                        props.title,
-                        year.value || undefined
-                    );
-                }, { timeout: 2000 });
+                requestIdleCallback(warmPlayback, { timeout: 400 });
             } else {
-                setTimeout(() => {
-                    console.log('[TitleMasthead] Prefetching stream on hover');
-                    prefetchStream(
-                        props.id,
-                        props.type,
-                        props.title,
-                        year.value || undefined
-                    );
-                }, 100);
+                setTimeout(warmPlayback, 0);
             }
         };
 

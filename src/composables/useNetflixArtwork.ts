@@ -14,13 +14,7 @@ import {
     resolveArtworkForCatalogItem
 } from './useTmdbArtwork';
 
-function catalogFallbackArtwork(item: MoovieCatalogItem) {
-    const fallback = item.backdrop_path || null;
-    return {
-        posterPath: fallback,
-        backdropPath: fallback
-    };
-}
+const EMPTY_ARTWORK = { posterPath: null, backdropPath: null } as const;
 
 function curatedMediaType(
     item: MoovieCatalogItem,
@@ -30,7 +24,7 @@ function curatedMediaType(
     return inferCatalogMediaType(item);
 }
 
-/** Instant posters from catalogue CDN — no TMDB round-trip. */
+/** Instant rail cards — TMDB cache only; artwork fills in after async upgrade. */
 export function toCuratedItemFast(
     item: MoovieCatalogItem,
     genreIds: number[] = [],
@@ -40,7 +34,7 @@ export function toCuratedItemFast(
 ): CuratedItem {
     const parsed = parseCatalogTitle(item.title || '');
     const cached = getCachedArtworkForCatalogItem(item);
-    const artwork = cached ? pickCatalogArtwork(cached) : catalogFallbackArtwork(item);
+    const artwork = cached ? pickCatalogArtwork(cached) : EMPTY_ARTWORK;
 
     const anilistId = peekAnilistIdForMoovieCatalogId(String(item.id));
 
@@ -69,7 +63,13 @@ export async function toCuratedItemUpgraded(
     enrichment?: CatalogEnrichmentRow
 ): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
-    const resolved = await resolveArtworkForCatalogItem(item);
+    const resolved = await resolveArtworkForCatalogItem({
+        id: String(item.id),
+        title: item.title,
+        release_date: item.release_date,
+        media_type: item.media_type,
+        tmdbId: enrichment?.tmdb_id
+    });
     const artwork = pickCatalogArtwork(resolved);
 
     const anilistId = peekAnilistIdForMoovieCatalogId(String(item.id));

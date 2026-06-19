@@ -15,14 +15,11 @@ export interface CatalogArtworkPaths {
     backdropPath: string | null;
 }
 
-/** TMDB-first artwork — catalogue CDN only when TMDB has no poster or backdrop. */
-export function pickCatalogArtwork(
-    art: TmdbArtwork & { fallbackPath?: string | null }
-): CatalogArtworkPaths {
-    const fallback = art.fallbackPath || null;
+/** TMDB-only artwork for catalogue items (anime uses AniList separately). */
+export function pickCatalogArtwork(art: TmdbArtwork): CatalogArtworkPaths {
     return {
-        posterPath: art.posterPath || art.backdropPath || fallback,
-        backdropPath: art.backdropPath || art.posterPath || fallback
+        posterPath: art.posterPath || art.backdropPath || null,
+        backdropPath: art.backdropPath || art.posterPath || null
     };
 }
 
@@ -161,11 +158,41 @@ async function searchTmdbByType(
     return pickBestMatch(results, cleanTitle, year);
 }
 
+async function fetchTmdbArtworkById(
+    type: 'movie' | 'tv',
+    tmdbId: number,
+    cacheKey: string
+): Promise<TmdbArtwork | null> {
+    const cached = artworkCache.get(cacheKey);
+    if (cached?.posterPath || cached?.backdropPath) return cached;
+
+    try {
+        const detail = await useAxios().get(`${type}/${tmdbId}`);
+        const d = detail.data || {};
+        const artwork: TmdbArtwork = {
+            posterPath: d.poster_path || null,
+            backdropPath: d.backdrop_path || null,
+            tmdbId,
+            genreIds: (d.genres || []).map((g: { id: number }) => g.id),
+            overview: d.overview || ''
+        };
+        if (artwork.posterPath || artwork.backdropPath) {
+            artworkCache.set(cacheKey, artwork);
+            return artwork;
+        }
+    } catch (err) {
+        nfDebugError('tmdb:artwork:id:fail', { tmdbId, type, err });
+    }
+
+    return null;
+}
+
 export async function resolveTmdbArtwork(opts: {
     title: string;
     year?: string | number | null;
     type: 'movie' | 'tv';
     cacheKey?: string;
+    tmdbId?: number;
 }): Promise<TmdbArtwork> {
     const cleanTitle = opts.title.trim();
     if (!cleanTitle) {
@@ -181,6 +208,11 @@ export async function resolveTmdbArtwork(opts: {
     const year = parseYear(opts.year);
 
     try {
+        if (opts.tmdbId) {
+            const byId = await fetchTmdbArtworkById(opts.type, opts.tmdbId, cacheId);
+            if (byId) return byId;
+        }
+
         let match = await searchTmdbByType(opts.type, cleanTitle, year);
 
         if (!hasUsableArtwork(match)) {
@@ -250,14 +282,8 @@ export function getCachedArtworkForCatalogItem(item: {
     id: string;
     title: string;
     media_type: 'movie' | 'tv';
-    backdrop_path?: string | null;
-}): (TmdbArtwork & { fallbackPath: string | null }) | null {
-    const cached = artworkCache.get(catalogArtworkCacheKey(item));
-    if (!cached) return null;
-    return {
-        ...cached,
-        fallbackPath: item.backdrop_path || null
-    };
+}): TmdbArtwork | null {
+    return artworkCache.get(catalogArtworkCacheKey(item)) || null;
 }
 
 export async function resolveArtworkForCatalogItem(item: {
@@ -265,21 +291,17 @@ export async function resolveArtworkForCatalogItem(item: {
     title: string;
     release_date?: string;
     media_type: 'movie' | 'tv';
-    backdrop_path?: string | null;
-}): Promise<TmdbArtwork & { fallbackPath: string | null }> {
+    tmdbId?: number;
+}): Promise<TmdbArtwork> {
     const parsed = parseCatalogTitle(item.title || '');
     const displayTitle = parsed.displayTitle || item.title;
     const mediaType = inferCatalogMediaType(item);
-    const tmdb = await resolveTmdbArtwork({
+    return resolveTmdbArtwork({
         title: displayTitle,
         type: mediaType,
-        cacheKey: catalogArtworkCacheKey(item)
+        cacheKey: catalogArtworkCacheKey(item),
+        tmdbId: item.tmdbId
     });
-
-    return {
-        ...tmdb,
-        fallbackPath: item.backdrop_path || null
-    };
 }
 
 export interface CatalogTmdbMeta {
@@ -294,7 +316,7 @@ export async function enrichCatalogPoolWithTmdb(
         title: string;
         release_date?: string;
         media_type: 'movie' | 'tv';
-        backdrop_path?: string | null;
+        tmdbId?: number;
     }>,
     concurrency = 8
 ): Promise<Map<string, CatalogTmdbMeta>> {

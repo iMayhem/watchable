@@ -99,6 +99,11 @@ import {
     fetchAnimeCatalogCacheByMoovieIds,
     netflixAnimeDetailPath
 } from '../composables/useAnimeCatalogCache';
+import { fetchEnrichmentByCatalogIds } from '../composables/useCatalogEnrichmentCache';
+import {
+    prefetchMoovieResolve,
+    warmMooviePlayerAssets
+} from '../composables/useMooviePlayer';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
 export default defineComponent({
@@ -192,7 +197,15 @@ export default defineComponent({
             audioCache?: Map<string, string[]>
         ): Promise<CuratedItem> => {
             const p = parseCatalogTitle(item.title || '');
-            const art = pickCatalogArtwork(await resolveArtworkForCatalogItem(item));
+            const art = pickCatalogArtwork(
+                await resolveArtworkForCatalogItem({
+                    id: String(item.id),
+                    title: item.title,
+                    release_date: item.release_date,
+                    media_type: item.media_type,
+                    tmdbId: undefined
+                })
+            );
             return {
                 id: item.id,
                 title: p.displayTitle || item.title,
@@ -399,13 +412,15 @@ export default defineComponent({
                     }
                 }
 
+                const enrichmentMap = await fetchEnrichmentByCatalogIds([meta.value.id]);
+                const enrichment = enrichmentMap.get(String(meta.value.id));
                 const art = pickCatalogArtwork(
                     await resolveArtworkForCatalogItem({
                         id: String(meta.value.id),
                         title: meta.value?.title || '',
                         release_date: meta.value?.release_date,
                         media_type: mediaType.value,
-                        backdrop_path: meta.value?.backdrop_path || null
+                        tmdbId: enrichment?.tmdb_id
                     })
                 );
                 artwork.value = {
@@ -415,6 +430,13 @@ export default defineComponent({
 
                 await loadVerifiedLanguages(meta.value);
                 await loadEpisodeCatalog(meta.value);
+                void warmMooviePlayerAssets();
+                prefetchMoovieResolve({
+                    type: supportsEpisodes.value ? 'tv' : mediaType.value,
+                    id: String(meta.value.id),
+                    season: supportsEpisodes.value ? 1 : 0,
+                    episode: supportsEpisodes.value ? 1 : 0
+                });
                 applySeo(id);
                 syncRouteMediaType();
 

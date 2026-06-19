@@ -124,6 +124,10 @@ import {
     netflixCatalogDetailPath,
     sortLanguageTagsForDisplay
 } from '../../composables/useNetflixCatalogLookup';
+import {
+    prefetchMoovieResolve,
+    warmMooviePlayerAssets
+} from '../../composables/useMooviePlayer';
 
 
 type MediaType = 'movie' | 'tv' | 'anime';
@@ -261,9 +265,32 @@ export default defineComponent({
             });
         };
 
+        const warmNetflixPlayback = () => {
+            if (props.catalog !== 'netflix' || props.anilistId) return;
+            const catalogId = props.moovieCatalogId || String(props.id);
+            if (
+                peekAnilistIdForMoovieCatalogId(catalogId) ||
+                isKnownAnilistCatalogId(catalogId)
+            ) {
+                return;
+            }
+            const mediaType =
+                props.type === 'tv' || (props.moovieCatalogId && props.catalogTitle)
+                    ? 'tv'
+                    : 'movie';
+            void warmMooviePlayerAssets();
+            prefetchMoovieResolve({
+                type: mediaType,
+                id: catalogId,
+                season: mediaType === 'tv' ? 1 : 0,
+                episode: mediaType === 'tv' ? 1 : 0
+            });
+        };
+
         const goToStream = () => {
             const query = props.query && Object.keys(props.query).length ? props.query : undefined;
             if (props.catalog === 'netflix') {
+                warmNetflixPlayback();
                 if (props.anilistId) {
                     router.push({
                         path: `/nf/anime/${props.anilistId}`,
@@ -334,6 +361,7 @@ export default defineComponent({
             if (enterTimer !== null) return;
             enterTimer = window.setTimeout(() => {
                 peeking.value = true;
+                warmNetflixPlayback();
                 enterTimer = null;
             }, 240);
         };

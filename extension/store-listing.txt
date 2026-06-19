@@ -1,0 +1,70 @@
+MOOVIE — BROWSER EXTENSION LISTING
+==================================
+
+SUPPORTED BROWSERS
+• Google Chrome (Chrome Web Store or load unpacked)
+• Microsoft Edge (Edge Add-ons or Chrome Web Store)
+• Opera (Chrome Web Store or load unpacked)
+• Brave, Vivaldi, and other Chromium MV3 browsers (load unpacked)
+• Mozilla Firefox 109+ (about:debugging → Load Temporary Add-on, or Firefox Add-ons)
+
+STORE PACKAGES (upload these ZIPs — manifest.json is at ZIP root)
+• Chrome:  watchable/extension/dist/moovie-chrome.zip
+• Edge:    watchable/extension/dist/moovie-edge.zip
+• Opera:   watchable/extension/dist/moovie-opera.zip
+• Firefox: watchable/extension/dist/moovie-firefox.zip or moovie.xpi
+• Brave / Vivaldi sideload: moovie-brave.zip or moovie-vivaldi.zip
+• Chrome CRX (packed): watchable/extension/dist/moovie.crx
+• Firefox XPI (packed): watchable/extension/dist/moovie.xpi
+  Keep dist/moovie.pem safe — same key = same extension ID on rebuild.
+
+Rebuild all packages:
+  cd watchable/extension && ./package.sh
+
+INSTALL (UNPACKED / DEVELOPER)
+1. Open browser extension page (chrome://extensions, edge://extensions, about:debugging#/runtime/this-firefox, or opera://extensions)
+2. Enable Developer mode (Chromium) or use "Load Temporary Add-on" (Firefox)
+3. Select watchable/extension/manifest.json
+4. Reload after code changes
+
+---
+
+CHROME WEB STORE LISTING
+========================
+
+SHORT DESCRIPTION (132 chars max)
+Your popcorn sidekick for moovie.fun. Smooth playback, zero fuss — you're gonna enjoy something good.
+
+DETAILED DESCRIPTION
+Meet Moovie — the little extension that keeps movie night feeling effortless.
+
+Install it once, open moovie.fun, and you're in. No weird setup rituals. No "did I forget a step?" anxiety. Just hit play and let the good stuff roll.
+
+What you get:
+• Buttery-smooth streaming on moovie.fun
+• Works quietly in the background — you won't even notice it's there
+• That "oh yeah, this is the move" feeling every time you sit down to watch
+
+Popcorn bucket on. Vibes up. You're gonna enjoy something.
+
+Perfect for:
+→ Movie marathons at 2am
+→ "Just one more episode" energy
+→ Anyone who wants moovie.fun to just work
+
+HOW TO USE
+1. Install Moovie
+2. Visit https://moovie.fun
+3. Pick something. Press play. Enjoy.
+
+CATEGORY
+Entertainment
+
+PRIVACY PRACTICES (for developer dashboard)
+• Does not collect personal data
+• Does not sell user data
+• Only activates on moovie.fun and related playback pages
+• Used solely to improve streaming compatibility on Moovie
+
+SINGLE PURPOSE DESCRIPTION (if required)
+Enhances video playback experience on moovie.fun.

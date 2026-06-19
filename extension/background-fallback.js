@@ -1,3 +1,7 @@
+/**
+ * Firefox background fallback (paired with background.js service worker).
+ * Chrome/Edge/Opera ignore this and use the service worker only.
+ */
 importScripts('ext-api.js');
 
 const RULESET_ID = 'cdn_headers';

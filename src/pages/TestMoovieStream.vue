@@ -260,14 +260,18 @@ export default defineComponent({
             return `${window.location.origin}${path}`;
         };
 
-        const checkExtension = () => {
-            const ext = (window as any).__MOOVIE_STREAM_EXT__;
-            const active = Boolean(ext?.active);
+        const applyExtensionDetail = (detail: { active?: boolean; version?: string; mode?: string } | undefined, source: string) => {
+            const active = Boolean(detail?.active);
             if (active !== extensionActive.value) {
                 extensionActive.value = active;
-                debug('extension:status', { active, version: ext?.version, mode: ext?.mode });
+                debug('extension:status', { active, source, version: detail?.version, mode: detail?.mode });
             }
             return active;
+        };
+
+        const checkExtension = () => {
+            window.dispatchEvent(new CustomEvent('moovie-ext-ping'));
+            return extensionActive.value;
         };
 
         const probeDirectStream = async (rawUrl: string) => {
@@ -794,19 +798,20 @@ export default defineComponent({
             debug('player:iframe-url', { url });
         });
 
-        const onExtensionReady = () => checkExtension();
+        const onExtensionReady = (event: Event) => {
+            const detail = (event as CustomEvent).detail;
+            applyExtensionDetail(detail, 'ready-event');
+        };
 
-        const onExtensionPong = (event: MessageEvent) => {
-            if (event.source !== window || event.data?.type !== 'MOOVIE_EXT_PONG') return;
-            extensionActive.value = true;
-            debug('extension:pong', event.data.detail);
+        const onExtensionPong = (event: Event) => {
+            applyExtensionDetail((event as CustomEvent).detail, 'pong-event');
         };
 
         onMounted(() => {
             checkExtension();
             window.addEventListener('moovie-stream-ext-ready', onExtensionReady);
-            window.addEventListener('message', onExtensionPong);
-            window.postMessage({ type: 'MOOVIE_EXT_PING' }, '*');
+            window.addEventListener('moovie-stream-ext-pong', onExtensionPong);
+            window.dispatchEvent(new CustomEvent('moovie-ext-ping'));
 
             debug('page:mounted', {
                 preset: {
@@ -836,7 +841,7 @@ export default defineComponent({
 
         onUnmounted(() => {
             window.removeEventListener('moovie-stream-ext-ready', onExtensionReady);
-            window.removeEventListener('message', onExtensionPong);
+            window.removeEventListener('moovie-stream-ext-pong', onExtensionPong);
             destroyArt();
         });
 

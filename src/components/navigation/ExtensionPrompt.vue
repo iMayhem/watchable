@@ -30,7 +30,8 @@
                 <li>Open <code>chrome://extensions</code> in Chrome or Edge</li>
                 <li>Enable <strong>Developer mode</strong></li>
                 <li>Click <strong>Load unpacked</strong> and select the <code>extension/</code> folder from the moovie repo</li>
-                <li>Reload this page — the badge turns green when active</li>
+                <li>Under Moovie, set site access to <strong>On moovie.fun</strong> (or <strong>On all sites</strong>)</li>
+                <li>Click the extension <strong>Reload</strong> button, then hard-refresh this page</li>
             </ol>
 
             <p class="ext-prompt__note">

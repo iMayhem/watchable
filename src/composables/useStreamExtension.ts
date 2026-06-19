@@ -7,24 +7,17 @@ export interface StreamExtensionInfo {
     mode?: string;
 }
 
-function readWindowFlag(): StreamExtensionInfo | null {
-    const ext = (window as any).__MOOVIE_STREAM_EXT__;
-    if (ext?.active) return ext as StreamExtensionInfo;
-    return null;
-}
-
 /** Shared across ExtensionPrompt + player — one listener set, one poll loop. */
 const extensionActive = ref(false);
 const extensionInfo = ref<StreamExtensionInfo | null>(null);
 let subscriberCount = 0;
 let intervalId: number | null = null;
+let bootstrapIntervalId: number | null = null;
+let domObserver: MutationObserver | null = null;
 let listenersBound = false;
 
 const applyDetection = (info: StreamExtensionInfo | null, source: string) => {
     const active = Boolean(info?.active);
-    if (!active && extensionActive.value && source === 'window-flag') {
-        return;
-    }
     if (active !== extensionActive.value) {
         nfDebug('extension:detected', { active, source, version: info?.version, mode: info?.mode });
         extensionActive.value = active;
@@ -38,42 +31,86 @@ const applyDetection = (info: StreamExtensionInfo | null, source: string) => {
     }
 };
 
-const checkExtension = () => {
-    const info = readWindowFlag();
-    if (info?.active) {
-        applyDetection(info, 'window-flag');
-    }
+const readDomMarker = (): StreamExtensionInfo | null => {
+    const root = document.documentElement;
+    if (!root) return null;
+
+    const active =
+        root.getAttribute('data-moovie-ext') === 'active' ||
+        root.dataset.moovieExt === 'active';
+
+    if (!active) return null;
+
+    return {
+        active: true,
+        version: root.getAttribute('data-moovie-ext-version') || root.dataset.moovieExtVersion || undefined,
+        mode: 'direct-cdn'
+    };
 };
 
 const onExtensionReady = (event: Event) => {
     const detail = (event as CustomEvent<StreamExtensionInfo>).detail;
     if (detail?.active) {
         applyDetection(detail, 'ready-event');
-        return;
     }
-    checkExtension();
 };
 
-const onExtensionPong = (event: MessageEvent) => {
-    if (event.source !== window || event.data?.type !== 'MOOVIE_EXT_PONG') return;
-    const detail = event.data.detail as StreamExtensionInfo | undefined;
+const onExtensionPong = (event: Event) => {
+    const detail = (event as CustomEvent<StreamExtensionInfo>).detail;
     if (detail?.active) {
-        applyDetection(detail, 'pong');
+        applyDetection(detail, 'pong-event');
     }
 };
 
 const pingExtension = () => {
-    window.postMessage({ type: 'MOOVIE_EXT_PING' }, '*');
+    const marker = readDomMarker();
+    if (marker?.active) {
+        applyDetection(marker, 'dom-marker');
+    }
+    window.dispatchEvent(new CustomEvent('moovie-ext-ping'));
 };
+
+function stopBootstrapPoll() {
+    if (bootstrapIntervalId !== null) {
+        window.clearInterval(bootstrapIntervalId);
+        bootstrapIntervalId = null;
+    }
+}
+
+function bindDomObserver() {
+    if (domObserver || typeof MutationObserver === 'undefined') return;
+
+    domObserver = new MutationObserver(() => {
+        const marker = readDomMarker();
+        if (marker?.active) {
+            applyDetection(marker, 'dom-observer');
+        }
+    });
+
+    domObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-moovie-ext', 'data-moovie-ext-version']
+    });
+}
 
 function bindGlobalListeners() {
     if (listenersBound) return;
     listenersBound = true;
     nfDebug('extension:init');
     window.addEventListener('moovie-stream-ext-ready', onExtensionReady);
-    window.addEventListener('message', onExtensionPong);
+    window.addEventListener('moovie-stream-ext-pong', onExtensionPong);
+    bindDomObserver();
+
+    let bootstrapAttempts = 0;
+    bootstrapIntervalId = window.setInterval(() => {
+        bootstrapAttempts += 1;
+        pingExtension();
+        if (extensionActive.value || bootstrapAttempts >= 20) {
+            stopBootstrapPoll();
+        }
+    }, 250);
+
     intervalId = window.setInterval(() => {
-        checkExtension();
         if (!extensionActive.value) pingExtension();
     }, 5000);
 }
@@ -81,11 +118,14 @@ function bindGlobalListeners() {
 function unbindGlobalListeners() {
     if (subscriberCount > 0 || !listenersBound) return;
     window.removeEventListener('moovie-stream-ext-ready', onExtensionReady);
-    window.removeEventListener('message', onExtensionPong);
+    window.removeEventListener('moovie-stream-ext-pong', onExtensionPong);
+    stopBootstrapPoll();
     if (intervalId !== null) {
         window.clearInterval(intervalId);
         intervalId = null;
     }
+    domObserver?.disconnect();
+    domObserver = null;
     listenersBound = false;
 }
 
@@ -93,7 +133,6 @@ export function useStreamExtension() {
     onMounted(() => {
         subscriberCount++;
         bindGlobalListeners();
-        checkExtension();
         pingExtension();
     });
 
@@ -105,7 +144,7 @@ export function useStreamExtension() {
     return {
         extensionActive: readonly(extensionActive),
         extensionInfo: readonly(extensionInfo),
-        checkExtension,
+        checkExtension: pingExtension,
         pingExtension
     };
 }

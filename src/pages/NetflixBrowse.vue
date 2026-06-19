@@ -302,7 +302,16 @@ export default defineComponent({
                 (item) => !poolState.value.tmdbById.has(String(item.id))
             );
             if (!pending.length) return;
-            const fresh = await enrichCatalogPoolWithTmdb(pending, TMDB_CONCURRENCY);
+            const fresh = await enrichCatalogPoolWithTmdb(
+                pending.map((item) => ({
+                    id: String(item.id),
+                    title: item.title,
+                    release_date: item.release_date,
+                    media_type: item.media_type,
+                    tmdbId: enrichmentFor(item)?.tmdb_id
+                })),
+                TMDB_CONCURRENCY
+            );
             fresh.forEach((meta, id) => poolState.value.tmdbById.set(id, meta));
         };
 

@@ -2,40 +2,306 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Moovie Stream Boost</title>
+    <title>moovie</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=JetBrains+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      * { box-sizing: border-box; margin: 0; }
+      :root {
+        --ink-900: #0b0a08;
+        --ink-800: #13110e;
+        --ink-700: #1c1915;
+        --bone-50: #f5efe4;
+        --bone-100: #e8e1d3;
+        --bone-200: #c7bfb0;
+        --bone-300: #a79f8d;
+        --bone-400: #8a8270;
+        --ember: #ff5a1f;
+        --ember-600: #e84817;
+        --ember-glow: rgba(255, 90, 31, 0.35);
+        --gold-leaf: #c9a76a;
+        --success: #6ba368;
+        --rule: rgba(245, 239, 228, 0.08);
+        --rule-strong: rgba(245, 239, 228, 0.16);
+        --surface-tint: rgba(245, 239, 228, 0.04);
+        --ambient: 255, 90, 31;
+        --font-display: 'Fraunces', 'Times New Roman', Georgia, serif;
+        --font-ui: 'General Sans', ui-sans-serif, system-ui, sans-serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+        --fs-xs: 0.75rem;
+        --fs-sm: 0.875rem;
+        --fs-base: 1rem;
+        --fs-lg: 1.25rem;
+        --lh-tight: 1.08;
+        --lh-base: 1.55;
+        --ls-tight: -0.02em;
+        --ls-snug: -0.01em;
+        --ls-micro: 0.08em;
+        --s-2: 0.5rem;
+        --s-3: 0.75rem;
+        --s-4: 1rem;
+        --s-5: 1.5rem;
+        --r-sm: 4px;
+        --r-md: 8px;
+        --r-lg: 14px;
+        --r-pill: 999px;
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        --dur-fast: 180ms;
+        --dur-base: 320ms;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+
+      html {
+        font-family: var(--font-ui);
+        font-size: 16px;
+        color: var(--bone-50);
+        background: var(--ink-900);
+      }
+
       body {
-        width: 280px;
-        padding: 14px;
-        font: 13px/1.45 system-ui, sans-serif;
-        background: #0b0f18;
-        color: #e8eef8;
+        width: 300px;
+        min-height: 100%;
+        line-height: var(--lh-base);
+        letter-spacing: var(--ls-snug);
+        background: var(--ink-900);
+        overflow: hidden;
       }
-      h1 { font-size: 15px; margin-bottom: 6px; }
-      p { color: #9eb0c8; margin-bottom: 8px; }
-      .ok {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 999px;
-        background: rgba(78, 181, 255, 0.15);
-        color: #8fd0ff;
-        font-size: 11px;
-        margin-bottom: 10px;
+
+      .popup {
+        position: relative;
+        padding: var(--s-4);
+        isolation: isolate;
       }
-      ul { padding-left: 18px; color: #b8c4d8; }
-      li { margin-bottom: 4px; }
+
+      .popup__bloom {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(
+          70% 70% at 18% 82%,
+          rgba(var(--ambient), 0.28) 0%,
+          rgba(var(--ambient), 0.08) 42%,
+          transparent 76%
+        );
+        z-index: 0;
+      }
+
+      .popup__grain {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.035;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+        z-index: 1;
+      }
+
+      .card {
+        position: relative;
+        z-index: 2;
+        padding: var(--s-5) var(--s-4) var(--s-4);
+        background: var(--ink-800);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-lg);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: var(--s-3);
+        margin-bottom: var(--s-4);
+      }
+
+      .brand__icon {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 auto;
+        border-radius: var(--r-md);
+        box-shadow: 0 8px 24px var(--ember-glow);
+      }
+
+      .brand__wordmark {
+        display: flex;
+        flex-direction: column;
+        line-height: 1;
+        text-align: left;
+      }
+
+      .brand__mark {
+        font-family: var(--font-display);
+        font-weight: 800;
+        font-size: 1.65rem;
+        letter-spacing: -0.07em;
+        line-height: 0.85;
+        text-transform: lowercase;
+        background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-variation-settings: 'opsz' 72, 'SOFT' 50;
+      }
+
+      .brand__kicker {
+        margin-top: 4px;
+        font-family: var(--font-ui);
+        font-size: 0.625rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: var(--ls-micro);
+        color: var(--bone-400);
+      }
+
+      .tagline {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: var(--fs-lg);
+        line-height: var(--lh-tight);
+        color: var(--bone-50);
+        margin-bottom: var(--s-4);
+        font-variation-settings: 'opsz' 144, 'SOFT' 80;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: var(--s-4);
+        padding: 0.45rem 0.75rem;
+        border-radius: var(--r-sm);
+        background: rgba(107, 163, 104, 0.12);
+        border: 1px solid rgba(107, 163, 104, 0.28);
+        color: #9fd49b;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+
+      .status__dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--success);
+        box-shadow: 0 0 10px rgba(107, 163, 104, 0.75);
+        animation: pulse 2.2s var(--ease-out) infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.55;
+          transform: scale(0.86);
+        }
+      }
+
+      .copy {
+        font-size: var(--fs-sm);
+        color: var(--bone-200);
+        margin-bottom: var(--s-5);
+        line-height: var(--lh-base);
+      }
+
+      .cta {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 44px;
+        padding: 0.75rem 1.5rem;
+        border: 0;
+        border-radius: var(--r-pill);
+        background: var(--ember);
+        color: var(--ink-900);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 600;
+        letter-spacing: var(--ls-snug);
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(255, 90, 31, 0.28);
+        transition:
+          background-color var(--dur-fast) var(--ease-out),
+          transform var(--dur-fast) var(--ease-out),
+          box-shadow var(--dur-base) var(--ease-out);
+      }
+
+      .cta:hover {
+        background: var(--ember-600);
+        box-shadow: 0 12px 32px rgba(255, 90, 31, 0.38);
+        transform: translateY(-1px);
+      }
+
+      .cta:active {
+        transform: translateY(1px) scale(0.98);
+      }
+
+      .footer {
+        margin-top: var(--s-3);
+        text-align: center;
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        color: var(--bone-400);
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .status__dot {
+          animation: none;
+        }
+
+        .cta {
+          transition: none;
+        }
+      }
     </style>
   </head>
   <body>
-    <h1>Moovie Stream Boost</h1>
-    <span class="ok">Active · v1.2.1</span>
-    <p>Sets the CDN Referer header (<code>fmoviesunblocked.net</code>) so Moovie streams play directly.</p>
-    <ul>
-      <li>Reload extension after updates</li>
-      <li>Open <strong>moovie.fun/test</strong></li>
-      <li>Use <strong>ArtPlayer · direct CDN</strong> (not proxy)</li>
-      <li>Or the <strong>Moovie player iframe</strong> with <code>exten=true</code></li>
-    </ul>
+    <div class="popup">
+      <div class="popup__bloom" aria-hidden="true"></div>
+      <div class="popup__grain" aria-hidden="true"></div>
+
+      <div class="card">
+        <div class="brand">
+          <img class="brand__icon" src="icons/icon48.png" width="44" height="44" alt="" />
+          <div class="brand__wordmark">
+            <span class="brand__mark">moovie</span>
+            <span class="brand__kicker">A Cinema Periodical</span>
+          </div>
+        </div>
+
+        <p class="tagline">You're gonna enjoy something.</p>
+
+        <div class="status">
+          <span class="status__dot" aria-hidden="true"></span>
+          Ready to roll
+        </div>
+
+        <p class="copy">
+          Pop the extension, hit moovie.fun, and let the good stuff find you. No setup. Just vibes.
+        </p>
+
+        <a class="cta" href="https://moovie.fun/" target="_blank" rel="noopener">Open Moovie</a>
+      </div>
+
+      <p class="footer">moovie.fun</p>
+    </div>
   </body>
 </html>

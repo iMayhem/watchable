@@ -120,7 +120,13 @@ async function syncTmdbChunk(state: BrowsePoolState, items: MoovieCatalogItem[])
     if (!pending.length) return;
 
     const fresh = await enrichCatalogPoolWithTmdb(
-        pending.slice(0, BROWSE_TMDB_CHUNK),
+        pending.slice(0, BROWSE_TMDB_CHUNK).map((item) => ({
+            id: String(item.id),
+            title: item.title,
+            release_date: item.release_date,
+            media_type: item.media_type,
+            tmdbId: state.enrichmentById.get(String(item.id))?.tmdb_id
+        })),
         BROWSE_TMDB_CONCURRENCY
     );
     fresh.forEach((meta, id) => state.tmdbById.set(id, meta));

@@ -244,6 +244,17 @@ export default defineComponent({
         const videoSrc = ref('');
         const videoEl = ref<HTMLVideoElement | null>(null);
         let prepareToken = 0;
+        let refreshInFlight: Promise<NetmirrorResolve | null> | null = null;
+
+        const streamUrlAgeSec = (rawUrl: string) => {
+            try {
+                const t = Number(new URL(rawUrl).searchParams.get('t') || '0');
+                if (!t) return null;
+                return Math.max(0, Math.floor(Date.now() / 1000 - t));
+            } catch {
+                return null;
+            }
+        };
 
         const toAbsoluteUrl = (path: string) => {
             if (!path) return '';
@@ -276,10 +287,61 @@ export default defineComponent({
             }
 
             debugError('proxy:probe-failed', result);
-            throw new Error(`Proxy probe failed (${resp.status})`);
+            const err = new Error(`Proxy probe failed (${resp.status})`) as Error & { status?: number };
+            err.status = resp.status;
+            throw err;
         };
 
-        const prepareVideoPlayback = async (stream: NetmirrorStream | null) => {
+        const withPlaybackCacheBuster = (absUrl: string) => {
+            const sep = absUrl.includes('?') ? '&' : '?';
+            return `${absUrl}${sep}_cb=${Date.now()}`;
+        };
+
+        const fetchResolveData = async () => {
+            const resp = await fetch(buildApiUrl('resolve'));
+            const data = await parseApiResponse(resp, 'resolve');
+            if (!resp.ok) {
+                throw new Error(data.error || `Request failed (${resp.status})`);
+            }
+            return data as NetmirrorResolve;
+        };
+
+        const refreshResolve = async (reason: string) => {
+            if (refreshInFlight) {
+                debug('resolve:refresh-wait', { reason });
+                return refreshInFlight;
+            }
+
+            debug('resolve:refresh-start', { reason });
+            refreshInFlight = (async () => {
+                try {
+                    const data = await fetchResolveData();
+                    resolved.value = data;
+                    debug('resolve:refresh-ok', {
+                        reason,
+                        streamCount: data.streams?.length || 0,
+                        ages: (data.streams || []).map((s) => ({
+                            quality: s.quality,
+                            ageSec: streamUrlAgeSec(s.url),
+                        })),
+                    });
+                    return data;
+                } catch (err: any) {
+                    debugError('resolve:refresh-failed', { reason, message: err?.message });
+                    return null;
+                } finally {
+                    refreshInFlight = null;
+                }
+            })();
+
+            return refreshInFlight;
+        };
+
+        const prepareVideoPlayback = async (
+            stream: NetmirrorStream | null,
+            options: { allowRefresh?: boolean } = {}
+        ) => {
+            const { allowRefresh = true } = options;
             const token = ++prepareToken;
             videoSrc.value = '';
 
@@ -291,10 +353,23 @@ export default defineComponent({
                 return;
             }
 
+            const ageSec = streamUrlAgeSec(stream.url);
             debug('video:prepare-start', {
                 quality: stream.quality,
                 proxiedUrl: stream.proxiedUrl,
+                urlAgeSec: ageSec,
             });
+
+            if (ageSec !== null && ageSec > 120 && allowRefresh) {
+                debugWarn('video:prepare-stale-url', { urlAgeSec: ageSec });
+                const fresh = await refreshResolve('signed-url-age');
+                if (token !== prepareToken) return;
+                if (fresh?.streams?.length) {
+                    const idx = Math.min(selectedStreamIndex.value, fresh.streams.length - 1);
+                    selectedStreamIndex.value = idx;
+                    return prepareVideoPlayback(fresh.streams[idx], { allowRefresh: false });
+                }
+            }
 
             try {
                 const abs = await probeProxiedStream(stream.proxiedUrl);
@@ -302,17 +377,30 @@ export default defineComponent({
                     debug('video:prepare-stale', { quality: stream.quality });
                     return;
                 }
-                videoSrc.value = abs;
+                videoSrc.value = withPlaybackCacheBuster(abs);
                 playbackError.value = '';
-                debug('video:prepare-ready', { quality: stream.quality, src: abs });
+                debug('video:prepare-ready', { quality: stream.quality, src: videoSrc.value });
             } catch (err: any) {
                 if (token !== prepareToken) return;
+
+                if (allowRefresh && err?.status === 403) {
+                    debugWarn('video:prepare-403-refresh', { quality: stream.quality });
+                    const fresh = await refreshResolve('proxy-403');
+                    if (token !== prepareToken) return;
+                    if (fresh?.streams?.length) {
+                        const idx = Math.min(selectedStreamIndex.value, fresh.streams.length - 1);
+                        selectedStreamIndex.value = idx;
+                        return prepareVideoPlayback(fresh.streams[idx], { allowRefresh: false });
+                    }
+                }
+
                 playbackError.value =
                     err?.message ||
                     'Proxy probe failed. Click Resolve again for fresh signed URLs.';
                 debugError('video:prepare-failed', {
                     quality: stream.quality,
                     message: playbackError.value,
+                    urlAgeSec: ageSec,
                 });
             }
         };
@@ -417,11 +505,7 @@ export default defineComponent({
             const startedAt = performance.now();
 
             try {
-                const resp = await fetch(url);
-                const data = await parseApiResponse(resp, 'resolve');
-                if (!resp.ok) {
-                    throw new Error(data.error || `Request failed (${resp.status})`);
-                }
+                const data = await fetchResolveData();
 
                 resolved.value = data;
                 playbackError.value = '';
@@ -605,10 +689,20 @@ export default defineComponent({
                 quality: activeStream.value?.quality,
                 rawUrl: activeStream.value?.url,
                 proxiedUrl: activeStream.value?.proxiedUrl,
+                urlAgeSec: activeStream.value ? streamUrlAgeSec(activeStream.value.url) : null,
                 currentSrc: videoEl.value?.currentSrc,
                 networkState: videoEl.value?.networkState,
                 readyState: videoEl.value?.readyState,
             });
+
+            if ((code === 2 || code === 4) && activeStream.value) {
+                refreshResolve('video-error').then((fresh) => {
+                    if (!fresh?.streams?.length) return;
+                    const idx = Math.min(selectedStreamIndex.value, fresh.streams.length - 1);
+                    selectedStreamIndex.value = idx;
+                    prepareVideoPlayback(fresh.streams[idx], { allowRefresh: false });
+                });
+            }
         };
 
         watch(activeStream, (stream, prev) => {

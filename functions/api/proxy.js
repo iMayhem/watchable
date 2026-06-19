@@ -111,9 +111,12 @@ export async function onRequest(context) {
     try {
         let resp = await fetchUpstream();
 
-        if (resp.status === 403 && isMovieboxCdn && isMp4 && !clientRange) {
-            headers.set('Range', 'bytes=0-65535');
-            resp = await fetchUpstream();
+        if (resp.status === 403 && isMovieboxCdn && isMp4) {
+            for (const range of ['bytes=0-65535', 'bytes=0-1048575', 'bytes=0-']) {
+                headers.set('Range', range);
+                resp = await fetchUpstream();
+                if (resp.status !== 403) break;
+            }
         }
 
         const contentType = resp.headers.get('Content-Type') || 'application/octet-stream';

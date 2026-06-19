@@ -1,4 +1,5 @@
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { useStreamExtension } from './useStreamExtension';
 
 export type PlayerSkin = 'default' | 'netflix';
 
@@ -97,7 +98,7 @@ export function formatPlayerTime(seconds: number): string {
 
 export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     const skin = options.skin ?? 'default';
-    const extensionActive = ref(false);
+    const { extensionActive, checkExtension, pingExtension } = useStreamExtension();
     const loading = ref(false);
     const playbackError = ref('');
     const resolved = ref<NetmirrorResolve | null>(null);
@@ -113,13 +114,6 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     let artInstance: any = null;
     let prepareToken = 0;
     let refreshInFlight: Promise<NetmirrorResolve | null> | null = null;
-    let extInterval: number | null = null;
-
-    const checkExtension = () => {
-        const ext = (window as any).__MOOVIE_STREAM_EXT__;
-        extensionActive.value = Boolean(ext?.active);
-    };
-
     const destroyArt = () => {
         if (artInstance) {
             try {
@@ -211,6 +205,36 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
             return withPlaybackCacheBuster(stream.url);
         }
         return withPlaybackCacheBuster(toAbsoluteUrl(stream.proxiedUrl));
+    };
+
+    const waitForContainer = async (timeoutMs = 4000) => {
+        if (artContainer.value) return;
+        const started = Date.now();
+        while (!artContainer.value && Date.now() - started < timeoutMs) {
+            await nextTick();
+            await new Promise((r) => window.setTimeout(r, 40));
+        }
+        if (!artContainer.value) {
+            throw new Error('Player container missing');
+        }
+    };
+
+    const waitForExtension = async (timeoutMs = 1000) => {
+        pingExtension();
+        checkExtension();
+        if (extensionActive.value) return;
+
+        await new Promise<void>((resolve) => {
+            const started = Date.now();
+            const timer = window.setInterval(() => {
+                checkExtension();
+                pingExtension();
+                if (extensionActive.value || Date.now() - started >= timeoutMs) {
+                    window.clearInterval(timer);
+                    resolve();
+                }
+            }, 120);
+        });
     };
 
     const mountArtplayer = async (stream: NetmirrorStream) => {
@@ -337,6 +361,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
                 );
             }
             if (token !== prepareToken) return;
+            await waitForContainer();
             await mountArtplayer(stream);
             playbackError.value = '';
         } catch (err: any) {
@@ -358,6 +383,8 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
         destroyArt();
 
         try {
+            await waitForContainer();
+            await waitForExtension();
             const url = buildResolveUrl({
                 type: opts.type,
                 id: opts.id,
@@ -388,14 +415,20 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
         await preparePlayback(stream, resolveUrl);
     };
 
-    onMounted(() => {
-        checkExtension();
-        extInterval = window.setInterval(checkExtension, 2000);
+    watch(extensionActive, async (active) => {
+        if (!active || !artInstance || !resolved.value?.streams?.length) return;
+        const stream = resolved.value.streams[selectedStreamIndex.value];
+        if (!stream) return;
+        try {
+            await artInstance.switchUrl(resolvePlaybackUrl(stream));
+            playbackError.value = '';
+        } catch {
+            /* keep current stream */
+        }
     });
 
     onBeforeUnmount(() => {
         destroyArt();
-        if (extInterval !== null) window.clearInterval(extInterval);
     });
 
     return {

@@ -1,7 +1,7 @@
 <template>
     <div class="nf-stream-page">
         <NetflixPlayer
-            :container-ref="playerShell.container"
+            :bind-container="bindPlayerContainer"
             :title="title"
             :subtitle="subtitle"
             :loading="loading"
@@ -26,7 +26,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, watch } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import { parseNetmirrorTitle } from '../composables/useNetmirror';
@@ -62,7 +62,9 @@ export default defineComponent({
             toggleMute
         } = player;
 
-        const playerShell = { container: artContainer };
+        const bindPlayerContainer = (el: HTMLElement | null) => {
+            artContainer.value = el;
+        };
 
         const mediaType = computed((): 'movie' | 'tv' => {
             if (route.name === 'StreamNetflixTV') return 'tv';
@@ -118,12 +120,13 @@ export default defineComponent({
             switchQuality(index, resolveUrl.value);
         };
 
-        onMounted(() => {
+        onMounted(async () => {
             updateSeo({
                 title: 'Watch — Netflix on Moovie',
                 canonical: `https://moovie.fun${route.path}`,
                 image: 'https://moovie.fun/og-image.png'
             });
+            await nextTick();
             startPlayback();
         });
 
@@ -133,7 +136,7 @@ export default defineComponent({
         );
 
         return {
-            playerShell,
+            bindPlayerContainer,
             loading,
             playbackError,
             resolved,

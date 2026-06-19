@@ -41,35 +41,20 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 import LmDialog from '../primitives/Dialog.vue';
 import { getContentMode } from '../../composables/useContentMode';
+import { useStreamExtension } from '../../composables/useStreamExtension';
 
 export default defineComponent({
     name: 'ExtensionPrompt',
     components: { LmDialog },
     setup() {
         const open = ref(false);
-        const extensionActive = ref(false);
+        const { extensionActive } = useStreamExtension();
         const { isNetflix } = getContentMode();
 
         const showPrompt = computed(() => isNetflix());
-
-        const checkExtension = () => {
-            const ext = (window as any).__MOOVIE_STREAM_EXT__;
-            extensionActive.value = Boolean(ext?.active);
-        };
-
-        let intervalId: number | null = null;
-
-        onMounted(() => {
-            checkExtension();
-            intervalId = window.setInterval(checkExtension, 2000);
-        });
-
-        onBeforeUnmount(() => {
-            if (intervalId !== null) window.clearInterval(intervalId);
-        });
 
         return { open, extensionActive, showPrompt };
     }

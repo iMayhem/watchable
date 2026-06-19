@@ -136,8 +136,7 @@ import {
     onMounted,
     PropType,
     ref,
-    watch,
-    type Ref
+    watch
 } from 'vue';
 import {
     formatPlayerTime,
@@ -160,8 +159,8 @@ export default defineComponent({
         isMuted: { type: Boolean, default: false },
         streams: { type: Array as PropType<NetmirrorStream[]>, default: () => [] },
         selectedStreamIndex: { type: Number, default: 0 },
-        containerRef: {
-            type: Object as PropType<Ref<HTMLElement | null>>,
+        bindContainer: {
+            type: Function as PropType<(el: HTMLElement | null) => void>,
             required: true
         }
     },
@@ -243,19 +242,20 @@ export default defineComponent({
         watch(
             stageRef,
             (el) => {
-                props.containerRef.value = el;
+                props.bindContainer(el);
             },
-            { immediate: true }
+            { flush: 'post' }
         );
 
         onMounted(() => {
+            props.bindContainer(stageRef.value);
             document.addEventListener('fullscreenchange', onFullscreenChange);
             document.addEventListener('click', onDocClick);
             revealControls();
         });
 
         onBeforeUnmount(() => {
-            props.containerRef.value = null;
+            props.bindContainer(null);
             document.removeEventListener('fullscreenchange', onFullscreenChange);
             document.removeEventListener('click', onDocClick);
             if (hideTimer !== null) window.clearTimeout(hideTimer);

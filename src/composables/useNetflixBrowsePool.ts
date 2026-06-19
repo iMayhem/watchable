@@ -253,7 +253,10 @@ async function fetchNativeCategoryPages(
         if (fetched >= pageBudget || cursor.exhausted) continue;
 
         const page = cursor.pageCursor;
-        const options = browseOptionsForSource(cursor.source);
+        const options = browseOptionsForSource(cursor.source) || {};
+        if (cursor.source.slug === 'filter') {
+            options.dubbing = lang.label;
+        }
         const response = await browseMoovieCatalog(cursor.source.slug, page, options);
 
         cursor.totalPages = Math.max(cursor.totalPages, response.pager?.total_pages ?? 1);
@@ -369,9 +372,11 @@ export async function ensureBrowsePickCount(
     while (state.pickedItems.length < targetCount && state.canFetchMoreApi) {
         const before = state.pickedItems.length;
         const batch =
-            state.fetchMode === 'native'
-                ? Math.max(state.slugCursors.filter((c) => !c.exhausted).length, 1)
-                : BROWSE_PAGE_BATCH;
+            state.fetchMode === 'language' && catalogue.id === 'korean'
+                ? 16
+                : state.fetchMode === 'native'
+                    ? Math.max(state.slugCursors.filter((c) => !c.exhausted).length, 1)
+                    : BROWSE_PAGE_BATCH;
 
         if (state.fetchMode === 'language' && state.apiPageCursor >= BROWSE_MAX_PAGES) {
             break;
@@ -385,7 +390,8 @@ export async function ensureBrowsePickCount(
 
         if (state.pickedItems.length === before) {
             idleRounds += 1;
-            if (idleRounds >= 3) break;
+            const maxIdle = catalogue.id === 'korean' ? 6 : 3;
+            if (idleRounds >= maxIdle) break;
         } else {
             idleRounds = 0;
         }

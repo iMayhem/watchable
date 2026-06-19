@@ -60,7 +60,16 @@ const getRouteKey = (route: any) => {
         return 'stream-netflix';
     }
     if (route.name === 'NetflixBrowse') {
-        return `nf-browse-${route.params.catalogue}-${route.params.row}`;
+        const type = route.query.type;
+        const typeSuffix =
+            type === 'tv' || type === 'movie' ? `-${type}` : '';
+        return `nf-browse-${route.params.catalogue}-${route.params.row}${typeSuffix}`;
+    }
+    if (route.name === 'NetflixCategories') {
+        const type = route.query.type;
+        const typeSuffix =
+            type === 'tv' || type === 'movie' ? `-${type}` : '';
+        return `nf-categories${typeSuffix}`;
     }
 
     // Do NOT include region in the key for Home/listing pages.

@@ -433,7 +433,7 @@ function isKoreanOrigin(item: MoovieCatalogItem) {
     return (
         KOREAN_COUNTRIES.has(c) ||
         c.includes('korea') ||
-        hasAny(item, ['korean', 'k-drama', 'korea', 'hwaesang', 'sageuk'])
+        hasAny(item, ['korean', 'k-drama', 'kdrama', 'korea', 'hwaesang', 'sageuk', 'k-series', 'kseries'])
     );
 }
 

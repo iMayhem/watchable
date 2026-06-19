@@ -494,19 +494,22 @@ export default defineComponent({
             genreRails.value = planToGenreRailDisplay(plans, audioCache, artworkUrls);
         };
 
-        const upgradeGenreRailArtwork = async () => {
+        const upgradeGenreRailArtwork = async (generation: number) => {
             if (!genreRailPlans.value.length) return;
 
             try {
                 const allItems = genreRailPlans.value.flatMap((rail) => rail.items);
                 await syncTmdbForPool(allItems);
+                if (loadGeneration.value !== generation) return;
                 await ensureVariantSnapshot();
+                if (loadGeneration.value !== generation) return;
                 refreshLanguageMap();
 
                 const railPool = genreRailPlans.value.flatMap((plan) => plan.items);
                 const railAudioCache = await fetchCatalogAudioCacheByIds(
                     railPool.map((item) => item.id)
                 );
+                if (loadGeneration.value !== generation) return;
                 const upgraded = await Promise.all(
                     genreRailPlans.value.map(async (plan) => ({
                         id: plan.id,
@@ -528,6 +531,7 @@ export default defineComponent({
                         )
                     }))
                 );
+                if (loadGeneration.value !== generation) return;
                 genreRails.value = upgraded;
             } catch (err) {
                 nfDebugError('browse:genre-rails:artwork:fail', { err });
@@ -555,7 +559,7 @@ export default defineComponent({
             results.value = next;
         };
 
-        const upgradeBatchArtwork = async (batch: MoovieCatalogItem[], startIndex: number) => {
+        const upgradeBatchArtwork = async (batch: MoovieCatalogItem[], startIndex: number, generation: number) => {
             if (!batch.length) return;
 
             try {
@@ -563,9 +567,11 @@ export default defineComponent({
                     syncTmdbForPool(batch),
                     ensureVariantSnapshot()
                 ]);
+                if (loadGeneration.value !== generation) return;
                 refreshLanguageMap();
 
                 const audioCache = await fetchCatalogAudioCacheByIds(batch.map((item) => item.id));
+                if (loadGeneration.value !== generation) return;
                 const curated = await mapWithConcurrency(batch, (item) => {
                     const meta = tmdbById.value.get(String(item.id));
                     return toCuratedItemUpgraded(
@@ -576,6 +582,7 @@ export default defineComponent({
                         enrichmentFor(item)
                     );
                 }, TMDB_CONCURRENCY);
+                if (loadGeneration.value !== generation) return;
 
                 patchResultRange(startIndex, curated);
             } catch (err) {
@@ -641,17 +648,22 @@ export default defineComponent({
             opts: { fastPaint?: boolean; pickOptions?: EnsureBrowsePickOptions } = {}
         ) => {
             const loadKeyAtStart = currentLoadKey();
+            const generationAtStart = loadGeneration.value;
             const target = displayedCount.value + size;
             await ensurePickedCount(target, opts.pickOptions);
 
-            if (currentLoadKey() !== loadKeyAtStart) return;
+            if (loadGeneration.value !== generationAtStart || currentLoadKey() !== loadKeyAtStart) return;
 
             const batch = pickedItems.value.slice(displayedCount.value, target);
-            if (!batch.length) return;
+            if (!batch.length) {
+                isLoading.value = false;
+                isRefreshing.value = false;
+                return;
+            }
 
             const startIndex = displayedCount.value === 0 ? 0 : results.value.length;
             const fast = await mapBatchToCurated(batch, opts.fastPaint);
-            if (currentLoadKey() !== loadKeyAtStart) return;
+            if (loadGeneration.value !== generationAtStart || currentLoadKey() !== loadKeyAtStart) return;
 
             results.value =
                 displayedCount.value === 0 ? fast : [...results.value, ...fast];
@@ -660,7 +672,7 @@ export default defineComponent({
             isLoading.value = false;
             isRefreshing.value = false;
 
-            void upgradeBatchArtwork(batch, startIndex);
+            void upgradeBatchArtwork(batch, startIndex, generationAtStart);
         };
 
         const saveBrowseSnapshot = () => {
@@ -930,7 +942,7 @@ export default defineComponent({
                 saveBrowseSnapshot();
 
                 if (isGenreBrowse.value) {
-                    void upgradeGenreRailArtwork();
+                    void upgradeGenreRailArtwork(generation);
                 }
 
                 const meta = getNetflixRowMeta(row as NetflixBrowseRowId, cat, lang);
@@ -991,24 +1003,52 @@ export default defineComponent({
 
         onMounted(() => {
             lastLoadKey.value = currentLoadKey();
-            loadBrowse();
         });
 
-        onActivated(() => {
-            if (restoreBrowseCache()) return;
+        const resetBrowseForRouteChange = (loadKey: string) => {
+            results.value = [];
+            displayedCount.value = 0;
+            genreRailPlans.value = [];
+            genreRails.value = [];
+            variantSnapshot.value = [];
+            languageMap.value = new Map();
+            animePage.value = 1;
+            animeHasMore.value = true;
+            isLoading.value = true;
+            isRefreshing.value = false;
+            isLoadingMore.value = false;
+            lastLoadKey.value = loadKey;
+        };
+
+        const handleBrowseRouteChange = () => {
             if (!isBrowseRouteActive()) return;
-            lastLoadKey.value = currentLoadKey();
-            loadBrowse();
+
+            syncCatalogueFromRoute();
+            loadGeneration.value += 1;
+            const loadKey = currentLoadKey();
+
+            const snapshot = readNetflixBrowseCache(loadKey);
+            if (snapshot) {
+                applyBrowseSnapshot(snapshot);
+                lastLoadKey.value = loadKey;
+                return;
+            }
+
+            if (lastLoadKey.value !== loadKey) {
+                resetBrowseForRouteChange(loadKey);
+            }
+
+            void loadBrowse();
+        };
+
+        onActivated(() => {
+            handleBrowseRouteChange();
         });
 
         watch(
             () => [route.params.catalogue, route.params.row, language.value, route.query.type],
             () => {
-                loadGeneration.value += 1;
-                if (restoreBrowseCache()) return;
-                if (!isBrowseRouteActive()) return;
-                lastLoadKey.value = currentLoadKey();
-                loadBrowse();
+                handleBrowseRouteChange();
             }
         );
 

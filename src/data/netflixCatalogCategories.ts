@@ -68,8 +68,22 @@ export function hasNativeBrowseCategory(rowId: NetflixBrowseRowId): boolean {
  * Korean titles live in the Hindi/English dub feeds (cn=Korea), not the tiny
  * upstream `korean` genre index alone — paginate the active language catalogue.
  */
-function koreanCatalogueFetchPlan(_rowId: NetflixBrowseRowId): CatalogBrowseFetchPlan {
-    return { mode: 'language', sources: [] };
+function koreanCatalogueFetchPlan(rowId: NetflixBrowseRowId): CatalogBrowseFetchPlan {
+    const source: CatalogBrowseSource = {
+        slug: 'filter',
+        country: 'Korea'
+    };
+
+    if (rowId === 'korean-series' || rowId === 'exciting-tv' || TV_EDITORIAL_ROW_IDS.has(rowId) || rowId === 'dramas' || rowId === 'tv-show') {
+        source.type = '2'; // TV series
+    } else {
+        source.type = '1'; // Movie
+    }
+
+    return {
+        mode: 'native',
+        sources: [source]
+    };
 }
 
 /** Home pool sources — Korean needs deeper language scans plus native K-slugs. */
@@ -93,10 +107,10 @@ export function getBrowseInitialPageCount(
     rowId?: NetflixBrowseRowId
 ): number {
     if (rowId && TV_EDITORIAL_ROW_IDS.has(rowId) && fetchMode === 'language') {
-        return catalogueId === 'korean' ? 16 : 12;
+        return catalogueId === 'korean' ? 48 : 12;
     }
     if (catalogueId === 'korean' && fetchMode === 'language') {
-        return 10;
+        return 40;
     }
     return fetchMode === 'native' ? 1 : 8;
 }

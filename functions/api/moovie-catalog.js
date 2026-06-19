@@ -413,27 +413,35 @@ export async function onRequest(context) {
   const server = parseInt(searchParams.get('server') || '1', 10);
 
   try {
-    if (action === 'search' || action === 'browse') {
-      const query =
-        action === 'browse'
-          ? searchParams.get('category') || ''
-          : searchParams.get('q') || '';
-      if (!query.trim()) {
-        return jsonResponse(
-          { error: action === 'browse' ? 'Missing category parameter' : 'Missing q parameter' },
-          400
-        );
-      }
+    if (action === 'search' || action === 'browse' || action === 'filter') {
       const page = parseInt(searchParams.get('page') || '0', 10);
-      const encoded = encodeURIComponent(query.trim()).replace(/%20/g, '+');
       const upstream = new URLSearchParams();
       upstream.set('page', String(Number.isFinite(page) ? page : 0));
       for (const key of ['dubbing', 'country', 'type', 'genre']) {
         const value = searchParams.get(key);
         if (value) upstream.set(key, value);
       }
+
+      let url;
+      if (action === 'filter') {
+        url = `https://api2.imdb4.shop/api/movies/filter?${upstream}`;
+      } else {
+        const query =
+          action === 'browse'
+            ? searchParams.get('category') || ''
+            : searchParams.get('q') || '';
+        if (!query.trim()) {
+          return jsonResponse(
+            { error: action === 'browse' ? 'Missing category parameter' : 'Missing q parameter' },
+            400
+          );
+        }
+        const encoded = encodeURIComponent(query.trim()).replace(/%20/g, '+');
+        url = `https://api2.imdb4.shop/api/search2/${encoded}?${upstream}`;
+      }
+
       const resp = await fetch(
-        `https://api2.imdb4.shop/api/search2/${encoded}?${upstream}`,
+        url,
         { headers: { 'User-Agent': UA } }
       );
       const data = await resp.json();

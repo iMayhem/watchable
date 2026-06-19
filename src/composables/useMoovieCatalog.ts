@@ -111,11 +111,14 @@ export async function browseMoovieCatalog(
     options?: BrowseCatalogOptions
 ): Promise<MoovieCatalogResponse> {
     nfDebug('catalog:browse:start', { category, page, options });
+    const action = category === 'filter' ? 'filter' : 'browse';
     const params = new URLSearchParams({
-        action: 'browse',
-        category,
+        action,
         page: String(page)
     });
+    if (action === 'browse') {
+        params.set('category', category);
+    }
     if (options?.dubbing) params.set('dubbing', options.dubbing);
     if (options?.country) params.set('country', options.country);
     if (options?.type) params.set('type', options.type);

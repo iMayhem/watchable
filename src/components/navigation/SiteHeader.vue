@@ -15,57 +15,20 @@
                 class="site-header__nav site-header__nav--catalogues"
                 aria-label="Netflix"
             >
-                <router-link
+                <a
                     v-for="item in netflixNav"
                     :key="item.label"
-                    :to="item.path"
+                    href="#"
                     class="site-header__link"
                     :class="{ 'is-active': item.isActive() }"
-                    @click="onNetflixNavClick(item)"
+                    @click.prevent="navigateNetflixNav(item)"
                     @mouseenter="prefetchNetflixNav(item)"
                     @focus="prefetchNetflixNav(item)"
                 >
                     {{ item.label }}
-                </router-link>
+                </a>
 
-                <div ref="browseContainer" class="site-header__browse">
-                    <button
-                        type="button"
-                        class="site-header__link site-header__browse-trigger"
-                        :class="{ 'is-active': isBrowseOpen }"
-                        @click="toggleBrowseDropdown"
-                    >
-                        Browse
-                        <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
-                            <path fill="currentColor" d="M7 10l5 5 5-5z"/>
-                        </svg>
-                    </button>
-                    <div v-if="isBrowseOpen" class="site-header__browse-menu region-dropdown">
-                        <div class="region-dropdown__header eyebrow">Catalogue</div>
-                        <div class="region-dropdown__list">
-                            <button
-                                v-for="cat in netflixCatalogues"
-                                :key="cat.id"
-                                type="button"
-                                class="region-dropdown__item"
-                                :class="{ 'is-active': netflixCatalogue === cat.id }"
-                                @click="selectBrowseCatalogue(cat.id)"
-                            >
-                                <span class="region-dropdown__name">{{ cat.label }}</span>
-                                <svg
-                                    v-if="netflixCatalogue === cat.id"
-                                    class="region-dropdown__check"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2.5"
-                                >
-                                    <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+
             </nav>
 
             <nav v-else class="site-header__nav" aria-label="Primary">
@@ -196,29 +159,19 @@
         <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Browse' : 'moovie'">
             <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Netflix' : 'Mobile'">
                 <template v-if="isNetflixMode">
-                    <router-link
+                    <a
                         v-for="(item, index) in netflixNav"
                         :key="item.label"
-                        :to="item.path"
+                        href="#"
                         class="site-header__drawer-link"
                         :class="{ 'is-active': item.isActive() }"
-                        @click="onNetflixNavClick(item); drawerOpen = false"
+                        @click.prevent="navigateNetflixNav(item); drawerOpen = false"
                     >
                         <span class="eyebrow site-header__drawer-num">0{{ index + 1 }}</span>
                         <span class="site-header__drawer-label">{{ item.label }}</span>
-                    </router-link>
+                    </a>
 
-                    <p class="site-header__drawer-section eyebrow">Browse</p>
-                    <button
-                        v-for="cat in netflixCatalogues"
-                        :key="cat.id"
-                        type="button"
-                        class="site-header__drawer-link"
-                        :class="{ 'is-active': netflixCatalogue === cat.id }"
-                        @click="selectNetflixCatalogue(cat.id); drawerOpen = false"
-                    >
-                        <span class="site-header__drawer-label">{{ cat.label }}</span>
-                    </button>
+
 
                     <button
                         type="button"
@@ -342,6 +295,22 @@ interface NavItem {
     path: string;
     match: (p: string) => boolean;
     num: number;
+}
+
+interface NetflixNavItem {
+    label: string;
+    path: string;
+    setCatalogue?: string;
+    isActive: () => boolean;
+}
+
+function parseNavDestination(path: string) {
+    const qIndex = path.indexOf('?');
+    if (qIndex === -1) return { path };
+    return {
+        path: path.slice(0, qIndex),
+        query: Object.fromEntries(new URLSearchParams(path.slice(qIndex + 1)))
+    };
 }
 
 const primaryNav: NavItem[] = [
@@ -536,13 +505,7 @@ export default defineComponent({
                     setCatalogue: 'korean',
                     isActive: () => isKoreanNavActive(path)
                 },
-                {
-                    label: 'New & Popular',
-                    path: netflixBrowsePath(cat, 'new-on-netflix'),
-                    isActive: () =>
-                        path === netflixBrowsePath(cat, 'new-on-netflix') ||
-                        path.endsWith('/trending')
-                },
+
                 {
                     label: 'Categories',
                     path: isTvSection
@@ -560,9 +523,20 @@ export default defineComponent({
             closeBrowseDropdown();
         };
 
-        const onNetflixNavClick = (item: { setCatalogue?: string }) => {
+        const navigateNetflixNav = async (item: NetflixNavItem) => {
             if (item.setCatalogue) {
                 setNetflixCatalogue(item.setCatalogue);
+            }
+
+            const destination = parseNavDestination(item.path);
+            try {
+                await router.push(destination);
+            } catch {
+                // duplicate navigation — still scroll so repeat clicks feel responsive
+            }
+
+            if (typeof window !== 'undefined') {
+                window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
             }
         };
 
@@ -601,9 +575,11 @@ export default defineComponent({
         const selectNetflixCatalogue = (id: string) => {
             nfDebug('header:catalogue-select', { id });
             setNetflixCatalogue(id);
-            if (route.path !== '/') {
-                router.push('/');
-            }
+            void router.push('/').then(() => {
+                if (typeof window !== 'undefined') {
+                    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+                }
+            });
         };
 
         onMounted(() => {
@@ -656,7 +632,7 @@ export default defineComponent({
             isBrowseOpen,
             toggleBrowseDropdown,
             selectBrowseCatalogue,
-            onNetflixNavClick,
+            navigateNetflixNav,
             prefetchNetflixNav
         };
     }

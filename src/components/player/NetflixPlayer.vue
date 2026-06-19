@@ -80,13 +80,45 @@
                 </div>
 
                 <div class="nf-watch__bar-right">
+                    <div ref="languageRef" class="nf-watch__quality nf-watch__language">
+                        <button
+                            type="button"
+                            class="nf-watch__quality-btn"
+                            aria-haspopup="listbox"
+                            :aria-expanded="languageOpen"
+                            @click.stop="toggleLanguageMenu"
+                        >
+                            {{ activeLanguageLabel }}
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m6 9 6 6 6-6" stroke-linecap="round" />
+                            </svg>
+                        </button>
+                        <ul v-if="languageOpen" class="nf-watch__quality-menu nf-watch__language-menu" role="listbox">
+                            <li
+                                v-for="lang in languages"
+                                :key="lang.category"
+                                role="option"
+                                :aria-selected="selectedLanguage === lang.category"
+                            >
+                                <button
+                                    type="button"
+                                    class="nf-watch__quality-item"
+                                    :class="{ 'is-active': selectedLanguage === lang.category }"
+                                    @click.stop="selectLanguage(lang.category)"
+                                >
+                                    {{ lang.label }}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
                     <div ref="qualityRef" class="nf-watch__quality">
                         <button
                             type="button"
                             class="nf-watch__quality-btn"
                             aria-haspopup="listbox"
                             :aria-expanded="qualityOpen"
-                            @click.stop="qualityOpen = !qualityOpen"
+                            @click.stop="qualityOpen = !qualityOpen; languageOpen = false"
                         >
                             {{ activeQualityLabel }}
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -144,6 +176,7 @@ import {
     type MoovieStream
 } from '../../composables/useMooviePlayer';
 import { nfDebug } from '../../composables/useNetflixDebug';
+import type { NetflixLanguageOption } from '../../composables/useNetflixLanguage';
 
 export default defineComponent({
     name: 'NetflixPlayer',
@@ -162,17 +195,21 @@ export default defineComponent({
         isMuted: { type: Boolean, default: false },
         streams: { type: Array as PropType<MoovieStream[]>, default: () => [] },
         selectedStreamIndex: { type: Number, default: 0 },
+        languages: { type: Array as PropType<NetflixLanguageOption[]>, default: () => [] },
+        selectedLanguage: { type: String, default: 'hindi' },
         bindContainer: {
             type: Function as PropType<(el: HTMLElement | null) => void>,
             required: true
         }
     },
-    emits: ['back', 'toggle-play', 'skip-back', 'toggle-mute', 'seek', 'quality'],
+    emits: ['back', 'toggle-play', 'skip-back', 'toggle-mute', 'seek', 'quality', 'language'],
     setup(props, { emit }) {
         const shellRef = ref<HTMLElement | null>(null);
         const stageRef = ref<HTMLElement | null>(null);
         const qualityRef = ref<HTMLElement | null>(null);
+        const languageRef = ref<HTMLElement | null>(null);
         const qualityOpen = ref(false);
+        const languageOpen = ref(false);
         const controlsVisible = ref(true);
         const isFullscreen = ref(false);
         let hideTimer: number | null = null;
@@ -182,12 +219,17 @@ export default defineComponent({
             return stream?.quality || 'Quality';
         });
 
+        const activeLanguageLabel = computed(() => {
+            const lang = props.languages.find((l) => l.category === props.selectedLanguage);
+            return lang?.label || 'Language';
+        });
+
         const revealControls = () => {
             controlsVisible.value = true;
             if (hideTimer !== null) window.clearTimeout(hideTimer);
-            if (props.isPlaying && props.artReady && !qualityOpen.value) {
+            if (props.isPlaying && props.artReady && !qualityOpen.value && !languageOpen.value) {
                 hideTimer = window.setTimeout(() => {
-                    if (!qualityOpen.value) {
+                    if (!qualityOpen.value && !languageOpen.value) {
                         controlsVisible.value = false;
                     }
                 }, 3200);
@@ -211,8 +253,20 @@ export default defineComponent({
 
         const selectQuality = (index: number) => {
             qualityOpen.value = false;
+            languageOpen.value = false;
             nfDebug('player-ui:quality-select', { index });
             emit('quality', index);
+        };
+
+        const toggleLanguageMenu = () => {
+            languageOpen.value = !languageOpen.value;
+            if (languageOpen.value) qualityOpen.value = false;
+        };
+
+        const selectLanguage = (category: string) => {
+            languageOpen.value = false;
+            nfDebug('player-ui:language-select', { category });
+            emit('language', category);
         };
 
         const toggleFullscreen = async () => {
@@ -233,9 +287,9 @@ export default defineComponent({
         };
 
         const onDocClick = (event: MouseEvent) => {
-            if (!qualityRef.value?.contains(event.target as Node)) {
-                qualityOpen.value = false;
-            }
+            const target = event.target as Node;
+            if (!qualityRef.value?.contains(target)) qualityOpen.value = false;
+            if (!languageRef.value?.contains(target)) languageOpen.value = false;
         };
 
         watch(
@@ -273,12 +327,15 @@ export default defineComponent({
             }
         );
 
-        watch(qualityOpen, (open) => {
+        const keepControlsForMenu = (open: boolean) => {
             if (open) {
                 controlsVisible.value = true;
                 if (hideTimer !== null) window.clearTimeout(hideTimer);
             }
-        });
+        };
+
+        watch(qualityOpen, keepControlsForMenu);
+        watch(languageOpen, keepControlsForMenu);
 
         onMounted(() => {
             nfDebug('player-ui:mount');
@@ -299,15 +356,20 @@ export default defineComponent({
             shellRef,
             stageRef,
             qualityRef,
+            languageRef,
             qualityOpen,
+            languageOpen,
             controlsVisible,
             isFullscreen,
             activeQualityLabel,
+            activeLanguageLabel,
             formatPlayerTime,
             revealControls,
             onShellClick,
             onProgressClick,
             selectQuality,
+            toggleLanguageMenu,
+            selectLanguage,
             toggleFullscreen,
             togglePlay: () => emit('toggle-play'),
             skipBack: (s: number) => emit('skip-back', s),
@@ -581,6 +643,12 @@ export default defineComponent({
             width: 14px;
             height: 14px;
         }
+    }
+
+    &__language-menu {
+        min-width: 148px;
+        max-height: 240px;
+        overflow-y: auto;
     }
 
     &__quality-menu {

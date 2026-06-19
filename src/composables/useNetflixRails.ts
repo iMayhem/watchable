@@ -354,6 +354,25 @@ const RAIL_DEFINITIONS: RailDefinition[] = [
     }
 ];
 
+type CatalogueMatcher = (
+    item: MoovieCatalogItem,
+    lang: NetflixLanguageOption
+) => boolean;
+
+const HEADER_CATALOGUE_MATCHERS: Record<string, CatalogueMatcher> = {
+    hollywood: (item, lang) => hollywoodMovie(item, lang) || englishSeries(item, lang),
+    bollywood: (item, lang) => bollywoodMovie(item, lang) || hindiSeries(item, lang),
+    korean: (item, lang) => koreanMovie(item, lang) || koreanSeries(item, lang),
+    japanese: (item, lang) => japaneseSeries(item, lang),
+    telugu: (item, lang) => regionalMovies(item, lang, ['telugu', 'tollywood']),
+    tamil: (item, lang) => regionalMovies(item, lang, ['tamil', 'kollywood']),
+    malayalam: (item, lang) => regionalMovies(item, lang, ['malayalam', 'mollywood']),
+    bengali: (item, lang) => regionalMovies(item, lang, ['bengali', 'bangla']),
+    kannada: (item, lang) => regionalMovies(item, lang, ['kannada', 'sandalwood']),
+    marathi: (item, lang) => regionalMovies(item, lang, ['marathi']),
+    punjabi: (item, lang) => regionalMovies(item, lang, ['punjabi', 'pollywood'])
+};
+
 /** Rails that should float up when their region matches the active language tab. */
 const LANGUAGE_RAIL_BOOST: Record<string, string[]> = {
     hindi: ['bollywood', 'hindi-series'],
@@ -372,6 +391,272 @@ const LANGUAGE_RAIL_BOOST: Record<string, string[]> = {
 const MIN_RAIL_ITEMS = 3;
 const MAX_PER_RAIL = 14;
 const MAX_TRENDING = 12;
+const TOP_CHART_SIZE = 10;
+
+function itemRating(item: MoovieCatalogItem) {
+    const raw = item.vote_average;
+    const n = typeof raw === 'string' ? parseFloat(raw) : Number(raw);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function releaseTimestamp(item: MoovieCatalogItem) {
+    const raw = String(item.release_date || '');
+    const normalized = raw.replace(/,(\d{4})/, ', $1');
+    const parsed = Date.parse(normalized);
+    if (!Number.isNaN(parsed)) return parsed;
+    const year = raw.match(/\b(19|20)\d{2}\b/);
+    return year ? Date.UTC(parseInt(year[0], 10), 0, 1) : 0;
+}
+
+function takeUnique(
+    pool: MoovieCatalogItem[],
+    used: Set<string>,
+    limit: number,
+    predicate: (item: MoovieCatalogItem) => boolean
+) {
+    const out: MoovieCatalogItem[] = [];
+    for (const item of pool) {
+        if (out.length >= limit) break;
+        if (used.has(item.id) || !predicate(item)) continue;
+        used.add(item.id);
+        out.push(item);
+    }
+    return out;
+}
+
+function takeTopRated(
+    pool: MoovieCatalogItem[],
+    used: Set<string>,
+    limit: number,
+    opts: { movie?: boolean; tv?: boolean; minRating?: number } = {}
+) {
+    const minRating = opts.minRating ?? 0;
+    const candidates = pool
+        .filter((item) => {
+            if (used.has(item.id)) return false;
+            if (opts.movie && !isMovie(item)) return false;
+            if (opts.tv && !isSeries(item)) return false;
+            return itemRating(item) >= minRating;
+        })
+        .sort((a, b) => itemRating(b) - itemRating(a));
+
+    const out: MoovieCatalogItem[] = [];
+    for (const item of candidates) {
+        if (out.length >= limit) break;
+        used.add(item.id);
+        out.push(item);
+    }
+    return out;
+}
+
+function takeNewest(
+    pool: MoovieCatalogItem[],
+    used: Set<string>,
+    limit: number,
+    opts: { movie?: boolean; tv?: boolean } = {}
+) {
+    const candidates = pool
+        .filter((item) => {
+            if (used.has(item.id)) return false;
+            if (opts.movie && !isMovie(item)) return false;
+            if (opts.tv && !isSeries(item)) return false;
+            return releaseTimestamp(item) > 0;
+        })
+        .sort((a, b) => releaseTimestamp(b) - releaseTimestamp(a));
+
+    const out: MoovieCatalogItem[] = [];
+    for (const item of candidates) {
+        if (out.length >= limit) break;
+        used.add(item.id);
+        out.push(item);
+    }
+    return out;
+}
+
+function takeByKeywords(
+    pool: MoovieCatalogItem[],
+    used: Set<string>,
+    limit: number,
+    keywords: string[],
+    opts: { movie?: boolean; tv?: boolean } = {}
+) {
+    return takeUnique(pool, used, limit, (item) => {
+        if (opts.movie && !isMovie(item)) return false;
+        if (opts.tv && !isSeries(item)) return false;
+        return hasAny(item, keywords);
+    });
+}
+
+interface NetflixCuratedPlan {
+    id: string;
+    title: string;
+    eyebrow: string;
+    description: string;
+    defaultType: 'movie' | 'tv';
+    items: MoovieCatalogItem[];
+}
+
+/** Netflix homepage row titles + ordering (after Trending Now). */
+function planNetflixCuratedRows(
+    filtered: MoovieCatalogItem[],
+    catalogueLabel: string,
+    lang: NetflixLanguageOption
+): NetflixCuratedPlan[] {
+    const used = new Set<string>();
+    const rows: NetflixCuratedPlan[] = [];
+
+    const push = (
+        id: string,
+        title: string,
+        eyebrow: string,
+        description: string,
+        defaultType: 'movie' | 'tv',
+        items: MoovieCatalogItem[]
+    ) => {
+        if (items.length < MIN_RAIL_ITEMS) return;
+        rows.push({ id, title, eyebrow, description, defaultType, items });
+    };
+
+    push(
+        'top10-movies',
+        'Top 10 Movies Today',
+        'Top 10',
+        `Today's most popular movies in ${catalogueLabel}.`,
+        'movie',
+        takeTopRated(filtered, used, TOP_CHART_SIZE, { movie: true })
+    );
+
+    push(
+        'top10-tv',
+        'Top 10 TV Shows Today',
+        'Top 10',
+        `Today's most popular series in ${catalogueLabel}.`,
+        'tv',
+        takeTopRated(filtered, used, TOP_CHART_SIZE, { tv: true })
+    );
+
+    push(
+        'new-on-netflix',
+        'New on Netflix',
+        'New arrivals',
+        `Recently added ${catalogueLabel} titles in ${lang.label}.`,
+        'movie',
+        takeNewest(filtered, used, MAX_PER_RAIL)
+    );
+
+    push(
+        'blockbuster-movies',
+        'Blockbuster Movies',
+        'Hits',
+        `Big ${catalogueLabel} films with ${lang.label} audio.`,
+        'movie',
+        takeTopRated(filtered, used, MAX_PER_RAIL, { movie: true, minRating: 6.5 })
+    );
+
+    push(
+        'critically-acclaimed',
+        'Critically Acclaimed Movies',
+        'Award season',
+        `Standout ${catalogueLabel} movies rated 7.5+.`,
+        'movie',
+        takeTopRated(filtered, used, MAX_PER_RAIL, { movie: true, minRating: 7.5 })
+    );
+
+    push(
+        'exciting-tv',
+        'Exciting TV Shows',
+        'Series',
+        `Binge-worthy ${catalogueLabel} series in ${lang.label}.`,
+        'tv',
+        takeTopRated(filtered, used, MAX_PER_RAIL, { tv: true, minRating: 6 })
+    );
+
+    push(
+        'action-adventure',
+        'Action & Adventure',
+        'Adrenaline',
+        `High-energy ${catalogueLabel} action in ${lang.label}.`,
+        'movie',
+        takeByKeywords(
+            filtered,
+            used,
+            MAX_PER_RAIL,
+            ['action', 'adventure', 'mission', 'war', 'marvel', 'fast', 'gun', 'fighter'],
+            { movie: true }
+        )
+    );
+
+    push(
+        'comedies',
+        'Comedies',
+        'Laughs',
+        `Funny ${catalogueLabel} picks in ${lang.label}.`,
+        'movie',
+        takeByKeywords(
+            filtered,
+            used,
+            MAX_PER_RAIL,
+            ['comedy', 'comedic', 'funny', 'laugh', 'humor', 'humour'],
+            { movie: true }
+        )
+    );
+
+    push(
+        'thrillers',
+        'Thriller Movies',
+        'Edge of your seat',
+        `Suspenseful ${catalogueLabel} thrillers in ${lang.label}.`,
+        'movie',
+        takeByKeywords(
+            filtered,
+            used,
+            MAX_PER_RAIL,
+            ['thriller', 'mystery', 'crime', 'murder', 'suspense', 'horror', 'dark'],
+            { movie: true }
+        )
+    );
+
+    push(
+        'romantic-movies',
+        'Romantic Movies',
+        'Love stories',
+        `Romance and drama in ${catalogueLabel}.`,
+        'movie',
+        takeByKeywords(
+            filtered,
+            used,
+            MAX_PER_RAIL,
+            ['romance', 'romantic', 'love', 'wedding', 'heart'],
+            { movie: true }
+        )
+    );
+
+    push(
+        'tv-dramas',
+        'TV Dramas',
+        'Drama',
+        `Dramatic ${catalogueLabel} series in ${lang.label}.`,
+        'tv',
+        takeByKeywords(
+            filtered,
+            used,
+            MAX_PER_RAIL,
+            ['drama', 'season', 'story', 'family', 'life'],
+            { tv: true }
+        )
+    );
+
+    push(
+        'only-on-netflix',
+        'Only on Netflix',
+        'Exclusive',
+        `More ${catalogueLabel} titles you can watch now.`,
+        'movie',
+        takeUnique(filtered, used, MAX_PER_RAIL, () => true)
+    );
+
+    return rows;
+}
 
 export function railTitleWithLanguage(base: string, lang: NetflixLanguageOption) {
     return `${base} · ${lang.label}`;
@@ -385,6 +670,75 @@ export function buildTrendingItems(
         .slice(0, MAX_TRENDING)
         .map((item) => byId.get(String(item.id)))
         .filter((item): item is CuratedItem => Boolean(item));
+}
+
+export function itemMatchesCatalogue(
+    item: MoovieCatalogItem,
+    catalogueId: string,
+    lang: NetflixLanguageOption
+) {
+    const matcher = HEADER_CATALOGUE_MATCHERS[catalogueId];
+    return matcher ? matcher(item, lang) : false;
+}
+
+export function filterCataloguePool(
+    pool: MoovieCatalogItem[],
+    catalogueId: string,
+    lang: NetflixLanguageOption
+) {
+    return pool.filter((item) => itemMatchesCatalogue(item, catalogueId, lang));
+}
+
+export function buildNetflixCuratedSections(
+    pool: MoovieCatalogItem[],
+    catalogueId: string,
+    catalogueLabel: string,
+    lang: NetflixLanguageOption,
+    byId: Map<string, CuratedItem>
+): NetflixRailSection[] {
+    const filtered = filterCataloguePool(pool, catalogueId, lang);
+    const plans = planNetflixCuratedRows(filtered, catalogueLabel, lang);
+
+    return plans
+        .map((plan) => {
+            const items = plan.items
+                .map((item) => byId.get(String(item.id)))
+                .filter((item): item is CuratedItem => Boolean(item));
+            if (items.length < MIN_RAIL_ITEMS) return null;
+            return {
+                id: `${catalogueId}-${plan.id}`,
+                title: plan.title,
+                eyebrow: plan.eyebrow,
+                description: plan.description,
+                defaultType: plan.defaultType,
+                items
+            };
+        })
+        .filter((section): section is NetflixRailSection => Boolean(section));
+}
+
+export function collectArtworkIdsForCurated(
+    pool: MoovieCatalogItem[],
+    catalogueId: string,
+    lang: NetflixLanguageOption,
+    catalogueLabel: string
+): MoovieCatalogItem[] {
+    const filtered = filterCataloguePool(pool, catalogueId, lang);
+    const seen = new Set<string>();
+    const out: MoovieCatalogItem[] = [];
+
+    const push = (item: MoovieCatalogItem) => {
+        if (seen.has(item.id)) return;
+        seen.add(item.id);
+        out.push(item);
+    };
+
+    filtered.slice(0, MAX_TRENDING).forEach(push);
+    for (const plan of planNetflixCuratedRows(filtered, catalogueLabel, lang)) {
+        plan.items.forEach(push);
+    }
+
+    return out;
 }
 
 export function buildNetflixRailSections(

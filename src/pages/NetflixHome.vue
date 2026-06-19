@@ -14,16 +14,17 @@
                 :rating="hero ? hero.rating : 0"
                 :release-date="hero ? hero.releaseDate : ''"
                 :genre-ids="[]"
-                :eyebrow="`Featured · ${activeLang.label}`"
+                :eyebrow="`Featured · ${activeCatalogue.label}`"
                 :loading="isLoading && !hero"
                 :play-to="heroPlayRoute"
                 :detail-to="heroDetailRoute"
             />
 
             <div v-if="!isLoading || trendingItems.length" class="home__lang-banner container-lm">
-                <span class="home__lang-chip">{{ activeLang.nativeLabel }}</span>
+                <span class="home__lang-chip">{{ activeCatalogue.label }}</span>
                 <span class="home__lang-copy">
-                    Browsing <strong>{{ activeLang.label }}</strong> catalogue — Hollywood, Bollywood, Korean and more.
+                    <strong>{{ activeCatalogue.label }}</strong> picks in
+                    <strong>{{ activeLang.label }}</strong>
                 </span>
             </div>
 
@@ -32,8 +33,8 @@
                 class="home__section"
                 :items="trendingItems"
                 title="Trending now"
-                :eyebrow="activeLang.nativeLabel"
-                :description="`Top ${activeLang.label} picks right now.`"
+                :eyebrow="activeCatalogue.eyebrow"
+                :description="`Trending ${activeCatalogue.label} titles in ${activeLang.label}.`"
                 catalog="netflix"
                 :loading="isLoading"
             />
@@ -55,7 +56,7 @@
                 class="home__section"
                 :items="[]"
                 title="Loading catalogues"
-                :eyebrow="activeLang.label"
+                :eyebrow="activeCatalogue.label"
                 catalog="netflix"
                 :loading="true"
             />
@@ -79,15 +80,21 @@ import {
     type MoovieCatalogItem
 } from '../composables/useMoovieCatalog';
 import {
+    getNetflixCatalogue,
+    getCatalogueOption,
+    type NetflixCatalogueOption
+} from '../composables/useNetflixCatalogue';
+import {
     getNetflixLanguage,
     getLanguageOption,
     itemMatchesLanguage,
     type NetflixLanguageOption
 } from '../composables/useNetflixLanguage';
 import {
-    buildNetflixRailSections,
+    buildNetflixCuratedSections,
     buildTrendingItems,
-    collectArtworkIds,
+    collectArtworkIdsForCurated,
+    filterCataloguePool,
     type NetflixRailSection
 } from '../composables/useNetflixRails';
 import { useSeo } from '../composables/useSeo';
@@ -116,16 +123,18 @@ async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
 
 export default defineComponent({
     name: 'NetflixHome',
-    // Cached via parent HomeShell KeepAlive — skip reload when returning from player.
     components: { SiteHeader, SiteFooter, BillboardHero, CuratedRail },
     setup() {
         const { updateSeo } = useSeo();
         const { language, activeLanguage } = getNetflixLanguage();
+        const { catalogue, activeCatalogue: resolveCatalogue } = getNetflixCatalogue();
         const isLoading = ref(true);
         const trendingItems = ref<CuratedItem[]>([]);
         const catalogueRails = ref<NetflixRailSection[]>([]);
+        const lastLoadKey = ref('');
 
         const activeLang = computed<NetflixLanguageOption>(() => activeLanguage());
+        const activeCatalogue = computed<NetflixCatalogueOption>(() => resolveCatalogue());
 
         const hero = computed(() => {
             const first =
@@ -160,9 +169,17 @@ export default defineComponent({
             return { path: `/nf/${h.type}/${h.id}` };
         });
 
-        const loadLanguageCatalogue = async () => {
+        const currentLoadKey = () => `${catalogue.value}:${language.value}`;
+
+        const loadCatalogue = async () => {
             const lang = getLanguageOption(language.value);
-            nfDebug('home:load:start', { language: lang.category, label: lang.label });
+            const cat = getCatalogueOption(catalogue.value);
+            const loadKey = currentLoadKey();
+            nfDebug('home:load:start', {
+                catalogue: cat.id,
+                language: lang.category,
+                label: lang.label
+            });
             isLoading.value = true;
             trendingItems.value = [];
             catalogueRails.value = [];
@@ -174,20 +191,35 @@ export default defineComponent({
                     browseMoovieCatalog(lang.category, 2)
                 ]);
 
-                const pool = [
+                const browsePool = [
                     ...(page0.results || []),
                     ...(page1.results || []),
                     ...(page2.results || [])
                 ].filter((item) => itemMatchesLanguage(item, lang));
 
-                const artworkTargets = collectArtworkIds(pool, lang);
+                const pool = filterCataloguePool(browsePool, cat.id, lang);
+                const artworkTargets = collectArtworkIdsForCurated(
+                    browsePool,
+                    cat.id,
+                    lang,
+                    cat.label
+                );
                 const curated = await mapWithConcurrency(artworkTargets, toCuratedItem, 5);
                 const byId = new Map(curated.map((item) => [String(item.id), item]));
 
                 trendingItems.value = buildTrendingItems(pool, byId);
-                catalogueRails.value = buildNetflixRailSections(pool, lang, byId);
+                catalogueRails.value = buildNetflixCuratedSections(
+                    browsePool,
+                    cat.id,
+                    cat.label,
+                    lang,
+                    byId
+                );
+
+                lastLoadKey.value = loadKey;
 
                 nfDebug('home:load:ok', {
+                    catalogue: cat.id,
                     language: lang.category,
                     pool: pool.length,
                     trending: trendingItems.value.length,
@@ -195,20 +227,20 @@ export default defineComponent({
                 });
 
                 updateSeo({
-                    title: `${lang.label} — Netflix on Moovie`,
+                    title: `${cat.label} · ${lang.label} — Netflix on Moovie`,
                     canonical: 'https://moovie.fun/',
                     image: 'https://moovie.fun/og-image.png'
                 });
             } catch (err) {
-                nfDebugError('home:load:fail', { language: lang.category, err });
+                nfDebugError('home:load:fail', { catalogue: cat.id, language: lang.category, err });
             } finally {
                 isLoading.value = false;
             }
         };
 
-        const onLanguageChange = () => {
-            nfDebug('home:language-change');
-            loadLanguageCatalogue();
+        const onCatalogueOrLanguageChange = () => {
+            nfDebug('home:filter-change');
+            loadCatalogue();
         };
 
         const hasCatalogue = () =>
@@ -216,26 +248,29 @@ export default defineComponent({
 
         onMounted(() => {
             nfDebug('home:mount');
-            loadLanguageCatalogue();
-            window.addEventListener('movora_netflix_language_change', onLanguageChange);
+            loadCatalogue();
+            window.addEventListener('movora_netflix_catalogue_change', onCatalogueOrLanguageChange);
+            window.addEventListener('movora_netflix_language_change', onCatalogueOrLanguageChange);
         });
 
         onActivated(() => {
-            if (hasCatalogue()) {
+            if (hasCatalogue() && lastLoadKey.value === currentLoadKey()) {
                 nfDebug('home:reactivate');
                 isLoading.value = false;
                 return;
             }
-            loadLanguageCatalogue();
+            loadCatalogue();
         });
 
         onBeforeUnmount(() => {
-            window.removeEventListener('movora_netflix_language_change', onLanguageChange);
+            window.removeEventListener('movora_netflix_catalogue_change', onCatalogueOrLanguageChange);
+            window.removeEventListener('movora_netflix_language_change', onCatalogueOrLanguageChange);
         });
 
         return {
             isLoading,
             activeLang,
+            activeCatalogue,
             hero,
             heroPlayRoute,
             heroDetailRoute,

@@ -16,12 +16,15 @@
             :is-muted="isMuted"
             :streams="resolved?.streams || []"
             :selected-stream-index="selectedStreamIndex"
+            :languages="netflixLanguages"
+            :selected-language="playbackLanguage"
             @back="goBack"
             @toggle-play="togglePlay"
             @skip-back="skipBack"
             @toggle-mute="toggleMute"
             @seek="seekTo"
             @quality="onQuality"
+            @language="onLanguage"
         />
     </div>
 </template>
@@ -33,6 +36,7 @@ import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import { parseCatalogTitle } from '../composables/useMoovieCatalog';
 import { useMooviePlayer } from '../composables/useMooviePlayer';
 import { useSeo } from '../composables/useSeo';
+import { getNetflixLanguage, NETFLIX_LANGUAGES } from '../composables/useNetflixLanguage';
 import { nfDebug } from '../composables/useNetflixDebug';
 
 export default defineComponent({
@@ -42,6 +46,8 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const { updateSeo } = useSeo();
+        const { language: playbackLanguage, setLanguage: setPlaybackLanguage } =
+            getNetflixLanguage();
         const player = useMooviePlayer({ skin: 'netflix' });
         const {
             loading,
@@ -150,6 +156,13 @@ export default defineComponent({
             switchQuality(index, resolveUrl.value);
         };
 
+        const onLanguage = (category: string) => {
+            if (category === playbackLanguage.value) return;
+            nfDebug('stream:language', { category });
+            setPlaybackLanguage(category);
+            startPlayback();
+        };
+
         onBeforeRouteLeave(() => {
             scheduleTeardown();
         });
@@ -205,7 +218,10 @@ export default defineComponent({
             seekTo,
             skipBack,
             toggleMute,
-            onQuality
+            onQuality,
+            onLanguage,
+            netflixLanguages: NETFLIX_LANGUAGES,
+            playbackLanguage
         };
     }
 });

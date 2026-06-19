@@ -10,7 +10,7 @@ export interface NetflixLanguageOption {
     matchLabels: string[];
 }
 
-/** Header language tabs — Korean is a catalogue rail, not a top-level tab. */
+/** Playback / browse audio language — selected in the video player. */
 export const NETFLIX_LANGUAGES: NetflixLanguageOption[] = [
     { category: 'hindi', label: 'Hindi', nativeLabel: 'हिंदी', matchLabels: ['Hindi', 'HindiDub'] },
     { category: 'english', label: 'English', nativeLabel: 'English', matchLabels: ['English'] },

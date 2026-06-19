@@ -12,18 +12,18 @@
 
             <nav
                 v-if="isNetflixMode"
-                class="site-header__nav site-header__nav--languages"
-                aria-label="Languages"
+                class="site-header__nav site-header__nav--catalogues"
+                aria-label="Catalogues"
             >
                 <button
-                    v-for="lang in netflixLanguages"
-                    :key="lang.category"
+                    v-for="cat in netflixCatalogues"
+                    :key="cat.id"
                     type="button"
                     class="site-header__link"
-                    :class="{ 'is-active': netflixLanguage === lang.category }"
-                    @click="selectNetflixLanguage(lang.category)"
+                    :class="{ 'is-active': netflixCatalogue === cat.id }"
+                    @click="selectNetflixCatalogue(cat.id)"
                 >
-                    {{ lang.label }}
+                    {{ cat.label }}
                 </button>
             </nav>
 
@@ -144,19 +144,19 @@
             </div>
         </div>
 
-        <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Languages' : 'moovie'">
-            <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Languages' : 'Mobile'">
+        <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Catalogues' : 'moovie'">
+            <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Catalogues' : 'Mobile'">
                 <template v-if="isNetflixMode">
                     <button
-                        v-for="(lang, index) in netflixLanguages"
-                        :key="lang.category"
+                        v-for="(cat, index) in netflixCatalogues"
+                        :key="cat.id"
                         type="button"
                         class="site-header__drawer-link"
-                        :class="{ 'is-active': netflixLanguage === lang.category }"
-                        @click="selectNetflixLanguage(lang.category); drawerOpen = false"
+                        :class="{ 'is-active': netflixCatalogue === cat.id }"
+                        @click="selectNetflixCatalogue(cat.id); drawerOpen = false"
                     >
                         <span class="eyebrow site-header__drawer-num">0{{ index + 1 }}</span>
-                        <span class="site-header__drawer-label">{{ lang.label }}</span>
+                        <span class="site-header__drawer-label">{{ cat.label }}</span>
                     </button>
 
                     <button
@@ -239,7 +239,7 @@ import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
-import { getNetflixLanguage, NETFLIX_LANGUAGES } from '../../composables/useNetflixLanguage';
+import { getNetflixCatalogue, NETFLIX_CATALOGUES } from '../../composables/useNetflixCatalogue';
 import { nfDebug } from '../../composables/useNetflixDebug';
 
 interface NavItem {
@@ -285,7 +285,8 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const { contentMode, setContentMode, isChosen } = getContentMode();
-        const { language: netflixLanguage, setLanguage: setNetflixLanguage } = getNetflixLanguage();
+        const { catalogue: netflixCatalogue, setCatalogue: setNetflixCatalogue } =
+            getNetflixCatalogue();
         const isNetflixMode = computed(() => contentMode.value === 'netflix');
         const scrolled = ref(false);
         const drawerOpen = ref(false);
@@ -396,9 +397,9 @@ export default defineComponent({
             }
         };
 
-        const selectNetflixLanguage = (category: string) => {
-            nfDebug('header:language-select', { category });
-            setNetflixLanguage(category);
+        const selectNetflixCatalogue = (id: string) => {
+            nfDebug('header:catalogue-select', { id });
+            setNetflixCatalogue(id);
             if (route.path !== '/') {
                 router.push('/');
             }
@@ -446,9 +447,9 @@ export default defineComponent({
             toggleContentMode,
 
             isNetflixMode,
-            netflixLanguages: NETFLIX_LANGUAGES,
-            netflixLanguage,
-            selectNetflixLanguage
+            netflixCatalogues: NETFLIX_CATALOGUES,
+            netflixCatalogue,
+            selectNetflixCatalogue
         };
     }
 });
@@ -547,7 +548,7 @@ export default defineComponent({
             display: none;
         }
 
-        &--languages {
+        &--catalogues {
             flex: 1;
             min-width: 0;
             overflow-x: auto;

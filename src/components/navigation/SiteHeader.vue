@@ -462,7 +462,7 @@ export default defineComponent({
             const cat = netflixCatalogue.value;
             const path = route.path;
 
-            const moviesCatalogue = cat === 'korean' ? 'hollywood' : cat;
+            const generalCatalogue = cat === 'korean' ? 'hollywood' : cat;
 
             const isNetflixDetailOrPlayer =
                 path.startsWith('/nf/movie/') ||
@@ -481,8 +481,8 @@ export default defineComponent({
 
             const isMovieSection =
                 (cat !== 'korean' || !isNetflixDetailOrPlayer) && (
-                    path === netflixBrowsePath(moviesCatalogue, 'blockbuster-movies') ||
-                    path === netflixBrowsePath(moviesCatalogue, 'top10-movies') ||
+                    path === netflixBrowsePath(generalCatalogue, 'blockbuster-movies') ||
+                    path === netflixBrowsePath(generalCatalogue, 'top10-movies') ||
                     (cat !== 'korean' &&
                         (path === netflixBrowsePath(cat, 'blockbuster-movies') ||
                             path === netflixBrowsePath(cat, 'top10-movies'))) ||
@@ -500,18 +500,20 @@ export default defineComponent({
                 },
                 {
                     label: 'TV Shows',
-                    path: netflixBrowsePath(cat, 'exciting-tv'),
+                    path: netflixBrowsePath(generalCatalogue, 'exciting-tv'),
+                    setCatalogue: cat === 'korean' ? 'hollywood' : undefined,
                     isActive: () => isTvSection
                 },
                 {
                     label: 'Movies',
-                    path: netflixBrowsePath(moviesCatalogue, 'blockbuster-movies'),
+                    path: netflixBrowsePath(generalCatalogue, 'blockbuster-movies'),
                     setCatalogue: cat === 'korean' ? 'hollywood' : undefined,
                     isActive: () => isMovieSection
                 },
                 {
                     label: 'Anime',
-                    path: netflixBrowsePath(cat, 'anime'),
+                    path: netflixBrowsePath(generalCatalogue, 'anime'),
+                    setCatalogue: cat === 'korean' ? 'hollywood' : undefined,
                     isActive: () => isAnimeNavActive(path, cat)
                 },
                 {

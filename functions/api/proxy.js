@@ -72,7 +72,11 @@ export async function onRequest(context) {
     
     const headers = new Headers();
     const isPeachifyGateway = targetUrl.includes('eat-peach.sbs') || targetUrl.includes('workers.dev');
-    const isMovieboxCdn = targetUrl.includes('hakunaymatata.com') || targetUrl.includes('aoneroom.com');
+    const isMovieboxCdn =
+        targetUrl.includes('hakunaymatata.com') ||
+        targetUrl.includes('aoneroom.com') ||
+        targetUrl.includes('watch21.shop') ||
+        targetUrl.includes('watch22.shop');
     
     if (isPeachifyGateway) {
         headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36');
@@ -107,6 +111,7 @@ export async function onRequest(context) {
                            
         const responseHeaders = new Headers();
         responseHeaders.set('Access-Control-Allow-Origin', '*');
+        responseHeaders.set('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
         
         // Forward useful headers from remote target response
         for (let hName of ['Content-Range', 'Accept-Ranges', 'ETag', 'Cache-Control']) {

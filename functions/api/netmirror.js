@@ -213,7 +213,7 @@ async function resolveNetmirror(type, id, season, episode, server) {
     watchboxUrl,
     playerProxyUrl: `/api/netmirror?action=player&type=${type}&id=${id}&se=${season}&ep=${episode}&server=${server}`,
     streams,
-    defaultStream: streams[0] || null,
+    defaultStream: streams[streams.length - 1] || streams[0] || null,
   };
 }
 

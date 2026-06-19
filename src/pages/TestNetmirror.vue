@@ -86,41 +86,50 @@
                 <button
                     type="button"
                     class="nm-test__mode-btn"
-                    :class="{ 'is-active': playerMode === 'iframe' }"
-                    @click="playerMode = 'iframe'"
-                >
-                    Proxied iframe
-                </button>
-                <button
-                    type="button"
-                    class="nm-test__mode-btn"
                     :class="{ 'is-active': playerMode === 'direct' }"
                     :disabled="!activeStream"
                     @click="playerMode = 'direct'"
                 >
                     Proxied MP4
                 </button>
+                <button
+                    type="button"
+                    class="nm-test__mode-btn"
+                    :class="{ 'is-active': playerMode === 'iframe' }"
+                    @click="playerMode = 'iframe'"
+                >
+                    Proxied iframe
+                </button>
             </div>
 
             <div class="nm-test__player">
+                <video
+                    v-if="playerMode === 'direct' && activeStream"
+                    :key="activeStream.proxiedUrl"
+                    ref="videoEl"
+                    controls
+                    autoplay
+                    playsinline
+                    preload="auto"
+                    :src="activeStream.proxiedUrl"
+                    @error="onVideoError"
+                    @loadedmetadata="playbackError = ''"
+                />
                 <iframe
-                    v-if="playerMode === 'iframe' && playerProxyUrl"
+                    v-else-if="playerMode === 'iframe' && playerProxyUrl"
                     :key="playerProxyUrl"
                     :src="playerProxyUrl"
                     title="NetMirror proxied player"
                     allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                     frameborder="0"
                 />
-                <video
-                    v-else-if="playerMode === 'direct' && activeStream"
-                    :key="activeStream.proxiedUrl"
-                    controls
-                    autoplay
-                    playsinline
-                    :src="activeStream.proxiedUrl"
-                />
                 <div v-else class="nm-test__player-empty">No stream loaded yet.</div>
             </div>
+
+            <p v-if="playbackError" class="nm-test__error" role="alert">{{ playbackError }}</p>
+            <p v-if="activeStream && playerMode === 'direct'" class="nm-test__stream-url">
+                {{ activeStream.quality }} · proxied via /api/proxy
+            </p>
 
             <div v-if="streams.length" class="nm-test__qualities">
                 <button
@@ -195,9 +204,33 @@ export default defineComponent({
         const resolved = ref<NetmirrorResolve | null>(null);
         const searchResults = ref<SearchResult[]>([]);
 
-        const playerMode = ref<'iframe' | 'direct'>('iframe');
+        const playerMode = ref<'iframe' | 'direct'>('direct');
         const selectedStreamIndex = ref(0);
         const showDebug = ref(false);
+        const playbackError = ref('');
+        const videoEl = ref<HTMLVideoElement | null>(null);
+
+        const qualityRank: Record<string, number> = {
+            '360P': 0,
+            '480P': 1,
+            '720P': 2,
+            '1080P': 3,
+            unknown: 4,
+        };
+
+        const pickDefaultStreamIndex = (streamList: NetmirrorStream[]) => {
+            if (!streamList.length) return 0;
+            let bestIndex = 0;
+            let bestRank = qualityRank[streamList[0].quality] ?? 99;
+            for (let i = 1; i < streamList.length; i++) {
+                const rank = qualityRank[streamList[i].quality] ?? 99;
+                if (rank < bestRank) {
+                    bestRank = rank;
+                    bestIndex = i;
+                }
+            }
+            return bestIndex;
+        };
 
         const streams = computed(() => resolved.value?.streams || []);
         const activeStream = computed(() => streams.value[selectedStreamIndex.value] || null);
@@ -245,8 +278,11 @@ export default defineComponent({
                     throw new Error(data.error || `Request failed (${resp.status})`);
                 }
                 resolved.value = data;
-                selectedStreamIndex.value = 0;
-                if (!data.streams?.length) {
+                playbackError.value = '';
+                if (data.streams?.length) {
+                    selectedStreamIndex.value = pickDefaultStreamIndex(data.streams);
+                    playerMode.value = 'direct';
+                } else {
                     playerMode.value = 'iframe';
                 }
             } catch (err: any) {
@@ -291,6 +327,21 @@ export default defineComponent({
         const selectStream = (index: number) => {
             selectedStreamIndex.value = index;
             playerMode.value = 'direct';
+            playbackError.value = '';
+        };
+
+        const onVideoError = () => {
+            const mediaError = videoEl.value?.error;
+            const code = mediaError?.code;
+            const messages: Record<number, string> = {
+                1: 'Playback aborted.',
+                2: 'Network error while loading proxied MP4. Try a lower quality or resolve again.',
+                3: 'Decode error — stream may be corrupt or unsupported.',
+                4: 'No playable MP4 source. Try another quality.',
+            };
+            playbackError.value =
+                (code !== undefined ? messages[code] : undefined) ||
+                'Video failed to play. Try 360P/480P or click Resolve again for fresh signed URLs.';
         };
 
         onMounted(() => {
@@ -323,6 +374,9 @@ export default defineComponent({
             playerMode,
             selectedStreamIndex,
             showDebug,
+            playbackError,
+            videoEl,
+            onVideoError,
             streams,
             activeStream,
             playerProxyUrl,
@@ -467,6 +521,12 @@ select {
     margin: 0;
     color: rgba(244, 247, 251, 0.6);
     font-size: 0.9rem;
+}
+
+.nm-test__stream-url {
+    margin: 0.5rem 0 0;
+    color: rgba(244, 247, 251, 0.45);
+    font-size: 0.78rem;
 }
 
 .nm-test__mode {

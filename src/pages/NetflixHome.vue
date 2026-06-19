@@ -27,6 +27,7 @@
                 title="Trending now"
                 :eyebrow="activeCatalogue.eyebrow"
                 :description="`Trending ${activeCatalogue.label} titles in ${activeLang.label}.`"
+                :more-to="trendingBrowseTo"
                 catalog="netflix"
                 :loading="isLoading"
             />
@@ -40,6 +41,7 @@
                 :eyebrow="rail.eyebrow"
                 :description="rail.description"
                 :default-type="rail.defaultType"
+                :more-to="browseToForRail(rail)"
                 catalog="netflix"
             />
 
@@ -87,6 +89,7 @@ import {
     buildTrendingItems,
     collectArtworkIdsForCurated,
     filterCataloguePool,
+    netflixBrowsePath,
     type NetflixRailSection
 } from '../composables/useNetflixRails';
 import { useSeo } from '../composables/useSeo';
@@ -160,6 +163,13 @@ export default defineComponent({
             const h = hero.value;
             return { path: `/nf/${h.type}/${h.id}` };
         });
+
+        const trendingBrowseTo = computed(() =>
+            netflixBrowsePath(activeCatalogue.value.id, 'trending')
+        );
+
+        const browseToForRail = (rail: NetflixRailSection) =>
+            netflixBrowsePath(activeCatalogue.value.id, rail.rowId);
 
         const currentLoadKey = () => `${catalogue.value}:${language.value}`;
 
@@ -267,7 +277,9 @@ export default defineComponent({
             heroPlayRoute,
             heroDetailRoute,
             trendingItems,
-            catalogueRails
+            catalogueRails,
+            trendingBrowseTo,
+            browseToForRail
         };
     }
 });

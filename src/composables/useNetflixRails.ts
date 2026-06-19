@@ -7,11 +7,40 @@ import type { CuratedItem } from '../components/rails/CuratedRail.vue';
 
 export interface NetflixRailSection {
     id: string;
+    rowId: string;
     title: string;
     eyebrow: string;
     description: string;
     defaultType: 'movie' | 'tv';
     items: CuratedItem[];
+}
+
+export const NETFLIX_BROWSE_ROW_IDS = [
+    'trending',
+    'top10-movies',
+    'top10-tv',
+    'new-on-netflix',
+    'blockbuster-movies',
+    'critically-acclaimed',
+    'exciting-tv',
+    'action-adventure',
+    'comedies',
+    'thrillers',
+    'romantic-movies',
+    'tv-dramas',
+    'only-on-netflix'
+] as const;
+
+export type NetflixBrowseRowId = (typeof NETFLIX_BROWSE_ROW_IDS)[number];
+
+const BROWSE_ROW_ID_SET = new Set<string>(NETFLIX_BROWSE_ROW_IDS);
+
+export function isValidNetflixBrowseRow(rowId: string): rowId is NetflixBrowseRowId {
+    return BROWSE_ROW_ID_SET.has(rowId);
+}
+
+export function netflixBrowsePath(catalogueId: string, rowId: string) {
+    return `/nf/browse/${catalogueId}/${rowId}`;
 }
 
 interface RailDefinition {
@@ -658,6 +687,206 @@ function planNetflixCuratedRows(
     return rows;
 }
 
+const BROWSE_POOL_LIMIT = 240;
+
+function pickRowItems(
+    filtered: MoovieCatalogItem[],
+    rowId: NetflixBrowseRowId,
+    _catalogueLabel: string,
+    _lang: NetflixLanguageOption,
+    limit: number
+): MoovieCatalogItem[] {
+    const used = new Set<string>();
+
+    switch (rowId) {
+        case 'trending':
+            return filtered.slice(0, limit);
+        case 'top10-movies':
+            return takeTopRated(filtered, used, limit, { movie: true });
+        case 'top10-tv':
+            return takeTopRated(filtered, used, limit, { tv: true });
+        case 'new-on-netflix':
+            return takeNewest(filtered, used, limit);
+        case 'blockbuster-movies':
+            return takeTopRated(filtered, used, limit, { movie: true, minRating: 6.5 });
+        case 'critically-acclaimed':
+            return takeTopRated(filtered, used, limit, { movie: true, minRating: 7.5 });
+        case 'exciting-tv':
+            return takeTopRated(filtered, used, limit, { tv: true, minRating: 6 });
+        case 'action-adventure':
+            return takeByKeywords(
+                filtered,
+                used,
+                limit,
+                ['action', 'adventure', 'mission', 'war', 'marvel', 'fast', 'gun', 'fighter'],
+                { movie: true }
+            );
+        case 'comedies':
+            return takeByKeywords(
+                filtered,
+                used,
+                limit,
+                ['comedy', 'comedic', 'funny', 'laugh', 'humor', 'humour'],
+                { movie: true }
+            );
+        case 'thrillers':
+            return takeByKeywords(
+                filtered,
+                used,
+                limit,
+                ['thriller', 'mystery', 'crime', 'murder', 'suspense', 'horror', 'dark'],
+                { movie: true }
+            );
+        case 'romantic-movies':
+            return takeByKeywords(
+                filtered,
+                used,
+                limit,
+                ['romance', 'romantic', 'love', 'wedding', 'heart'],
+                { movie: true }
+            );
+        case 'tv-dramas':
+            return takeByKeywords(
+                filtered,
+                used,
+                limit,
+                ['drama', 'season', 'story', 'family', 'life'],
+                { tv: true }
+            );
+        case 'only-on-netflix':
+            return takeUnique(filtered, used, limit, () => true);
+        default:
+            return [];
+    }
+}
+
+const NETFLIX_ROW_META: Record<
+    NetflixBrowseRowId,
+    {
+        title: string;
+        eyebrow: string;
+        description: (catalogueLabel: string, lang: NetflixLanguageOption) => string;
+        defaultType: 'movie' | 'tv';
+    }
+> = {
+    trending: {
+        title: 'Trending now',
+        eyebrow: '',
+        description: (catalogueLabel, lang) =>
+            `Trending ${catalogueLabel} titles in ${lang.label}.`,
+        defaultType: 'movie'
+    },
+    'top10-movies': {
+        title: 'Top 10 Movies Today',
+        eyebrow: 'Top 10',
+        description: (catalogueLabel) => `Today's most popular movies in ${catalogueLabel}.`,
+        defaultType: 'movie'
+    },
+    'top10-tv': {
+        title: 'Top 10 TV Shows Today',
+        eyebrow: 'Top 10',
+        description: (catalogueLabel) => `Today's most popular series in ${catalogueLabel}.`,
+        defaultType: 'tv'
+    },
+    'new-on-netflix': {
+        title: 'New on Netflix',
+        eyebrow: 'New arrivals',
+        description: (catalogueLabel, lang) =>
+            `Recently added ${catalogueLabel} titles in ${lang.label}.`,
+        defaultType: 'movie'
+    },
+    'blockbuster-movies': {
+        title: 'Blockbuster Movies',
+        eyebrow: 'Hits',
+        description: (catalogueLabel, lang) =>
+            `Big ${catalogueLabel} films with ${lang.label} audio.`,
+        defaultType: 'movie'
+    },
+    'critically-acclaimed': {
+        title: 'Critically Acclaimed Movies',
+        eyebrow: 'Award season',
+        description: (catalogueLabel) => `Standout ${catalogueLabel} movies rated 7.5+.`,
+        defaultType: 'movie'
+    },
+    'exciting-tv': {
+        title: 'Exciting TV Shows',
+        eyebrow: 'Series',
+        description: (catalogueLabel, lang) =>
+            `Binge-worthy ${catalogueLabel} series in ${lang.label}.`,
+        defaultType: 'tv'
+    },
+    'action-adventure': {
+        title: 'Action & Adventure',
+        eyebrow: 'Adrenaline',
+        description: (catalogueLabel, lang) =>
+            `High-energy ${catalogueLabel} action in ${lang.label}.`,
+        defaultType: 'movie'
+    },
+    comedies: {
+        title: 'Comedies',
+        eyebrow: 'Laughs',
+        description: (catalogueLabel, lang) => `Funny ${catalogueLabel} picks in ${lang.label}.`,
+        defaultType: 'movie'
+    },
+    thrillers: {
+        title: 'Thriller Movies',
+        eyebrow: 'Edge of your seat',
+        description: (catalogueLabel, lang) =>
+            `Suspenseful ${catalogueLabel} thrillers in ${lang.label}.`,
+        defaultType: 'movie'
+    },
+    'romantic-movies': {
+        title: 'Romantic Movies',
+        eyebrow: 'Love stories',
+        description: (catalogueLabel) => `Romance and drama in ${catalogueLabel}.`,
+        defaultType: 'movie'
+    },
+    'tv-dramas': {
+        title: 'TV Dramas',
+        eyebrow: 'Drama',
+        description: (catalogueLabel, lang) =>
+            `Dramatic ${catalogueLabel} series in ${lang.label}.`,
+        defaultType: 'tv'
+    },
+    'only-on-netflix': {
+        title: 'Only on Netflix',
+        eyebrow: 'Exclusive',
+        description: (catalogueLabel) => `More ${catalogueLabel} titles you can watch now.`,
+        defaultType: 'movie'
+    }
+};
+
+export function getNetflixRowMeta(
+    rowId: NetflixBrowseRowId,
+    catalogue: { label: string; eyebrow?: string },
+    lang: NetflixLanguageOption
+): {
+    title: string;
+    eyebrow: string;
+    description: string;
+    defaultType: 'movie' | 'tv';
+} {
+    const meta = NETFLIX_ROW_META[rowId];
+    const eyebrow =
+        rowId === 'trending' ? catalogue.eyebrow || catalogue.label : meta.eyebrow;
+    return {
+        title: meta.title,
+        eyebrow,
+        description: meta.description(catalogue.label, lang),
+        defaultType: meta.defaultType
+    };
+}
+
+export function pickNetflixBrowseItems(
+    pool: MoovieCatalogItem[],
+    rowId: NetflixBrowseRowId,
+    catalogue: { label: string },
+    lang: NetflixLanguageOption,
+    limit = BROWSE_POOL_LIMIT
+): MoovieCatalogItem[] {
+    return pickRowItems(pool, rowId, catalogue.label, lang, limit);
+}
+
 export function railTitleWithLanguage(base: string, lang: NetflixLanguageOption) {
     return `${base} · ${lang.label}`;
 }
@@ -707,6 +936,7 @@ export function buildNetflixCuratedSections(
             if (items.length < MIN_RAIL_ITEMS) return null;
             return {
                 id: `${catalogueId}-${plan.id}`,
+                rowId: plan.id,
                 title: plan.title,
                 eyebrow: plan.eyebrow,
                 description: plan.description,
@@ -774,6 +1004,7 @@ export function buildNetflixRailSections(
 
         sections.push({
             id: def.id,
+            rowId: def.id,
             title: railTitleWithLanguage(def.title, lang),
             eyebrow: def.eyebrow,
             description: def.description(lang),

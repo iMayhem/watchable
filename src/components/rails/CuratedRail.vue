@@ -22,6 +22,7 @@
             :query="item.query || {}"
             :catalog="catalog"
             :language-tags="item.languageTags || []"
+            :catalog-title="item.catalogTitle || ''"
         />
     </LmRail>
 </template>
@@ -45,6 +46,7 @@ export interface CuratedItem {
     query?: Record<string, any>;
     languageTags?: string[];
     backdropPath?: string | null;
+    catalogTitle?: string;
 }
 
 export default defineComponent({

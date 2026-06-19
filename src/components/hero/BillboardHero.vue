@@ -141,8 +141,9 @@ export default defineComponent({
         useAmbientColor(ambientPath, rootRef);
 
         const backdropUrl = computed(() => {
-            if (!props.backdropPath) return '';
-            return useWebImage(props.backdropPath, 'hero');
+            const path = props.backdropPath || props.posterPath;
+            if (!path) return '';
+            return useWebImage(path, props.backdropPath ? 'hero' : 'large');
         });
 
         const year = computed(() =>

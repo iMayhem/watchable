@@ -118,8 +118,10 @@ import {
 import { useSeo } from '../composables/useSeo';
 import {
     mapWithConcurrency,
+    pickCatalogArtwork,
     resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
+import { catalogStreamTarget } from '../composables/useNetflixCatalogLookup';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
 async function toCuratedItem(
@@ -127,19 +129,21 @@ async function toCuratedItem(
     genreIds: number[] = []
 ): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
-    const artwork = await resolveArtworkForCatalogItem(item);
+    const resolved = await resolveArtworkForCatalogItem(item);
+    const artwork = pickCatalogArtwork(resolved);
 
     return {
         id: item.id,
         title: parsed.displayTitle || item.title,
         originalTitle: parsed.languages.join(' · '),
-        posterPath: artwork.posterPath || artwork.fallbackPath,
-        backdropPath: artwork.backdropPath || artwork.fallbackPath,
+        catalogTitle: item.title,
+        posterPath: artwork.posterPath,
+        backdropPath: artwork.backdropPath,
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: inferCatalogMediaType(item),
         languageTags: parsed.languages,
-        genreIds: genreIds.length ? genreIds : artwork.genreIds || []
+        genreIds: genreIds.length ? genreIds : resolved.genreIds || []
     };
 }
 
@@ -170,6 +174,7 @@ export default defineComponent({
                 id: first.id,
                 type: first.type || 'movie',
                 title: first.title,
+                catalogTitle: first.catalogTitle || first.title,
                 overview: '',
                 backdropPath: first.backdropPath || first.posterPath,
                 posterPath: first.posterPath,
@@ -181,10 +186,13 @@ export default defineComponent({
         const heroPlayRoute = computed(() => {
             if (!hero.value) return undefined;
             const h = hero.value;
-            if (h.type === 'tv') {
-                return { path: `/stream/nf/tv/${h.id}/season/1/episode/1` };
-            }
-            return { path: `/stream/nf/movie/${h.id}` };
+            return {
+                path: catalogStreamTarget({
+                    id: String(h.id),
+                    title: h.catalogTitle || h.title,
+                    media_type: h.type
+                }).path
+            };
         });
 
         const heroDetailRoute = computed(() => {

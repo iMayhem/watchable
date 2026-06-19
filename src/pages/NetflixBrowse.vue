@@ -68,6 +68,7 @@
                             :adult="item.adult ?? false"
                             catalog="netflix"
                             :language-tags="item.languageTags || []"
+                            :catalog-title="item.catalogTitle || ''"
                         />
                     </div>
 
@@ -128,6 +129,7 @@ import { useSeo } from '../composables/useSeo';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 import {
     mapWithConcurrency,
+    pickCatalogArtwork,
     resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
 
@@ -139,19 +141,21 @@ async function toCuratedItem(
     genreIds: number[] = []
 ): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
-    const artwork = await resolveArtworkForCatalogItem(item);
+    const resolved = await resolveArtworkForCatalogItem(item);
+    const artwork = pickCatalogArtwork(resolved);
 
     return {
         id: item.id,
         title: parsed.displayTitle || item.title,
         originalTitle: parsed.languages.join(' · '),
-        posterPath: artwork.posterPath || artwork.fallbackPath,
-        backdropPath: artwork.backdropPath || artwork.fallbackPath,
+        catalogTitle: item.title,
+        posterPath: artwork.posterPath,
+        backdropPath: artwork.backdropPath,
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: inferCatalogMediaType(item),
         languageTags: parsed.languages,
-        genreIds: genreIds.length ? genreIds : artwork.genreIds || []
+        genreIds: genreIds.length ? genreIds : resolved.genreIds || []
     };
 }
 

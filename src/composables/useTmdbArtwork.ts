@@ -1,5 +1,5 @@
 import useAxios from './useAxios';
-import { parseCatalogTitle } from './useMoovieCatalog';
+import { inferCatalogMediaType, parseCatalogTitle } from './useMoovieCatalog';
 import { nfDebugError } from './useNetflixDebug';
 
 export interface TmdbArtwork {
@@ -8,6 +8,22 @@ export interface TmdbArtwork {
     tmdbId?: number;
     genreIds?: number[];
     overview?: string;
+}
+
+export interface CatalogArtworkPaths {
+    posterPath: string | null;
+    backdropPath: string | null;
+}
+
+/** TMDB-first artwork — catalogue CDN only when TMDB has no poster or backdrop. */
+export function pickCatalogArtwork(
+    art: TmdbArtwork & { fallbackPath?: string | null }
+): CatalogArtworkPaths {
+    const fallback = art.fallbackPath || null;
+    return {
+        posterPath: art.posterPath || art.backdropPath || fallback,
+        backdropPath: art.backdropPath || art.posterPath || fallback
+    };
 }
 
 interface TmdbSearchResult {
@@ -165,11 +181,12 @@ export async function resolveArtworkForCatalogItem(item: {
 }): Promise<TmdbArtwork & { fallbackPath: string | null }> {
     const parsed = parseCatalogTitle(item.title || '');
     const displayTitle = parsed.displayTitle || item.title;
+    const mediaType = inferCatalogMediaType(item);
     const tmdb = await resolveTmdbArtwork({
         title: displayTitle,
         year: item.release_date,
-        type: item.media_type === 'tv' ? 'tv' : 'movie',
-        cacheKey: `nm-${item.media_type}-${item.id}`
+        type: mediaType,
+        cacheKey: `nm-${mediaType}-${item.id}`
     });
 
     return {

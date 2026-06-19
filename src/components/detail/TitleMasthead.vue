@@ -229,15 +229,19 @@ export default defineComponent({
             }
         };
 
+        const heroArtPath = computed(() => props.backdropPath || props.posterPath);
+
         const backdropUrl = computed(() => {
-            if (!props.backdropPath) return '';
-            return useWebImage(props.backdropPath, 'hero');
+            const path = heroArtPath.value;
+            if (!path) return '';
+            return useWebImage(path, props.backdropPath ? 'hero' : 'large');
         });
 
         const isVerticalBackdrop = computed(() => {
-            if (!props.backdropPath) return false;
-            if (props.backdropPath === props.posterPath) return true;
-            if (props.backdropPath.toLowerCase().includes('cover')) return true;
+            const path = heroArtPath.value;
+            if (!path) return false;
+            if (!props.backdropPath || props.backdropPath === props.posterPath) return true;
+            if (path.toLowerCase().includes('cover')) return true;
             return false;
         });
 

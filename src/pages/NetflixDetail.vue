@@ -60,6 +60,7 @@ import {
 import { useSeo } from '../composables/useSeo';
 import {
     mapWithConcurrency,
+    pickCatalogArtwork,
     resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
@@ -127,13 +128,14 @@ export default defineComponent({
 
         const toCurated = async (item: MoovieCatalogItem): Promise<CuratedItem> => {
             const p = parseCatalogTitle(item.title || '');
-            const art = await resolveArtworkForCatalogItem(item);
+            const art = pickCatalogArtwork(await resolveArtworkForCatalogItem(item));
             return {
                 id: item.id,
                 title: p.displayTitle || item.title,
                 originalTitle: p.languages.join(' · '),
-                posterPath: art.posterPath || art.fallbackPath,
-                backdropPath: art.backdropPath || art.fallbackPath,
+                catalogTitle: item.title,
+                posterPath: art.posterPath,
+                backdropPath: art.backdropPath,
                 rating: catalogRating(item.vote_average),
                 releaseDate: item.release_date || '',
                 type: inferCatalogMediaType(item),
@@ -182,16 +184,18 @@ export default defineComponent({
 
                 meta.value = await metaPromise;
 
-                const art = await resolveArtworkForCatalogItem({
-                    id: String(meta.value.id),
-                    title: meta.value?.title || '',
-                    release_date: meta.value?.release_date,
-                    media_type: mediaType.value,
-                    backdrop_path: meta.value?.backdrop_path || null
-                });
+                const art = pickCatalogArtwork(
+                    await resolveArtworkForCatalogItem({
+                        id: String(meta.value.id),
+                        title: meta.value?.title || '',
+                        release_date: meta.value?.release_date,
+                        media_type: mediaType.value,
+                        backdrop_path: meta.value?.backdrop_path || null
+                    })
+                );
                 artwork.value = {
-                    posterPath: art.posterPath || art.fallbackPath || null,
-                    backdropPath: art.backdropPath || art.fallbackPath || null
+                    posterPath: art.posterPath,
+                    backdropPath: art.backdropPath
                 };
 
                 applySeo(id);

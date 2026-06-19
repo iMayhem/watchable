@@ -72,6 +72,7 @@
                                 :adult="item.adult || false"
                                 catalog="netflix"
                                 :language-tags="item.languageTags || []"
+                                :catalog-title="item.catalogTitle || ''"
                             />
                         </div>
                     </template>
@@ -92,6 +93,7 @@
                                 :adult="item.adult || false"
                                 catalog="netflix"
                                 :language-tags="item.languageTags || []"
+                                :catalog-title="item.catalogTitle || ''"
                             />
                         </div>
                     </template>
@@ -195,6 +197,7 @@ import { useSeo } from '../composables/useSeo';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 import {
     mapWithConcurrency,
+    pickCatalogArtwork,
     resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
 
@@ -202,19 +205,21 @@ type TabKey = 'movies' | 'shows';
 
 async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
     const parsed = parseCatalogTitle(item.title || '');
-    const artwork = await resolveArtworkForCatalogItem(item);
+    const resolved = await resolveArtworkForCatalogItem(item);
+    const artwork = pickCatalogArtwork(resolved);
 
     return {
         id: item.id,
         title: parsed.displayTitle || item.title,
         originalTitle: parsed.languages.join(' · '),
-        posterPath: artwork.posterPath || artwork.fallbackPath,
-        backdropPath: artwork.backdropPath || artwork.fallbackPath,
+        catalogTitle: item.title,
+        posterPath: artwork.posterPath,
+        backdropPath: artwork.backdropPath,
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: inferCatalogMediaType(item),
         languageTags: parsed.languages,
-        genreIds: artwork.genreIds || []
+        genreIds: resolved.genreIds || []
     };
 }
 

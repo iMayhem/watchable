@@ -112,6 +112,7 @@ import { isInWatchlist, toggleWatchlistItem } from '../../composables/useWatchli
 import { useRouter } from 'vue-router';
 import { useAppPaths } from '../../composables/useAppPaths';
 import { catalogStreamTarget } from '../../composables/useNetflixCatalogLookup';
+import { inferCatalogMediaType } from '../../composables/useMoovieCatalog';
 
 type MediaType = 'movie' | 'tv' | 'anime';
 
@@ -135,7 +136,8 @@ export default defineComponent({
         loading: { type: Boolean, default: false },
         query: { type: Object as PropType<Record<string, any>>, default: () => ({}) },
         catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' },
-        languageTags: { type: Array as PropType<string[]>, default: () => [] }
+        languageTags: { type: Array as PropType<string[]>, default: () => [] },
+        catalogTitle: { type: String, default: '' }
     },
     setup(props) {
         const imageLoaded = ref(false);
@@ -176,9 +178,16 @@ export default defineComponent({
             return genreName(props.genreIds[0], props.type as 'movie' | 'tv') ?? '';
         });
 
+        const netflixCatalogTitle = computed(
+            () => props.catalogTitle || props.title
+        );
+
         const routeTo = computed(() => {
             if (props.catalog === 'netflix') {
-                const kind = props.type === 'tv' ? 'tv' : 'movie';
+                const kind = inferCatalogMediaType({
+                    title: netflixCatalogTitle.value,
+                    media_type: props.type
+                });
                 return { path: `/nf/${kind}/${props.id}` };
             }
             const kind = props.type === 'anime' ? 'anime' : props.type === 'tv' ? 'tv' : 'movie';
@@ -210,7 +219,7 @@ export default defineComponent({
                 router.push({
                     path: catalogStreamTarget({
                         id: String(props.id),
-                        title: props.title,
+                        title: netflixCatalogTitle.value,
                         media_type: props.type
                     }).path
                 });
@@ -511,6 +520,7 @@ export default defineComponent({
             transform var(--dur-base) var(--ease-out);
 
         .is-peeking & {
+            z-index: 3;
             opacity: 1;
             transform: translateY(var(--peek-lift));
         }

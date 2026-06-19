@@ -4,11 +4,10 @@ import { MovieDetails } from '../composables/useMovies';
 import { TVShowDetails } from '../composables/useTvShows';
 import { getSettings } from '../composables/useSettings';
 
-// Production: wsrv.nl resizes + webp-encodes TMDB and catalogue CDN images.
-// Dev: load sources directly for faster local iteration.
+// Dev: direct TMDB/CDN URLs for fast local iteration.
+// Prod: same-origin proxies with 7-day edge cache (no third-party wsrv hop).
 const IS_DEV = import.meta.env.DEV;
 const TMDB_BASE = 'https://image.tmdb.org/t/p/';
-const WSRV_BASE = 'https://wsrv.nl/';
 
 const ANILIST_CDN_PATTERN = /(?:^https?:\/\/)(?:[\w-]+\.)?anilist\.co\//i;
 
@@ -51,14 +50,12 @@ export function getTmdbImageQuality(): TmdbImageQuality {
     return tmdbImageQuality.value || 'medium';
 }
 
-function posterPixelWidth(size: WebImageSize, quality: TmdbImageQuality): number {
-    if (quality === 'low') {
-        return { small: 185, medium: 342, large: 500, xlarge: 780, hero: 780 }[size] || 342;
-    }
-    if (quality === 'high') {
-        return { small: 500, medium: 780, large: 1280, xlarge: 1920, hero: 1920 }[size] || 780;
-    }
-    return { small: 342, medium: 500, large: 780, xlarge: 1280, hero: 1280 }[size] || 500;
+/** Pixel width for catalog CDN resize — matches TMDB token, no upscaling. */
+export function posterPixelWidth(size: WebImageSize, quality: TmdbImageQuality): number {
+    const token = selectSize(size, quality);
+    const match = token.match(/^w(\d+)$/);
+    if (match) return parseInt(match[1], 10);
+    return size === 'hero' || size === 'xlarge' ? 1280 : 500;
 }
 
 export interface WsrvImageOptions {
@@ -67,47 +64,54 @@ export interface WsrvImageOptions {
     blur?: number;
 }
 
-/** wsrv.nl image proxy — resize, webp, cache at their CDN. */
-export function buildWsrvImageUrl(sourceUrl: string, options: WsrvImageOptions = {}): string {
+/** @deprecated Use buildProxiedImageUrl / buildCatalogCdnImageUrl */
+export function buildWsrvImageUrl(sourceUrl: string, _options: WsrvImageOptions = {}): string {
     if (!sourceUrl) return '';
-    if (IS_DEV) return sourceUrl;
-
-    const params = new URLSearchParams();
-    params.set('url', sourceUrl);
-    if (options.width) params.set('w', String(options.width));
-    if (options.blur) params.set('blur', String(options.blur));
-    params.set('output', 'webp');
-    params.set('q', String(options.quality ?? 80));
-    params.set('fit', 'cover');
-    return `${WSRV_BASE}?${params.toString()}`;
+    return sourceUrl;
 }
 
-function tmdbSourceUrl(tmdbPath: string): string {
-    const path = tmdbPath.startsWith('/') ? tmdbPath.slice(1) : tmdbPath;
-    return `${TMDB_BASE}${path}`;
+function normalizeTmdbPath(path: string): string {
+    const trimmed = path.startsWith('/') ? path : `/${path}`;
+    return trimmed.replace(/^\/+/, '/');
 }
 
 /**
- * TMDB path (e.g. w500/foo.jpg) via wsrv.nl in production.
+ * TMDB image via same-origin proxy (7-day edge cache).
+ * Path must include size token, e.g. w342/abc.jpg
  */
-export function buildProxiedImageUrl(tmdbPath: string, width?: number): string {
-    const source = tmdbSourceUrl(tmdbPath);
-    if (IS_DEV) return source;
-    return buildWsrvImageUrl(source, { width });
+export function buildProxiedImageUrl(tmdbPath: string): string {
+    if (!tmdbPath) return '';
+    const path = normalizeTmdbPath(tmdbPath);
+    if (IS_DEV) {
+        const clean = path.startsWith('/') ? path.slice(1) : path;
+        return `${TMDB_BASE}${clean}`;
+    }
+    return `/api/img?path=${encodeURIComponent(path)}`;
 }
 
-/** Catalogue CDN posters via wsrv.nl — downscale heavy Moovie CDN assets. */
+/** Catalogue CDN posters via same-origin proxy with WebP resize. */
 export function buildCatalogCdnImageUrl(url: string, size: WebImageSize = 'medium'): string {
     if (!url || !CATALOG_CDN_PATTERN.test(url)) return url;
     if (IS_DEV) return url;
     const quality = getTmdbImageQuality();
     const width = posterPixelWidth(size, quality);
-    return buildWsrvImageUrl(url, { width, quality: 80 });
+    return `/api/catalog-img?url=${encodeURIComponent(url)}&w=${width}`;
 }
 
-const proxyUrl = (tmdbPath: string, width?: number) => buildProxiedImageUrl(tmdbPath, width);
+/** AniList covers via catalog-img proxy when in production. */
+function buildAnilistImageUrl(url: string, size: WebImageSize = 'medium'): string {
+    if (!url || !ANILIST_CDN_PATTERN.test(url)) return url;
+    if (IS_DEV) return url;
+    const quality = getTmdbImageQuality();
+    const width = posterPixelWidth(size, quality);
+    return `/api/catalog-img?url=${encodeURIComponent(url)}&w=${width}`;
+}
+
+const proxyUrl = (tmdbPath: string) => buildProxiedImageUrl(tmdbPath);
 
 export const useWebImage = (url: string, size: WebImageSize = 'medium') => {
+    if (!url) return '';
+
     const quality = getTmdbImageQuality();
     let resolvedUrl = url;
     if (url.startsWith('//')) {
@@ -120,27 +124,21 @@ export const useWebImage = (url: string, size: WebImageSize = 'medium') => {
             if (match) {
                 const cleanPath = match[1].replace(/^(?:w\d+|original)\//, '');
                 const tmdbPath = `${selectSize(size, quality)}/${cleanPath}`;
-                return buildProxiedImageUrl(tmdbPath, posterPixelWidth(size, quality));
+                return buildProxiedImageUrl(tmdbPath);
             }
         }
         if (ANILIST_CDN_PATTERN.test(resolvedUrl)) {
-            return resolvedUrl;
+            return buildAnilistImageUrl(resolvedUrl, size);
         }
         if (CATALOG_CDN_PATTERN.test(resolvedUrl)) {
             return buildCatalogCdnImageUrl(resolvedUrl, size);
-        }
-        if (!IS_DEV && !resolvedUrl.includes('wsrv.nl')) {
-            return buildWsrvImageUrl(resolvedUrl, {
-                width: posterPixelWidth(size, quality),
-                quality: 80
-            });
         }
         return resolvedUrl;
     }
 
     const imgSize = selectSize(size, quality);
     const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
-    return proxyUrl(`${imgSize}/${cleanUrl}`, posterPixelWidth(size, quality));
+    return proxyUrl(`${imgSize}/${cleanUrl}`);
 };
 
 export const getMovieImageUrl = (data: Movie | MovieDetails | TVShowDetails) => {
@@ -154,11 +152,36 @@ export const getMovieImageUrl = (data: Movie | MovieDetails | TVShowDetails) => 
 
     const backdrop = cleanBackdrop === null
         ? empty_movie_state
-        : proxyUrl(`${selectSize('hero', quality)}/${cleanBackdrop}`, posterPixelWidth('hero', quality));
+        : proxyUrl(`${selectSize('hero', quality)}/${cleanBackdrop}`);
 
     const poster = cleanPoster === null
         ? empty_movie_state
-        : proxyUrl(`${selectSize('medium', quality)}/${cleanPoster}`, posterPixelWidth('medium', quality));
+        : proxyUrl(`${selectSize('medium', quality)}/${cleanPoster}`);
 
     return { backdrop, poster } as const;
 };
+
+/** Warm browser cache for image paths (fire-and-forget). */
+export function prefetchArtworkImages(
+    paths: Array<string | null | undefined>,
+    size: WebImageSize = 'medium',
+    limit = 32
+) {
+    if (typeof window === 'undefined') return;
+    const seen = new Set<string>();
+    for (const path of paths) {
+        if (!path || seen.has(path) || seen.size >= limit) continue;
+        seen.add(path);
+        const url = useWebImage(path, size);
+        if (!url) continue;
+        const img = new Image();
+        img.decoding = 'async';
+        if (size === 'hero') {
+            img.setAttribute('fetchpriority', 'high');
+        }
+        img.src = url;
+    }
+}
+
+/** @deprecated Use prefetchArtworkImages */
+export const prefetchPosterImages = prefetchArtworkImages;

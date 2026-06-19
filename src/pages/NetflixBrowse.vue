@@ -15,6 +15,46 @@
                         <p v-if="rowMeta.description" class="nf-genre-hero__tagline">
                             {{ rowMeta.description }}
                         </p>
+                        <div v-if="genreHeroFeatured" class="nf-genre-hero__actions">
+                            <LmButton
+                                variant="primary"
+                                size="lg"
+                                :to="genreHeroPlayRoute"
+                                aria-label="Play"
+                            >
+                                <template #leading>
+                                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                        <path fill="currentColor" d="M8 5v14l11-7z"/>
+                                    </svg>
+                                </template>
+                                Play
+                            </LmButton>
+                            <LmButton
+                                variant="ghost"
+                                size="lg"
+                                :to="genreHeroDetailRoute"
+                                aria-label="More info"
+                            >
+                                More info
+                            </LmButton>
+                            <LmButton
+                                variant="outline"
+                                size="lg"
+                                :href="genreHeroPartyHref"
+                                rel="nofollow"
+                                aria-label="Watch Together"
+                            >
+                                <template #leading>
+                                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                        <circle cx="9" cy="7" r="4" />
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                    </svg>
+                                </template>
+                                Watch Together
+                            </LmButton>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -38,9 +78,16 @@
                         Your Next Watch
                     </h2>
 
+                    <div
+                        v-if="isRefreshing"
+                        class="discover__refresh-bar"
+                        role="progressbar"
+                        aria-label="Loading titles"
+                    />
+
                     <div v-if="isLoading && !results.length" class="discover__grid">
                         <PosterCard
-                            v-for="n in BROWSE_PAGE_SIZE"
+                            v-for="n in BROWSE_FAST_BATCH"
                             :key="n"
                             loading
                             id=""
@@ -129,14 +176,24 @@ import { useRoute, useRouter } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import PosterCard from '../components/cards/PosterCard.vue';
+import LmButton from '../components/primitives/Button.vue';
 import CuratedRail, { type CuratedItem } from '../components/rails/CuratedRail.vue';
 import type { MoovieCatalogItem } from '../composables/useMoovieCatalog';
 import {
+    BROWSE_FAST_GRID_BATCH,
+    BROWSE_FAST_INITIAL_PAGES,
     BROWSE_GRID_BATCH,
     createBrowsePoolState,
     ensureBrowsePickCount,
-    type BrowsePoolState
+    type BrowsePoolState,
+    type EnsureBrowsePickOptions
 } from '../composables/useNetflixBrowsePool';
+import { isTvEditorialBrowseRow } from '../data/netflixCatalogCategories';
+import {
+    browseCacheKey,
+    readNetflixBrowseCache,
+    writeNetflixBrowseCache
+} from '../composables/useNetflixBrowseCache';
 import { loadNetflixAvailabilityIndex } from '../composables/useNetflixProvider';
 import {
     getCatalogueOption,
@@ -173,6 +230,7 @@ import {
     toCuratedItemFast,
     toCuratedItemUpgraded
 } from '../composables/useNetflixArtwork';
+import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
 import {
     animeMediaNeedingLiveResolve,
     applyAnimeCatalogCacheBatch,
@@ -183,8 +241,14 @@ import {
 } from '../composables/useNetflixAnimeBrowse';
 import type { AnimeMedia } from '../composables/useAniList';
 import { fetchAnimeCatalogCacheByMoovieIds } from '../composables/useAnimeCatalogCache';
+import {
+    catalogStreamTarget,
+    netflixCatalogDetailPath
+} from '../composables/useNetflixCatalogLookup';
+import { buildPartyHref } from '../utils/partyRoom';
 
 const BROWSE_PAGE_SIZE = BROWSE_GRID_BATCH;
+const BROWSE_FAST_BATCH = BROWSE_FAST_GRID_BATCH;
 const TMDB_CONCURRENCY = 12;
 
 interface GenreRailDisplay {
@@ -201,7 +265,7 @@ type BrowseResultItem = CuratedItem & {
 
 export default defineComponent({
     name: 'NetflixBrowse',
-    components: { SiteHeader, SiteFooter, PosterCard, CuratedRail },
+    components: { SiteHeader, SiteFooter, PosterCard, CuratedRail, LmButton },
     setup() {
         const route = useRoute();
         const router = useRouter();
@@ -210,6 +274,7 @@ export default defineComponent({
         const { setCatalogue: setNetflixCatalogue } = getNetflixCatalogue();
 
         const isLoading = ref(true);
+        const isRefreshing = ref(false);
         const isLoadingMore = ref(false);
         const results = ref<BrowseResultItem[]>([]);
         const animePage = ref(1);
@@ -222,8 +287,16 @@ export default defineComponent({
         const genreRailPlans = ref<GenreBrowseRailPlan[]>([]);
         const genreRails = ref<GenreRailDisplay[]>([]);
 
-        const currentLoadKey = () =>
-            `${catalogueId.value}:${rowId.value}:${language.value}`;
+        const typeFilter = computed(() => {
+            const t = route.query.type;
+            if (t === 'tv' || t === 'movie') return t;
+            return undefined;
+        });
+
+        const currentLoadKey = () => {
+            const base = browseCacheKey(catalogueId.value, rowId.value, language.value);
+            return typeFilter.value ? `${base}:${typeFilter.value}` : base;
+        };
 
         const isBrowseRouteActive = () => route.name === 'NetflixBrowse';
 
@@ -257,11 +330,28 @@ export default defineComponent({
                     defaultType: 'movie' as const
                 };
             }
-            return getNetflixRowMeta(
+            const meta = getNetflixRowMeta(
                 rowId.value as NetflixBrowseRowId,
                 activeCatalogue.value,
                 activeLang.value
             );
+            let title = meta.title;
+            let eyebrow = meta.eyebrow;
+            if (isGenreBrowse.value && typeFilter.value) {
+                if (typeFilter.value === 'tv') {
+                    title = `TV ${meta.title}`;
+                    eyebrow = 'TV Shows';
+                } else if (typeFilter.value === 'movie') {
+                    title = `${meta.title} Movies`;
+                    eyebrow = 'Movies';
+                }
+            }
+            return {
+                ...meta,
+                title,
+                eyebrow,
+                defaultType: typeFilter.value || meta.defaultType
+            };
         });
 
         const pickedItems = computed(() => poolState.value.pickedItems);
@@ -285,9 +375,53 @@ export default defineComponent({
 
         const isGenreBrowse = computed(() => isNetflixGenreBrowsePage(rowId.value));
 
+        const genreHeroFeatured = computed(() => {
+            if (!isGenreBrowse.value) return null;
+            return (
+                results.value.find((item) => item.backdropPath) || null
+            );
+        });
+
         const genreHeroBackdrop = computed(() => {
-            const first = results.value.find((item) => item.backdropPath || item.posterPath);
-            return first?.backdropPath || first?.posterPath || null;
+            const featured = genreHeroFeatured.value;
+            return featured?.backdropPath || null;
+        });
+
+        const genreHeroPlayRoute = computed(() => {
+            const item = genreHeroFeatured.value;
+            if (!item) return undefined;
+            return {
+                path: catalogStreamTarget({
+                    id: String(item.id),
+                    title: item.catalogTitle || item.title,
+                    media_type: item.type || rowMeta.value.defaultType
+                }).path
+            };
+        });
+
+        const genreHeroDetailRoute = computed(() => {
+            const item = genreHeroFeatured.value;
+            if (!item) return undefined;
+            return {
+                path: netflixCatalogDetailPath({
+                    id: String(item.id),
+                    title: item.catalogTitle || item.title,
+                    media_type: item.type || rowMeta.value.defaultType,
+                    anilistId: item.anilistId
+                })
+            };
+        });
+
+        const genreHeroPartyHref = computed(() => {
+            const item = genreHeroFeatured.value;
+            if (!item) return '/party/';
+            const mediaType = item.type || rowMeta.value.defaultType;
+            return buildPartyHref({
+                id: item.id,
+                title: item.title,
+                type: mediaType === 'tv' ? 'tv' : 'movie',
+                source: 'netflix'
+            });
         });
 
         const genreHeroStyle = computed(() => {
@@ -317,7 +451,8 @@ export default defineComponent({
 
         const planToGenreRailDisplay = (
             plans: GenreBrowseRailPlan[],
-            audioCache?: Map<string, string[]>
+            audioCache?: Map<string, string[]>,
+            artworkUrls?: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>>
         ): GenreRailDisplay[] =>
             plans.map((plan) => ({
                 id: plan.id,
@@ -330,7 +465,8 @@ export default defineComponent({
                         meta?.genreIds || [],
                         languageMap.value,
                         audioCache,
-                        enrichmentFor(item)
+                        enrichmentFor(item),
+                        artworkUrls
                     );
                 })
             }));
@@ -347,11 +483,15 @@ export default defineComponent({
                 rowId.value as NetflixBrowseRowId,
                 tmdbById.value,
                 undefined,
-                poolState.value.enrichmentById
+                poolState.value.enrichmentById,
+                typeFilter.value
             );
             genreRailPlans.value = plans;
-            const audioCache = await fetchCatalogAudioCacheByIds(pool.map((item) => item.id));
-            genreRails.value = planToGenreRailDisplay(plans, audioCache);
+            const [audioCache, artworkUrls] = await Promise.all([
+                fetchCatalogAudioCacheByIds(pool.map((item) => item.id)),
+                fetchCatalogArtworkUrlsByIds(pool.map((item) => item.id))
+            ]);
+            genreRails.value = planToGenreRailDisplay(plans, audioCache, artworkUrls);
         };
 
         const upgradeGenreRailArtwork = async () => {
@@ -443,13 +583,20 @@ export default defineComponent({
             }
         };
 
-        const ensurePickedCount = async (needed: number) => {
+        const ensurePickedCount = async (
+            needed: number,
+            pickOptions?: EnsureBrowsePickOptions
+        ) => {
             await ensureBrowsePickCount(
                 poolState.value,
                 rowId.value as NetflixBrowseRowId,
                 activeCatalogue.value,
                 activeLang.value,
-                needed
+                needed,
+                {
+                    ...pickOptions,
+                    typeFilter: typeFilter.value
+                }
             );
             await rebuildGenreRails(
                 filterCataloguePool(
@@ -460,34 +607,92 @@ export default defineComponent({
             );
         };
 
-        const appendDisplayedBatch = async (size: number) => {
-            const target = displayedCount.value + size;
-            await ensurePickedCount(target);
-
-            const batch = pickedItems.value.slice(displayedCount.value, target);
-            if (!batch.length) return;
-
-            const startIndex = results.value.length;
+        const mapBatchToCurated = async (
+            batch: MoovieCatalogItem[],
+            fastPaint = false
+        ): Promise<CuratedItem[]> => {
+            if (!batch.length) return [];
             await fetchAnimeCatalogCacheByMoovieIds(batch.map((item) => item.id));
-            const audioCache = await fetchCatalogAudioCacheByIds(batch.map((item) => item.id));
-            const fast = batch.map((item) => {
+
+            let audioCache: Map<string, string[]> | undefined;
+            let artworkUrls: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>> | undefined;
+            if (!fastPaint) {
+                [audioCache, artworkUrls] = await Promise.all([
+                    fetchCatalogAudioCacheByIds(batch.map((item) => item.id)),
+                    fetchCatalogArtworkUrlsByIds(batch.map((item) => item.id))
+                ]);
+            }
+
+            return batch.map((item) => {
                 const meta = tmdbById.value.get(String(item.id));
                 return toCuratedItemFast(
                     item,
                     meta?.genreIds || [],
                     languageMap.value,
                     audioCache,
-                    enrichmentFor(item)
+                    enrichmentFor(item),
+                    artworkUrls
                 );
             });
-            results.value = [...results.value, ...fast];
+        };
+
+        const appendDisplayedBatch = async (
+            size: number,
+            opts: { fastPaint?: boolean; pickOptions?: EnsureBrowsePickOptions } = {}
+        ) => {
+            const loadKeyAtStart = currentLoadKey();
+            const target = displayedCount.value + size;
+            await ensurePickedCount(target, opts.pickOptions);
+
+            if (currentLoadKey() !== loadKeyAtStart) return;
+
+            const batch = pickedItems.value.slice(displayedCount.value, target);
+            if (!batch.length) return;
+
+            const startIndex = displayedCount.value === 0 ? 0 : results.value.length;
+            const fast = await mapBatchToCurated(batch, opts.fastPaint);
+            if (currentLoadKey() !== loadKeyAtStart) return;
+
+            results.value =
+                displayedCount.value === 0 ? fast : [...results.value, ...fast];
             displayedCount.value += batch.length;
 
-            if (isLoading.value) {
-                isLoading.value = false;
-            }
+            isLoading.value = false;
+            isRefreshing.value = false;
 
             void upgradeBatchArtwork(batch, startIndex);
+        };
+
+        const saveBrowseSnapshot = () => {
+            if (!results.value.length) return;
+            writeNetflixBrowseCache(currentLoadKey(), {
+                results: [...results.value],
+                poolState: poolState.value as BrowsePoolState,
+                displayedCount: displayedCount.value,
+                genreRails: genreRails.value.map((rail) => ({
+                    id: rail.id,
+                    title: rail.title,
+                    defaultType: rail.defaultType,
+                    items: [...rail.items]
+                })),
+                languageMapEntries: [...languageMap.value.entries()],
+                variantSnapshot: [...variantSnapshot.value]
+            });
+        };
+
+        const applyBrowseSnapshot = (snapshot: ReturnType<typeof readNetflixBrowseCache>) => {
+            if (!snapshot) return false;
+            results.value = [...snapshot.results];
+            poolState.value = snapshot.poolState;
+            displayedCount.value = snapshot.displayedCount;
+            genreRails.value = snapshot.genreRails as GenreRailDisplay[];
+            languageMap.value = new Map(snapshot.languageMapEntries);
+            variantSnapshot.value = [...snapshot.variantSnapshot];
+            lastLoadKey.value = snapshot.loadKey;
+            isLoading.value = false;
+            isRefreshing.value = false;
+            isLoadingMore.value = false;
+            return true;
         };
 
         const hasBrowseData = () =>
@@ -495,13 +700,23 @@ export default defineComponent({
             poolState.value.browsePool.length > 0 ||
             poolState.value.pickedItems.length > 0;
 
-        /** KeepAlive return: route params go undefined on detail, then restore — skip full reload. */
+        /** Restore in-memory route snapshot (instant nav between Home / Movies / TV). */
         const restoreBrowseCache = () => {
             if (!isBrowseRouteActive()) return false;
-            if (!hasBrowseData() || lastLoadKey.value !== currentLoadKey()) return false;
+
+            const loadKey = currentLoadKey();
+            const snapshot = readNetflixBrowseCache(loadKey);
+            if (snapshot) {
+                applyBrowseSnapshot(snapshot);
+                nfDebug('browse:restore-snapshot', { key: loadKey });
+                return true;
+            }
+
+            if (!hasBrowseData() || lastLoadKey.value !== loadKey) return false;
             isLoading.value = false;
+            isRefreshing.value = false;
             isLoadingMore.value = false;
-            nfDebug('browse:restore-cache', { key: lastLoadKey.value });
+            nfDebug('browse:restore-live', { key: lastLoadKey.value });
             return true;
         };
 
@@ -656,6 +871,11 @@ export default defineComponent({
                 return;
             }
 
+            if (catalogueId.value === 'korean' && rowId.value === 'blockbuster-movies') {
+                router.replace(netflixBrowsePath('korean', 'korean-movies'));
+                return;
+            }
+
             if (isAnimeBrowse.value) {
                 await loadAnimeBrowse();
                 return;
@@ -670,8 +890,12 @@ export default defineComponent({
             const isStale = () => loadGeneration.value !== generation;
 
             nfDebug('browse:load:start', { catalogue: cat.id, row, language: lang.category });
-            isLoading.value = true;
+
             results.value = [];
+            displayedCount.value = 0;
+            isLoading.value = true;
+            isRefreshing.value = false;
+
             poolState.value = createBrowsePoolState(
                 row as NetflixBrowseRowId,
                 cat.id
@@ -680,27 +904,30 @@ export default defineComponent({
             languageMap.value = new Map();
             genreRailPlans.value = [];
             genreRails.value = [];
-            displayedCount.value = 0;
 
             void loadNetflixAvailabilityIndex();
 
             void ensureVariantSnapshot()
-                .then(() => {
-                    refreshLanguageMap();
-                    if (!results.value.length) return;
-                    results.value = results.value.map((item) => {
-                        const source = pickedItems.value.find(
-                            (row) => String(row.id) === String(item.id)
-                        );
-                        if (!source) return item;
-                        return item;
-                    });
-                })
+                .then(() => refreshLanguageMap())
                 .catch((err) => nfDebugError('browse:variant-snapshot:fail', { err }));
 
+            const fastPick = {
+                initialPageCap: isTvEditorialBrowseRow(row as NetflixBrowseRowId)
+                    ? 8
+                    : BROWSE_FAST_INITIAL_PAGES,
+                deferEnrichment: true,
+                skipTmdbEnrich: true
+            };
+
             try {
-                await appendDisplayedBatch(BROWSE_PAGE_SIZE);
+                await appendDisplayedBatch(BROWSE_FAST_BATCH, {
+                    fastPaint: true,
+                    pickOptions: fastPick
+                });
                 if (isStale()) return;
+
+                lastLoadKey.value = currentLoadKey();
+                saveBrowseSnapshot();
 
                 if (isGenreBrowse.value) {
                     void upgradeGenreRailArtwork();
@@ -710,7 +937,7 @@ export default defineComponent({
                 updateSeo({
                     title: `${meta.title} · ${cat.label} — Netflix on Moovie`,
                     canonical: `https://moovie.fun/nf/browse/${cat.id}/${row}`,
-                    image: 'https://moovie.fun/og-image.png'
+                    image: results.value[0]?.posterPath || 'https://moovie.fun/og-image.png'
                 });
 
                 nfDebug('browse:load:ok', {
@@ -721,11 +948,27 @@ export default defineComponent({
                     pool: poolState.value.browsePool.length,
                     pages: poolState.value.apiPageCursor
                 });
+
+                void (async () => {
+                    try {
+                        if (isStale()) return;
+                        await ensurePickedCount(BROWSE_PAGE_SIZE);
+                        if (isStale()) return;
+                        if (displayedCount.value < BROWSE_PAGE_SIZE) {
+                            await appendDisplayedBatch(BROWSE_PAGE_SIZE - displayedCount.value);
+                        }
+                        if (isStale()) return;
+                        saveBrowseSnapshot();
+                    } catch (err) {
+                        nfDebugError('browse:load:deep:fail', { catalogue: cat.id, row, err });
+                    }
+                })();
             } catch (err) {
                 nfDebugError('browse:load:fail', { catalogue: cat.id, row, err });
             } finally {
                 if (!isStale()) {
                     isLoading.value = false;
+                    isRefreshing.value = false;
                 }
             }
         };
@@ -759,8 +1002,9 @@ export default defineComponent({
         });
 
         watch(
-            () => [route.params.catalogue, route.params.row, language.value],
+            () => [route.params.catalogue, route.params.row, language.value, route.query.type],
             () => {
+                loadGeneration.value += 1;
                 if (restoreBrowseCache()) return;
                 if (!isBrowseRouteActive()) return;
                 lastLoadKey.value = currentLoadKey();
@@ -770,7 +1014,9 @@ export default defineComponent({
 
         return {
             BROWSE_PAGE_SIZE,
+            BROWSE_FAST_BATCH,
             isLoading,
+            isRefreshing,
             isLoadingMore,
             results,
             rowMeta,
@@ -779,6 +1025,10 @@ export default defineComponent({
             hasMore,
             loadMore,
             isGenreBrowse,
+            genreHeroFeatured,
+            genreHeroPlayRoute,
+            genreHeroDetailRoute,
+            genreHeroPartyHref,
             genreHeroBackdrop,
             genreHeroStyle,
             genreRails
@@ -847,6 +1097,13 @@ export default defineComponent({
         line-height: 1.55;
         font-size: clamp(0.95rem, 1.6vw, 1.1rem);
     }
+
+    &__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--s-3);
+        margin-top: clamp(var(--s-4), 4vw, var(--s-5));
+    }
 }
 
 .nf-your-next-watch {
@@ -870,6 +1127,21 @@ export default defineComponent({
 
     &__body {
         display: block;
+    }
+
+    &__refresh-bar {
+        height: 2px;
+        margin: 0 0 var(--s-4);
+        border-radius: var(--r-pill);
+        background: linear-gradient(
+            90deg,
+            transparent 0%,
+            var(--ember) 35%,
+            var(--violet) 65%,
+            transparent 100%
+        );
+        background-size: 200% 100%;
+        animation: discover-refresh 1.1s linear infinite;
     }
 
     &__results-head {
@@ -1002,6 +1274,15 @@ export default defineComponent({
             opacity: 0.5;
             cursor: wait;
         }
+    }
+}
+
+@keyframes discover-refresh {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
     }
 }
 </style>

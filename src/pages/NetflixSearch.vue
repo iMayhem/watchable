@@ -199,6 +199,7 @@ import {
     toCuratedItemFast,
     toCuratedItemUpgraded
 } from '../composables/useNetflixArtwork';
+import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
 
 type TabKey = 'movies' | 'shows';
 
@@ -283,10 +284,11 @@ export default defineComponent({
         const mapFilteredResults = (
             pool: MoovieCatalogItem[],
             languageMap: Map<string, string[]>,
-            audioCache: Map<string, string[]>
+            audioCache: Map<string, string[]>,
+            artworkUrls?: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>>
         ) => {
             const curated = pool.map((item) =>
-                toCuratedItemFast(item, [], languageMap, audioCache)
+                toCuratedItemFast(item, [], languageMap, audioCache, undefined, artworkUrls)
             );
             return splitCuratedByType(curated);
         };
@@ -338,13 +340,15 @@ export default defineComponent({
 
                 const languageMap = buildCatalogLanguageMap(searchVariantPool.value);
                 const filtered = filterCataloguePool(rawResults, cat.id, lang);
-                const audioCache = await fetchCatalogAudioCacheByIds(
-                    searchVariantPool.value.map((item) => item.id)
-                );
+                const [audioCache, artworkUrls] = await Promise.all([
+                    fetchCatalogAudioCacheByIds(searchVariantPool.value.map((item) => item.id)),
+                    fetchCatalogArtworkUrlsByIds(filtered.map((item) => item.id))
+                ]);
                 const { nextMovies, nextShows } = mapFilteredResults(
                     filtered,
                     languageMap,
-                    audioCache
+                    audioCache,
+                    artworkUrls
                 );
                 const generation = searchGeneration.value + 1;
                 searchGeneration.value = generation;

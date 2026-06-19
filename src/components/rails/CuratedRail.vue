@@ -7,18 +7,20 @@
         density="poster"
     >
         <PosterCard
-            v-for="item in displayItems"
+            v-for="(item, index) in displayItems"
             :key="item.isMock ? `mock-curated-${item.id}` : `curated-${catalog}-${item.type ?? defaultType}-${item.id}`"
             :id="item.id"
             :type="item.type ?? defaultType"
             :title="item.title"
             :original-title="item.originalTitle"
             :poster-path="item.posterPath"
+            :backdrop-path="item.backdropPath"
             :rating="item.rating"
             :release-date="item.releaseDate"
             :genre-ids="item.genreIds ?? []"
             :adult="item.adult ?? false"
             :loading="item.isMock || loading"
+            :priority-load="!loading && !item.isMock && index < 8"
             :query="item.query || {}"
             :catalog="catalog"
             :language-tags="item.languageTags || []"
@@ -51,6 +53,7 @@ export interface CuratedItem {
     catalogTitle?: string;
     anilistId?: number;
     moovieCatalogId?: string;
+    tmdbId?: number;
 }
 
 export default defineComponent({

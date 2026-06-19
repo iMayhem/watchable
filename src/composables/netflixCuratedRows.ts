@@ -64,7 +64,17 @@ const NETFLIX_HOME_TAIL_IDS = ['only-on-netflix'] as const;
 
 export function homeRowIdsForCatalogue(catalogueId: string): string[] {
     const genres = NETFLIX_HOME_GENRE_IDS[catalogueId] || NETFLIX_HOME_GENRE_IDS.hollywood;
-    return [...NETFLIX_HOME_EDITORIAL_IDS, ...genres, ...NETFLIX_HOME_TAIL_IDS];
+    const editorial =
+        catalogueId === 'korean'
+            ? [
+                  'new-on-netflix',
+                  'korean-movies',
+                  'korean-series',
+                  'critically-acclaimed',
+                  'exciting-tv'
+              ]
+            : [...NETFLIX_HOME_EDITORIAL_IDS];
+    return [...editorial, ...genres, ...NETFLIX_HOME_TAIL_IDS];
 }
 
 export interface NetflixCategoryTile {
@@ -87,6 +97,7 @@ const EDITORIAL_ROWS: NetflixCuratedRowDef[] = [
         section: 'editorial',
         priority: 3200,
         pick: 'top-rated',
+        minRating: 6,
         homeDedupe: true,
         description: (catalogueLabel) => `Today's most popular movies in ${catalogueLabel}.`
     },
@@ -98,6 +109,7 @@ const EDITORIAL_ROWS: NetflixCuratedRowDef[] = [
         section: 'editorial',
         priority: 3190,
         pick: 'top-rated',
+        minRating: 6,
         homeDedupe: true,
         description: (catalogueLabel) => `Today's most popular series in ${catalogueLabel}.`
     },
@@ -120,11 +132,40 @@ const EDITORIAL_ROWS: NetflixCuratedRowDef[] = [
         defaultType: 'movie',
         section: 'editorial',
         priority: 3170,
+        catalogues: ['hollywood', 'bollywood'],
         pick: 'top-rated',
         minRating: 6.5,
         homeDedupe: true,
         description: (catalogueLabel, lang) =>
             `Big ${catalogueLabel} films with ${lang.label} audio.`
+    },
+    {
+        id: 'korean-movies',
+        title: 'Korean Movies',
+        eyebrow: 'K-Cinema',
+        defaultType: 'movie',
+        section: 'editorial',
+        priority: 3175,
+        catalogues: ['korean'],
+        pick: 'top-rated',
+        minRating: 6.5,
+        homeDedupe: true,
+        description: (_catalogueLabel, lang) =>
+            `Big Korean films with ${lang.label} audio.`
+    },
+    {
+        id: 'korean-series',
+        title: 'Korean Series',
+        eyebrow: 'K-Drama',
+        defaultType: 'tv',
+        section: 'editorial',
+        priority: 3174,
+        catalogues: ['korean'],
+        pick: 'top-rated',
+        minRating: 6,
+        homeDedupe: true,
+        description: (_catalogueLabel, lang) =>
+            `Korean dramas and series in ${lang.label}.`
     },
     {
         id: 'critically-acclaimed',
@@ -214,7 +255,11 @@ export function rowsForCatalogue(catalogueId: string): NetflixCuratedRowDef[] {
 export function homeRowsForCatalogue(catalogueId: string): NetflixCuratedRowDef[] {
     return homeRowIdsForCatalogue(catalogueId)
         .map((id) => ROW_DEF_BY_ID.get(id))
-        .filter((row): row is NetflixCuratedRowDef => Boolean(row));
+        .filter((row): row is NetflixCuratedRowDef => {
+            if (!row) return false;
+            if (!row.catalogues?.length) return true;
+            return row.catalogues.includes(catalogueId);
+        });
 }
 
 export function getNetflixCategorySections(catalogueId: string): NetflixCategorySection[] {

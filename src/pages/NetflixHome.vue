@@ -5,6 +5,7 @@
         <main id="main" class="home__main" role="main">
             <BillboardHero
                 :id="hero ? hero.id : ''"
+                party-source="netflix"
                 :type="hero ? hero.type : 'movie'"
                 :title="hero ? hero.title : ''"
                 :tagline="activeLang.nativeLabel"
@@ -16,6 +17,7 @@
                 :genre-ids="[]"
                 :eyebrow="`Featured · ${activeCatalogue.label}`"
                 :loading="isLoading && !hero"
+                strict-backdrop
                 :play-to="heroPlayRoute"
                 :detail-to="heroDetailRoute"
             />
@@ -82,7 +84,8 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
@@ -118,7 +121,10 @@ import {
     toCuratedItemFast,
     toCuratedItemUpgraded
 } from '../composables/useNetflixArtwork';
+import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
+import { prefetchArtworkImages } from '../utils/useWebImage';
 import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
+import { fetchEnrichmentByCatalogIds } from '../composables/useCatalogEnrichmentCache';
 import {
     buildCatalogLanguageMap,
     catalogStreamTarget,
@@ -130,6 +136,8 @@ export default defineComponent({
     name: 'NetflixHome',
     components: { SiteHeader, SiteFooter, BillboardHero, CuratedRail, TopTenRail },
     setup() {
+        const route = useRoute();
+        const router = useRouter();
         const { updateSeo } = useSeo();
         const { language, activeLanguage } = getNetflixLanguage();
         const { catalogue, activeCatalogue: resolveCatalogue } = getNetflixCatalogue();
@@ -151,11 +159,11 @@ export default defineComponent({
             if (!first) return null;
             return {
                 id: first.id,
-                type: first.type || 'movie',
+                type: (first.anilistId ? 'anime' : (first.type || 'movie')) as 'movie' | 'tv' | 'anime',
                 title: first.title,
                 catalogTitle: first.catalogTitle || first.title,
                 overview: '',
-                backdropPath: first.backdropPath || first.posterPath,
+                backdropPath: first.backdropPath,
                 posterPath: first.posterPath,
                 rating: first.rating || 0,
                 releaseDate: first.releaseDate || ''
@@ -181,7 +189,7 @@ export default defineComponent({
                 path: netflixCatalogDetailPath({
                     id: h.id,
                     title: h.catalogTitle || h.title,
-                    type: h.type
+                    type: h.type === 'anime' ? undefined : (h.type as 'movie' | 'tv')
                 })
             };
         });
@@ -202,6 +210,22 @@ export default defineComponent({
             netflixBrowsePath(activeCatalogue.value.id, rail.rowId);
 
         const currentLoadKey = () => `${catalogue.value}:${language.value}`;
+
+        /** Legacy bookmarks: /?type=tv|movie → dedicated browse pages. */
+        const redirectLegacyTypeQuery = () => {
+            const t = route.query.type;
+            if (t !== 'tv' && t !== 'movie') return false;
+
+            const cat = catalogue.value;
+            if (t === 'tv') {
+                router.replace(netflixBrowsePath(cat, 'exciting-tv'));
+                return true;
+            }
+
+            const moviesCat = cat === 'korean' ? 'hollywood' : cat;
+            router.replace(netflixBrowsePath(moviesCat, 'blockbuster-movies'));
+            return true;
+        };
 
         const hasCatalogue = () =>
             trendingItems.value.length > 0 || catalogueRails.value.length > 0;
@@ -259,18 +283,20 @@ export default defineComponent({
                     ...browsePool,
                     ...variantSnapshot
                 ]);
-                const audioCache = await fetchCatalogAudioCacheByIds(
-                    browsePool.map((item) => item.id)
-                );
-
-                const pool = filterCataloguePool(browsePool, cat.id, lang);
-                const artworkTargets = collectArtworkIdsForCurated(
+                const artworkIds = collectArtworkIdsForCurated(
                     browsePool,
                     cat.id,
                     lang,
                     cat.label,
                     new Map()
                 );
+                const [audioCache, artworkUrls] = await Promise.all([
+                    fetchCatalogAudioCacheByIds(browsePool.map((item) => item.id)),
+                    fetchCatalogArtworkUrlsByIds(artworkIds.map((item) => item.id))
+                ]);
+
+                const pool = filterCataloguePool(browsePool, cat.id, lang);
+                const artworkTargets = artworkIds;
 
                 const applyHomeSections = (
                     byId: Map<string, CuratedItem>,
@@ -291,25 +317,48 @@ export default defineComponent({
                 };
 
                 const fastCurated = artworkTargets.map((item) =>
-                    toCuratedItemFast(item, [], languageMap, audioCache)
+                    toCuratedItemFast(item, [], languageMap, audioCache, undefined, artworkUrls)
                 );
                 const fastById = new Map(fastCurated.map((item) => [String(item.id), item]));
                 applyHomeSections(fastById, new Map());
+                const heroItem = trendingItems.value[0];
+                if (heroItem?.backdropPath) {
+                    prefetchArtworkImages([heroItem.backdropPath], 'hero', 1);
+                }
+                prefetchArtworkImages(
+                    trendingItems.value.map((item) => item.posterPath || item.backdropPath),
+                    'medium',
+                    20
+                );
                 lastLoadKey.value = loadKey;
                 isLoading.value = false;
 
                 void (async () => {
                     try {
-                        const tmdbById = await enrichCatalogPoolWithTmdb(pool, 14);
+                        const enrichmentMap = await fetchEnrichmentByCatalogIds(
+                            artworkTargets.map((item) => item.id)
+                        );
+                        const tmdbById = await enrichCatalogPoolWithTmdb(
+                            artworkTargets.map((item) => ({
+                                id: String(item.id),
+                                title: item.title,
+                                release_date: item.release_date,
+                                media_type: item.media_type,
+                                tmdbId: enrichmentMap.get(String(item.id))?.tmdb_id
+                            })),
+                            14
+                        );
                         const upgraded = await mapWithConcurrency(
                             artworkTargets,
                             (item) => {
                                 const meta = tmdbById.get(String(item.id));
+                                const enrichment = enrichmentMap.get(String(item.id));
                                 return toCuratedItemUpgraded(
                                     item,
                                     meta?.genreIds || [],
                                     languageMap,
-                                    audioCache
+                                    audioCache,
+                                    enrichment
                                 );
                             },
                             10
@@ -347,14 +396,23 @@ export default defineComponent({
             loadCatalogue();
         };
 
+        watch(
+            () => route.query.type,
+            () => {
+                redirectLegacyTypeQuery();
+            }
+        );
+
         onMounted(() => {
             nfDebug('home:mount');
+            if (redirectLegacyTypeQuery()) return;
             loadCatalogue();
             window.addEventListener('movora_netflix_catalogue_change', onCatalogueOrLanguageChange);
             window.addEventListener('movora_netflix_language_change', onCatalogueOrLanguageChange);
         });
 
         onActivated(() => {
+            if (redirectLegacyTypeQuery()) return;
             if (restoreHomeCache()) return;
             loadCatalogue();
         });

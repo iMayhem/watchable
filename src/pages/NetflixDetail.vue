@@ -6,6 +6,7 @@
             <section class="nf-detail__snap-slide">
                 <TitleMasthead
                     :id="meta ? meta.id : ''"
+                    party-source="netflix"
                     :type="supportsEpisodes ? 'tv' : mediaType"
                     :title="displayTitle"
                     :tagline="languageLine"
@@ -18,7 +19,8 @@
                     :genre-ids="[]"
                     :play-route="playRoute"
                     :show-trailer="false"
-                    :loading="loading && !meta"
+                    strict-backdrop
+                    :loading="mastheadLoading"
                 />
             </section>
 
@@ -77,7 +79,6 @@ import {
     catalogStreamPath,
     catalogStreamTarget,
     findCatalogueLanguageVariants,
-    resolveLanguageTagsForItem,
     resolveVerifiedLanguageTags
 } from '../composables/useNetflixCatalogLookup';
 import { fetchAnimeMediaById } from '../composables/useAniList';
@@ -89,10 +90,18 @@ import {
 } from '../composables/useNetflixLanguage';
 import { useSeo } from '../composables/useSeo';
 import {
+    getCachedArtworkForCatalogItem,
     mapWithConcurrency,
     pickCatalogArtwork,
     resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
+import {
+    resolveInstantCatalogArtwork,
+    toCuratedItemFast,
+    toCuratedItemUpgraded
+} from '../composables/useNetflixArtwork';
+import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
+import { prefetchArtworkImages } from '../utils/useWebImage';
 import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
 import {
     fetchAnimeCatalogCacheByIds,
@@ -116,12 +125,15 @@ export default defineComponent({
         const loading = ref(true);
         const meta = ref<any>(null);
         const similarItems = ref<CuratedItem[]>([]);
+        const artworkReady = ref(false);
         const artwork = ref<{ posterPath: string | null; backdropPath: string | null }>({
             posterPath: null,
             backdropPath: null
         });
+        let detailLoadSeq = 0;
         const selectedSeason = ref(1);
         const selectedEpisode = ref(1);
+
 
         const {
             seasons: episodeSeasons,
@@ -151,6 +163,8 @@ export default defineComponent({
         const languageTags = computed(() => verifiedLanguageTags.value);
         const languageLine = computed(() => languageTags.value.join(' · '));
         const rating = computed(() => catalogRating(meta.value?.vote_average));
+
+
 
         const playRoute = computed(() => {
             if (!meta.value) {
@@ -186,38 +200,49 @@ export default defineComponent({
 
         const routeId = () => String(route.params.id || '');
 
+        const isCurrentDetailLoad = (seq: number, id = routeId()) =>
+            seq === detailLoadSeq && routeId() === id;
+
         const isHydratedForRoute = () => {
             const id = routeId();
-            return Boolean(meta.value && String(meta.value.id) === id);
+            return Boolean(
+                meta.value &&
+                String(meta.value.id) === id &&
+                artworkReady.value
+            );
         };
 
-        const toCurated = async (
+        const mastheadLoading = computed(() => !meta.value);
+
+        const resetDetailState = () => {
+            detailLoadSeq += 1;
+            meta.value = null;
+            similarItems.value = [];
+            verifiedLanguageTags.value = [];
+            artwork.value = { posterPath: null, backdropPath: null };
+            artworkReady.value = false;
+            loading.value = true;
+            return detailLoadSeq;
+        };
+
+        const applyInstantArtwork = (
             item: MoovieCatalogItem,
-            languageMap?: Map<string, string[]>,
-            audioCache?: Map<string, string[]>
-        ): Promise<CuratedItem> => {
-            const p = parseCatalogTitle(item.title || '');
-            const art = pickCatalogArtwork(
-                await resolveArtworkForCatalogItem({
-                    id: String(item.id),
-                    title: item.title,
-                    release_date: item.release_date,
-                    media_type: item.media_type,
-                    tmdbId: undefined
-                })
+            trustedTmdbId?: number | null,
+            artworkUrls?: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>>
+        ) => {
+            const cached = getCachedArtworkForCatalogItem(item, { trustedTmdbId });
+            const cachedArt = cached ? pickCatalogArtwork(cached) : null;
+            const instant = resolveInstantCatalogArtwork(
+                item,
+                cachedArt || { posterPath: null, backdropPath: null },
+                artworkUrls
             );
-            return {
-                id: item.id,
-                title: p.displayTitle || item.title,
-                originalTitle: p.languages.join(' · '),
-                catalogTitle: item.title,
-                posterPath: art.posterPath,
-                backdropPath: art.backdropPath,
-                rating: catalogRating(item.vote_average),
-                releaseDate: item.release_date || '',
-                type: inferCatalogMediaType(item),
-                languageTags: resolveLanguageTagsForItem(item, languageMap, audioCache)
-            };
+            artwork.value = instant;
+            artworkReady.value = Boolean(instant.backdropPath || instant.posterPath);
+            if (instant.backdropPath) {
+                prefetchArtworkImages([instant.backdropPath], 'hero', 1);
+            }
+            return artworkReady.value;
         };
 
         const loadVerifiedLanguages = async (item: MoovieCatalogItem) => {
@@ -241,7 +266,7 @@ export default defineComponent({
         };
 
         const applySeo = (id: string) => {
-            const seoImage = artwork.value.backdropPath || artwork.value.posterPath;
+            const seoImage = artwork.value.backdropPath;
             updateSeo({
                 title: `${displayTitle.value} — Netflix on Moovie`,
                 canonical: `https://moovie.fun/nf/${mediaType.value}/${id}`,
@@ -261,13 +286,41 @@ export default defineComponent({
             const similarPool = browseResults
                 .filter((item) => item.id !== id && itemMatchesLanguage(item, lang))
                 .slice(0, 10);
+            if (!similarPool.length) return;
+
             const languageMap = buildCatalogLanguageMap(browseResults);
-            const audioCache = await fetchCatalogAudioCacheByIds(similarPool.map((item) => item.id));
-            similarItems.value = await mapWithConcurrency(
-                similarPool,
-                (item) => toCurated(item, languageMap, audioCache),
-                4
+            const [audioCache, enrichmentMap, artworkUrls] = await Promise.all([
+                fetchCatalogAudioCacheByIds(similarPool.map((item) => item.id)),
+                fetchEnrichmentByCatalogIds(similarPool.map((item) => item.id)),
+                fetchCatalogArtworkUrlsByIds(similarPool.map((item) => item.id))
+            ]);
+
+            similarItems.value = similarPool.map((item) =>
+                toCuratedItemFast(
+                    item,
+                    enrichmentMap.get(String(item.id))?.tmdb_genre_ids || [],
+                    languageMap,
+                    audioCache,
+                    enrichmentMap.get(String(item.id)),
+                    artworkUrls
+                )
             );
+
+            void mapWithConcurrency(
+                similarPool,
+                (item) =>
+                    toCuratedItemUpgraded(
+                        item,
+                        enrichmentMap.get(String(item.id))?.tmdb_genre_ids || [],
+                        languageMap,
+                        audioCache,
+                        enrichmentMap.get(String(item.id))
+                    ),
+                8
+            ).then((upgraded) => {
+                if (routeId() !== id) return;
+                similarItems.value = upgraded;
+            });
         };
 
         const loadEpisodeCatalog = async (item: MoovieCatalogItem) => {
@@ -370,13 +423,17 @@ export default defineComponent({
             return null;
         };
 
-        const loadDetail = async (opts: { background?: boolean } = {}) => {
+        const loadDetail = async (opts: { background?: boolean; seq?: number } = {}) => {
             const id = routeId();
+            const seq = opts.seq ?? detailLoadSeq;
             const background = opts.background ?? isHydratedForRoute();
-            nfDebug('detail:load:start', { id, type: mediaType.value, background });
+            nfDebug('detail:load:start', { id, type: mediaType.value, background, seq });
+
+            if (!isCurrentDetailLoad(seq, id)) return;
 
             if (!background) {
                 const animePath = await resolveAnimeDetailRedirect(id);
+                if (!isCurrentDetailLoad(seq, id)) return;
                 if (animePath && route.path !== animePath) {
                     nfDebug('detail:redirect-anime', { id, animePath, source: 'cache' });
                     router.replace(animePath);
@@ -384,23 +441,23 @@ export default defineComponent({
                 }
             }
 
-            if (!background) {
-                loading.value = true;
-                meta.value = null;
-                similarItems.value = [];
-                verifiedLanguageTags.value = [];
-                artwork.value = { posterPath: null, backdropPath: null };
-            }
-
             try {
-                const metaPromise = background && meta.value
-                    ? Promise.resolve(meta.value)
-                    : fetchMoovieCatalogMetaResolved(mediaType.value, id);
+                const metaPromise =
+                    background && meta.value
+                        ? Promise.resolve(meta.value)
+                        : fetchMoovieCatalogMetaResolved(mediaType.value, id);
+                const [resolvedMeta, enrichmentMap, artworkUrls] = await Promise.all([
+                    metaPromise,
+                    fetchEnrichmentByCatalogIds([id]),
+                    fetchCatalogArtworkUrlsByIds([id])
+                ]);
+                if (!isCurrentDetailLoad(seq, id)) return;
 
-                meta.value = await metaPromise;
+                meta.value = resolvedMeta;
 
                 if (!background) {
                     const animePath = await resolveAnimeDetailRedirect(id, meta.value);
+                    if (!isCurrentDetailLoad(seq, id)) return;
                     if (animePath && route.path !== animePath) {
                         nfDebug('detail:redirect-anime', {
                             id,
@@ -412,24 +469,48 @@ export default defineComponent({
                     }
                 }
 
-                const enrichmentMap = await fetchEnrichmentByCatalogIds([meta.value.id]);
                 const enrichment = enrichmentMap.get(String(meta.value.id));
-                const art = pickCatalogArtwork(
-                    await resolveArtworkForCatalogItem({
+                const resolvedType = inferCatalogMediaType({
+                    title: meta.value.title,
+                    media_type: meta.value.media_type
+                });
+                const trustedTmdbId = enrichment?.tmdb_id ?? null;
+
+                applyInstantArtwork(
+                    {
+                        id: String(meta.value.id),
+                        title: meta.value.title || '',
+                        release_date: meta.value.release_date,
+                        media_type: resolvedType,
+                        vote_average: meta.value.vote_average ?? 0,
+                        backdrop_path: meta.value.backdrop_path || null
+                    },
+                    trustedTmdbId,
+                    artworkUrls
+                );
+
+                const [, art] = await Promise.all([
+                    Promise.all([
+                        loadVerifiedLanguages(meta.value),
+                        loadEpisodeCatalog(meta.value)
+                    ]),
+                    resolveArtworkForCatalogItem({
                         id: String(meta.value.id),
                         title: meta.value?.title || '',
                         release_date: meta.value?.release_date,
-                        media_type: mediaType.value,
-                        tmdbId: enrichment?.tmdb_id
-                    })
-                );
-                artwork.value = {
-                    posterPath: art.posterPath,
-                    backdropPath: art.backdropPath
-                };
+                        media_type: resolvedType,
+                        tmdbId: trustedTmdbId ?? undefined
+                    }).then((resolved) => pickCatalogArtwork(resolved))
+                ]);
+                if (!isCurrentDetailLoad(seq, id)) return;
 
-                await loadVerifiedLanguages(meta.value);
-                await loadEpisodeCatalog(meta.value);
+                artwork.value = {
+                    posterPath: art.posterPath || artwork.value.posterPath,
+                    backdropPath: art.backdropPath || artwork.value.backdropPath
+                };
+                artworkReady.value = Boolean(
+                    artwork.value.backdropPath || artwork.value.posterPath
+                );
                 void warmMooviePlayerAssets();
                 prefetchMoovieResolve({
                     type: supportsEpisodes.value ? 'tv' : mediaType.value,
@@ -447,43 +528,45 @@ export default defineComponent({
                 nfDebug('detail:load:ok', {
                     id,
                     title: displayTitle.value,
-                    background
+                    background,
+                    seq
                 });
             } catch (err) {
                 nfDebugError('detail:load:fail', { id, type: mediaType.value, err });
             } finally {
-                loading.value = false;
+                if (isCurrentDetailLoad(seq, id)) {
+                    loading.value = false;
+                }
             }
         };
 
         onMounted(() => {
             nfDebug('detail:mount', { id: route.params.id, type: mediaType.value });
-            loadDetail();
+            const seq = resetDetailState();
+            void loadDetail({ seq });
         });
 
         onActivated(() => {
-            if (isHydratedForRoute()) {
-                nfDebug('detail:reactivate', { id: routeId() });
-                loading.value = false;
-                applySeo(routeId());
-                return;
-            }
-            loadDetail();
+            if (!isHydratedForRoute()) return;
+            nfDebug('detail:reactivate', { id: routeId() });
+            loading.value = false;
+            applySeo(routeId());
         });
 
         watch(() => route.params.id, (newId, oldId) => {
             if (!newId || newId === oldId) return;
             nfDebug('detail:route-change', { id: newId });
-            meta.value = null;
-            loading.value = true;
-            loadDetail();
+            const seq = resetDetailState();
+            void loadDetail({ seq });
         });
 
         return {
             loading,
+            mastheadLoading,
             meta,
             mediaType,
             displayTitle,
+
             languageLine,
             languageTags,
             rating,

@@ -1,12 +1,14 @@
 import {
     browseMoovieCatalog,
     type BrowseCatalogOptions,
-    type MoovieCatalogItem
+    type MoovieCatalogItem,
+    inferCatalogMediaType
 } from './useMoovieCatalog';
 import {
     browseRowNeedsTmdbForPick,
     enrichCatalogPoolWithTmdb,
     filterCataloguePool,
+    filterItemsForBrowseRow,
     pickKoreanCatalogueBrowseItems,
     pickNativeCategoryBrowseItems,
     pickNetflixBrowseItems,
@@ -18,6 +20,7 @@ import { loadNetflixAvailabilityIndex } from './useNetflixProvider';
 import {
     getBrowseInitialPageCount,
     getCatalogBrowseFetchPlan,
+    isEditorialMediaBrowseRow,
     type CatalogBrowseSource
 } from '../data/netflixCatalogCategories';
 import { nfDebug } from './useNetflixDebug';
@@ -28,7 +31,9 @@ import {
 } from './useCatalogEnrichmentCache';
 
 export const BROWSE_GRID_BATCH = 40;
-export const BROWSE_INITIAL_PAGES = 16;
+export const BROWSE_FAST_GRID_BATCH = 16;
+export const BROWSE_FAST_INITIAL_PAGES = 3;
+export const BROWSE_INITIAL_PAGES = 8;
 export const BROWSE_PAGE_BATCH = 8;
 export const BROWSE_MAX_PAGES = 81;
 export const BROWSE_PICK_LIMIT = 600;
@@ -159,12 +164,14 @@ export function rebuildBrowsePicks(
     state: BrowsePoolState,
     rowId: NetflixBrowseRowId,
     catalogue: { label: string; id: string },
-    lang: NetflixLanguageOption
+    lang: NetflixLanguageOption,
+    typeFilter?: 'tv' | 'movie'
 ) {
     const pool = filterCataloguePool(state.browsePool, catalogue.id, lang);
+    let picks: MoovieCatalogItem[] = [];
 
     if (catalogue.id === 'korean' && state.fetchMode === 'language') {
-        state.pickedItems = pickKoreanCatalogueBrowseItems(
+        picks = pickKoreanCatalogueBrowseItems(
             pool,
             rowId,
             new Set<string>(),
@@ -172,29 +179,43 @@ export function rebuildBrowsePicks(
             state.tmdbById,
             state.enrichmentById
         );
-        return;
-    }
-
-    if (state.fetchMode === 'native') {
-        state.pickedItems = pickNativeCategoryBrowseItems(
+    } else if (isEditorialMediaBrowseRow(rowId)) {
+        picks = pickNetflixBrowseItems(
+            pool,
+            rowId,
+            catalogue,
+            lang,
+            state.tmdbById,
+            BROWSE_PICK_LIMIT,
+            state.enrichmentById
+        );
+    } else if (state.fetchMode === 'native') {
+        picks = pickNativeCategoryBrowseItems(
             pool,
             rowId,
             state.tmdbById,
             BROWSE_PICK_LIMIT,
             state.enrichmentById
         );
-        return;
+    } else {
+        picks = pickNetflixBrowseItems(
+            pool,
+            rowId,
+            catalogue,
+            lang,
+            state.tmdbById,
+            BROWSE_PICK_LIMIT,
+            state.enrichmentById
+        );
     }
 
-    state.pickedItems = pickNetflixBrowseItems(
-        pool,
-        rowId,
-        catalogue,
-        lang,
-        state.tmdbById,
-        BROWSE_PICK_LIMIT,
-        state.enrichmentById
-    );
+    if (typeFilter === 'tv') {
+        picks = picks.filter((item) => inferCatalogMediaType(item) === 'tv');
+    } else if (typeFilter === 'movie') {
+        picks = picks.filter((item) => inferCatalogMediaType(item) === 'movie');
+    }
+
+    state.pickedItems = filterItemsForBrowseRow(picks, rowId);
 }
 
 export async function enrichBrowsePoolForPicking(
@@ -202,7 +223,8 @@ export async function enrichBrowsePoolForPicking(
     rowId: NetflixBrowseRowId,
     catalogue: { label: string; id: string },
     lang: NetflixLanguageOption,
-    targetCount: number
+    targetCount: number,
+    typeFilter?: 'tv' | 'movie'
 ) {
     if (!browseRowNeedsTmdbForPick(rowId, state.enrichmentLoaded)) return;
 
@@ -214,7 +236,7 @@ export async function enrichBrowsePoolForPicking(
         if (!pending.length) break;
 
         await syncTmdbChunk(state, pending);
-        rebuildBrowsePicks(state, rowId, catalogue, lang);
+        rebuildBrowsePicks(state, rowId, catalogue, lang, typeFilter);
     }
 }
 
@@ -298,25 +320,48 @@ export async function fetchBrowseCatalogPages(
  * Populate browse grid — NetMirror-style native category fetch when available,
  * otherwise fall back to paginated language browse + TMDB genre matching.
  */
+export interface EnsureBrowsePickOptions {
+    /** Cap catalogue pages on the first scan — smaller = faster first paint. */
+    initialPageCap?: number;
+    /** Skip blocking Supabase enrichment (safe for top-rated / native category rows). */
+    deferEnrichment?: boolean;
+    /** Skip TMDB enrichment passes during the first scan. */
+    skipTmdbEnrich?: boolean;
+    /** Filter to a specific media type (tv or movie) */
+    typeFilter?: 'tv' | 'movie';
+}
+
 export async function ensureBrowsePickCount(
     state: BrowsePoolState,
     rowId: NetflixBrowseRowId,
     catalogue: { label: string; id: string },
     lang: NetflixLanguageOption,
-    targetCount: number
+    targetCount: number,
+    opts: EnsureBrowsePickOptions = {}
 ) {
     void loadNetflixAvailabilityIndex();
-    await loadBrowseEnrichment(state, rowId);
 
-    const initialPages =
+    if (opts.deferEnrichment) {
+        void loadBrowseEnrichment(state, rowId).then(() => {
+            rebuildBrowsePicks(state, rowId, catalogue, lang, opts.typeFilter);
+        });
+    } else {
+        await loadBrowseEnrichment(state, rowId);
+    }
+
+    const defaultInitial =
         state.fetchMode === 'native'
             ? Math.max(state.slugCursors.length, 1)
-            : getBrowseInitialPageCount(catalogue.id, state.fetchMode) || BROWSE_INITIAL_PAGES;
+            : getBrowseInitialPageCount(catalogue.id, state.fetchMode, rowId) ||
+              BROWSE_INITIAL_PAGES;
+    const initialPages = opts.initialPageCap ?? defaultInitial;
 
     if (!state.browsePool.length) {
         await fetchBrowseCatalogPages(state, lang, initialPages);
-        rebuildBrowsePicks(state, rowId, catalogue, lang);
-        await enrichBrowsePoolForPicking(state, rowId, catalogue, lang, targetCount);
+        rebuildBrowsePicks(state, rowId, catalogue, lang, opts.typeFilter);
+        if (!opts.skipTmdbEnrich) {
+            await enrichBrowsePoolForPicking(state, rowId, catalogue, lang, targetCount, opts.typeFilter);
+        }
     }
 
     let idleRounds = 0;
@@ -333,8 +378,10 @@ export async function ensureBrowsePickCount(
         }
 
         await fetchBrowseCatalogPages(state, lang, batch);
-        await enrichBrowsePoolForPicking(state, rowId, catalogue, lang, targetCount);
-        rebuildBrowsePicks(state, rowId, catalogue, lang);
+        if (!opts.skipTmdbEnrich) {
+            await enrichBrowsePoolForPicking(state, rowId, catalogue, lang, targetCount, opts.typeFilter);
+        }
+        rebuildBrowsePicks(state, rowId, catalogue, lang, opts.typeFilter);
 
         if (state.pickedItems.length === before) {
             idleRounds += 1;

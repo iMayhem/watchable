@@ -22,6 +22,8 @@
                     class="site-header__link"
                     :class="{ 'is-active': item.isActive() }"
                     @click="onNetflixNavClick(item)"
+                    @mouseenter="prefetchNetflixNav(item)"
+                    @focus="prefetchNetflixNav(item)"
                 >
                     {{ item.label }}
                 </router-link>
@@ -103,22 +105,22 @@
                     </svg>
                 </button>
 
-                <template v-if="!isNetflixMode">
-                    <a
-                        href="/party/"
-                        class="site-header__party-btn"
-                        aria-label="Watch Together"
-                        title="Watch Together Party Lobby"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="site-header__party-icon">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                        </svg>
-                        <span class="site-header__party-label">Party</span>
-                    </a>
+                <a
+                    href="/party/"
+                    class="site-header__party-btn"
+                    aria-label="Watch Together"
+                    title="Watch Together Party Lobby"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="site-header__party-icon">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span class="site-header__party-label">Party</span>
+                </a>
 
+                <template v-if="!isNetflixMode">
                     <button v-if="currentUser" class="site-header__user-badge" @click="handleLogout" title="Sign Out">
                         <span class="site-header__username">{{ currentUser }}</span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="site-header__logout-icon">
@@ -225,6 +227,11 @@
                     >
                         <span class="site-header__drawer-label">{{ modeLabel }}</span>
                     </button>
+
+                    <a href="/party/" class="site-header__drawer-link" @click="drawerOpen = false">
+                        <span class="eyebrow site-header__drawer-num">✦</span>
+                        <span class="site-header__drawer-label">Watch Together</span>
+                    </a>
                 </template>
 
                 <template v-else>
@@ -298,15 +305,22 @@ import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
 import { getNetflixCatalogue, NETFLIX_CATALOGUES } from '../../composables/useNetflixCatalogue';
-import { netflixBrowsePath } from '../../composables/useNetflixRails';
+import { netflixBrowsePath, isNetflixGenreBrowsePage } from '../../composables/useNetflixRails';
+import { getNetflixLanguage } from '../../composables/useNetflixLanguage';
+import { prefetchNetflixBrowseRoute } from '../../composables/useNetflixBrowsePrefetch';
 import { nfDebug } from '../../composables/useNetflixDebug';
 
 /** Korean header tab — not shared rows like anime/movies under the korean feed */
 const KOREAN_NAV_ROW_IDS = new Set([
+    'korean-movies',
+    'korean-series',
     'dramas',
     'thrillers',
     'romantic-movies',
-    'action-adventure'
+    'action-adventure',
+    'new-on-netflix',
+    'critically-acclaimed',
+    'exciting-tv'
 ]);
 
 function isKoreanNavActive(path: string): boolean {
@@ -472,6 +486,28 @@ export default defineComponent({
         const netflixNav = computed(() => {
             const cat = netflixCatalogue.value;
             const path = route.path;
+
+            const moviesCatalogue = cat === 'korean' ? 'hollywood' : cat;
+
+            const isTvSection =
+                path === netflixBrowsePath(cat, 'exciting-tv') ||
+                path === netflixBrowsePath(cat, 'top10-tv') ||
+                path.startsWith('/nf/tv/') ||
+                path.includes('/stream/nf/tv/') ||
+                (path === '/nf/categories' && route.query.type === 'tv') ||
+                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'tv');
+
+            const isMovieSection =
+                path === netflixBrowsePath(moviesCatalogue, 'blockbuster-movies') ||
+                path === netflixBrowsePath(moviesCatalogue, 'top10-movies') ||
+                (cat !== 'korean' &&
+                    (path === netflixBrowsePath(cat, 'blockbuster-movies') ||
+                        path === netflixBrowsePath(cat, 'top10-movies'))) ||
+                path.startsWith('/nf/movie/') ||
+                path.includes('/stream/nf/movie/') ||
+                (path === '/nf/categories' && route.query.type === 'movie') ||
+                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'movie');
+
             return [
                 {
                     label: 'Home',
@@ -481,20 +517,13 @@ export default defineComponent({
                 {
                     label: 'TV Shows',
                     path: netflixBrowsePath(cat, 'exciting-tv'),
-                    isActive: () =>
-                        path === netflixBrowsePath(cat, 'exciting-tv') ||
-                        path === netflixBrowsePath(cat, 'top10-tv') ||
-                        path.startsWith('/nf/tv/') ||
-                        path.includes('/stream/nf/tv/')
+                    isActive: () => isTvSection
                 },
                 {
                     label: 'Movies',
-                    path: netflixBrowsePath(cat, 'blockbuster-movies'),
-                    isActive: () =>
-                        path === netflixBrowsePath(cat, 'blockbuster-movies') ||
-                        path === netflixBrowsePath(cat, 'top10-movies') ||
-                        path.startsWith('/nf/movie/') ||
-                        path.includes('/stream/nf/movie/')
+                    path: netflixBrowsePath(moviesCatalogue, 'blockbuster-movies'),
+                    setCatalogue: cat === 'korean' ? 'hollywood' : undefined,
+                    isActive: () => isMovieSection
                 },
                 {
                     label: 'Anime',
@@ -503,7 +532,7 @@ export default defineComponent({
                 },
                 {
                     label: 'Korean',
-                    path: netflixBrowsePath('korean', 'dramas'),
+                    path: netflixBrowsePath('korean', 'korean-movies'),
                     setCatalogue: 'korean',
                     isActive: () => isKoreanNavActive(path)
                 },
@@ -516,7 +545,11 @@ export default defineComponent({
                 },
                 {
                     label: 'Categories',
-                    path: '/nf/categories',
+                    path: isTvSection
+                        ? '/nf/categories?type=tv'
+                        : isMovieSection
+                            ? '/nf/categories?type=movie'
+                            : '/nf/categories',
                     isActive: () => path === '/nf/categories'
                 }
             ];
@@ -531,6 +564,14 @@ export default defineComponent({
             if (item.setCatalogue) {
                 setNetflixCatalogue(item.setCatalogue);
             }
+        };
+
+        const { language: netflixLanguage } = getNetflixLanguage();
+
+        const prefetchNetflixNav = (item: { path: string }) => {
+            const match = item.path.match(/^\/nf\/browse\/([^/]+)\/([^/?#]+)/);
+            if (!match) return;
+            prefetchNetflixBrowseRoute(match[1], match[2], netflixLanguage.value);
         };
 
         const handleClickOutside = (event: MouseEvent) => {
@@ -615,7 +656,8 @@ export default defineComponent({
             isBrowseOpen,
             toggleBrowseDropdown,
             selectBrowseCatalogue,
-            onNetflixNavClick
+            onNetflixNavClick,
+            prefetchNetflixNav
         };
     }
 });

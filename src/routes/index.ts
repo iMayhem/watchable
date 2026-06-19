@@ -92,6 +92,28 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/embed/nf/movie/:id',
+        name: 'EmbedNetflixMovie',
+        component: () => import('../pages/StreamNetflix.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Stream',
+            partyEmbed: true,
+            bareLayout: true
+        }
+    },
+    {
+        path: '/embed/nf/tv/:id/season/:season/episode/:episode',
+        name: 'EmbedNetflixTV',
+        component: () => import('../pages/StreamNetflix.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Stream',
+            partyEmbed: true,
+            bareLayout: true
+        }
+    },
+    {
         path: '/movies',
         name: 'Movies',
         component: () => import('../pages/Movies.vue'),

@@ -11,6 +11,7 @@
                 <div class="billboard__actions">
                     <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 140px; height: 48px; border-radius: 24px" />
                     <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 140px; height: 48px; border-radius: 24px" />
+                    <div class="billboard__skeleton-line billboard__skeleton-shimmer" style="width: 140px; height: 48px; border-radius: 24px" />
                 </div>
             </div>
         </div>
@@ -23,6 +24,7 @@
                     class="billboard__backdrop"
                     :src="backdropUrl"
                     :alt="title"
+                    loading="eager"
                     fetchpriority="high"
                     decoding="async"
                 />
@@ -97,6 +99,24 @@
                     >
                         More info
                     </LmButton>
+
+                    <LmButton
+                        variant="outline"
+                        size="lg"
+                        :href="partyHref"
+                        rel="nofollow"
+                        aria-label="Watch Together"
+                    >
+                        <template #leading>
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                        </template>
+                        Watch Together
+                    </LmButton>
                 </div>
             </div>
         </template>
@@ -113,13 +133,16 @@ import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { useAppPaths } from '../../composables/useAppPaths';
 import { useWebImage } from '../../utils/useWebImage';
+import { buildPartyHref } from '../../utils/partyRoom';
 
 export default defineComponent({
     name: 'BillboardHero',
     components: { LmButton, TrailerControls, TrailerIframe },
     props: {
         id: { type: [Number, String], default: '' },
-        type: { type: String as PropType<'movie' | 'tv'>, default: 'movie' },
+        partyId: { type: [Number, String], default: null },
+        partySource: { type: String as PropType<'global' | 'netflix'>, default: 'global' },
+        type: { type: String as PropType<'movie' | 'tv' | 'anime'>, default: 'movie' },
         title: { type: String, default: '' },
         tagline: { type: String, default: '' },
         overview: { type: String, default: '' },
@@ -132,16 +155,21 @@ export default defineComponent({
         eyebrow: { type: String, default: 'This week’s feature' },
         dwellMs: { type: Number, default: 2000 },
         loading: { type: Boolean, default: false },
+        strictBackdrop: { type: Boolean, default: false },
         playTo: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: null },
         detailTo: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: null }
     },
     setup(props) {
         const rootRef = ref<HTMLElement | null>(null);
-        const ambientPath = computed(() => props.backdropPath || props.posterPath);
+        const ambientPath = computed(() =>
+            props.strictBackdrop ? props.backdropPath : props.backdropPath || props.posterPath
+        );
         useAmbientColor(ambientPath, rootRef);
 
         const backdropUrl = computed(() => {
-            const path = props.backdropPath || props.posterPath;
+            const path = props.strictBackdrop
+                ? props.backdropPath
+                : props.backdropPath || props.posterPath;
             if (!path) return '';
             return useWebImage(path, props.backdropPath ? 'hero' : 'large');
         });
@@ -156,7 +184,7 @@ export default defineComponent({
 
         const genreNames = computed(() => {
             return (props.genreIds || [])
-                .map(id => genreName(id, props.type))
+                .map(id => genreName(id, props.type === 'anime' ? 'tv' : props.type))
                 .filter((n): n is string => !!n)
                 .slice(0, 3);
         });
@@ -181,7 +209,17 @@ export default defineComponent({
             return paths.detailPath(props.type === 'tv' ? 'tv' : 'movie', props.id);
         });
 
+        const partyHref = computed(() =>
+            buildPartyHref({
+                id: props.id,
+                partyId: props.partyId ?? undefined,
+                title: props.title,
+                type: props.type,
+                source: props.partySource
+            })
+        );
 
+        const embedType = computed(() => props.type === 'anime' ? 'tv' as const : props.type);
 
         const {
             iframeRef,
@@ -195,7 +233,7 @@ export default defineComponent({
             toggleMute
         } = useTrailerEmbed({
             id: toRef(props, 'id'),
-            type: toRef(props, 'type'),
+            type: embedType,
             rootEl: rootRef,
             dwellMs: props.dwellMs
         });
@@ -218,6 +256,7 @@ export default defineComponent({
             truncatedOverview,
             playRoute,
             detailRoute,
+            partyHref,
             trailerVisible,
             trailerLive,
             trailerSrc,

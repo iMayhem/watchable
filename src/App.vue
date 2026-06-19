@@ -1,8 +1,10 @@
 <template>
-    <div class="app-stage">
-        <a class="app-skip" href="#main">Skip to content</a>
+    <router-view v-if="isBareLayout" />
 
-        <span class="grain" aria-hidden="true" />
+    <div v-else class="app-stage" :class="{ 'app-stage--party-embed': isPartyEmbed }">
+        <a v-if="!isPartyEmbed" class="app-skip" href="#main">Skip to content</a>
+
+        <span v-if="!isPartyEmbed" class="grain" aria-hidden="true" />
 
         <router-view v-slot="{ Component, route }">
             <KeepAlive
@@ -11,6 +13,7 @@
                     'NetflixBrowse',
                     'NetflixSearch',
                     'NetflixDetail',
+                    'NetflixCategories',
                     'StreamNetflix'
                 ]"
             >
@@ -18,17 +21,23 @@
             </KeepAlive>
         </router-view>
 
-        <ContentModeGate />
-        <CommandPalette />
-        <Toast />
+        <ContentModeGate v-if="!isPartyEmbed" />
+        <CommandPalette v-if="!isPartyEmbed" />
+        <Toast v-if="!isPartyEmbed" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
 import ContentModeGate from './components/navigation/ContentModeGate.vue';
 
+const route = useRoute();
+const isBareLayout = computed(() => Boolean(route.meta.bareLayout));
+const isPartyEmbed = computed(
+    () => Boolean(route.meta.partyEmbed) || route.query.embed === 'party'
+);
 const { region } = getSettings();
 
 // Removed: watch(region) redirect that was causing Home.vue component unmount/remount
@@ -42,9 +51,18 @@ const getRouteKey = (route: any) => {
         return `anime-stream-${route.params.id}-${region.value}`;
     }
     // Keep one player instance when switching Netflix audio (catalogue id in path changes).
-    if (route.name === 'StreamNetflixMovie' || route.name === 'StreamNetflixTV') {
+    if (
+        route.name === 'StreamNetflixMovie' ||
+        route.name === 'StreamNetflixTV' ||
+        route.name === 'EmbedNetflixMovie' ||
+        route.name === 'EmbedNetflixTV'
+    ) {
         return 'stream-netflix';
     }
+    if (route.name === 'NetflixBrowse') {
+        return `nf-browse-${route.params.catalogue}-${route.params.row}`;
+    }
+
     // Do NOT include region in the key for Home/listing pages.
     // Those pages handle region changes themselves via the movora_settings_change
     // event + their own watch(region) watcher. Including region here would
@@ -77,6 +95,7 @@ const initIdle = async () => {
     import('./pages/Anime.vue');
     import('./pages/Search.vue');
     import('./pages/Watchlist.vue');
+    import('./pages/NetflixBrowse.vue');
 };
 
 onMounted(() => {
@@ -99,6 +118,23 @@ onBeforeUnmount(() => {
     min-height: 100vh;
     min-height: 100dvh;
     isolation: isolate;
+
+    &--party-embed {
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+    }
+}
+
+html.nf-party-embed,
+html.nf-party-embed body,
+html.nf-party-embed #app {
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    background: #000;
 }
 
 // ── Skip-to-content link ─────────────────────────────────────────────────────

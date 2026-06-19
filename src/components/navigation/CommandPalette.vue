@@ -255,7 +255,8 @@ export default defineComponent({
                     return { ...item, path: netflixBrowsePath(cat, 'exciting-tv') };
                 }
                 if (item.path === '__nf_movies__') {
-                    return { ...item, path: netflixBrowsePath(cat, 'blockbuster-movies') };
+                    const moviesCat = cat === 'korean' ? 'hollywood' : cat;
+                    return { ...item, path: netflixBrowsePath(moviesCat, 'blockbuster-movies') };
                 }
                 if (item.path === '__nf_new__') {
                     return { ...item, path: netflixBrowsePath(cat, 'new-on-netflix') };

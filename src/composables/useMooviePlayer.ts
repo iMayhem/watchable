@@ -520,8 +520,16 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         dbg('player:container-ready', { waitedMs: Date.now() - started });
     };
 
-    const waitForExtension = async (timeoutMs = 200) => {
-        dbg('player:wait-extension', { timeoutMs });
+    const isEmbeddedFrame = () => {
+        try {
+            return window.parent !== window;
+        } catch {
+            return true;
+        }
+    };
+
+    const waitForExtension = async (timeoutMs = isEmbeddedFrame() ? 1500 : 200) => {
+        dbg('player:wait-extension', { timeoutMs, embedded: isEmbeddedFrame() });
         pingExtension();
         checkExtension();
         if (extensionActive.value) {
@@ -716,8 +724,13 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         } catch (err: any) {
             if (token !== prepareToken) return;
             dbgError('player:prepare:fail', err);
-            playbackError.value =
-                err?.message || 'Playback failed. Install the Moovie Stream Boost extension.';
+            const needsExtensionHint =
+                !extensionActive.value &&
+                (isEmbeddedFrame() ||
+                    /proxy|403|failed|network/i.test(String(err?.message || '')));
+            playbackError.value = needsExtensionHint
+                ? 'Playback failed. Install the Moovie extension and reload — Watch Together needs it for catalogue streams.'
+                : err?.message || 'Playback failed. Install the Moovie Stream Boost extension.';
         }
     };
 

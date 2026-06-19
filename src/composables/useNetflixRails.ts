@@ -223,6 +223,17 @@ function matchesRowMediaType(item: MoovieCatalogItem, def: NetflixCuratedRowDef)
     return true;
 }
 
+/** Hard filter so movie browse rows never surface series (and vice versa). */
+export function filterItemsForBrowseRow(
+    items: MoovieCatalogItem[],
+    rowId: NetflixBrowseRowId
+): MoovieCatalogItem[] {
+    if (rowId === 'trending') return items;
+    const def = getNetflixCuratedRowDef(rowId);
+    if (!def || def.browseAllMediaTypes) return items;
+    return items.filter((item) => matchesRowMediaType(item, def));
+}
+
 function tmdbGenresMatchItem(
     item: MoovieCatalogItem,
     genreIds: number[],
@@ -405,10 +416,11 @@ function hollywoodMovie(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     if (!isMovie(item) || !hasLangBase(item, lang)) return false;
     if (isIndia(item)) return false;
     if (isAsianCinemaCountry(item)) return false;
+    if (isKoreanOrigin(item)) return false;
     const c = countryOf(item);
     if (!c) return false;
     if (ARAB_COUNTRIES.has(c)) return false;
-    return isHollywoodCountry(item) || !isIndia(item);
+    return isHollywoodCountry(item);
 }
 
 function bollywoodMovie(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
@@ -685,6 +697,9 @@ const MIN_RAIL_ITEMS = 3;
 const MAX_PER_RAIL = 14;
 const MAX_TRENDING = 12;
 const TOP_CHART_SIZE = 10;
+const BROWSE_CURRENT_YEAR = new Date().getFullYear();
+/** Floor for editorial/browse picks — keeps ancient low-rated filler out. */
+const BROWSE_DEFAULT_MIN_RATING = 5.5;
 
 function itemRating(item: MoovieCatalogItem) {
     const raw = item.vote_average;
@@ -701,16 +716,74 @@ function releaseTimestamp(item: MoovieCatalogItem) {
     return year ? Date.UTC(parseInt(year[0], 10), 0, 1) : 0;
 }
 
+function releaseYear(item: MoovieCatalogItem): number {
+    const ts = releaseTimestamp(item);
+    return ts > 0 ? new Date(ts).getUTCFullYear() : 0;
+}
+
+/** Boost fresh catalogue drops; gently penalize very old catalogue entries. */
+function catalogRecencyBoost(item: MoovieCatalogItem): number {
+    const year = releaseYear(item);
+    if (!year) return 0;
+
+    const age = Math.max(0, BROWSE_CURRENT_YEAR - year);
+    if (age <= 1) return 42;
+    if (age <= 2) return 34;
+    if (age <= 3) return 26;
+    if (age <= 5) return 16;
+    if (age <= 8) return 8;
+    if (age <= 12) return 2;
+    if (age > 18) return -12;
+    if (age > 12) return -4;
+    return 0;
+}
+
+/** Recent + well-rated titles surface first across home and browse grids. */
+function catalogBrowseRankScore(item: MoovieCatalogItem): number {
+    return itemRating(item) * 9 + catalogRecencyBoost(item);
+}
+
+function compareBrowseRank(a: MoovieCatalogItem, b: MoovieCatalogItem): number {
+    const scoreDiff = catalogBrowseRankScore(b) - catalogBrowseRankScore(a);
+    if (scoreDiff !== 0) return scoreDiff;
+
+    const yearDiff = releaseTimestamp(b) - releaseTimestamp(a);
+    if (yearDiff !== 0) return yearDiff;
+
+    return itemRating(b) - itemRating(a);
+}
+
+function sortByBrowseRank(pool: MoovieCatalogItem[]): MoovieCatalogItem[] {
+    return [...pool].sort(compareBrowseRank);
+}
+
 function takeUnique(
     pool: MoovieCatalogItem[],
     used: Set<string>,
     limit: number,
     predicate: (item: MoovieCatalogItem) => boolean
 ) {
+    return takeRanked(pool, used, limit, predicate);
+}
+
+function takeRanked(
+    pool: MoovieCatalogItem[],
+    used: Set<string>,
+    limit: number,
+    predicate: (item: MoovieCatalogItem) => boolean,
+    opts: { minRating?: number } = {}
+) {
+    const minRating = opts.minRating ?? BROWSE_DEFAULT_MIN_RATING;
+    const candidates = sortByBrowseRank(
+        pool.filter((item) => {
+            if (used.has(item.id) || !predicate(item)) return false;
+            return itemRating(item) >= minRating;
+        })
+    );
+
     const out: MoovieCatalogItem[] = [];
-    for (const item of pool) {
+    for (const item of candidates) {
         if (out.length >= limit) break;
-        if (used.has(item.id) || !predicate(item)) continue;
         used.add(item.id);
         out.push(item);
     }
@@ -723,15 +796,15 @@ function takeTopRated(
     limit: number,
     opts: { movie?: boolean; tv?: boolean; minRating?: number } = {}
 ) {
-    const minRating = opts.minRating ?? 0;
-    const candidates = pool
-        .filter((item) => {
+    const minRating = opts.minRating ?? BROWSE_DEFAULT_MIN_RATING;
+    const candidates = sortByBrowseRank(
+        pool.filter((item) => {
             if (used.has(item.id)) return false;
             if (opts.movie && !isMovie(item)) return false;
             if (opts.tv && !isSeries(item)) return false;
             return itemRating(item) >= minRating;
         })
-        .sort((a, b) => itemRating(b) - itemRating(a));
+    );
 
     const out: MoovieCatalogItem[] = [];
     for (const item of candidates) {
@@ -746,16 +819,21 @@ function takeNewest(
     pool: MoovieCatalogItem[],
     used: Set<string>,
     limit: number,
-    opts: { movie?: boolean; tv?: boolean } = {}
+    opts: { movie?: boolean; tv?: boolean; minRating?: number } = {}
 ) {
+    const minRating = opts.minRating ?? BROWSE_DEFAULT_MIN_RATING;
     const candidates = pool
         .filter((item) => {
             if (used.has(item.id)) return false;
             if (opts.movie && !isMovie(item)) return false;
             if (opts.tv && !isSeries(item)) return false;
-            return releaseTimestamp(item) > 0;
+            return releaseTimestamp(item) > 0 && itemRating(item) >= minRating;
         })
-        .sort((a, b) => releaseTimestamp(b) - releaseTimestamp(a));
+        .sort((a, b) => {
+            const yearDiff = releaseTimestamp(b) - releaseTimestamp(a);
+            if (yearDiff !== 0) return yearDiff;
+            return itemRating(b) - itemRating(a);
+        });
 
     const out: MoovieCatalogItem[] = [];
     for (const item of candidates) {
@@ -783,7 +861,7 @@ function takeByKeywords(
 function browseItemScore(item: MoovieCatalogItem, tmdbById: Map<string, CatalogTmdbMeta>) {
     const meta = tmdbById.get(String(item.id));
     const nfIndex = getNetflixAvailabilityIndex();
-    return itemRating(item) + netflixAvailabilityBoost(meta?.tmdbId, nfIndex);
+    return catalogBrowseRankScore(item) + netflixAvailabilityBoost(meta?.tmdbId, nfIndex);
 }
 
 function matchesNativeBrowseRow(
@@ -798,7 +876,15 @@ function matchesNativeBrowseRow(
 
     const enrichment = enrichmentById.get(String(item.id));
     if (enrichment) {
-        return enrichment.browse_categories.includes(rowId);
+        if (!enrichment.browse_categories.includes(rowId)) {
+            if (isStandardNetflixGenre(rowId) && enrichmentById.size > 0) {
+                return false;
+            }
+        } else if (def.browseAllMediaTypes || matchesRowMediaType(item, def)) {
+            return true;
+        } else if (isStandardNetflixGenre(rowId) && enrichmentById.size > 0) {
+            return false;
+        }
     }
 
     if (isStandardNetflixGenre(rowId) && enrichmentById.size > 0) {
@@ -831,6 +917,7 @@ export function pickNativeCategoryBrowseItems(
         .filter((item) =>
             matchesNativeBrowseRow(item, rowId, def, tmdbById, enrichmentById)
         )
+        .filter((item) => itemRating(item) >= BROWSE_DEFAULT_MIN_RATING)
         .sort((a, b) => browseItemScore(b, tmdbById) - browseItemScore(a, tmdbById))
         .slice(0, limit);
 }
@@ -847,6 +934,7 @@ function takeGenreMatches(
         .filter(
             (item) =>
                 !used.has(item.id) &&
+                itemRating(item) >= BROWSE_DEFAULT_MIN_RATING &&
                 itemMatchesGenreRow(item, def, tmdbById, enrichmentById)
         )
         .sort((a, b) => browseItemScore(b, tmdbById) - browseItemScore(a, tmdbById));
@@ -946,15 +1034,18 @@ function pickFromRowDef(
             return takeTopRated(filtered, used, limit, {
                 movie: def.defaultType === 'movie',
                 tv: def.defaultType === 'tv',
-                minRating: def.minRating ?? 0
+                minRating: def.minRating ?? BROWSE_DEFAULT_MIN_RATING
             });
         case 'newest':
             return takeNewest(filtered, used, limit, {
                 movie: def.defaultType === 'movie',
-                tv: def.defaultType === 'tv'
+                tv: def.defaultType === 'tv',
+                minRating: def.minRating ?? BROWSE_DEFAULT_MIN_RATING
             });
         case 'all':
-            return takeUnique(filtered, used, limit, (item) => matchesRowMediaType(item, def));
+            return takeRanked(filtered, used, limit, (item) => matchesRowMediaType(item, def), {
+                minRating: def.minRating ?? BROWSE_DEFAULT_MIN_RATING
+            });
         case 'keyword-groups':
             return takeUnique(
                 filtered,
@@ -987,39 +1078,20 @@ function planNetflixHomeRows(
     tmdbById: Map<string, CatalogTmdbMeta>
 ): NetflixHomePlan {
     const used = new Set<string>();
-    filtered.slice(0, MAX_TRENDING).forEach((item) => used.add(item.id));
+    sortByBrowseRank(filtered)
+        .slice(0, MAX_TRENDING)
+        .forEach((item) => used.add(item.id));
 
-    const top10Movies = takeTopRated(filtered, used, TOP_CHART_SIZE, { movie: true });
-    const top10Tv = takeTopRated(filtered, used, TOP_CHART_SIZE, { tv: true });
+    const top10Movies = takeTopRated(filtered, used, TOP_CHART_SIZE, {
+        movie: true,
+        minRating: 6
+    });
+    const top10Tv = takeTopRated(filtered, used, TOP_CHART_SIZE, {
+        tv: true,
+        minRating: 6
+    });
 
     const rails: NetflixCuratedPlan[] = [];
-
-    if (catalogueId === 'korean') {
-        for (const def of RAIL_DEFINITIONS.filter(
-            (row) => row.id === 'korean-series' || row.id === 'korean-movies'
-        )) {
-            const rowUsed = new Set(used);
-            const items = takeTopRated(
-                filtered.filter((item) => def.match(item, lang)),
-                rowUsed,
-                MAX_NETFLIX_HOME_PER_RAIL,
-                {
-                    movie: def.defaultType === 'movie',
-                    tv: def.defaultType === 'tv'
-                }
-            );
-            if (items.length < MIN_RAIL_ITEMS) continue;
-            items.forEach((item) => used.add(item.id));
-            rails.push({
-                id: def.id,
-                title: def.title,
-                eyebrow: def.eyebrow,
-                description: def.description(lang),
-                defaultType: def.defaultType,
-                items
-            });
-        }
-    }
 
     for (const def of homeRowsForCatalogue(catalogueId)) {
         if (rails.length >= MAX_NETFLIX_HOME_RAILS) break;
@@ -1081,12 +1153,12 @@ export function pickKoreanCatalogueBrowseItems(
     if (!available.length) return [];
 
     if (rowId === 'trending') {
-        return available.slice(0, limit);
+        return sortByBrowseRank(available).slice(0, limit);
     }
 
     const def = getNetflixCuratedRowDef(rowId);
     if (!def) {
-        return available.slice(0, limit);
+        return sortByBrowseRank(available).slice(0, limit);
     }
 
     const strict = pickFromRowDef(
@@ -1104,11 +1176,13 @@ export function pickKoreanCatalogueBrowseItems(
     switch (rowId) {
         case 'dramas':
         case 'exciting-tv':
+        case 'korean-series':
         case 'tv-show':
             return takeTopRated(available, used, limit, {
                 tv: true,
                 minRating: def.minRating ?? 0
             });
+        case 'korean-movies':
         case 'blockbuster-movies':
         case 'critically-acclaimed':
             return takeTopRated(available, used, limit, {
@@ -1153,7 +1227,7 @@ function pickRowItems(
     tmdbById: Map<string, CatalogTmdbMeta>,
     enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
 ): MoovieCatalogItem[] {
-    if (rowId === 'trending') return filtered.slice(0, limit);
+    if (rowId === 'trending') return sortByBrowseRank(filtered).slice(0, limit);
     const def = getNetflixCuratedRowDef(rowId);
     if (!def) return [];
 
@@ -1201,7 +1275,8 @@ function sliceGenreBrowseRail(
     used: Set<string>,
     tmdbById: Map<string, CatalogTmdbMeta>,
     nativeCategory = false,
-    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map(),
+    typeFilter?: 'tv' | 'movie'
 ): MoovieCatalogItem[] {
     const genrePool = nativeCategory
         ? pool.filter(
@@ -1213,15 +1288,28 @@ function sliceGenreBrowseRail(
               itemMatchesGenreRow(item, def, tmdbById, enrichmentById)
           );
 
+    let filteredPool = genrePool;
+    if (typeFilter === 'tv') {
+        filteredPool = genrePool.filter(isSeries);
+    } else if (typeFilter === 'movie') {
+        filteredPool = genrePool.filter(isMovie);
+    }
+
     switch (rail.kind) {
         case 'tv':
-            return takeUnique(genrePool, used, rail.limit, (item) => isSeries(item));
+            return takeUnique(filteredPool, used, rail.limit, (item) => isSeries(item));
         case 'movie':
-            return takeUnique(genrePool, used, rail.limit, (item) => isMovie(item));
+            return takeUnique(filteredPool, used, rail.limit, (item) => isMovie(item));
         case 'top-rated':
-            return takeTopRated(genrePool, used, rail.limit);
+            return takeTopRated(filteredPool, used, rail.limit, {
+                tv: typeFilter === 'tv' || (typeFilter === undefined && def.defaultType === 'tv'),
+                movie: typeFilter === 'movie' || (typeFilter === undefined && def.defaultType === 'movie')
+            });
         case 'newest':
-            return takeNewest(genrePool, used, rail.limit);
+            return takeNewest(filteredPool, used, rail.limit, {
+                tv: typeFilter === 'tv' || (typeFilter === undefined && def.defaultType === 'tv'),
+                movie: typeFilter === 'movie' || (typeFilter === undefined && def.defaultType === 'movie')
+            });
         default:
             return [];
     }
@@ -1233,7 +1321,8 @@ export function pickGenreBrowseRails(
     rowId: NetflixBrowseRowId,
     tmdbById: Map<string, CatalogTmdbMeta>,
     nativeCategory = hasNativeBrowseCategory(rowId),
-    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map(),
+    typeFilter?: 'tv' | 'movie'
 ): GenreBrowseRailPlan[] {
     const genre = getNetflixStandardGenre(rowId);
     const def = getNetflixCuratedRowDef(rowId);
@@ -1243,6 +1332,9 @@ export function pickGenreBrowseRails(
     const rails: GenreBrowseRailPlan[] = [];
 
     for (const rail of genre.browseRails) {
+        if (typeFilter === 'tv' && rail.kind === 'movie') continue;
+        if (typeFilter === 'movie' && rail.kind === 'tv') continue;
+
         const items = sliceGenreBrowseRail(
             pool,
             def,
@@ -1250,7 +1342,8 @@ export function pickGenreBrowseRails(
             used,
             tmdbById,
             nativeCategory,
-            enrichmentById
+            enrichmentById,
+            typeFilter
         );
         if (items.length < MIN_RAIL_ITEMS) continue;
 
@@ -1258,7 +1351,7 @@ export function pickGenreBrowseRails(
             id: rail.id,
             title: rail.title,
             defaultType:
-                rail.kind === 'tv' ? 'tv' : rail.kind === 'movie' ? 'movie' : def.defaultType,
+                rail.kind === 'tv' ? 'tv' : rail.kind === 'movie' ? 'movie' : typeFilter || def.defaultType,
             items
         });
     }
@@ -1293,7 +1386,7 @@ export function buildTrendingItems(
     pool: MoovieCatalogItem[],
     byId: Map<string, CuratedItem>
 ): CuratedItem[] {
-    return pool
+    return sortByBrowseRank(pool)
         .slice(0, MAX_TRENDING)
         .map((item) => byId.get(String(item.id)))
         .filter((item): item is CuratedItem => Boolean(item));
@@ -1395,7 +1488,9 @@ export function collectArtworkIdsForCurated(
         out.push(item);
     };
 
-    filtered.slice(0, MAX_TRENDING).forEach(push);
+    sortByBrowseRank(filtered)
+        .slice(0, MAX_TRENDING)
+        .forEach(push);
     const home = planNetflixHomeRows(filtered, catalogueId, catalogueLabel, lang, tmdbById);
     home.top10Movies.forEach(push);
     home.top10Tv.forEach(push);
@@ -1423,8 +1518,8 @@ export function buildNetflixRailSections(
     const sections: NetflixRailSection[] = [];
 
     for (const def of sortedDefs) {
-        const raw = pool.filter(
-            (item) => !usedIds.has(item.id) && def.match(item, lang)
+        const raw = sortByBrowseRank(
+            pool.filter((item) => !usedIds.has(item.id) && def.match(item, lang))
         );
         if (raw.length < MIN_RAIL_ITEMS) continue;
 
@@ -1464,11 +1559,13 @@ export function collectArtworkIds(
         out.push(item);
     };
 
-    pool.slice(0, MAX_TRENDING).forEach(push);
+    sortByBrowseRank(pool)
+        .slice(0, MAX_TRENDING)
+        .forEach(push);
 
     for (const def of RAIL_DEFINITIONS) {
         let count = 0;
-        for (const item of pool) {
+        for (const item of sortByBrowseRank(pool)) {
             if (count >= MAX_PER_RAIL) break;
             if (seen.has(item.id)) continue;
             if (!def.match(item, lang)) continue;

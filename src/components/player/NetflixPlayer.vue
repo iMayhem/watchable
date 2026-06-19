@@ -3,6 +3,7 @@
         ref="shellRef"
         class="nf-watch"
         :class="{
+            'nf-watch--party-embed': embedMode === 'party',
             'is-idle': !controlsVisible && artReady && !switchingAudioLabel && !switchingEpisodeLabel && !menuOpen && !episodesOpen && !upNextActive && !skipActionVisible,
             'is-fs': isFullscreen,
             'is-switching-audio': Boolean(switchingAudioLabel),
@@ -89,7 +90,13 @@
         <div class="nf-watch__shade nf-watch__shade--bottom" aria-hidden="true" />
 
         <header class="nf-watch__top" @click.stop>
-            <button type="button" class="nf-watch__icon-btn" aria-label="Back" @click.stop="$emit('back')">
+            <button
+                v-if="embedMode !== 'party'"
+                type="button"
+                class="nf-watch__icon-btn"
+                aria-label="Back"
+                @click.stop="$emit('back')"
+            >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -98,6 +105,22 @@
                 <h1 class="nf-watch__title">{{ title }}</h1>
                 <p v-if="subtitle" class="nf-watch__subtitle">{{ subtitle }}</p>
             </div>
+            <a
+                v-if="partyHref"
+                :href="partyHref"
+                class="nf-watch__party-btn"
+                title="Watch Together with friends!"
+                rel="nofollow"
+                @click.prevent="onWatchTogether"
+            >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nf-watch__party-icon">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span class="nf-watch__party-label">Watch Together</span>
+            </a>
         </header>
 
         <div class="nf-watch__controls" @click.stop>
@@ -381,7 +404,9 @@ export default defineComponent({
         bindContainer: {
             type: Function as PropType<(el: HTMLElement | null) => void>,
             required: true
-        }
+        },
+        partyHref: { type: String, default: '' },
+        embedMode: { type: String, default: '' }
     },
     emits: [
         'back',
@@ -414,6 +439,14 @@ export default defineComponent({
         const isFullscreen = ref(false);
         let hideTimer: number | null = null;
         let tapLockTimer: number | null = null;
+
+        const onWatchTogether = (event: MouseEvent) => {
+            const target = event.currentTarget as HTMLAnchorElement;
+            const href = target.href;
+            setTimeout(() => {
+                window.location.href = href;
+            }, 50);
+        };
 
         const lockVideoTap = (ms = 450) => {
             blockVideoTap.value = true;
@@ -684,7 +717,8 @@ export default defineComponent({
             toggleFullscreen,
             togglePlay: () => emit('toggle-play'),
             skipBack: (s: number) => emit('skip-back', s),
-            toggleMute: () => emit('toggle-mute')
+            toggleMute: () => emit('toggle-mute'),
+            onWatchTogether
         };
     }
 });
@@ -898,6 +932,47 @@ export default defineComponent({
 
     &__meta {
         min-width: 0;
+        flex: 1;
+    }
+
+    &__party-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+        flex-shrink: 0;
+        background: rgba(255, 90, 31, 0.12);
+        border: 1px solid rgba(255, 90, 31, 0.28);
+        border-radius: var(--r-pill);
+        color: var(--ember);
+        padding: 0.45rem 0.95rem;
+        min-height: 36px;
+        font-family: var(--font-ui);
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+
+        &:hover {
+            background: rgba(255, 90, 31, 0.2);
+            border-color: rgba(255, 90, 31, 0.45);
+        }
+
+        @media (max-width: 640px) {
+            width: 36px;
+            padding: 0;
+            display: inline-grid;
+            place-items: center;
+
+            .nf-watch__party-label {
+                display: none;
+            }
+        }
+    }
+
+    &__party-icon {
+        width: 16px;
+        height: 16px;
     }
 
     &__title {
@@ -1302,6 +1377,23 @@ export default defineComponent({
     &.is-switching-audio,
     &.is-switching-episode {
         cursor: default;
+    }
+
+    &--party-embed {
+        min-height: 0;
+        height: 100%;
+
+        .nf-watch__top {
+            padding: 0.75rem 1rem 0.5rem;
+        }
+
+        .nf-watch__controls {
+            padding: 0 1rem 0.85rem;
+        }
+
+        .nf-watch__shade--bottom {
+            height: 140px;
+        }
     }
 }
 

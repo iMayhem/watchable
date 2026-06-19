@@ -27,6 +27,7 @@
                 <template v-if="backdropUrl">
                     <div v-if="isVerticalBackdrop" class="masthead__art-fallback-container">
                         <img
+                            :key="`masthead-blur-${id}-${backdropPath}`"
                             class="masthead__art--blurred"
                             :src="backdropUrl"
                             alt=""
@@ -35,6 +36,7 @@
                             loading="eager"
                         />
                         <img
+                            :key="`masthead-contain-${id}-${backdropPath}`"
                             class="masthead__art--contained"
                             :src="backdropUrl"
                             :alt="title"
@@ -45,6 +47,7 @@
                     </div>
                     <img
                         v-else
+                        :key="`masthead-art-${id}-${backdropPath}`"
                         class="masthead__art"
                         :src="backdropUrl"
                         :alt="title"
@@ -191,6 +194,7 @@ import {
 } from '../../composables/useMooviePlayer';
 import { useDetailBackNavigation } from '../../composables/useDetailBackNavigation';
 import { useWebImage } from '../../utils/useWebImage';
+import { buildPartyHref } from '../../utils/partyRoom';
 
 export default defineComponent({
     name: 'TitleMasthead',
@@ -198,6 +202,8 @@ export default defineComponent({
     emits: ['trailer'],
     props: {
         id: { type: [Number, String], default: '' },
+        partyId: { type: [Number, String], default: null },
+        partySource: { type: String as PropType<'global' | 'netflix'>, default: 'global' },
         type: { type: String as PropType<'movie' | 'tv' | 'anime'>, default: 'movie' },
         title: { type: String, default: '' },
         tagline: { type: String, default: '' },
@@ -213,12 +219,15 @@ export default defineComponent({
         playRoute: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: '' },
         playLabel: { type: String, default: 'Play' },
         showTrailer: { type: Boolean, default: true },
-        loading: { type: Boolean, default: false }
+        loading: { type: Boolean, default: false },
+        strictBackdrop: { type: Boolean, default: false }
     },
     setup(props) {
         const { goBackToIssue } = useDetailBackNavigation();
         const rootRef = ref<HTMLElement | null>(null);
-        const ambientPath = computed(() => props.backdropPath || props.posterPath);
+        const ambientPath = computed(() =>
+            props.strictBackdrop ? props.backdropPath : props.backdropPath || props.posterPath
+        );
         useAmbientColor(ambientPath, rootRef);
 
         const { prefetchStream } = usePrefetch();
@@ -267,7 +276,9 @@ export default defineComponent({
             }
         };
 
-        const heroArtPath = computed(() => props.backdropPath || props.posterPath);
+        const heroArtPath = computed(() =>
+            props.strictBackdrop ? props.backdropPath : props.backdropPath || props.posterPath
+        );
 
         const backdropUrl = computed(() => {
             const path = heroArtPath.value;
@@ -278,6 +289,7 @@ export default defineComponent({
         const isVerticalBackdrop = computed(() => {
             const path = heroArtPath.value;
             if (!path) return false;
+            if (props.strictBackdrop && !props.backdropPath) return false;
             if (!props.backdropPath || props.backdropPath === props.posterPath) return true;
             if (path.toLowerCase().includes('cover')) return true;
             return false;
@@ -317,10 +329,15 @@ export default defineComponent({
             iframeRef.value = el;
         };
 
-        const partyHref = computed(() => {
-            const suffix = props.type === 'tv' ? '_s1e1' : (props.type === 'anime' ? '_ep1' : '');
-            return `/party/?room=${props.id}${suffix}&title=${encodeURIComponent(props.title)}`;
-        });
+        const partyHref = computed(() =>
+            buildPartyHref({
+                id: props.id,
+                partyId: props.partyId ?? undefined,
+                title: props.title,
+                type: props.type,
+                source: props.partySource
+            })
+        );
 
         return {
             goBackToIssue,

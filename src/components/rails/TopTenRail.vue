@@ -26,8 +26,9 @@
                     v-if="posterFor(item)"
                     :src="posterFor(item)"
                     :alt="item.title"
-                    loading="lazy"
+                    :loading="idx < 6 ? 'eager' : 'lazy'"
                     decoding="async"
+                    :fetchpriority="idx < 3 ? 'high' : 'low'"
                     class="topten__img"
                 />
                 <div v-else class="topten__placeholder" aria-hidden="true">

@@ -5,7 +5,7 @@
  * Usage: /api/catalog-img?url=https://pacdn.aoneroom.com/...&w=342
  */
 const CATALOG_HOST_PATTERN =
-  /^https?:\/\/(?:[\w-]+\.)?(?:aoneroom\.com|hakunaymatata\.com|watch2[12]\.shop)\//i;
+  /^https?:\/\/(?:[\w-]+\.)?(?:aoneroom\.com|hakunaymatata\.com|watch2[12]\.shop|anilist\.co)\//i;
 
 function upstreamHeaders(target: string): Record<string, string> {
   const headers: Record<string, string> = {

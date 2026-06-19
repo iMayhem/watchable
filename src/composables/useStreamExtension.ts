@@ -31,21 +31,42 @@ const applyDetection = (info: StreamExtensionInfo | null, source: string) => {
     }
 };
 
-const readDomMarker = (): StreamExtensionInfo | null => {
-    const root = document.documentElement;
-    if (!root) return null;
-
-    const active =
-        root.getAttribute('data-moovie-ext') === 'active' ||
-        root.dataset.moovieExt === 'active';
-
-    if (!active) return null;
-
-    return {
-        active: true,
-        version: root.getAttribute('data-moovie-ext-version') || root.dataset.moovieExtVersion || undefined,
-        mode: 'direct-cdn'
+function extensionRoots(): HTMLElement[] {
+    const roots: HTMLElement[] = [];
+    const add = (doc: Document | null | undefined) => {
+        if (doc?.documentElement) roots.push(doc.documentElement);
     };
+
+    add(document);
+    try {
+        if (window.parent && window.parent !== window) add(window.parent.document);
+        if (window.top && window.top !== window) add(window.top.document);
+    } catch {
+        /* cross-origin parent */
+    }
+
+    return roots;
+}
+
+const readDomMarker = (): StreamExtensionInfo | null => {
+    for (const root of extensionRoots()) {
+        const active =
+            root.getAttribute('data-moovie-ext') === 'active' ||
+            root.dataset.moovieExt === 'active';
+
+        if (!active) continue;
+
+        return {
+            active: true,
+            version:
+                root.getAttribute('data-moovie-ext-version') ||
+                root.dataset.moovieExtVersion ||
+                undefined,
+            mode: 'direct-cdn'
+        };
+    }
+
+    return null;
 };
 
 const onExtensionReady = (event: Event) => {
@@ -68,6 +89,13 @@ const pingExtension = () => {
         applyDetection(marker, 'dom-marker');
     }
     window.dispatchEvent(new CustomEvent('moovie-ext-ping'));
+    try {
+        if (window.parent && window.parent !== window) {
+            window.parent.dispatchEvent(new CustomEvent('moovie-ext-ping'));
+        }
+    } catch {
+        /* cross-origin parent */
+    }
 };
 
 function stopBootstrapPoll() {

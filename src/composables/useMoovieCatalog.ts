@@ -60,7 +60,16 @@ export function catalogRating(value: string | number | undefined): number {
     return Number.isFinite(n) ? n : 0;
 }
 
-/** Browse/search media_type is often wrong — prefer title season hints over API tags. */
+const CATALOG_FEATURE_FILM_PATTERN =
+    /\b(film|the movie|movie:|movie -|ova\b|episode of|stampede|strong world|gekijouban|geki jouban)\b/i;
+
+const CATALOG_SERIES_PATTERN =
+    /\b(series|web series|miniseries|limited series)\b/i;
+
+/**
+ * Resolve movie vs TV for catalogue browse rows.
+ * Season markers win; then explicit API tags; films mis-tagged as tv are demoted.
+ */
 export function inferCatalogMediaType(item: {
     title?: string;
     media_type?: string;
@@ -75,7 +84,15 @@ export function inferCatalogMediaType(item: {
     const mt = String(item.media_type || '').toLowerCase();
     if (mt === 'movie') return 'movie';
 
-    // Many catalogue films are tagged tv without season/episode structure.
+    if (CATALOG_SERIES_PATTERN.test(raw)) {
+        return 'tv';
+    }
+
+    if (mt === 'tv') {
+        if (CATALOG_FEATURE_FILM_PATTERN.test(raw)) return 'movie';
+        return 'tv';
+    }
+
     return 'movie';
 }
 

@@ -4,9 +4,11 @@
 
         <main id="main" class="nf-categories__main container-lm" role="main">
             <header class="nf-categories__head">
-                <h1 class="nf-categories__title">Categories</h1>
+                <h1 class="nf-categories__title">
+                    {{ typeFilter === 'tv' ? 'TV Show ' : typeFilter === 'movie' ? 'Movie ' : '' }}Categories
+                </h1>
                 <p class="nf-categories__desc">
-                    Browse {{ activeCatalogue.label }} by genre — the same kinds of categories
+                    Browse {{ activeCatalogue.label }} {{ typeFilter === 'tv' ? 'TV Shows' : typeFilter === 'movie' ? 'Movies' : 'titles' }} by genre — the same kinds of categories
                     you see on Netflix.
                 </p>
             </header>
@@ -38,6 +40,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import { getCatalogueOption, getNetflixCatalogue } from '../composables/useNetflixCatalogue';
@@ -49,35 +52,45 @@ export default defineComponent({
     name: 'NetflixCategories',
     components: { SiteHeader, SiteFooter },
     setup() {
+        const route = useRoute();
         const { updateSeo } = useSeo();
         const { catalogue, activeCatalogue: resolveCatalogue } = getNetflixCatalogue();
+
+        const typeFilter = computed(() => {
+            const t = route.query.type;
+            if (t === 'tv' || t === 'movie') return t;
+            return undefined;
+        });
 
         const activeCatalogue = computed(() => resolveCatalogue());
         const categorySections = computed(() => getNetflixCategorySections(catalogue.value));
 
         const browsePath = (rowId: string) => {
+            const query = typeFilter.value ? `?type=${typeFilter.value}` : '';
             if (catalogue.value === 'korean' && rowId === 'anime') {
-                return netflixBrowsePath('hollywood', 'anime');
+                return netflixBrowsePath('hollywood', 'anime') + query;
             }
-            return netflixBrowsePath(catalogue.value, rowId);
+            return netflixBrowsePath(catalogue.value, rowId) + query;
         };
 
         const refreshSeo = () => {
             const cat = getCatalogueOption(catalogue.value);
+            const prefix = typeFilter.value === 'tv' ? 'TV Show ' : typeFilter.value === 'movie' ? 'Movie ' : '';
             updateSeo({
-                title: `Categories · ${cat.label} — Netflix on Moovie`,
+                title: `${prefix}Categories · ${cat.label} — Netflix on Moovie`,
                 canonical: 'https://moovie.fun/nf/categories',
                 image: 'https://moovie.fun/og-image.png'
             });
         };
 
         refreshSeo();
-        watch(catalogue, refreshSeo);
+        watch([catalogue, typeFilter], refreshSeo);
 
         return {
             activeCatalogue,
             categorySections,
-            browsePath
+            browsePath,
+            typeFilter
         };
     }
 });

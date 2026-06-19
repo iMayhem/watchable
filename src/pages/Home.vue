@@ -134,7 +134,7 @@ export default defineComponent({
         UpcomingRail
     },
     setup() {
-        const { fetchAllHighlights } = useHighlights();
+        const { fetchHighlights } = useHighlights();
         const { fetchNewShows } = useTvShows();
         getSettings(); // ensures settings store is initialised (region change fires movora_settings_change event)
 
@@ -283,12 +283,15 @@ export default defineComponent({
 
             try {
                 console.log('[📍 HOME PAGE] Fetching all data from APIs...');
-                await Promise.all([
-                    fetchAllHighlights(),
+                const restPromise = Promise.all([
+                    fetchHighlights('popular'),
+                    fetchHighlights('new'),
                     fetchNewShows(),
                     fetchUpcomingTv(),
                     fetch4KMovies()
                 ]);
+                await fetchHighlights('featured');
+                await restPromise;
                 console.log('[📍 HOME PAGE] All data fetched ✅', {
                     featured: highLightOptions.featured.data.length,
                     popular: highLightOptions.popular.data.length,

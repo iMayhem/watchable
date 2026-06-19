@@ -8,6 +8,7 @@ import {
     type MoovieCatalogItem
 } from './useMoovieCatalog';
 import { resolveLanguageTagsForItem } from './useNetflixCatalogLookup';
+import type { CatalogArtworkUrlMaps } from './usePosterCache';
 import {
     getCachedArtworkForCatalogItem,
     pickCatalogArtwork,
@@ -24,17 +25,39 @@ function curatedMediaType(
     return inferCatalogMediaType(item);
 }
 
-/** Instant rail cards — TMDB cache only; artwork fills in after async upgrade. */
+export function resolveInstantCatalogArtwork(
+    item: MoovieCatalogItem,
+    cachedArtwork: { posterPath: string | null; backdropPath: string | null } = EMPTY_ARTWORK,
+    artworkUrls?: CatalogArtworkUrlMaps
+): { posterPath: string | null; backdropPath: string | null } {
+    const id = String(item.id);
+    return {
+        posterPath:
+            cachedArtwork.posterPath ||
+            artworkUrls?.posters.get(id) ||
+            item.backdrop_path ||
+            null,
+        backdropPath:
+            cachedArtwork.backdropPath ||
+            artworkUrls?.backdrops.get(id) ||
+            item.backdrop_path ||
+            null
+    };
+}
+
+/** Instant rail cards — catalog CDN / R2 / TMDB session cache; TMDB search upgrades later. */
 export function toCuratedItemFast(
     item: MoovieCatalogItem,
     genreIds: number[] = [],
     languageMap?: Map<string, string[]>,
     audioCacheById?: Map<string, string[]>,
-    enrichment?: CatalogEnrichmentRow
+    enrichment?: CatalogEnrichmentRow,
+    artworkUrls?: CatalogArtworkUrlMaps
 ): CuratedItem {
     const parsed = parseCatalogTitle(item.title || '');
     const cached = getCachedArtworkForCatalogItem(item);
     const artwork = cached ? pickCatalogArtwork(cached) : EMPTY_ARTWORK;
+    const instant = resolveInstantCatalogArtwork(item, artwork, artworkUrls);
 
     const anilistId = peekAnilistIdForMoovieCatalogId(String(item.id));
 
@@ -43,14 +66,15 @@ export function toCuratedItemFast(
         title: parsed.displayTitle || item.title,
         originalTitle: parsed.languages.join(' · '),
         catalogTitle: item.title,
-        posterPath: artwork.posterPath,
-        backdropPath: artwork.backdropPath,
+        posterPath: instant.posterPath,
+        backdropPath: instant.backdropPath,
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: curatedMediaType(item, enrichment),
         languageTags: resolveLanguageTagsForItem(item, languageMap, audioCacheById),
         genreIds: genreIds.length ? genreIds : cached?.genreIds || [],
-        anilistId
+        anilistId,
+        tmdbId: enrichment?.tmdb_id
     };
 }
 
@@ -71,6 +95,7 @@ export async function toCuratedItemUpgraded(
         tmdbId: enrichment?.tmdb_id
     });
     const artwork = pickCatalogArtwork(resolved);
+    const instant = resolveInstantCatalogArtwork(item, artwork);
 
     const anilistId = peekAnilistIdForMoovieCatalogId(String(item.id));
 
@@ -79,13 +104,14 @@ export async function toCuratedItemUpgraded(
         title: parsed.displayTitle || item.title,
         originalTitle: parsed.languages.join(' · '),
         catalogTitle: item.title,
-        posterPath: artwork.posterPath,
-        backdropPath: artwork.backdropPath,
+        posterPath: instant.posterPath,
+        backdropPath: instant.backdropPath,
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: curatedMediaType(item, enrichment),
         languageTags: resolveLanguageTagsForItem(item, languageMap, audioCacheById),
         genreIds: genreIds.length ? genreIds : resolved.genreIds || [],
-        anilistId
+        anilistId,
+        tmdbId: enrichment?.tmdb_id ?? resolved.tmdbId
     };
 }

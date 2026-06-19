@@ -22,9 +22,9 @@
                     :alt="title"
                     class="poster-card__img"
                     :class="{ 'is-loaded': imageLoaded }"
-                    loading="lazy"
+                    :loading="priorityLoad ? 'eager' : 'lazy'"
                     decoding="async"
-                    fetchpriority="low"
+                    :fetchpriority="priorityLoad ? 'high' : 'low'"
                     @load="onPosterLoad"
                 />
                 <div v-else class="poster-card__img poster-card__img--empty">
@@ -142,6 +142,8 @@ export default defineComponent({
         title: { type: String, required: true },
         originalTitle: { type: String, default: '' },
         posterPath: { type: String as PropType<string | null>, default: null },
+        backdropPath: { type: String as PropType<string | null>, default: null },
+        priorityLoad: { type: Boolean, default: false },
         rating: { type: Number, default: 0 },
         releaseDate: { type: String, default: '' },
         year: { type: [Number, String], default: '' },
@@ -161,7 +163,10 @@ export default defineComponent({
     },
     setup(props) {
         const imageLoaded = ref(
-            Boolean(props.posterPath && loadedPosterUrls.has(props.posterPath))
+            Boolean(
+                (props.posterPath || props.backdropPath) &&
+                    loadedPosterUrls.has(props.posterPath || props.backdropPath || '')
+            )
         );
         const router = useRouter();
         const { detailPath } = useAppPaths();
@@ -169,20 +174,25 @@ export default defineComponent({
         let enterTimer: number | null = null;
         let leaveTimer: number | null = null;
 
+        const effectivePosterPath = computed(
+            () => props.posterPath || props.backdropPath || null
+        );
+
         const imageUrl = computed(() => {
-            if (!props.posterPath) return '';
-            const isAnilist = /anilist\.co/i.test(props.posterPath);
+            const path = effectivePosterPath.value;
+            if (!path) return '';
+            const isAnilist = /anilist\.co/i.test(path);
             const size =
                 props.size === 'lg' || isAnilist
                     ? 'large'
                     : props.size === 'sm'
                       ? 'small'
                       : 'medium';
-            return useWebImage(props.posterPath, size);
+            return useWebImage(path, size);
         });
 
         watch(
-            () => props.posterPath,
+            effectivePosterPath,
             (path) => {
                 imageLoaded.value = Boolean(path && loadedPosterUrls.has(path));
             }
@@ -190,8 +200,9 @@ export default defineComponent({
 
         const onPosterLoad = () => {
             imageLoaded.value = true;
-            if (props.posterPath) {
-                loadedPosterUrls.add(props.posterPath);
+            const path = effectivePosterPath.value;
+            if (path) {
+                loadedPosterUrls.add(path);
             }
         };
 

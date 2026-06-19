@@ -1,6 +1,7 @@
 <template>
-    <div class="nf-stream-page">
+    <div class="nf-stream-page" :class="{ 'nf-stream-page--party-embed': isPartyEmbed }">
         <NetflixPlayer
+            :embed-mode="isPartyEmbed ? 'party' : ''"
             :bind-container="bindPlayerContainer"
             :title="title"
             :subtitle="subtitle"
@@ -49,6 +50,7 @@
             :auto-skip-enabled="autoSkipEnabled"
             @skip-segment="onSkipSegment"
             @toggle-auto-skip="onToggleAutoSkip"
+            :party-href="isPartyEmbed ? '' : partyHref"
         />
     </div>
 </template>
@@ -89,6 +91,8 @@ import {
 import { useToast } from '../composables/useToast';
 import { nfDebug } from '../composables/useNetflixDebug';
 import { useNetflixAniskip } from '../composables/useNetflixAniskip';
+import { buildStreamPartyHref } from '../utils/partyRoom';
+
 
 export default defineComponent({
     name: 'StreamNetflix',
@@ -96,6 +100,9 @@ export default defineComponent({
     setup() {
         const route = useRoute();
         const router = useRouter();
+        const isPartyEmbed = computed(
+            () => Boolean(route.meta.partyEmbed) || route.query.embed === 'party'
+        );
         const { updateSeo } = useSeo();
         const { language: playbackLanguage, setLanguage: setPlaybackLanguage } =
             getNetflixLanguage();
@@ -140,6 +147,7 @@ export default defineComponent({
 
         let started = false;
         const playbackEntryId = ref(String(route.params.id || ''));
+
         let skipRoutePlayback = false;
 
         const {
@@ -173,8 +181,12 @@ export default defineComponent({
             artContainer.value = el;
         };
 
+        const isTvRoute = computed(
+            () => route.name === 'StreamNetflixTV' || route.name === 'EmbedNetflixTV'
+        );
+
         const routeMediaType = computed((): 'movie' | 'tv' => {
-            if (route.name === 'StreamNetflixTV') return 'tv';
+            if (isTvRoute.value) return 'tv';
             return 'movie';
         });
 
@@ -187,7 +199,7 @@ export default defineComponent({
         });
 
         const streamType = computed((): 'movie' | 'tv' => {
-            if (supportsEpisodes.value || route.name === 'StreamNetflixTV') {
+            if (supportsEpisodes.value || isTvRoute.value) {
                 return 'tv';
             }
             return mediaType.value;
@@ -205,12 +217,33 @@ export default defineComponent({
             if (parsedMeta.value.languages.length) {
                 parts.push(parsedMeta.value.languages.join(' · '));
             }
-            if (supportsEpisodes.value || route.name === 'StreamNetflixTV') {
+            if (supportsEpisodes.value || isTvRoute.value) {
                 const season = parseInt(String(route.params.season || '1'), 10);
                 const episode = parseInt(String(route.params.episode || '1'), 10);
                 parts.push(`S${season} · E${episode}`);
             }
             return parts.join('  ·  ');
+        });
+
+        const partyHref = computed(() => {
+            const id = playbackEntryId.value;
+            if (!id) return '';
+
+            const season = currentSeason.value;
+            const episode = currentEpisode.value;
+            const isTv = supportsEpisodes.value || isTvRoute.value;
+            const partyTitle = isTv
+                ? `${title.value} - S${season}E${episode}`
+                : title.value;
+
+            return buildStreamPartyHref({
+                id,
+                title: partyTitle,
+                type: isTv ? 'tv' : 'movie',
+                season,
+                episode,
+                source: 'netflix'
+            });
         });
 
         const resolveUrl = computed(() => {
@@ -239,6 +272,7 @@ export default defineComponent({
         };
 
         const goBack = () => {
+            if (isPartyEmbed.value) return;
             nfDebug('stream:back', { id: route.params.id, type: mediaType.value });
             const fallback = `/nf/${mediaType.value}/${playbackEntryId.value}`;
             if (window.history.length > 1) {
@@ -337,9 +371,15 @@ export default defineComponent({
             }
         };
 
+        const streamPathForEmbed = (path: string) => {
+            if (!isPartyEmbed.value) return path;
+            return path.replace(/^\/stream\/nf\//, '/embed/nf/');
+        };
+
         const ensureCanonicalStreamRoute = async (): Promise<boolean> => {
             const id = String(route.params.id || '');
             if (!id) return true;
+            if (isPartyEmbed.value) return true;
 
             try {
                 const meta = await fetchMoovieCatalogMeta(routeMediaType.value, id);
@@ -369,11 +409,12 @@ export default defineComponent({
                     }
                 );
 
-                if (route.path !== target.path) {
-                    nfDebug('stream:canonical-route', { from: route.path, to: target.path });
+                const targetPath = streamPathForEmbed(target.path);
+                if (route.path !== targetPath) {
+                    nfDebug('stream:canonical-route', { from: route.path, to: targetPath });
                     playbackEntryId.value = id;
                     skipRoutePlayback = true;
-                    await router.replace(target.path);
+                    await router.replace({ path: targetPath, query: { ...route.query } });
                     return false;
                 }
             } catch (err) {
@@ -525,10 +566,10 @@ export default defineComponent({
                     { resumeAt: 0, resumePlaying: true }
                 );
 
-                const path = catalogStreamPath(id, season, episode);
+                const path = streamPathForEmbed(catalogStreamPath(id, season, episode));
                 skipRoutePlayback = true;
                 syncBrowserUrl(path);
-                await router.replace(path);
+                await router.replace({ path, query: { ...route.query } });
             } catch (err: any) {
                 if (err?.name === 'ResolveAborted') return;
                 nfDebug('stream:episode:fail', { id, season, episode, err });
@@ -698,11 +739,15 @@ export default defineComponent({
             }
         };
 
-        onBeforeRouteLeave(() => {
+        onBeforeRouteLeave((to) => {
+            if (isPartyEmbed.value && to.meta?.partyEmbed) return;
             scheduleTeardown();
         });
 
         onMounted(async () => {
+            if (isPartyEmbed.value) {
+                document.documentElement.classList.add('nf-party-embed');
+            }
             playbackEntryId.value = String(route.params.id || playbackEntryId.value);
             nfDebug('stream:mount', { path: route.path, id: playbackEntryId.value });
             updateSeo({
@@ -718,6 +763,7 @@ export default defineComponent({
         });
 
         onBeforeUnmount(() => {
+            document.documentElement.classList.remove('nf-party-embed');
             teardown();
         });
 
@@ -807,6 +853,7 @@ export default defineComponent({
         );
 
         return {
+            isPartyEmbed,
             bindPlayerContainer,
             loading,
             playbackError,
@@ -857,7 +904,8 @@ export default defineComponent({
             skipActionLabel: aniskip.skipActionLabel,
             autoSkipEnabled: aniskip.autoSkip,
             onSkipSegment: aniskip.onSkipSegment,
-            onToggleAutoSkip: aniskip.toggleAutoSkip
+            onToggleAutoSkip: aniskip.toggleAutoSkip,
+            partyHref
         };
     }
 });
@@ -867,5 +915,10 @@ export default defineComponent({
 .nf-stream-page {
     min-height: 100dvh;
     background: #000;
+
+    &--party-embed {
+        height: 100%;
+        min-height: 0;
+    }
 }
 </style>

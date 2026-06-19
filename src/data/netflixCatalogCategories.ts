@@ -34,6 +34,26 @@ const CATALOGUE_CATEGORY_SLUGS: Record<string, string> = {
     korean: 'korean'
 };
 
+/** Movie nav rows — paginate catalogue slug, never the series index. */
+const MOVIE_EDITORIAL_ROW_IDS = new Set<NetflixBrowseRowId>([
+    'blockbuster-movies',
+    'top10-movies',
+    'critically-acclaimed',
+    'new-on-netflix',
+    'korean-movies'
+]);
+
+/**
+ * TV nav rows — paginate the active language dub feed (hindi/english/…).
+ * The upstream `series` slug is mostly unrelated regional web series, not the
+ * Hindi/English-dubbed Netflix catalogue users expect.
+ */
+const TV_EDITORIAL_ROW_IDS = new Set<NetflixBrowseRowId>([
+    'exciting-tv',
+    'top10-tv',
+    'korean-series'
+]);
+
 function sourcesFromSlugs(slugs: string[]): CatalogBrowseSource[] {
     return slugs.map((slug) => ({ slug }));
 }
@@ -61,7 +81,6 @@ export function getCatalogueHomeFetchSources(
         return [
             { slug: langCategory, pages: 48 },
             { slug: 'korean', pages: 12 },
-            { slug: 'series', pages: 20 },
             { slug: 'drama', pages: 6 }
         ];
     }
@@ -70,12 +89,20 @@ export function getCatalogueHomeFetchSources(
 
 export function getBrowseInitialPageCount(
     catalogueId: string,
-    fetchMode: CatalogBrowseFetchPlan['mode']
+    fetchMode: CatalogBrowseFetchPlan['mode'],
+    rowId?: NetflixBrowseRowId
 ): number {
-    if (catalogueId === 'korean' && fetchMode === 'language') {
-        return 40;
+    if (rowId && TV_EDITORIAL_ROW_IDS.has(rowId) && fetchMode === 'language') {
+        return catalogueId === 'korean' ? 16 : 12;
     }
-    return fetchMode === 'native' ? 1 : 16;
+    if (catalogueId === 'korean' && fetchMode === 'language') {
+        return 10;
+    }
+    return fetchMode === 'native' ? 1 : 8;
+}
+
+export function isTvEditorialBrowseRow(rowId: NetflixBrowseRowId): boolean {
+    return TV_EDITORIAL_ROW_IDS.has(rowId);
 }
 
 /** Resolve how to populate a browse page — mirrors NetMirror /explore/{slug} fetches. */
@@ -94,6 +121,16 @@ export function getCatalogBrowseFetchPlan(
         return koreanCatalogueFetchPlan(rowId);
     }
 
+    if (TV_EDITORIAL_ROW_IDS.has(rowId)) {
+        return { mode: 'language', sources: [] };
+    }
+
+    // Movie nav rows use the active language feed (hindi/english/…) — not the
+    // meta hollywood/bollywood slug index, which is mostly unrelated documentaries.
+    if (MOVIE_EDITORIAL_ROW_IDS.has(rowId)) {
+        return { mode: 'language', sources: [] };
+    }
+
     const genreSlugs = GENRE_CATEGORY_SLUGS[rowId];
     if (genreSlugs?.length) {
         return { mode: 'native', sources: sourcesFromSlugs(genreSlugs) };
@@ -107,4 +144,8 @@ export function getCatalogBrowseFetchPlan(
     }
 
     return { mode: 'language', sources: [] };
+}
+
+export function isEditorialMediaBrowseRow(rowId: NetflixBrowseRowId): boolean {
+    return MOVIE_EDITORIAL_ROW_IDS.has(rowId) || TV_EDITORIAL_ROW_IDS.has(rowId);
 }

@@ -173,7 +173,13 @@ function parseCatalogTitle(raw) {
   return { displayTitle, languages, season };
 }
 
-/** Catalogue films are often tagged tv without season/episode structure. */
+const CATALOG_FEATURE_FILM_PATTERN =
+  /\b(film|the movie|movie:|movie -|ova\b|episode of|stampede|strong world|gekijouban|geki jouban)\b/i;
+
+const CATALOG_SERIES_PATTERN =
+  /\b(series|web series|miniseries|limited series)\b/i;
+
+/** Resolve movie vs TV — season hints first, then API tags; demote mis-tagged films. */
 function inferCatalogMediaType(item) {
   const raw = String(item?.title || '');
   const parsed = parseCatalogTitle(raw);
@@ -184,6 +190,15 @@ function inferCatalogMediaType(item) {
 
   const mt = String(item?.media_type || '').toLowerCase();
   if (mt === 'movie') return 'movie';
+
+  if (CATALOG_SERIES_PATTERN.test(raw)) {
+    return 'tv';
+  }
+
+  if (mt === 'tv') {
+    if (CATALOG_FEATURE_FILM_PATTERN.test(raw)) return 'movie';
+    return 'tv';
+  }
 
   return 'movie';
 }

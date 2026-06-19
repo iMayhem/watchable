@@ -97,6 +97,12 @@
             overflow: visible !important;
             z-index: 50 !important;
         }
+
+        body.cinema-mode .workspace-banner:hover {
+            padding: 0.6rem 1rem !important;
+            border-width: 1px !important;
+            overflow: hidden !important;
+        }
         
         /* Restore fully on container hover */
         body.cinema-mode .player-container:hover .workspace-header {
@@ -110,10 +116,9 @@
             opacity: 1;
             pointer-events: auto;
             height: auto;
-            padding-top: 0.6rem !important;
-            padding-bottom: 0.6rem !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+            padding: 0.6rem 1rem !important;
+            border: 1px solid rgba(255, 255, 255, 0.06) !important;
+            overflow: hidden !important;
         }
         body.cinema-mode .player-container:hover .player-controls-bar {
             opacity: 1;
@@ -818,6 +823,8 @@
             font-weight: 500;
             backdrop-filter: blur(12px);
             flex: 0 0 auto;
+            overflow: hidden;
+            min-width: 0;
         }
 
         .banner-progress {
@@ -825,6 +832,8 @@
             align-items: center;
             gap: 0.5rem;
             color: var(--bone-200);
+            min-width: 0;
+            flex: 1;
         }
 
         .banner-sync-btn {
@@ -871,6 +880,24 @@
             overflow: hidden;
         }
 
+        body.netflix-party-active .player-container .player-stage,
+        body.room-view-active .player-stage.player-stage--netflix {
+            padding-bottom: 0;
+            overflow: hidden;
+            border-radius: var(--r-md);
+        }
+
+        body.netflix-party-active .player-iframe {
+            display: block !important;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        body.netflix-party-active .player-controls-bar {
+            display: none !important;
+        }
+
         .player-iframe {
             width: 100%;
             height: 100%;
@@ -887,9 +914,741 @@
             overflow: hidden;
         }
 
-        #party-native-player {
+        .party-nf-watch {
+            --nf-chrome-h: 84px;
+            position: relative;
             width: 100%;
             height: 100%;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .party-nf-watch:fullscreen,
+        .party-nf-watch:-webkit-full-screen {
+            width: 100%;
+            height: 100%;
+            max-height: 100vh;
+        }
+
+        .party-nf-watch__controls,
+        .party-nf-watch__shade--bottom {
+            transition: opacity 0.28s ease;
+        }
+
+        .party-nf-watch.is-controls-hidden .party-nf-watch__controls,
+        .party-nf-watch.is-controls-hidden .party-nf-watch__shade--bottom {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .party-nf-watch.is-controls-hidden:not(.is-menu-open):not(.is-episodes-open) {
+            cursor: none;
+        }
+
+        .party-nf-watch__video {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .party-nf-watch__content {
+            position: relative;
+            max-width: 100%;
+            max-height: 100%;
+            width: 100%;
+            height: 100%;
+        }
+
+        .party-nf-watch__stage,
+        #party-native-player {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .party-nf-watch__tap-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .party-nf-watch__content .artplayer,
+        .party-nf-watch__content video,
+        .party-nf-watch__content .art-video-player {
+            pointer-events: none !important;
+        }
+
+        .party-nf-watch__content .artplayer,
+        .party-nf-watch__content .art-video-player {
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 1 !important;
+        }
+
+        .party-nf-watch__content .art-video,
+        .party-nf-watch__content video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover;
+            display: block;
+        }
+
+        .party-nf-watch__content .art-state,
+        .party-nf-watch__content .art-mask {
+            z-index: 1 !important;
+        }
+
+        .party-nf-watch__content .art-layers,
+        .party-nf-watch__content .art-mask,
+        .party-nf-watch__content .art-controls,
+        .party-nf-watch__content .art-bottom,
+        .party-nf-watch__content .art-info,
+        .party-nf-watch__content .art-settings,
+        .party-nf-watch__content .art-contextmenus {
+            display: none !important;
+        }
+
+        .party-nf-watch__loader {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            display: none;
+            place-content: center;
+            gap: 1rem;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.55);
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .party-nf-watch__loader.is-active {
+            display: grid;
+            pointer-events: auto;
+        }
+
+        .party-nf-watch__spinner {
+            width: 44px;
+            height: 44px;
+            margin: 0 auto;
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            border-top-color: var(--ember);
+            border-radius: 50%;
+            animation: party-spin 0.9s linear infinite;
+        }
+
+        .party-nf-watch__shade {
+            position: absolute;
+            left: 0;
+            right: 0;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .party-nf-watch__shade--bottom {
+            bottom: 0;
+            height: 150px;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0.88), transparent);
+        }
+
+        .party-nf-watch__controls {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 8;
+            padding: 0 0.85rem 0.45rem;
+            box-sizing: border-box;
+            pointer-events: auto;
+            touch-action: manipulation;
+            background: transparent;
+            isolation: isolate;
+            transition: opacity 0.28s ease;
+        }
+
+        .party-nf-watch__progress {
+            position: relative;
+            height: 4px;
+            margin-bottom: 0.65rem;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .party-nf-watch__progress:hover {
+            height: 6px;
+        }
+
+        .party-nf-watch__progress-buffer,
+        .party-nf-watch__progress-fill {
+            position: absolute;
+            inset: 0 auto 0 0;
+            border-radius: inherit;
+        }
+
+        .party-nf-watch__progress-buffer {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        .party-nf-watch__progress-fill {
+            background: var(--ember);
+        }
+
+        .party-nf-watch__progress-knob {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--ember);
+            transform: translate(50%, -50%);
+        }
+
+        .party-nf-watch__bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .party-nf-watch__bar-left,
+        .party-nf-watch__bar-right {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 0;
+            position: relative;
+            z-index: 2;
+            overflow: visible;
+        }
+
+        .party-nf-watch__bar-right {
+            flex-shrink: 0;
+        }
+
+        .party-nf-watch__volume {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .party-nf-watch__volume-pop {
+            display: flex;
+            align-items: center;
+            min-width: 88px;
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            background: rgba(20, 20, 20, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .party-nf-watch__volume-pop:not([hidden]) {
+            display: flex;
+        }
+
+        .party-nf-watch__volume-slider {
+            width: 88px;
+            height: 4px;
+            accent-color: var(--ember);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .party-nf-watch__icon-btn {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .party-nf-watch__icon-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .party-nf-watch__icon-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .party-nf-watch__icon-btn--label {
+            position: relative;
+            width: 38px;
+        }
+
+        .party-nf-watch__icon-btn--label span {
+            position: absolute;
+            font-size: 0.55rem;
+            font-weight: 800;
+        }
+
+        .party-nf-watch__time {
+            font-size: 0.75rem;
+            font-variant-numeric: tabular-nums;
+            color: rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+        }
+
+        .party-nf-watch__quality {
+            position: relative;
+        }
+
+        .party-nf-watch__quality-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            min-width: 68px;
+            height: 32px;
+            padding: 0 0.55rem;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 4px;
+            background: rgba(20, 20, 20, 0.8);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .party-nf-watch__quality-btn svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .party-nf-watch__pill-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            height: 32px;
+            padding: 0 0.65rem;
+            border: 1px solid rgba(139, 92, 246, 0.45);
+            border-radius: 4px;
+            background: rgba(20, 20, 20, 0.8);
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            touch-action: manipulation;
+        }
+
+        .party-nf-watch__pill-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--violet);
+            box-shadow: 0 0 6px var(--violet);
+        }
+
+        .party-nf-watch__pill-btn[aria-pressed="false"] {
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .party-nf-watch__pill-btn[aria-pressed="false"] .party-nf-watch__pill-dot {
+            background: #6b7280;
+            box-shadow: none;
+        }
+
+        .party-nf-watch__audio .party-nf-watch__quality-menu {
+            min-width: 130px;
+        }
+
+        .party-nf-watch__quality-menu {
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 6px);
+            z-index: 200;
+            min-width: 110px;
+            margin: 0;
+            padding: 0.3rem 0;
+            list-style: none;
+            background: rgba(20, 20, 20, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 4px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+        }
+
+        .party-nf-watch__quality-menu:not([hidden]) {
+            display: block;
+        }
+
+        .party-nf-watch__quality-item {
+            display: block;
+            width: 100%;
+            padding: 0.5rem 0.8rem;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.78rem;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .party-nf-watch__quality-item:hover,
+        .party-nf-watch__quality-item.is-active {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+            font-weight: 700;
+        }
+
+        .party-nf-watch__episodes-btn {
+            display: inline-flex;
+            align-items: center;
+            height: 32px;
+            padding: 0 0.65rem;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 4px;
+            background: rgba(20, 20, 20, 0.8);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            touch-action: manipulation;
+        }
+
+        .party-nf-watch__episodes-btn:hover,
+        .party-nf-watch__episodes-btn[aria-expanded="true"] {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .party-nf-watch__invite-btn.is-copied {
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.45);
+        }
+
+        .party-nf-watch__episodes {
+            position: absolute;
+            inset: 0;
+            z-index: 12;
+            display: flex;
+            pointer-events: auto;
+            isolation: isolate;
+        }
+
+        .party-nf-watch__episodes[hidden] {
+            display: none !important;
+        }
+
+        .party-nf-watch__episodes-backdrop {
+            all: unset;
+            flex: 1;
+            min-width: 0;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            touch-action: manipulation;
+        }
+
+        .party-nf-watch__episodes-panel {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            width: min(400px, 42vw);
+            max-width: 100%;
+            height: 100%;
+            padding: 1rem 1rem 1.1rem;
+            background: rgba(20, 20, 20, 0.97);
+            border-left: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: -16px 0 48px rgba(0, 0, 0, 0.55);
+            overflow: hidden;
+            animation: party-nf-ep-panel-in 0.28s ease-out;
+        }
+
+        @keyframes party-nf-ep-panel-in {
+            from {
+                transform: translateX(18px);
+                opacity: 0.7;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .party-nf-watch__episodes-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .party-nf-watch__episodes-intro {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .party-nf-watch__episodes-show {
+            margin: 0 0 0.2rem;
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.62);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .party-nf-watch__episodes-label {
+            margin: 0;
+            font-family: var(--font-display, Georgia, serif);
+            font-size: 1.35rem;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .party-nf-watch__episodes-close {
+            all: unset;
+            display: grid;
+            place-items: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: #fff;
+            flex-shrink: 0;
+            touch-action: manipulation;
+        }
+
+        .party-nf-watch__episodes-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .party-nf-watch__episodes-season-wrap {
+            flex-shrink: 0;
+            margin-bottom: 0.75rem;
+        }
+
+        .party-nf-watch__episodes-season-sr {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+        }
+
+        .party-nf-watch__episodes-season-select {
+            appearance: none;
+            width: 100%;
+            padding: 0.55rem 2rem 0.55rem 0.85rem;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            background:
+                rgba(20, 20, 20, 0.92)
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+                no-repeat right 0.75rem center;
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .party-nf-watch__episodes-season-select[hidden] {
+            display: none;
+        }
+
+        .party-nf-watch__episodes-loading {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            color: rgba(255, 255, 255, 0.75);
+            padding: 0.35rem 0 0.65rem;
+            flex-shrink: 0;
+        }
+
+        .party-nf-watch__episodes-loading[hidden] {
+            display: none !important;
+        }
+
+        .party-nf-watch__episodes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 0.2rem;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+        }
+
+        .party-nf-watch__episodes-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .party-nf-watch__episodes-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+        }
+
+        .party-nf-watch__episodes-empty {
+            margin: 0.5rem 0 0;
+            font-size: 0.82rem;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        .party-nf-watch.is-episodes-open .party-nf-watch__tap-layer {
+            pointer-events: none;
+        }
+
+        .party-nf-watch__episodes-panel {
+            touch-action: pan-y;
+        }
+
+        .party-nf-watch__episode-card {
+            all: unset;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.45rem;
+            border-radius: 0.35rem;
+            cursor: pointer;
+            touch-action: manipulation;
+            width: 100%;
+        }
+
+        .party-nf-watch__episode-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .party-nf-watch__episode-card.is-active {
+            background: rgba(229, 9, 20, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(229, 9, 20, 0.45);
+        }
+
+        .party-nf-watch__episode-thumb {
+            position: relative;
+            flex: 0 0 112px;
+            width: 112px;
+            aspect-ratio: 16 / 9;
+            border-radius: 0.35rem;
+            overflow: hidden;
+            background: #141414;
+        }
+
+        .party-nf-watch__episode-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .party-nf-watch__episode-thumb-fallback {
+            display: grid;
+            place-items: center;
+            width: 100%;
+            height: 100%;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        .party-nf-watch__episode-playing {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            background: rgba(0, 0, 0, 0.45);
+            color: #fff;
+        }
+
+        .party-nf-watch__episode-playing svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .party-nf-watch__episode-meta {
+            display: grid;
+            gap: 0.15rem;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .party-nf-watch__episode-num {
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .party-nf-watch__episode-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            line-height: 1.35;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        @media (max-width: 720px) {
+            .party-nf-watch__episodes-panel {
+                width: min(360px, 82vw);
+            }
+
+            .party-nf-watch__episode-thumb {
+                flex-basis: 96px;
+                width: 96px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .party-nf-watch {
+                --nf-chrome-h: 96px;
+            }
+
+            .party-nf-watch__controls {
+                padding: 0 0.65rem 0.35rem;
+            }
+
+            .party-nf-watch__bar {
+                flex-wrap: wrap;
+                row-gap: 0.35rem;
+            }
+
+            .party-nf-watch__time {
+                display: none;
+            }
+        }
+
+        .party-nf-watch__error {
+            position: absolute;
+            left: 50%;
+            bottom: 5.5rem;
+            z-index: 120;
+            transform: translateX(-50%);
+            margin: 0;
+            padding: 0.55rem 0.85rem;
+            border-radius: 4px;
+            background: rgba(180, 20, 20, 0.9);
+            font-size: 0.8rem;
+            max-width: min(92%, 420px);
+            text-align: center;
         }
 
         .party-native-overlay {
@@ -2550,6 +3309,7 @@
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.2);
             color: #fff;
+            transform: none !important;
         }
 
         .workspace-banner .back-btn svg {

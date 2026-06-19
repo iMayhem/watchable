@@ -64,6 +64,22 @@
                         Play
                     </LmButton>
                     <LmButton variant="ghost" :to="detailRoute">Read the feature</LmButton>
+                    <LmButton
+                        variant="outline"
+                        :href="partyHref"
+                        rel="nofollow"
+                        aria-label="Watch Together"
+                    >
+                        <template #leading>
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                        </template>
+                        Watch Together
+                    </LmButton>
                 </div>
             </div>
         </div>
@@ -77,6 +93,7 @@ import { computed, defineComponent, PropType } from 'vue';
 import LmButton from '../primitives/Button.vue';
 import { useAppPaths } from '../../composables/useAppPaths';
 import { useWebImage } from '../../utils/useWebImage';
+import { buildPartyHref } from '../../utils/partyRoom';
 
 export default defineComponent({
     name: 'SpotlightModule',
@@ -131,13 +148,22 @@ export default defineComponent({
             paths.detailPath(props.type === 'tv' ? 'tv' : 'movie', props.id)
         );
 
+        const partyHref = computed(() =>
+            buildPartyHref({
+                id: props.id,
+                title: props.title,
+                type: props.type
+            })
+        );
+
         return {
             artUrl,
             year,
             ratingLabel,
             truncatedOverview,
             playRoute,
-            detailRoute
+            detailRoute,
+            partyHref
         };
     }
 });

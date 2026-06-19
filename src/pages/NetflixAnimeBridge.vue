@@ -5,8 +5,9 @@
         <main id="main" class="nf-anime-detail__main" role="main">
             <section class="nf-anime-detail__snap-slide">
                 <TitleMasthead
-                    :id="anilistId"
-                    type="anime"
+                    :id="catalogMatch ? catalogMatch.id : anilistId"
+                    party-source="netflix"
+                    :type="supportsEpisodes ? 'tv' : 'movie'"
                     :title="displayTitle"
                     :tagline="tagline"
                     eyebrow="Anime"

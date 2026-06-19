@@ -15,12 +15,25 @@ export interface CatalogArtworkPaths {
     backdropPath: string | null;
 }
 
-/** TMDB-only artwork for catalogue items (anime uses AniList separately). */
+/** TMDB-only artwork — poster and backdrop are never cross-filled. */
 export function pickCatalogArtwork(art: TmdbArtwork): CatalogArtworkPaths {
     return {
-        posterPath: art.posterPath || art.backdropPath || null,
-        backdropPath: art.backdropPath || art.posterPath || null
+        posterPath: art.posterPath || null,
+        backdropPath: art.backdropPath || null
     };
+}
+
+function hasUsableCatalogArt(art: TmdbArtwork | null | undefined): boolean {
+    return Boolean(art?.posterPath || art?.backdropPath);
+}
+
+function cacheMatchesTrustedTmdbId(
+    cached: TmdbArtwork | null | undefined,
+    trustedTmdbId?: number | null
+): boolean {
+    if (!trustedTmdbId || !Number.isFinite(trustedTmdbId)) return true;
+    if (!cached?.tmdbId || !Number.isFinite(cached.tmdbId)) return false;
+    return cached.tmdbId === trustedTmdbId;
 }
 
 interface TmdbSearchResult {
@@ -38,6 +51,42 @@ interface TmdbSearchResult {
 }
 
 const artworkCache = new Map<string, TmdbArtwork>();
+const ARTWORK_STORAGE_KEY = 'moovie_tmdb_artwork_v1';
+const ARTWORK_STORAGE_MAX = 800;
+
+function hydrateArtworkCacheFromStorage(): void {
+    if (typeof window === 'undefined') return;
+    try {
+        const raw = localStorage.getItem(ARTWORK_STORAGE_KEY);
+        if (!raw) return;
+        const entries = JSON.parse(raw) as Array<[string, TmdbArtwork]>;
+        if (!Array.isArray(entries)) return;
+        for (const [key, art] of entries) {
+            if (key && art && hasUsableCatalogArt(art)) {
+                artworkCache.set(key, art);
+            }
+        }
+    } catch {
+        // ignore corrupt cache
+    }
+}
+
+function persistArtworkCache(): void {
+    if (typeof window === 'undefined') return;
+    try {
+        const entries = Array.from(artworkCache.entries()).slice(-ARTWORK_STORAGE_MAX);
+        localStorage.setItem(ARTWORK_STORAGE_KEY, JSON.stringify(entries));
+    } catch {
+        // quota exceeded — ignore
+    }
+}
+
+function setArtworkCache(key: string, art: TmdbArtwork): void {
+    artworkCache.set(key, art);
+    persistArtworkCache();
+}
+
+hydrateArtworkCacheFromStorage();
 
 function parseYear(value?: string | number | null): number | null {
     if (value == null) return null;
@@ -164,7 +213,9 @@ async function fetchTmdbArtworkById(
     cacheKey: string
 ): Promise<TmdbArtwork | null> {
     const cached = artworkCache.get(cacheKey);
-    if (cached?.posterPath || cached?.backdropPath) return cached;
+    if (hasUsableCatalogArt(cached) && cacheMatchesTrustedTmdbId(cached, tmdbId)) {
+        return cached!;
+    }
 
     try {
         const detail = await useAxios().get(`${type}/${tmdbId}`);
@@ -177,7 +228,7 @@ async function fetchTmdbArtworkById(
             overview: d.overview || ''
         };
         if (artwork.posterPath || artwork.backdropPath) {
-            artworkCache.set(cacheKey, artwork);
+            setArtworkCache(cacheKey, artwork);
             return artwork;
         }
     } catch (err) {
@@ -202,9 +253,6 @@ export async function resolveTmdbArtwork(opts: {
     const cacheId =
         opts.cacheKey ||
         `${opts.type}:${normalizeTitle(cleanTitle)}:${parseYear(opts.year) ?? 'na'}`;
-    const cached = artworkCache.get(cacheId);
-    if (cached) return cached;
-
     const year = parseYear(opts.year);
 
     try {
@@ -213,6 +261,15 @@ export async function resolveTmdbArtwork(opts: {
             if (byId) return byId;
         }
 
+        const cached = artworkCache.get(cacheId);
+        if (
+            hasUsableCatalogArt(cached) &&
+            cacheMatchesTrustedTmdbId(cached, opts.tmdbId)
+        ) {
+            return cached!;
+        }
+
+        let resolvedType: 'movie' | 'tv' = opts.type;
         let match = await searchTmdbByType(opts.type, cleanTitle, year);
 
         if (!hasUsableArtwork(match)) {
@@ -220,16 +277,21 @@ export async function resolveTmdbArtwork(opts: {
             const altMatch = await searchTmdbByType(altType, cleanTitle, year);
             if (hasUsableArtwork(altMatch)) {
                 match = altMatch;
+                resolvedType = altType;
             }
         }
 
         // Year is only a tie-breaker in scoring — retry with no year bias if match is weak.
         if (!hasUsableArtwork(match) && year) {
             match = await searchTmdbByType(opts.type, cleanTitle, null);
+            resolvedType = opts.type;
             if (!hasUsableArtwork(match)) {
                 const altType = opts.type === 'movie' ? 'tv' : 'movie';
                 const altMatch = await searchTmdbByType(altType, cleanTitle, null);
-                if (hasUsableArtwork(altMatch)) match = altMatch;
+                if (hasUsableArtwork(altMatch)) {
+                    match = altMatch;
+                    resolvedType = altType;
+                }
             }
         }
 
@@ -239,12 +301,13 @@ export async function resolveTmdbArtwork(opts: {
         let overview = match?.overview || '';
         const tmdbId = match?.id;
 
-        if (tmdbId) {
+        const needsDetail = Boolean(tmdbId && (!posterPath || !backdropPath));
+        if (needsDetail) {
             try {
-                const detail = await useAxios().get(`${opts.type}/${tmdbId}`);
+                const detail = await useAxios().get(`${resolvedType}/${tmdbId}`);
                 const d = detail.data || {};
-                posterPath = d.poster_path || posterPath;
-                backdropPath = d.backdrop_path || backdropPath;
+                if (d.poster_path) posterPath = d.poster_path;
+                if (d.backdrop_path) backdropPath = d.backdrop_path;
                 genreIds = (d.genres || []).map((g: { id: number }) => g.id);
                 overview = d.overview || overview;
             } catch {
@@ -259,13 +322,11 @@ export async function resolveTmdbArtwork(opts: {
             genreIds,
             overview
         };
-        artworkCache.set(cacheId, artwork);
+        setArtworkCache(cacheId, artwork);
         return artwork;
     } catch (err) {
         nfDebugError('tmdb:artwork:fail', { title: cleanTitle, err });
-        const empty = { posterPath: null, backdropPath: null };
-        artworkCache.set(cacheId, empty);
-        return empty;
+        return { posterPath: null, backdropPath: null };
     }
 }
 
@@ -278,12 +339,18 @@ function catalogArtworkCacheKey(item: {
     return `nm2-${mediaType}-${item.id}`;
 }
 
-export function getCachedArtworkForCatalogItem(item: {
-    id: string;
-    title: string;
-    media_type: 'movie' | 'tv';
-}): TmdbArtwork | null {
-    return artworkCache.get(catalogArtworkCacheKey(item)) || null;
+export function getCachedArtworkForCatalogItem(
+    item: {
+        id: string;
+        title: string;
+        media_type: 'movie' | 'tv';
+    },
+    opts: { trustedTmdbId?: number | null } = {}
+): TmdbArtwork | null {
+    const cached = artworkCache.get(catalogArtworkCacheKey(item)) || null;
+    if (!cached || !hasUsableCatalogArt(cached)) return null;
+    if (!cacheMatchesTrustedTmdbId(cached, opts.trustedTmdbId)) return null;
+    return cached;
 }
 
 export async function resolveArtworkForCatalogItem(item: {
@@ -296,12 +363,31 @@ export async function resolveArtworkForCatalogItem(item: {
     const parsed = parseCatalogTitle(item.title || '');
     const displayTitle = parsed.displayTitle || item.title;
     const mediaType = inferCatalogMediaType(item);
-    return resolveTmdbArtwork({
+    const cacheKey = catalogArtworkCacheKey(item);
+    const resolved = await resolveTmdbArtwork({
         title: displayTitle,
         type: mediaType,
-        cacheKey: catalogArtworkCacheKey(item),
+        cacheKey,
         tmdbId: item.tmdbId
     });
+
+    if (
+        item.tmdbId &&
+        Number.isFinite(item.tmdbId) &&
+        resolved.tmdbId &&
+        resolved.tmdbId !== item.tmdbId
+    ) {
+        artworkCache.delete(cacheKey);
+        const corrected = await resolveTmdbArtwork({
+            title: displayTitle,
+            type: mediaType,
+            cacheKey,
+            tmdbId: item.tmdbId
+        });
+        if (hasUsableCatalogArt(corrected)) return corrected;
+    }
+
+    return resolved;
 }
 
 export interface CatalogTmdbMeta {

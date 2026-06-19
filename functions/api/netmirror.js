@@ -15,6 +15,12 @@ const PLAYER_HOSTS = {
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
+const CDN_REFERER = 'https://fmoviesunblocked.net/';
+const CDN_ORIGIN = 'https://h5.aoneroom.com';
+
+const CDN_HOST_PATTERN =
+  /https?:\/\/(?:bcdnxw\.hakunaymatata\.com|(?:sa|b)cdn\.watch2[12]\.shop)[^\s"'<>]*/g;
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -79,14 +85,29 @@ function buildWatchboxUrl(meta, ts, sig, server, season, episode) {
   return url;
 }
 
-function buildProxyUrl(targetUrl, referer = 'https://spedostream2.shop/') {
+function buildProxyUrl(targetUrl, referer = CDN_REFERER, origin = CDN_ORIGIN) {
   const params = new URLSearchParams({
     url: targetUrl,
     referer,
-    origin: 'https://spedostream2.shop',
+    origin,
     user_agent: UA,
   });
   return `/api/proxy?${params.toString()}`;
+}
+
+function rewritePlayerHtml(html, server) {
+  const host = resolvePlayerHost(server);
+  const playerBase = `https://${host}/play/`;
+
+  let rewritten = html;
+
+  if (!/<base\s/i.test(rewritten)) {
+    rewritten = rewritten.replace(/<head([^>]*)>/i, `<head$1><base href="${playerBase}">`);
+  }
+
+  rewritten = rewritten.replace(CDN_HOST_PATTERN, (url) => buildProxyUrl(url));
+
+  return rewritten;
 }
 
 function extractStreams(html) {
@@ -213,14 +234,6 @@ export async function onRequest(context) {
   const episode = parseInt(searchParams.get('ep') || searchParams.get('episode') || '0', 10);
   const server = parseInt(searchParams.get('server') || '1', 10);
 
-  if (!id) {
-    return jsonResponse({ error: 'Missing id parameter' }, 400);
-  }
-
-  if (!['movie', 'tv'].includes(type)) {
-    return jsonResponse({ error: 'type must be movie or tv' }, 400);
-  }
-
   try {
     if (action === 'search') {
       const query = searchParams.get('q') || '';
@@ -235,6 +248,14 @@ export async function onRequest(context) {
       return jsonResponse({ results: data?.results || [] });
     }
 
+    if (!id) {
+      return jsonResponse({ error: 'Missing id parameter' }, 400);
+    }
+
+    if (!['movie', 'tv'].includes(type)) {
+      return jsonResponse({ error: 'type must be movie or tv' }, 400);
+    }
+
     if (action === 'player') {
       const meta = await fetchMetadata(type, id);
       const ts = Math.floor(Date.now() / 1000);
@@ -242,7 +263,7 @@ export async function onRequest(context) {
       const watchboxUrl = buildWatchboxUrl(meta, ts, sig, server, season, episode);
       const html = await fetchWatchboxHtml(watchboxUrl);
 
-      return new Response(html, {
+      return new Response(rewritePlayerHtml(html, server), {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'no-store',

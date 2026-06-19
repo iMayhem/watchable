@@ -80,8 +80,9 @@ export async function onRequest(context) {
         headers.set('Origin', 'https://peachify.top');
     } else if (isMovieboxCdn) {
         headers.set('User-Agent', userAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/148.0.0.0 Safari/537.36');
-        headers.set('Referer', referer || 'https://fmoviesunblocked.net/');
-        headers.set('Origin', origin || 'https://h5.aoneroom.com');
+        // hakunaymatata CDN only accepts this referer; spedostream2/netmirror are rejected
+        headers.set('Referer', 'https://fmoviesunblocked.net/');
+        headers.set('Origin', 'https://h5.aoneroom.com');
     } else {
         headers.set('User-Agent', userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36');
         if (referer) headers.set('Referer', referer);

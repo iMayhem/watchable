@@ -11,7 +11,7 @@
     },
     "condition": {
       "urlFilter": "hakunaymatata.com",
-      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame"]
+      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame", "main_frame"]
     }
   },
   {
@@ -26,7 +26,7 @@
     },
     "condition": {
       "urlFilter": "aoneroom.com",
-      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame"]
+      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame", "main_frame"]
     }
   },
   {
@@ -41,7 +41,7 @@
     },
     "condition": {
       "urlFilter": "watch21.shop",
-      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame"]
+      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame", "main_frame"]
     }
   },
   {
@@ -56,7 +56,7 @@
     },
     "condition": {
       "urlFilter": "watch22.shop",
-      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame"]
+      "resourceTypes": ["media", "xmlhttprequest", "other", "sub_frame", "main_frame"]
     }
   }
 ]

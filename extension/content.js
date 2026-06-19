@@ -1,7 +1,7 @@
 (function initMoovieStreamBoost() {
   const API = {
     active: true,
-    version: '1.0.0',
+    version: '1.1.0',
     mode: 'direct-cdn',
   };
 

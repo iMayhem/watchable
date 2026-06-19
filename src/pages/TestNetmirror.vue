@@ -93,7 +93,7 @@
                     :disabled="!activeStream"
                     @click="setPlayerMode('direct')"
                 >
-                    {{ extensionActive ? 'Direct MP4' : 'Proxied MP4' }}
+                    {{ extensionActive ? 'ArtPlayer · direct CDN' : 'ArtPlayer · proxy' }}
                 </button>
                 <button
                     type="button"
@@ -101,43 +101,36 @@
                     :class="{ 'is-active': playerMode === 'iframe' }"
                     @click="setPlayerMode('iframe')"
                 >
-                    Proxied iframe
+                    NetMirror iframe
                 </button>
             </div>
 
             <div class="nm-test__player">
-                <video
-                    v-if="playerMode === 'direct' && videoSrc"
-                    :key="videoSrc"
-                    ref="videoEl"
-                    controls
-                    autoplay
-                    playsinline
-                    preload="metadata"
-                    :src="videoSrc"
-                    @error="onVideoError"
-                    @loadstart="onVideoEvent('loadstart')"
-                    @loadedmetadata="onVideoLoadedMetadata"
-                    @canplay="onVideoEvent('canplay')"
-                    @playing="onVideoEvent('playing')"
-                    @waiting="onVideoEvent('waiting')"
-                    @stalled="onVideoEvent('stalled')"
-                    @progress="onVideoProgress"
+                <div
+                    v-if="playerMode === 'direct'"
+                    ref="artContainer"
+                    class="nm-artplayer"
                 />
                 <iframe
-                    v-else-if="playerMode === 'iframe' && playerProxyUrl"
+                    v-if="playerMode === 'iframe' && playerProxyUrl"
                     :key="playerProxyUrl"
                     :src="playerProxyUrl"
-                    title="NetMirror proxied player"
+                    title="NetMirror player"
                     allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                     frameborder="0"
                 />
-                <div v-else class="nm-test__player-empty">No stream loaded yet.</div>
+                <div
+                    v-if="playerMode === 'direct' && !artReady"
+                    class="nm-test__player-empty"
+                >
+                    {{ loading ? 'Resolving…' : 'Click Resolve & Play' }}
+                </div>
             </div>
 
             <p v-if="playbackError" class="nm-test__error" role="alert">{{ playbackError }}</p>
             <p v-if="activeStream && playerMode === 'direct'" class="nm-test__stream-url">
-                {{ activeStream.quality }} · {{ extensionActive ? 'direct CDN (extension)' : 'proxied via /api/proxy' }}
+                {{ activeStream.quality }} ·
+                {{ extensionActive ? 'direct CDN + ArtPlayer (NetMirror path)' : 'proxied via /api/proxy' }}
             </p>
 
             <div v-if="streams.length" class="nm-test__qualities">
@@ -245,9 +238,10 @@ export default defineComponent({
         const showDebug = ref(false);
         const playbackError = ref('');
         const extensionActive = ref(false);
-        const videoSrc = ref('');
-        const videoEl = ref<HTMLVideoElement | null>(null);
+        const artReady = ref(false);
+        const artContainer = ref<HTMLElement | null>(null);
         let prepareToken = 0;
+        let artInstance: any = null;
         let refreshInFlight: Promise<NetmirrorResolve | null> | null = null;
 
         const streamUrlAgeSec = (rawUrl: string) => {
@@ -334,6 +328,109 @@ export default defineComponent({
             return `${absUrl}${sep}_cb=${Date.now()}`;
         };
 
+        const loadArtplayerAssets = (() => {
+            let promise: Promise<void> | null = null;
+            return () => {
+                if ((window as any).Artplayer) return Promise.resolve();
+                if (promise) return promise;
+                promise = new Promise((resolve, reject) => {
+                    if (!document.querySelector('link[data-nm-art-css]')) {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.css';
+                        link.setAttribute('data-nm-art-css', '1');
+                        document.head.appendChild(link);
+                    }
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.min.js';
+                    script.onload = () => resolve();
+                    script.onerror = () => reject(new Error('ArtPlayer script failed to load'));
+                    document.head.appendChild(script);
+                });
+                return promise;
+            };
+        })();
+
+        const destroyArt = () => {
+            if (artInstance) {
+                try {
+                    artInstance.destroy(false);
+                } catch {
+                    /* ignore */
+                }
+                artInstance = null;
+            }
+            artReady.value = false;
+        };
+
+        const resolvePlaybackUrl = (stream: NetmirrorStream) => {
+            if (extensionActive.value) {
+                return withPlaybackCacheBuster(stream.url);
+            }
+            return withPlaybackCacheBuster(toAbsoluteUrl(stream.proxiedUrl));
+        };
+
+        const mountArtplayer = async (stream: NetmirrorStream) => {
+            await loadArtplayerAssets();
+            const container = artContainer.value;
+            if (!container) {
+                throw new Error('ArtPlayer container missing');
+            }
+
+            destroyArt();
+            const playUrl = resolvePlaybackUrl(stream);
+            debug('art:mount', {
+                quality: stream.quality,
+                direct: extensionActive.value,
+                url: playUrl,
+            });
+
+            const ArtplayerCtor = (window as any).Artplayer;
+            artInstance = new ArtplayerCtor({
+                container,
+                url: playUrl,
+                type: 'mp4',
+                autoplay: true,
+                preload: 'auto',
+                playbackRate: true,
+                aspectRatio: true,
+                fullscreen: true,
+                fullscreenWeb: true,
+                miniProgressBar: true,
+                fastForward: true,
+                setting: true,
+                theme: '#4eb5ff',
+            });
+
+            artInstance.on('video:loadedmetadata', () => {
+                playbackError.value = '';
+                debug('art:loadedmetadata', {
+                    quality: stream.quality,
+                    duration: artInstance?.video?.duration,
+                });
+            });
+            artInstance.on('video:canplay', () => debug('art:canplay', { quality: stream.quality }));
+            artInstance.on('video:playing', () => debug('art:playing', { quality: stream.quality }));
+            artInstance.on('video:waiting', () => debug('art:waiting', { quality: stream.quality }));
+            artInstance.on('video:stalled', () => debugWarn('art:stalled', { quality: stream.quality }));
+            artInstance.on('error', () => {
+                playbackError.value = 'ArtPlayer failed — try Resolve again or toggle quality.';
+                debugError('art:error', { quality: stream.quality, url: playUrl });
+            });
+
+            artReady.value = true;
+        };
+
+        const switchArtQuality = async (stream: NetmirrorStream) => {
+            const playUrl = resolvePlaybackUrl(stream);
+            if (!artInstance) {
+                await mountArtplayer(stream);
+                return;
+            }
+            debug('art:switch', { quality: stream.quality, url: playUrl });
+            await artInstance.switchUrl(playUrl);
+        };
+
         const fetchResolveData = async () => {
             const resp = await fetch(buildApiUrl('resolve'));
             const data = await parseApiResponse(resp, 'resolve');
@@ -374,16 +471,16 @@ export default defineComponent({
             return refreshInFlight;
         };
 
-        const prepareVideoPlayback = async (
+        const prepareArtPlayback = async (
             stream: NetmirrorStream | null,
             options: { allowRefresh?: boolean } = {}
         ) => {
             const { allowRefresh = true } = options;
             const token = ++prepareToken;
-            videoSrc.value = '';
+            destroyArt();
 
             if (!stream || playerMode.value !== 'direct') {
-                debug('video:prepare-skipped', {
+                debug('art:prepare-skipped', {
                     hasStream: Boolean(stream),
                     playerMode: playerMode.value,
                 });
@@ -391,68 +488,50 @@ export default defineComponent({
             }
 
             const ageSec = streamUrlAgeSec(stream.url);
-            debug('video:prepare-start', {
+            debug('art:prepare-start', {
                 quality: stream.quality,
-                proxiedUrl: stream.proxiedUrl,
-                rawUrl: stream.url,
                 direct: extensionActive.value,
                 urlAgeSec: ageSec,
             });
 
-            if (extensionActive.value) {
-                try {
-                    await probeDirectStream(stream.url);
-                    if (token !== prepareToken) return;
-                    videoSrc.value = withPlaybackCacheBuster(stream.url);
-                    playbackError.value = '';
-                    debug('video:prepare-ready-direct', {
-                        quality: stream.quality,
-                        src: videoSrc.value,
-                    });
-                    return;
-                } catch (err: any) {
-                    debugWarn('video:prepare-direct-fallback', { message: err?.message });
-                }
-            }
-
             if (ageSec !== null && ageSec > 120 && allowRefresh) {
-                debugWarn('video:prepare-stale-url', { urlAgeSec: ageSec });
+                debugWarn('art:prepare-stale-url', { urlAgeSec: ageSec });
                 const fresh = await refreshResolve('signed-url-age');
                 if (token !== prepareToken) return;
                 if (fresh?.streams?.length) {
                     const idx = Math.min(selectedStreamIndex.value, fresh.streams.length - 1);
                     selectedStreamIndex.value = idx;
-                    return prepareVideoPlayback(fresh.streams[idx], { allowRefresh: false });
+                    return prepareArtPlayback(fresh.streams[idx], { allowRefresh: false });
                 }
             }
 
             try {
-                const abs = await probeProxiedStream(stream.proxiedUrl);
-                if (token !== prepareToken) {
-                    debug('video:prepare-stale', { quality: stream.quality });
-                    return;
+                if (extensionActive.value) {
+                    await probeDirectStream(stream.url);
+                } else {
+                    await probeProxiedStream(stream.proxiedUrl);
                 }
-                videoSrc.value = withPlaybackCacheBuster(abs);
+                if (token !== prepareToken) return;
+                await mountArtplayer(stream);
                 playbackError.value = '';
-                debug('video:prepare-ready', { quality: stream.quality, src: videoSrc.value });
             } catch (err: any) {
                 if (token !== prepareToken) return;
 
                 if (allowRefresh && err?.status === 403) {
-                    debugWarn('video:prepare-403-refresh', { quality: stream.quality });
-                    const fresh = await refreshResolve('proxy-403');
+                    debugWarn('art:prepare-403-refresh', { quality: stream.quality });
+                    const fresh = await refreshResolve('playback-403');
                     if (token !== prepareToken) return;
                     if (fresh?.streams?.length) {
                         const idx = Math.min(selectedStreamIndex.value, fresh.streams.length - 1);
                         selectedStreamIndex.value = idx;
-                        return prepareVideoPlayback(fresh.streams[idx], { allowRefresh: false });
+                        return prepareArtPlayback(fresh.streams[idx], { allowRefresh: false });
                     }
                 }
 
                 playbackError.value =
                     err?.message ||
-                    'Proxy probe failed. Click Resolve again for fresh signed URLs.';
-                debugError('video:prepare-failed', {
+                    'Playback failed. Install/reload extension for direct CDN, or Resolve again.';
+                debugError('art:prepare-failed', {
                     quality: stream.quality,
                     message: playbackError.value,
                     urlAgeSec: ageSec,
@@ -486,9 +565,13 @@ export default defineComponent({
         const activeStream = computed(() => streams.value[selectedStreamIndex.value] || null);
         const playerProxyUrl = computed(() => {
             const base = resolved.value?.playerProxyUrl || '';
-            if (!base || !extensionActive.value) return base;
+            if (!base) return '';
             const url = new URL(base, window.location.origin);
-            url.searchParams.set('exten', 'true');
+            if (extensionActive.value) {
+                url.searchParams.set('exten', 'true');
+            } else {
+                url.searchParams.set('proxy', '1');
+            }
             return `${url.pathname}${url.search}`;
         });
         const debugJson = computed(() => JSON.stringify(resolved.value, null, 2));
@@ -578,10 +661,10 @@ export default defineComponent({
                 if (data.streams?.length) {
                     selectedStreamIndex.value = streamIndex;
                     playerMode.value = 'direct';
-                    await prepareVideoPlayback(data.streams[streamIndex]);
+                    await prepareArtPlayback(data.streams[streamIndex]);
                 } else {
                     playerMode.value = 'iframe';
-                    videoSrc.value = '';
+                    destroyArt();
                 }
 
                 debug('resolve:success', {
@@ -675,7 +758,11 @@ export default defineComponent({
             selectedStreamIndex.value = index;
             playerMode.value = 'direct';
             playbackError.value = '';
-            prepareVideoPlayback(stream || null);
+            if (artInstance && stream) {
+                switchArtQuality(stream);
+            } else {
+                prepareArtPlayback(stream || null);
+            }
         };
 
         const setPlayerMode = (mode: 'iframe' | 'direct') => {
@@ -686,83 +773,10 @@ export default defineComponent({
             });
             playerMode.value = mode;
             if (mode === 'direct') {
-                prepareVideoPlayback(activeStream.value);
+                prepareArtPlayback(activeStream.value);
             } else {
                 prepareToken++;
-                videoSrc.value = '';
-            }
-        };
-
-        const onVideoLoadedMetadata = () => {
-            playbackError.value = '';
-            const video = videoEl.value;
-            debug('video:loadedmetadata', {
-                quality: activeStream.value?.quality,
-                duration: video?.duration,
-                videoWidth: video?.videoWidth,
-                videoHeight: video?.videoHeight,
-                src: video?.currentSrc,
-            });
-        };
-
-        const onVideoEvent = (eventName: string) => {
-            debug(`video:${eventName}`, {
-                quality: activeStream.value?.quality,
-                currentTime: videoEl.value?.currentTime,
-                readyState: videoEl.value?.readyState,
-                networkState: videoEl.value?.networkState,
-            });
-        };
-
-        let lastProgressLog = 0;
-        const onVideoProgress = () => {
-            const now = performance.now();
-            if (now - lastProgressLog < 2000) return;
-            lastProgressLog = now;
-
-            const video = videoEl.value;
-            if (!video || !video.buffered.length) return;
-
-            debug('video:progress', {
-                quality: activeStream.value?.quality,
-                bufferedEnd: video.buffered.end(video.buffered.length - 1),
-                currentTime: video.currentTime,
-                duration: video.duration,
-            });
-        };
-
-        const onVideoError = () => {
-            const mediaError = videoEl.value?.error;
-            const code = mediaError?.code;
-            const messages: Record<number, string> = {
-                1: 'Playback aborted.',
-                2: 'Network error while loading proxied MP4. Try a lower quality or resolve again.',
-                3: 'Decode error — stream may be corrupt or unsupported.',
-                4: 'No playable MP4 source. Try another quality.',
-            };
-            playbackError.value =
-                (code !== undefined ? messages[code] : undefined) ||
-                'Video failed to play. Try 360P/480P or click Resolve again for fresh signed URLs.';
-
-            debugError('video:error', {
-                code,
-                message: playbackError.value,
-                quality: activeStream.value?.quality,
-                rawUrl: activeStream.value?.url,
-                proxiedUrl: activeStream.value?.proxiedUrl,
-                urlAgeSec: activeStream.value ? streamUrlAgeSec(activeStream.value.url) : null,
-                currentSrc: videoEl.value?.currentSrc,
-                networkState: videoEl.value?.networkState,
-                readyState: videoEl.value?.readyState,
-            });
-
-            if ((code === 2 || code === 4) && activeStream.value) {
-                refreshResolve('video-error').then((fresh) => {
-                    if (!fresh?.streams?.length) return;
-                    const idx = Math.min(selectedStreamIndex.value, fresh.streams.length - 1);
-                    selectedStreamIndex.value = idx;
-                    prepareVideoPlayback(fresh.streams[idx], { allowRefresh: false });
-                });
+                destroyArt();
             }
         };
 
@@ -823,11 +837,12 @@ export default defineComponent({
         onUnmounted(() => {
             window.removeEventListener('moovie-stream-ext-ready', onExtensionReady);
             window.removeEventListener('message', onExtensionPong);
+            destroyArt();
         });
 
         watch(extensionActive, (active) => {
             if (active && activeStream.value && playerMode.value === 'direct') {
-                prepareVideoPlayback(activeStream.value, { allowRefresh: false });
+                prepareArtPlayback(activeStream.value, { allowRefresh: false });
             }
         });
 
@@ -847,9 +862,8 @@ export default defineComponent({
             showDebug,
             playbackError,
             extensionActive,
-            videoSrc,
-            videoEl,
-            onVideoError,
+            artReady,
+            artContainer,
             streams,
             activeStream,
             playerProxyUrl,
@@ -858,9 +872,6 @@ export default defineComponent({
             onSearchEnter,
             setPlayerMode,
             toggleDebug,
-            onVideoLoadedMetadata,
-            onVideoEvent,
-            onVideoProgress,
             resolve,
             runSearch,
             applySearchResult,
@@ -1053,12 +1064,17 @@ select {
     border: 1px solid rgba(255, 255, 255, 0.08);
 
     iframe,
-    video {
+    .nm-artplayer {
         width: 100%;
         height: 100%;
         display: block;
         border: 0;
     }
+}
+
+.nm-artplayer :deep(.art-video-player) {
+    width: 100%;
+    height: 100%;
 }
 
 .nm-test__player-empty {

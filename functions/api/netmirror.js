@@ -95,7 +95,7 @@ function buildProxyUrl(targetUrl, referer = CDN_REFERER, origin = CDN_ORIGIN) {
   return `/api/proxy?${params.toString()}`;
 }
 
-function rewritePlayerHtml(html, server) {
+function rewritePlayerHtml(html, server, { proxyStreams = false } = {}) {
   const host = resolvePlayerHost(server);
   const playerBase = `https://${host}/play/`;
 
@@ -105,7 +105,11 @@ function rewritePlayerHtml(html, server) {
     rewritten = rewritten.replace(/<head([^>]*)>/i, `<head$1><base href="${playerBase}">`);
   }
 
-  rewritten = rewritten.replace(CDN_HOST_PATTERN, (url) => buildProxyUrl(url));
+  // NetMirror fast path: extension + exten=true plays direct CDN URLs.
+  // Rewriting to /api/proxy forces a Cloudflare hop and breaks that path.
+  if (proxyStreams) {
+    rewritten = rewritten.replace(CDN_HOST_PATTERN, (url) => buildProxyUrl(url));
+  }
 
   return rewritten;
 }
@@ -263,7 +267,8 @@ export async function onRequest(context) {
       const watchboxUrl = buildWatchboxUrl(meta, ts, sig, server, season, episode);
       const html = await fetchWatchboxHtml(watchboxUrl);
 
-      return new Response(rewritePlayerHtml(html, server), {
+      const proxyStreams = searchParams.get('proxy') === '1';
+      return new Response(rewritePlayerHtml(html, server, { proxyStreams }), {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'no-store',

@@ -13,7 +13,7 @@
                     <span class="mode-gate__card-badge">Stream</span>
                     <span class="mode-gate__card-title">Netflix</span>
                     <span class="mode-gate__card-desc">
-                        Hindi, Hollywood, Telugu, Tamil, Malayalam, Korean and more — playable in-browser.
+                        Hindi, Telugu, Tamil, Kannada, Bengali, Arabic, Urdu and more — playable in-browser.
                     </span>
                 </button>
 

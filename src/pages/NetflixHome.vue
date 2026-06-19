@@ -20,6 +20,13 @@
                 :detail-to="heroDetailRoute"
             />
 
+            <div v-if="!isLoading || trendingItems.length" class="home__lang-banner container-lm">
+                <span class="home__lang-chip">{{ activeLang.nativeLabel }}</span>
+                <span class="home__lang-copy">
+                    Browsing <strong>{{ activeLang.label }}</strong> catalogue — Hollywood, Bollywood, Korean and more.
+                </span>
+            </div>
+
             <CuratedRail
                 v-if="trendingItems.length || isLoading"
                 class="home__section"
@@ -32,27 +39,25 @@
             />
 
             <CuratedRail
-                v-if="movieItems.length || isLoading"
+                v-for="rail in catalogueRails"
+                :key="rail.id"
                 class="home__section"
-                :items="movieItems"
-                title="Films"
-                eyebrow="Movies"
-                :description="`${activeLang.label} movies in rotation.`"
+                :items="rail.items"
+                :title="rail.title"
+                :eyebrow="rail.eyebrow"
+                :description="rail.description"
+                :default-type="rail.defaultType"
                 catalog="netflix"
-                default-type="movie"
-                :loading="isLoading"
             />
 
             <CuratedRail
-                v-if="seriesItems.length || isLoading"
+                v-if="isLoading && !catalogueRails.length"
                 class="home__section"
-                :items="seriesItems"
-                title="Series"
-                eyebrow="Shows"
-                :description="`${activeLang.label} series and seasons.`"
+                :items="[]"
+                title="Loading catalogues"
+                :eyebrow="activeLang.label"
                 catalog="netflix"
-                default-type="tv"
-                :loading="isLoading"
+                :loading="true"
             />
         </main>
 
@@ -78,6 +83,12 @@ import {
     itemMatchesLanguage,
     type NetflixLanguageOption
 } from '../composables/useNetflixLanguage';
+import {
+    buildNetflixRailSections,
+    buildTrendingItems,
+    collectArtworkIds,
+    type NetflixRailSection
+} from '../composables/useNetflixRails';
 import { useSeo } from '../composables/useSeo';
 import {
     mapWithConcurrency,
@@ -110,13 +121,15 @@ export default defineComponent({
         const { language, activeLanguage } = getNetflixLanguage();
         const isLoading = ref(true);
         const trendingItems = ref<CuratedItem[]>([]);
-        const movieItems = ref<CuratedItem[]>([]);
-        const seriesItems = ref<CuratedItem[]>([]);
+        const catalogueRails = ref<NetflixRailSection[]>([]);
 
         const activeLang = computed<NetflixLanguageOption>(() => activeLanguage());
 
         const hero = computed(() => {
-            const first = trendingItems.value[0] || movieItems.value[0] || seriesItems.value[0];
+            const first =
+                trendingItems.value[0] ||
+                catalogueRails.value[0]?.items[0] ||
+                null;
             if (!first) return null;
             return {
                 id: first.id,
@@ -150,51 +163,33 @@ export default defineComponent({
             nfDebug('home:load:start', { language: lang.category, label: lang.label });
             isLoading.value = true;
             trendingItems.value = [];
-            movieItems.value = [];
-            seriesItems.value = [];
+            catalogueRails.value = [];
 
             try {
-                const [page0, page1] = await Promise.all([
+                const [page0, page1, page2] = await Promise.all([
                     browseMoovieCatalog(lang.category, 0),
-                    browseMoovieCatalog(lang.category, 1)
+                    browseMoovieCatalog(lang.category, 1),
+                    browseMoovieCatalog(lang.category, 2)
                 ]);
 
-                const pool = [...(page0.results || []), ...(page1.results || [])].filter(
-                    (item) => itemMatchesLanguage(item, lang)
-                );
+                const pool = [
+                    ...(page0.results || []),
+                    ...(page1.results || []),
+                    ...(page2.results || [])
+                ].filter((item) => itemMatchesLanguage(item, lang));
 
-                // Only resolve TMDB art for cards we actually render (not the full pool).
-                const moviePool = pool.filter((item) => item.media_type !== 'tv');
-                const seriesPool = pool.filter((item) => item.media_type === 'tv');
-                const displayRaw: MoovieCatalogItem[] = [];
-                const seen = new Set<string>();
-                const pushUnique = (item: MoovieCatalogItem) => {
-                    if (seen.has(item.id)) return;
-                    seen.add(item.id);
-                    displayRaw.push(item);
-                };
-                pool.slice(0, 12).forEach(pushUnique);
-                moviePool.slice(0, 18).forEach(pushUnique);
-                seriesPool.slice(0, 18).forEach(pushUnique);
-
-                const curated = await mapWithConcurrency(displayRaw, toCuratedItem, 4);
+                const artworkTargets = collectArtworkIds(pool, lang);
+                const curated = await mapWithConcurrency(artworkTargets, toCuratedItem, 5);
                 const byId = new Map(curated.map((item) => [String(item.id), item]));
-                const pick = (items: MoovieCatalogItem[], limit: number) =>
-                    items
-                        .map((item) => byId.get(String(item.id)))
-                        .filter((item): item is CuratedItem => Boolean(item))
-                        .slice(0, limit);
 
-                trendingItems.value = pick(pool, 12);
-                movieItems.value = pick(moviePool, 18);
-                seriesItems.value = pick(seriesPool, 18);
+                trendingItems.value = buildTrendingItems(pool, byId);
+                catalogueRails.value = buildNetflixRailSections(pool, lang, byId);
 
                 nfDebug('home:load:ok', {
                     language: lang.category,
                     pool: pool.length,
-                    curated: curated.length,
-                    movies: movieItems.value.length,
-                    series: seriesItems.value.length
+                    trending: trendingItems.value.length,
+                    rails: catalogueRails.value.length
                 });
 
                 updateSeo({
@@ -231,8 +226,7 @@ export default defineComponent({
             heroPlayRoute,
             heroDetailRoute,
             trendingItems,
-            movieItems,
-            seriesItems
+            catalogueRails
         };
     }
 });
@@ -247,6 +241,38 @@ export default defineComponent({
 
     &__main {
         position: relative;
+    }
+
+    &__lang-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: clamp(var(--s-5), 4vw, var(--s-6));
+        padding: 0.65rem 0;
+    }
+
+    &__lang-chip {
+        flex-shrink: 0;
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--r-pill);
+        background: rgba(229, 9, 20, 0.15);
+        border: 1px solid rgba(229, 9, 20, 0.35);
+        color: #ff6b6b;
+        font-family: var(--font-ui);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    &__lang-copy {
+        color: var(--bone-300);
+        font-size: var(--fs-sm);
+        line-height: var(--lh-base);
+
+        strong {
+            color: var(--bone-50);
+            font-weight: 600;
+        }
     }
 
     &__section {

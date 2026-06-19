@@ -10,6 +10,7 @@ export interface NetflixLanguageOption {
     matchLabels: string[];
 }
 
+/** Header language tabs — Korean is a catalogue rail, not a top-level tab. */
 export const NETFLIX_LANGUAGES: NetflixLanguageOption[] = [
     { category: 'hindi', label: 'Hindi', nativeLabel: 'हिंदी', matchLabels: ['Hindi', 'HindiDub'] },
     { category: 'english', label: 'English', nativeLabel: 'English', matchLabels: ['English'] },
@@ -17,9 +18,11 @@ export const NETFLIX_LANGUAGES: NetflixLanguageOption[] = [
     { category: 'tamil', label: 'Tamil', nativeLabel: 'தமிழ்', matchLabels: ['Tamil'] },
     { category: 'malayalam', label: 'Malayalam', nativeLabel: 'മലയാളം', matchLabels: ['Malayalam'] },
     { category: 'bengali', label: 'Bengali', nativeLabel: 'বাংলা', matchLabels: ['Bengali'] },
-    { category: 'korean', label: 'Korean', nativeLabel: '한국어', matchLabels: ['Korean'] },
+    { category: 'kannada', label: 'Kannada', nativeLabel: 'ಕನ್ನಡ', matchLabels: ['Kannada'] },
+    { category: 'marathi', label: 'Marathi', nativeLabel: 'मराठी', matchLabels: ['Marathi'] },
     { category: 'punjabi', label: 'Punjabi', nativeLabel: 'ਪੰਜਾਬੀ', matchLabels: ['Punjabi'] },
-    { category: 'marathi', label: 'Marathi', nativeLabel: 'मराठी', matchLabels: ['Marathi'] }
+    { category: 'arabic', label: 'Arabic', nativeLabel: 'العربية', matchLabels: ['Arabic', 'ArabicDub'] },
+    { category: 'urdu', label: 'Urdu', nativeLabel: 'اردو', matchLabels: ['Urdu'] }
 ];
 
 const selectedLanguage = useStorage<string>('movora_netflix_language', 'hindi');

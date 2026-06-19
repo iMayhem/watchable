@@ -59,8 +59,7 @@ import {
 import { useSeo } from '../composables/useSeo';
 import {
     mapWithConcurrency,
-    resolveArtworkForCatalogItem,
-    resolveTmdbArtwork
+    resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
@@ -180,16 +179,16 @@ export default defineComponent({
 
                 meta.value = await metaPromise;
 
-                const parsedTitle = parseCatalogTitle(meta.value?.title || '');
-                const tmdbArt = await resolveTmdbArtwork({
-                    title: parsedTitle.displayTitle || meta.value?.title || '',
-                    year: meta.value?.release_date,
-                    type: mediaType.value,
-                    cacheKey: `moovie-detail-${mediaType.value}-${id}`
+                const art = await resolveArtworkForCatalogItem({
+                    id: String(meta.value.id),
+                    title: meta.value?.title || '',
+                    release_date: meta.value?.release_date,
+                    media_type: mediaType.value,
+                    backdrop_path: meta.value?.backdrop_path || null
                 });
                 artwork.value = {
-                    posterPath: tmdbArt.posterPath || meta.value?.backdrop_path || null,
-                    backdropPath: tmdbArt.backdropPath || meta.value?.backdrop_path || null
+                    posterPath: art.posterPath || art.fallbackPath || null,
+                    backdropPath: art.backdropPath || art.fallbackPath || null
                 };
 
                 applySeo(id);

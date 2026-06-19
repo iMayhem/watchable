@@ -88,6 +88,27 @@ function pickBestMatch(
     return bestScore >= 45 ? best : results[0] || null;
 }
 
+function hasUsableArtwork(match: TmdbSearchResult | null): boolean {
+    return Boolean(match?.backdrop_path || match?.poster_path);
+}
+
+async function searchTmdbByType(
+    type: 'movie' | 'tv',
+    cleanTitle: string,
+    year: number | null
+): Promise<TmdbSearchResult | null> {
+    const params: Record<string, string | number> = {
+        query: cleanTitle,
+        include_adult: 'false'
+    };
+    if (type === 'movie' && year) params.year = year;
+    if (type === 'tv' && year) params.first_air_date_year = year;
+
+    const res = await useAxios().get(`search/${type}`, { params });
+    const results = (res.data?.results || []) as TmdbSearchResult[];
+    return pickBestMatch(results, cleanTitle, year);
+}
+
 export async function resolveTmdbArtwork(opts: {
     title: string;
     year?: string | number | null;
@@ -106,17 +127,17 @@ export async function resolveTmdbArtwork(opts: {
     if (cached) return cached;
 
     const year = parseYear(opts.year);
-    const params: Record<string, string | number> = {
-        query: cleanTitle,
-        include_adult: 'false'
-    };
-    if (opts.type === 'movie' && year) params.year = year;
-    if (opts.type === 'tv' && year) params.first_air_date_year = year;
 
     try {
-        const res = await useAxios().get(`search/${opts.type}`, { params });
-        const results = (res.data?.results || []) as TmdbSearchResult[];
-        const match = pickBestMatch(results, cleanTitle, year);
+        let match = await searchTmdbByType(opts.type, cleanTitle, year);
+
+        if (!hasUsableArtwork(match)) {
+            const altType = opts.type === 'movie' ? 'tv' : 'movie';
+            const altMatch = await searchTmdbByType(altType, cleanTitle, year);
+            if (hasUsableArtwork(altMatch)) {
+                match = altMatch;
+            }
+        }
 
         const artwork: TmdbArtwork = {
             posterPath: match?.poster_path || null,

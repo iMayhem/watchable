@@ -25,6 +25,50 @@ interface RailDefinition {
     priority: number;
 }
 
+const HOLLYWOOD_COUNTRIES = new Set([
+    'united states',
+    'united kingdom',
+    'canada',
+    'australia',
+    'new zealand',
+    'mexico',
+    'france',
+    'germany',
+    'spain',
+    'italy',
+    'poland',
+    'brazil',
+    'netherlands',
+    'belgium',
+    'sweden',
+    'norway',
+    'denmark',
+    'finland',
+    'ireland',
+    'south africa',
+    'argentina',
+    'colombia'
+]);
+
+const KOREAN_COUNTRIES = new Set(['south korea', 'korea', 'republic of korea']);
+const JAPAN_COUNTRIES = new Set(['japan']);
+const CHINESE_COUNTRIES = new Set(['china', 'hong kong', 'taiwan']);
+const ARAB_COUNTRIES = new Set([
+    'saudi arabia',
+    'united arab emirates',
+    'uae',
+    'egypt',
+    'morocco',
+    'lebanon',
+    'jordan',
+    'qatar',
+    'kuwait',
+    'bahrain',
+    'oman',
+    'iraq',
+    'syria'
+]);
+
 function haystack(item: MoovieCatalogItem): string {
     const parsed = parseCatalogTitle(item.title || '');
     return [
@@ -37,6 +81,14 @@ function haystack(item: MoovieCatalogItem): string {
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
+}
+
+function countryOf(item: MoovieCatalogItem): string {
+    return (item.cn || '').trim().toLowerCase();
+}
+
+function channelOf(item: MoovieCatalogItem): string {
+    return (item.channel || '').trim().toLowerCase();
 }
 
 function isMovie(item: MoovieCatalogItem) {
@@ -52,38 +104,82 @@ function hasAny(item: MoovieCatalogItem, needles: string[]) {
     return needles.some((n) => h.includes(n.toLowerCase()));
 }
 
+function hasLangTag(item: MoovieCatalogItem, ...needles: string[]) {
+    const parsed = parseCatalogTitle(item.title || '');
+    return needles.some((needle) => {
+        const n = needle.toLowerCase();
+        return parsed.languages.some((tag) => tag.toLowerCase().includes(n));
+    });
+}
+
 function hasLangBase(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     return itemMatchesLanguage(item, lang);
 }
 
+function isIndia(item: MoovieCatalogItem) {
+    return countryOf(item) === 'india';
+}
+
+function isHollywoodCountry(item: MoovieCatalogItem) {
+    const c = countryOf(item);
+    return Boolean(c) && HOLLYWOOD_COUNTRIES.has(c);
+}
+
+function isAsianCinemaCountry(item: MoovieCatalogItem) {
+    const c = countryOf(item);
+    return (
+        KOREAN_COUNTRIES.has(c) ||
+        JAPAN_COUNTRIES.has(c) ||
+        CHINESE_COUNTRIES.has(c)
+    );
+}
+
+/** Catalogue items use [Hindi] tags + country (cn), not literal "Hollywood" labels. */
 function hollywoodMovie(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     if (!isMovie(item) || !hasLangBase(item, lang)) return false;
-    if (hasAny(item, ['bollywood', 'tollywood', 'kollywood', 'sandalwood'])) return false;
-    return hasAny(item, [
-        'hollywood',
-        'english',
-        'eng dub',
-        'engdub',
-        'hindidub',
-        'hindi dub',
-        'dual audio',
-        'multi audio'
-    ]);
+    if (isIndia(item)) return false;
+    if (isAsianCinemaCountry(item)) return false;
+    const c = countryOf(item);
+    if (!c) return false;
+    if (ARAB_COUNTRIES.has(c)) return false;
+    return isHollywoodCountry(item) || !isIndia(item);
 }
 
 function bollywoodMovie(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     if (!isMovie(item) || !hasLangBase(item, lang)) return false;
-    return hasAny(item, ['bollywood', 'hindi movie', 'hindi film']);
+    return isIndia(item);
 }
 
 function koreanMovie(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     if (!isMovie(item) || !hasLangBase(item, lang)) return false;
-    return hasAny(item, ['korean', 'k-drama', 'korea', 'k movie']);
+    return KOREAN_COUNTRIES.has(countryOf(item)) || hasLangTag(item, 'korean', 'korea');
 }
 
 function koreanSeries(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     if (!isSeries(item) || !hasLangBase(item, lang)) return false;
-    return hasAny(item, ['korean', 'k-drama', 'korea', 'k series']);
+    return KOREAN_COUNTRIES.has(countryOf(item)) || hasAny(item, ['korean', 'k-drama', 'korea']);
+}
+
+function englishSeries(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
+    if (!isSeries(item) || !hasLangBase(item, lang)) return false;
+    if (isIndia(item)) return false;
+    if (JAPAN_COUNTRIES.has(countryOf(item)) && channelOf(item).includes('anime')) return false;
+    if (KOREAN_COUNTRIES.has(countryOf(item))) return false;
+    return isHollywoodCountry(item) || channelOf(item).includes('hindidub');
+}
+
+function hindiSeries(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
+    if (!isSeries(item) || !hasLangBase(item, lang)) return false;
+    return isIndia(item);
+}
+
+function japaneseSeries(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
+    if (!isSeries(item) || !hasLangBase(item, lang)) return false;
+    return (
+        JAPAN_COUNTRIES.has(countryOf(item)) ||
+        channelOf(item).includes('anime') ||
+        hasAny(item, ['anime', 'kimetsu', 'naruto', 'one piece'])
+    );
 }
 
 function regionalMovies(
@@ -92,16 +188,14 @@ function regionalMovies(
     regionNeedles: string[]
 ) {
     if (!isMovie(item) || !hasLangBase(item, lang)) return false;
-    return hasAny(item, regionNeedles);
+    return regionNeedles.some(
+        (needle) => hasLangTag(item, needle) || haystack(item).includes(needle.toLowerCase())
+    );
 }
 
-function regionalSeries(
-    item: MoovieCatalogItem,
-    lang: NetflixLanguageOption,
-    regionNeedles: string[]
-) {
-    if (!isSeries(item) || !hasLangBase(item, lang)) return false;
-    return hasAny(item, regionNeedles);
+function arabicMovie(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
+    if (!isMovie(item) || !hasLangBase(item, lang)) return false;
+    return ARAB_COUNTRIES.has(countryOf(item)) || hasLangTag(item, 'arabic', 'arab');
 }
 
 const RAIL_DEFINITIONS: RailDefinition[] = [
@@ -219,8 +313,7 @@ const RAIL_DEFINITIONS: RailDefinition[] = [
         eyebrow: 'Anime',
         description: (lang) => `Japanese anime and shows in ${lang.label}.`,
         defaultType: 'tv',
-        match: (item, lang) =>
-            regionalSeries(item, lang, ['japanese', 'anime', 'japan']),
+        match: japaneseSeries,
         priority: 30
     },
     {
@@ -229,7 +322,7 @@ const RAIL_DEFINITIONS: RailDefinition[] = [
         eyebrow: 'Middle East',
         description: (lang) => `Arabic cinema in ${lang.label}.`,
         defaultType: 'movie',
-        match: (item, lang) => regionalMovies(item, lang, ['arabic', 'arab']),
+        match: arabicMovie,
         priority: 25
     },
     {
@@ -247,8 +340,7 @@ const RAIL_DEFINITIONS: RailDefinition[] = [
         eyebrow: 'International',
         description: (lang) => `English-language series with ${lang.label} audio.`,
         defaultType: 'tv',
-        match: (item, lang) =>
-            regionalSeries(item, lang, ['english', 'hollywood', 'web series']),
+        match: englishSeries,
         priority: 15
     },
     {
@@ -257,8 +349,7 @@ const RAIL_DEFINITIONS: RailDefinition[] = [
         eyebrow: 'Shows',
         description: (lang) => `Hindi-language series and seasons in ${lang.label}.`,
         defaultType: 'tv',
-        match: (item, lang) =>
-            regionalSeries(item, lang, ['hindi', 'hindidub', 'hindi dub']),
+        match: hindiSeries,
         priority: 10
     }
 ];
@@ -278,7 +369,7 @@ const LANGUAGE_RAIL_BOOST: Record<string, string[]> = {
     english: ['hollywood', 'english-series']
 };
 
-const MIN_RAIL_ITEMS = 4;
+const MIN_RAIL_ITEMS = 3;
 const MAX_PER_RAIL = 14;
 const MAX_TRENDING = 12;
 

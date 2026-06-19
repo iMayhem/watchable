@@ -52,7 +52,7 @@
             <div class="container-lm billboard__content">
                 <span class="eyebrow billboard__eyebrow">{{ eyebrow }}</span>
 
-                <h1 class="billboard__title display" data-reveal>
+                <h1 class="billboard__title display">
                     {{ title }}
                 </h1>
 

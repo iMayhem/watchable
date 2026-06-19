@@ -276,10 +276,16 @@ const KOREAN_NAV_ROW_IDS = new Set([
     'exciting-tv'
 ]);
 
-function isKoreanNavActive(path: string): boolean {
+function isKoreanNavActive(path: string, catalogueId?: string): boolean {
     const match = path.match(/^\/nf\/browse\/korean\/([^/?#]+)/);
-    if (!match) return false;
-    return KOREAN_NAV_ROW_IDS.has(match[1]);
+    if (match) {
+        return KOREAN_NAV_ROW_IDS.has(match[1]);
+    }
+    const isNetflixDetailOrPlayer =
+        path.startsWith('/nf/movie/') ||
+        path.startsWith('/nf/tv/') ||
+        path.includes('/stream/nf/');
+    return Boolean(isNetflixDetailOrPlayer && catalogueId === 'korean');
 }
 
 function isAnimeNavActive(path: string, catalogueId: string): boolean {
@@ -458,24 +464,33 @@ export default defineComponent({
 
             const moviesCatalogue = cat === 'korean' ? 'hollywood' : cat;
 
-            const isTvSection =
-                path === netflixBrowsePath(cat, 'exciting-tv') ||
-                path === netflixBrowsePath(cat, 'top10-tv') ||
+            const isNetflixDetailOrPlayer =
+                path.startsWith('/nf/movie/') ||
                 path.startsWith('/nf/tv/') ||
-                path.includes('/stream/nf/tv/') ||
-                (path === '/nf/categories' && route.query.type === 'tv') ||
-                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'tv');
+                path.includes('/stream/nf/');
+
+            const isTvSection =
+                (cat !== 'korean' || !isNetflixDetailOrPlayer) && (
+                    path === netflixBrowsePath(cat, 'exciting-tv') ||
+                    path === netflixBrowsePath(cat, 'top10-tv') ||
+                    path.startsWith('/nf/tv/') ||
+                    path.includes('/stream/nf/tv/') ||
+                    (path === '/nf/categories' && route.query.type === 'tv') ||
+                    (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'tv')
+                );
 
             const isMovieSection =
-                path === netflixBrowsePath(moviesCatalogue, 'blockbuster-movies') ||
-                path === netflixBrowsePath(moviesCatalogue, 'top10-movies') ||
-                (cat !== 'korean' &&
-                    (path === netflixBrowsePath(cat, 'blockbuster-movies') ||
-                        path === netflixBrowsePath(cat, 'top10-movies'))) ||
-                path.startsWith('/nf/movie/') ||
-                path.includes('/stream/nf/movie/') ||
-                (path === '/nf/categories' && route.query.type === 'movie') ||
-                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'movie');
+                (cat !== 'korean' || !isNetflixDetailOrPlayer) && (
+                    path === netflixBrowsePath(moviesCatalogue, 'blockbuster-movies') ||
+                    path === netflixBrowsePath(moviesCatalogue, 'top10-movies') ||
+                    (cat !== 'korean' &&
+                        (path === netflixBrowsePath(cat, 'blockbuster-movies') ||
+                            path === netflixBrowsePath(cat, 'top10-movies'))) ||
+                    path.startsWith('/nf/movie/') ||
+                    path.includes('/stream/nf/movie/') ||
+                    (path === '/nf/categories' && route.query.type === 'movie') ||
+                    (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'movie')
+                );
 
             return [
                 {
@@ -503,7 +518,7 @@ export default defineComponent({
                     label: 'Korean',
                     path: netflixBrowsePath('korean', 'korean-movies'),
                     setCatalogue: 'korean',
-                    isActive: () => isKoreanNavActive(path)
+                    isActive: () => isKoreanNavActive(path, cat)
                 },
 
                 {

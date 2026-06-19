@@ -375,12 +375,6 @@ export default defineComponent({
             meta?: { title?: string } | null
         ): Promise<string | null> => {
             const numericId = Number(id);
-            if (Number.isFinite(numericId)) {
-                const byAnilist = await fetchAnimeCatalogCacheByIds([numericId]);
-                if (byAnilist.has(numericId)) {
-                    return netflixAnimeDetailPath(numericId);
-                }
-            }
 
             const byMoovie = await fetchAnimeCatalogCacheByMoovieIds([id]);
             const mapped = byMoovie.get(id);
@@ -390,6 +384,18 @@ export default defineComponent({
 
             if (!meta?.title || !Number.isFinite(numericId)) {
                 return null;
+            }
+
+            const byAnilist = await fetchAnimeCatalogCacheByIds([numericId]);
+            if (byAnilist.has(numericId)) {
+                const row = byAnilist.get(numericId);
+                const catalogDisplay = parseCatalogTitle(meta.title).displayTitle || meta.title;
+                if (row?.catalog_title) {
+                    const rowDisplay = parseCatalogTitle(row.catalog_title).displayTitle || row.catalog_title;
+                    if (bestTitleMatchScore([rowDisplay], catalogDisplay) >= ANIME_CATALOG_MIN_MATCH_SCORE) {
+                        return netflixAnimeDetailPath(numericId);
+                    }
+                }
             }
 
             try {
@@ -413,7 +419,7 @@ export default defineComponent({
                 const catalogDisplay =
                     parseCatalogTitle(meta.title).displayTitle || meta.title;
                 const score = bestTitleMatchScore(anilistTitles, catalogDisplay);
-                if (score < ANIME_CATALOG_MIN_MATCH_SCORE) {
+                if (score >= ANIME_CATALOG_MIN_MATCH_SCORE) {
                     return netflixAnimeDetailPath(numericId);
                 }
             } catch {

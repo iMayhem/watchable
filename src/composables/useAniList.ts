@@ -2,6 +2,7 @@ import { ref } from 'vue';
 
 export interface AnimeMedia {
   id: number;
+  idMal: number | null;
   title: {
     romaji: string;
     english: string | null;
@@ -41,6 +42,7 @@ const ANILIST_API = 'https://graphql.anilist.co';
 
 const ANIME_BROWSE_MEDIA_FIELDS = `
   id
+  idMal
   title {
     romaji
     english

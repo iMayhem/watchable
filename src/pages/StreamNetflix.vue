@@ -43,6 +43,12 @@
             @up-next-play="onUpNextPlay"
             @up-next-cancel="onUpNextCancel"
             @up-next-complete="onUpNextPlay"
+            :show-anime-skips="showAnimeSkips"
+            :skip-action-visible="skipActionVisible"
+            :skip-action-label="skipActionLabel"
+            :auto-skip-enabled="autoSkipEnabled"
+            @skip-segment="onSkipSegment"
+            @toggle-auto-skip="onToggleAutoSkip"
         />
     </div>
 </template>
@@ -81,6 +87,7 @@ import {
 } from '../composables/useNetflixLanguage';
 import { useToast } from '../composables/useToast';
 import { nfDebug } from '../composables/useNetflixDebug';
+import { useNetflixAniskip } from '../composables/useNetflixAniskip';
 
 export default defineComponent({
     name: 'StreamNetflix',
@@ -149,6 +156,16 @@ export default defineComponent({
         const currentEpisode = computed(() =>
             parseInt(String(route.params.episode || '1'), 10)
         );
+
+        const aniskip = useNetflixAniskip({
+            catalogId: playbackEntryId,
+            currentSeason,
+            currentEpisode,
+            episodeSeasons,
+            duration,
+            currentTime,
+            seekTo
+        });
 
         const bindPlayerContainer = (el: HTMLElement | null) => {
             artContainer.value = el;
@@ -788,7 +805,13 @@ export default defineComponent({
             upNextActive,
             upNextEpisode,
             onUpNextPlay,
-            onUpNextCancel
+            onUpNextCancel,
+            showAnimeSkips: aniskip.isAnime,
+            skipActionVisible: aniskip.skipActionVisible,
+            skipActionLabel: aniskip.skipActionLabel,
+            autoSkipEnabled: aniskip.autoSkip,
+            onSkipSegment: aniskip.onSkipSegment,
+            onToggleAutoSkip: aniskip.toggleAutoSkip
         };
     }
 });

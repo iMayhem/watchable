@@ -3,7 +3,7 @@
         ref="shellRef"
         class="nf-watch"
         :class="{
-            'is-idle': !controlsVisible && artReady && !switchingAudioLabel && !switchingEpisodeLabel && !menuOpen && !episodesOpen && !upNextActive,
+            'is-idle': !controlsVisible && artReady && !switchingAudioLabel && !switchingEpisodeLabel && !menuOpen && !episodesOpen && !upNextActive && !skipActionVisible,
             'is-fs': isFullscreen,
             'is-switching-audio': Boolean(switchingAudioLabel),
             'is-switching-episode': Boolean(switchingEpisodeLabel),
@@ -47,6 +47,15 @@
                     <span class="nf-watch__spinner nf-watch__status-spinner" aria-hidden="true" />
                 </div>
             </div>
+
+            <button
+                v-if="skipActionVisible"
+                type="button"
+                class="nf-watch__skip-btn"
+                @click.stop="$emit('skip-segment')"
+            >
+                {{ skipActionLabel }}
+            </button>
 
             <NetflixUpNext
                 :active="upNextActive"
@@ -141,6 +150,17 @@
                 </div>
 
                 <div class="nf-watch__bar-right">
+                    <button
+                        v-if="showAnimeSkips"
+                        type="button"
+                        class="nf-watch__autoskip-btn"
+                        :class="{ 'is-on': autoSkipEnabled }"
+                        :aria-pressed="autoSkipEnabled"
+                        @click.stop="$emit('toggle-auto-skip')"
+                    >
+                        Auto-skip {{ autoSkipEnabled ? 'On' : 'Off' }}
+                    </button>
+
                     <button
                         v-if="showEpisodes"
                         type="button"
@@ -354,6 +374,10 @@ export default defineComponent({
             type: Object as PropType<NetflixUpNextEpisode | null>,
             default: null
         },
+        showAnimeSkips: { type: Boolean, default: false },
+        skipActionVisible: { type: Boolean, default: false },
+        skipActionLabel: { type: String, default: 'Skip Intro' },
+        autoSkipEnabled: { type: Boolean, default: true },
         bindContainer: {
             type: Function as PropType<(el: HTMLElement | null) => void>,
             required: true
@@ -373,7 +397,9 @@ export default defineComponent({
         'episode-next',
         'up-next-play',
         'up-next-cancel',
-        'up-next-complete'
+        'up-next-complete',
+        'skip-segment',
+        'toggle-auto-skip'
     ],
     setup(props, { emit }) {
         const shellRef = ref<HTMLElement | null>(null);
@@ -711,6 +737,29 @@ export default defineComponent({
         :deep(.art-settings),
         :deep(.art-contextmenus) {
             display: none !important;
+        }
+    }
+
+    &__skip-btn {
+        position: absolute;
+        right: 1.5rem;
+        top: 50%;
+        z-index: 6;
+        transform: translateY(-50%);
+        padding: 0.65rem 1.35rem;
+        border: 2px solid rgba(255, 255, 255, 0.85);
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.65);
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.15s ease;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.14);
+            transform: translateY(-50%) scale(1.02);
         }
     }
 
@@ -1097,6 +1146,32 @@ export default defineComponent({
 
     &.is-idle {
         cursor: none;
+    }
+
+    &__autoskip-btn {
+        display: inline-flex;
+        align-items: center;
+        height: 36px;
+        padding: 0 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 4px;
+        background: rgba(20, 20, 20, 0.8);
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+        &.is-on {
+            color: #fff;
+            border-color: var(--ember);
+            background: rgba(255, 90, 31, 0.18);
+        }
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
     }
 
     &__episodes-btn {

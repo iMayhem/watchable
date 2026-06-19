@@ -16,6 +16,8 @@ import {
     NETFLIX_LANGUAGES,
     type NetflixLanguageOption
 } from './useNetflixLanguage';
+import { catalogBrowseRankScore } from './useNetflixBrowseRank';
+import type { CatalogTmdbMeta } from './useTmdbArtwork';
 
 function normalizeCatalogTitle(value: string): string {
     return value
@@ -205,6 +207,11 @@ export function netflixCatalogDetailPath(item: {
     media_type?: string;
     type?: 'movie' | 'tv';
     anilistId?: number;
+    duration?: unknown;
+    embed?: string | null;
+    subjectid?: string | null;
+    embed_en?: string | null;
+    season?: unknown;
 }): string {
     if (item.anilistId && Number(item.anilistId) > 0) {
         return `/nf/anime/${item.anilistId}`;
@@ -223,7 +230,12 @@ export function netflixCatalogDetailPath(item: {
 
     const mediaType = inferCatalogMediaType({
         title: item.title || '',
-        media_type: item.media_type || item.type
+        media_type: item.media_type || item.type,
+        duration: item.duration,
+        embed: item.embed,
+        subjectid: item.subjectid,
+        embed_en: item.embed_en,
+        season: item.season
     });
     return `/nf/${mediaType}/${item.id}`;
 }
@@ -241,6 +253,11 @@ export function catalogStreamTarget(
         id: string;
         title?: string;
         media_type?: string;
+        duration?: unknown;
+        embed?: string | null;
+        subjectid?: string | null;
+        embed_en?: string | null;
+        season?: unknown;
     },
     opts: {
         supportsEpisodes?: boolean;
@@ -465,12 +482,14 @@ export function playbackLanguageCategoryForItem(
  */
 export function dedupeCatalogItemsByVariantFamily(
     items: MoovieCatalogItem[],
-    opts: { preferredLang?: NetflixLanguageOption } = {}
+    opts: {
+        preferredLang?: NetflixLanguageOption;
+        tmdbById?: Map<string, CatalogTmdbMeta>;
+    } = {}
 ): MoovieCatalogItem[] {
     if (!items.length) return [];
 
     const groups = new Map<string, MoovieCatalogItem[]>();
-    const order: string[] = [];
 
     for (const item of items) {
         const key = catalogVariantFamilyKey(item);
@@ -478,13 +497,23 @@ export function dedupeCatalogItemsByVariantFamily(
         if (bucket) {
             bucket.push(item);
         } else {
-            order.push(key);
             groups.set(key, [item]);
         }
     }
 
-    return order
-        .map((key) => pickCatalogPlayVariant(groups.get(key)!, opts.preferredLang))
+    const rankCtx = { tmdbById: opts.tmdbById };
+    const families = [...groups.entries()]
+        .map(([key, variants]) => ({
+            key,
+            variants,
+            score: Math.max(
+                ...variants.map((item) => catalogBrowseRankScore(item, rankCtx))
+            )
+        }))
+        .sort((a, b) => b.score - a.score);
+
+    return families
+        .map((row) => pickCatalogPlayVariant(row.variants, opts.preferredLang))
         .filter((item): item is MoovieCatalogItem => item != null);
 }
 

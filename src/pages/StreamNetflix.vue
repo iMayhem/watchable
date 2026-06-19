@@ -62,7 +62,6 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import {
     catalogHasEpisodeGuide,
-    fetchMoovieCatalogMeta,
     fetchMoovieCatalogMetaResolved,
     inferCatalogMediaType,
     parseCatalogTitle
@@ -204,10 +203,7 @@ export default defineComponent({
             if (!supportsEpisodes.value) return false;
             const meta = resolved.value?.meta;
             if (!meta?.title) return false;
-            return catalogHasEpisodeGuide(
-                { title: meta.title, media_type: meta.media_type },
-                routeMediaType.value
-            );
+            return catalogHasEpisodeGuide(meta, routeMediaType.value);
         });
 
         const streamType = computed((): 'movie' | 'tv' => {
@@ -359,6 +355,7 @@ export default defineComponent({
                     const seeded = languageOptionsFromLabels(cached);
                     if (seeded.length) {
                         availableLanguages.value = seeded;
+                        return;
                     }
                 }
             }
@@ -366,7 +363,10 @@ export default defineComponent({
             const anchor = anchorTitle
                 ? { title: anchorTitle, media_type: mediaType.value }
                 : undefined;
-            const variants = await findCatalogueLanguageVariants(displayTitle, { anchor });
+            const variants = await findCatalogueLanguageVariants(displayTitle, {
+                anchor,
+                maxPages: 3
+            });
             const anchorItem = anchor
                 ? ({ title: anchorTitle, media_type: mediaType.value } as const)
                 : undefined;
@@ -391,34 +391,26 @@ export default defineComponent({
             if (!id) return true;
             if (isPartyEmbed.value) return true;
 
-            resetEpisodes();
-
             try {
-                const meta = await fetchMoovieCatalogMeta(routeMediaType.value, id);
+                const meta = await fetchMoovieCatalogMetaResolved(
+                    routeMediaType.value,
+                    id
+                );
                 const season = parseInt(String(route.params.season || '1'), 10);
                 const episode = parseInt(String(route.params.episode || '1'), 10);
-
-                await loadEpisodes(
-                    {
-                        id,
-                        title: meta.title || '',
-                        release_date: meta.release_date,
-                        media_type: meta.media_type
-                    },
-                    { season, routeType: routeMediaType.value }
-                );
 
                 const target = catalogStreamTarget(
                     {
                         id,
                         title: meta.title,
-                        media_type: meta.media_type
+                        media_type: meta.media_type,
+                        duration: meta.duration,
+                        embed: meta.embed,
+                        subjectid: meta.subjectid,
+                        embed_en: meta.embed_en,
+                        season: meta.season
                     },
-                    {
-                        supportsEpisodes: supportsEpisodes.value,
-                        season,
-                        episode
-                    }
+                    { season, episode }
                 );
 
                 const targetPath = streamPathForEmbed(target.path);
@@ -427,6 +419,7 @@ export default defineComponent({
                     playbackEntryId.value = id;
                     skipRoutePlayback = true;
                     await router.replace({ path: targetPath, query: { ...route.query } });
+                    await startPlayback();
                     return false;
                 }
             } catch (err) {
@@ -442,16 +435,19 @@ export default defineComponent({
         };
 
         const playbackTypeForId = (
-            id: string,
-            meta?: { title?: string; media_type?: string } | null
+            _id: string,
+            meta?: {
+                title?: string;
+                media_type?: string;
+                duration?: unknown;
+                embed?: string | null;
+                subjectid?: string | null;
+                embed_en?: string | null;
+                season?: unknown;
+            } | null
         ): 'movie' | 'tv' => {
             if (meta?.title) {
-                if (
-                    !catalogHasEpisodeGuide(
-                        { title: meta.title, media_type: meta.media_type },
-                        routeMediaType.value
-                    )
-                ) {
+                if (!catalogHasEpisodeGuide(meta, routeMediaType.value)) {
                     return 'movie';
                 }
                 return inferCatalogMediaType(meta);
@@ -459,110 +455,158 @@ export default defineComponent({
             return routeMediaType.value === 'tv' ? 'tv' : 'movie';
         };
 
+        const hydratePlaybackSidecars = async (
+            id: string,
+            catalogMeta: {
+                title?: string;
+                channel?: string;
+                media_type?: string;
+                release_date?: string;
+                duration?: unknown;
+                embed?: string | null;
+                subjectid?: string | null;
+                embed_en?: string | null;
+                season?: unknown;
+            },
+            type: 'movie' | 'tv',
+            season: number
+        ) => {
+            if (catalogMeta.title) {
+                syncPlayingLanguageFromTitle(
+                    catalogMeta.title,
+                    catalogMeta.channel
+                );
+                seedLanguagesFromTitle(catalogMeta.title, id);
+            }
+
+            const parsed = parseCatalogTitle(catalogMeta.title || '');
+            if (parsed.displayTitle && catalogMeta.title) {
+                await loadAvailableLanguages(
+                    parsed.displayTitle,
+                    catalogMeta.title,
+                    id
+                );
+            }
+
+            if (catalogHasEpisodeGuide(catalogMeta, routeMediaType.value)) {
+                await loadEpisodes(
+                    {
+                        id,
+                        title: catalogMeta.title || '',
+                        release_date: catalogMeta.release_date,
+                        media_type:
+                            catalogMeta.media_type === 'tv'
+                                ? 'tv'
+                                : catalogMeta.media_type === 'movie'
+                                  ? 'movie'
+                                  : type,
+                        duration: catalogMeta.duration as
+                            | string
+                            | number
+                            | null
+                            | undefined,
+                        embed: catalogMeta.embed,
+                        subjectid: catalogMeta.subjectid,
+                        embed_en: catalogMeta.embed_en,
+                        season: catalogMeta.season
+                    },
+                    { season, routeType: routeMediaType.value }
+                );
+            }
+        };
+
         const startPlayback = async () => {
             const id = playbackEntryId.value;
             if (!id) return;
 
             resetEpisodes();
-            languagesLoading.value = true;
+
+            const routeSeason = parseInt(String(route.params.season || '1'), 10);
+            const routeEpisode = parseInt(String(route.params.episode || '1'), 10);
+
             let catalogMeta: {
                 title?: string;
-                channel?: string;
                 media_type?: string;
+                channel?: string;
                 release_date?: string;
+                duration?: unknown;
+                embed?: string | null;
+                subjectid?: string | null;
+                embed_en?: string | null;
+                season?: unknown;
             } | null = null;
 
             try {
-                const [meta, cache] = await Promise.all([
-                    fetchMoovieCatalogMetaResolved(routeMediaType.value, id),
-                    fetchCatalogAudioCacheByIds([id])
-                ]);
-                catalogMeta = meta;
+                catalogMeta = await fetchMoovieCatalogMetaResolved(
+                    routeMediaType.value,
+                    id
+                );
+            } catch {
+                /* resolve with route hints */
+            }
 
-                const type = playbackTypeForId(id, catalogMeta);
-                const season =
-                    type === 'tv'
-                        ? parseInt(String(route.params.season || '1'), 10)
-                        : 0;
-                const episode =
-                    type === 'tv'
-                        ? parseInt(String(route.params.episode || '1'), 10)
-                        : 0;
+            const target = catalogMeta?.title
+                ? catalogStreamTarget(
+                      {
+                          id,
+                          title: catalogMeta.title,
+                          media_type: catalogMeta.media_type,
+                          duration: catalogMeta.duration,
+                          embed: catalogMeta.embed,
+                          subjectid: catalogMeta.subjectid,
+                          embed_en: catalogMeta.embed_en,
+                          season: catalogMeta.season
+                      },
+                      { season: routeSeason, episode: routeEpisode }
+                  )
+                : null;
 
-                nfDebug('stream:playback:start', { id, type, season, episode });
+            const type =
+                target?.mediaType ??
+                playbackTypeForId(id, catalogMeta);
+            const season =
+                target?.season ??
+                (type === 'tv' ? routeSeason : 0);
+            const episode =
+                target?.episode ??
+                (type === 'tv' ? routeEpisode : 0);
 
-                if (catalogMeta) {
-                    syncPlayingLanguageFromTitle(
-                        catalogMeta.title || '',
-                        catalogMeta.channel
+            nfDebug('stream:playback:start', { id, type, season, episode });
+
+            try {
+                // Resolve streams first — languages/episodes must not block playback.
+                await resolveAndPlay({ type, id, season, episode });
+
+                const meta = resolved.value?.meta;
+                const sidecarMeta = meta?.title
+                    ? meta
+                    : catalogMeta;
+                if (!sidecarMeta?.title) return;
+
+                languagesLoading.value = true;
+                try {
+                    await hydratePlaybackSidecars(
+                        id,
+                        {
+                            title: sidecarMeta.title,
+                            media_type: sidecarMeta.media_type,
+                            channel: catalogMeta?.channel,
+                            release_date: catalogMeta?.release_date || ''
+                        },
+                        type,
+                        season
                     );
-                    seedLanguagesFromTitle(catalogMeta.title || '', id);
-                }
-
-                const cached = cache.get(String(id));
-                if (cached?.length) {
-                    const seeded = languageOptionsFromLabels(cached);
-                    if (seeded.length) availableLanguages.value = seeded;
-                }
-
-                const parsed = parseCatalogTitle(catalogMeta?.title || '');
-                const languageLoadPromise =
-                    parsed.displayTitle && catalogMeta?.title
-                        ? loadAvailableLanguages(
-                              parsed.displayTitle,
-                              catalogMeta.title,
-                              id
-                          )
-                        : Promise.resolve();
-
-                const episodesPromise = catalogMeta
-                    ? loadEpisodes(
-                          {
-                              id,
-                              title: catalogMeta.title || '',
-                              release_date: catalogMeta.release_date,
-                              media_type: type
-                          },
-                          { season, routeType: routeMediaType.value }
-                      )
-                    : Promise.resolve();
-
-                await Promise.all([
-                    resolveAndPlay({ type, id, season, episode }),
-                    languageLoadPromise,
-                    episodesPromise
-                ]);
-
-                const title = resolved.value?.meta?.title || catalogMeta?.title || '';
-                if (title) {
-                    syncPlayingLanguageFromTitle(title, catalogMeta?.channel);
+                } finally {
+                    languagesLoading.value = false;
                 }
             } catch (err) {
                 nfDebug('stream:playback:fail', { id, err });
-            } finally {
-                languagesLoading.value = false;
             }
         };
 
         const onQuality = (index: number) => {
             nfDebug('stream:quality', { index });
             switchQuality(index, resolveUrl.value);
-        };
-
-        const refreshEpisodeCatalog = async () => {
-            const meta = resolved.value?.meta;
-            if (!meta?.title) return;
-            await loadEpisodes(
-                {
-                    id: playbackEntryId.value,
-                    title: meta.title,
-                    media_type:
-                        meta.media_type === 'tv' || meta.media_type === 'movie'
-                            ? meta.media_type
-                            : mediaType.value
-                },
-                { season: currentSeason.value, routeType: routeMediaType.value }
-            );
         };
 
         const switchEpisode = async (season: number, episode: number) => {
@@ -775,8 +819,10 @@ export default defineComponent({
             });
             if (!started) {
                 started = true;
-                await ensureCanonicalStreamRoute();
-                await startPlayback();
+                const shouldStart = await ensureCanonicalStreamRoute();
+                if (shouldStart) {
+                    await startPlayback();
+                }
             }
         });
 
@@ -813,7 +859,6 @@ export default defineComponent({
                 if (catalogTitle) {
                     syncPlayingLanguageFromTitle(catalogTitle);
                 }
-                void refreshEpisodeCatalog();
             }
         );
 

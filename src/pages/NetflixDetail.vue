@@ -137,12 +137,27 @@ export default defineComponent({
             setSeason: setPickerSeason
         } = useNetflixCatalogEpisodes();
 
+        const catalogSignals = (source?: {
+            title?: string;
+            media_type?: string;
+            duration?: unknown;
+            embed?: string | null;
+            subjectid?: string | null;
+            embed_en?: string | null;
+            season?: unknown;
+        } | null) => ({
+            title: source?.title,
+            media_type: source?.media_type,
+            duration: source?.duration,
+            embed: source?.embed,
+            subjectid: source?.subjectid,
+            embed_en: source?.embed_en,
+            season: source?.season
+        });
+
         const mediaType = computed((): 'movie' | 'tv' => {
             if (meta.value) {
-                return inferCatalogMediaType({
-                    title: meta.value.title,
-                    media_type: meta.value.media_type
-                });
+                return inferCatalogMediaType(catalogSignals(meta.value));
             }
             return route.params.type === 'tv' ? 'tv' : 'movie';
         });
@@ -167,8 +182,7 @@ export default defineComponent({
             return catalogStreamTarget(
                 {
                     id,
-                    title: meta.value.title,
-                    media_type: meta.value.media_type
+                    ...catalogSignals(meta.value)
                 },
                 {
                     supportsEpisodes: supportsEpisodes.value,
@@ -303,11 +317,16 @@ export default defineComponent({
                     id: String(item.id),
                     title: item.title || '',
                     release_date: item.release_date,
-                    media_type: item.media_type
+                    media_type: item.media_type,
+                    duration: item.duration,
+                    embed: item.embed,
+                    subjectid: item.subjectid,
+                    embed_en: item.embed_en,
+                    season: item.season
                 },
                 {
                     season: selectedSeason.value,
-                    routeType: route.params.type === 'tv' ? 'tv' : 'movie'
+                    routeType: mediaType.value
                 }
             );
         };
@@ -447,10 +466,7 @@ export default defineComponent({
                     }
                 }
 
-                const resolvedType = inferCatalogMediaType({
-                    title: meta.value.title,
-                    media_type: meta.value.media_type
-                });
+                const resolvedType = inferCatalogMediaType(catalogSignals(meta.value));
 
                 applyInstantArtwork(
                     {

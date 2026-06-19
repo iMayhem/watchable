@@ -21,8 +21,10 @@ function curatedMediaType(
     item: MoovieCatalogItem,
     enrichment?: CatalogEnrichmentRow
 ): 'movie' | 'tv' {
-    if (enrichment?.media_type === 'tv') return 'tv';
-    return inferCatalogMediaType(item);
+    const inferred = inferCatalogMediaType(item);
+    if (inferred === 'movie') return 'movie';
+    if (enrichment?.media_type === 'movie') return 'movie';
+    return inferred;
 }
 
 export function resolveInstantCatalogArtwork(

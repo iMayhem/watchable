@@ -196,6 +196,7 @@ import {
     buildCatalogLanguageMap,
     dedupeCatalogItemsByVariantFamily
 } from '../composables/useNetflixCatalogLookup';
+import { sortCatalogByBrowseRank } from '../composables/useNetflixBrowseRank';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 import {
     toCuratedItemFast
@@ -324,9 +325,11 @@ export default defineComponent({
 
                 const languageMap = buildCatalogLanguageMap(searchVariantPool.value);
                 const filtered = filterCataloguePool(searchVariantPool.value, cat.id, lang);
-                const deduped = dedupeCatalogItemsByVariantFamily(filtered, {
-                    preferredLang: lang
-                });
+                const deduped = sortCatalogByBrowseRank(
+                    dedupeCatalogItemsByVariantFamily(filtered, {
+                        preferredLang: lang
+                    })
+                );
                 const generation = searchGeneration.value + 1;
                 searchGeneration.value = generation;
 

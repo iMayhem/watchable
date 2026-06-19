@@ -287,16 +287,17 @@ export default defineComponent({
             ) {
                 return;
             }
-            const mediaType =
-                props.type === 'tv' || (props.moovieCatalogId && props.catalogTitle)
-                    ? 'tv'
-                    : 'movie';
+            const target = catalogStreamTarget({
+                id: catalogId,
+                title: netflixCatalogTitle.value,
+                media_type: props.type === 'tv' ? 'tv' : 'movie'
+            });
             void warmMooviePlayerAssets();
             prefetchMoovieResolve({
-                type: mediaType,
+                type: target.mediaType,
                 id: catalogId,
-                season: mediaType === 'tv' ? 1 : 0,
-                episode: mediaType === 'tv' ? 1 : 0
+                season: target.season,
+                episode: target.episode
             });
         };
 
@@ -332,8 +333,9 @@ export default defineComponent({
                         path: catalogStreamTarget({
                             id: props.moovieCatalogId,
                             title: props.catalogTitle,
-                            media_type: 'tv'
-                        }).path
+                            media_type: props.type === 'tv' ? 'tv' : 'movie'
+                        }).path,
+                        query: { play: '1' }
                     });
                     return;
                 }

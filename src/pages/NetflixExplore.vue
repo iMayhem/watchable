@@ -132,6 +132,7 @@ import {
     buildCatalogLanguageMap,
     dedupeCatalogItemsByVariantFamily
 } from '../composables/useNetflixCatalogLookup';
+import { sortCatalogByBrowseRank } from '../composables/useNetflixBrowseRank';
 import { useSeo } from '../composables/useSeo';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
@@ -218,14 +219,18 @@ export default defineComponent({
 
         /** Paint grid immediately from API backdrop_path; never block on Supabase/audio. */
         const syncResultsFromPool = (): CuratedItem[] => {
-            const deduped = dedupeCatalogItemsByVariantFamily(variantPool.value);
+            const deduped = sortCatalogByBrowseRank(
+                dedupeCatalogItemsByVariantFamily(variantPool.value)
+            );
             if (!deduped.length) return [];
             const languageMap = buildCatalogLanguageMap(variantPool.value);
             return mapDedupedPool(deduped, languageMap);
         };
 
         const upgradeExploreGrid = async (seq: number) => {
-            const deduped = dedupeCatalogItemsByVariantFamily(variantPool.value);
+            const deduped = sortCatalogByBrowseRank(
+                dedupeCatalogItemsByVariantFamily(variantPool.value)
+            );
             if (!deduped.length || seq !== loadSeq) return;
 
             const languageMap = buildCatalogLanguageMap(variantPool.value);

@@ -73,10 +73,24 @@ function mapTmdbEpisode(ep: {
 }
 
 async function resolveTmdbTvId(
-    item: Pick<MoovieCatalogItem, 'id' | 'title' | 'media_type'> & {
+    item: Pick<
+        MoovieCatalogItem,
+        | 'id'
+        | 'title'
+        | 'media_type'
+        | 'duration'
+        | 'embed'
+        | 'subjectid'
+        | 'embed_en'
+        | 'season'
+    > & {
         release_date?: string;
     }
 ): Promise<number | null> {
+    if (!catalogHasEpisodeGuide(item)) {
+        return null;
+    }
+
     const enrichment = await fetchEnrichmentByCatalogIds([item.id]);
     const row = enrichment.get(String(item.id));
 
@@ -186,7 +200,17 @@ export function useNetflixCatalogEpisodes() {
     }
 
     async function load(
-        item: Pick<MoovieCatalogItem, 'id' | 'title' | 'media_type'> & {
+        item: Pick<
+            MoovieCatalogItem,
+            | 'id'
+            | 'title'
+            | 'media_type'
+            | 'duration'
+            | 'embed'
+            | 'subjectid'
+            | 'embed_en'
+            | 'season'
+        > & {
             release_date?: string;
         },
         opts: LoadCatalogEpisodesOptions = {}

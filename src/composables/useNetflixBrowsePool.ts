@@ -16,6 +16,7 @@ import {
     type NetflixBrowseRowId
 } from './useNetflixRails';
 import { dedupeCatalogItemsByVariantFamily } from './useNetflixCatalogLookup';
+import { sortCatalogByBrowseRank } from './useNetflixBrowseRank';
 import { itemMatchesLanguage, type NetflixLanguageOption } from './useNetflixLanguage';
 import { loadNetflixAvailabilityIndex } from './useNetflixProvider';
 import {
@@ -216,9 +217,12 @@ export function rebuildBrowsePicks(
         picks = picks.filter((item) => inferCatalogMediaType(item) === 'movie');
     }
 
-    state.pickedItems = dedupeCatalogItemsByVariantFamily(
-        filterItemsForBrowseRow(picks, rowId),
-        { preferredLang: lang }
+    state.pickedItems = sortCatalogByBrowseRank(
+        dedupeCatalogItemsByVariantFamily(filterItemsForBrowseRow(picks, rowId), {
+            preferredLang: lang,
+            tmdbById: state.tmdbById
+        }),
+        { tmdbById: state.tmdbById }
     );
 }
 

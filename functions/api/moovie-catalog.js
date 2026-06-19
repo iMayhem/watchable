@@ -179,6 +179,43 @@ const CATALOG_FEATURE_FILM_PATTERN =
 const CATALOG_SERIES_PATTERN =
   /\b(series|web series|miniseries|limited series)\b/i;
 
+function parseCatalogDurationMinutes(duration) {
+  const n = parseInt(String(duration ?? ''), 10);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  // Upstream catalogue stores runtime in seconds (e.g. 6120 = 102 min).
+  if (n > 500) return Math.round(n / 60);
+  return n;
+}
+
+/** Standalone films mis-tagged as tv: feature-length runtime, no season marker. */
+function looksLikeFeatureFilm(item) {
+  const raw = String(item?.title || '');
+  const parsed = parseCatalogTitle(raw);
+  if (parsed.season != null || /\bS\d{1,2}(?:-S\d+)?\b/i.test(raw)) {
+    return false;
+  }
+
+  const minutes = parseCatalogDurationMinutes(item?.duration);
+  return minutes >= 75 && minutes <= 200;
+}
+
+function isEmbedOnlyCatalogFilm(item) {
+  const hasSubject = Boolean(String(item?.subjectid || '').trim());
+  if (hasSubject) return false;
+
+  const hasEmbed = Boolean(String(item?.embed || '').trim());
+  if (hasEmbed) return true;
+
+  return String(item?.embed_en || '').trim() === '1';
+}
+
+function hasCatalogSeasonData(season) {
+  if (Array.isArray(season) && season.length > 0) return true;
+  if (season && typeof season === 'object') return true;
+  if (typeof season === 'string' && season.trim()) return true;
+  return false;
+}
+
 /** Resolve movie vs TV — season hints first, then API tags; demote mis-tagged films. */
 function inferCatalogMediaType(item) {
   const raw = String(item?.title || '');
@@ -196,7 +233,9 @@ function inferCatalogMediaType(item) {
   }
 
   if (mt === 'tv') {
+    if (isEmbedOnlyCatalogFilm(item)) return 'movie';
     if (CATALOG_FEATURE_FILM_PATTERN.test(raw)) return 'movie';
+    if (looksLikeFeatureFilm(item)) return 'movie';
     return 'tv';
   }
 
@@ -255,6 +294,72 @@ async function fetchMetadata(type, id) {
   }
 
   return meta;
+}
+
+function decodeEmbedFilesdlUrl(embedUrl) {
+  if (!embedUrl) return null;
+  try {
+    const normalized = String(embedUrl).replace(/&amp;/g, '&');
+    const url = new URL(normalized);
+    const encoded = url.searchParams.get('url');
+    if (!encoded) return null;
+    return atob(encoded);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFilesdlStreams(filesdlUrl) {
+  const resp = await fetch(filesdlUrl, {
+    headers: {
+      'User-Agent': UA,
+      Referer: CDN_REFERER,
+    },
+  });
+
+  if (!resp.ok) {
+    throw new Error(`FilesDL request failed (${resp.status})`);
+  }
+
+  const html = await resp.text();
+  const streams = [];
+  const seen = new Set();
+
+  const hrefMatches = html.matchAll(
+    /href=['"](https?:\/\/[^'"]+\.(?:mp4|mkv)(?:\?[^'"]*)?)['"]/gi
+  );
+  for (const match of hrefMatches) {
+    const url = match[1].replace(/&amp;/g, '&');
+    if (seen.has(url) || /notfound/i.test(url)) continue;
+    seen.add(url);
+
+    let quality = 'unknown';
+    if (/1080/i.test(url)) quality = '1080P';
+    else if (/720/i.test(url)) quality = '720P';
+    else if (/480/i.test(url)) quality = '480P';
+
+    streams.push({
+      quality,
+      url,
+      proxiedUrl: buildProxyUrl(url, CDN_REFERER, CDN_ORIGIN),
+    });
+  }
+
+  streams.sort(
+    (a, b) => (QUALITY_RANK[a.quality] ?? 5) - (QUALITY_RANK[b.quality] ?? 5)
+  );
+
+  return streams;
+}
+
+async function resolveEmbedStreams(meta) {
+  const filesdlUrl = decodeEmbedFilesdlUrl(meta?.embed);
+  if (!filesdlUrl) return [];
+  try {
+    return await fetchFilesdlStreams(filesdlUrl);
+  } catch {
+    return [];
+  }
 }
 
 async function fetchWatchboxHtml(watchboxUrl) {
@@ -331,29 +436,66 @@ async function tryResolveAttempt(meta, attempt, server) {
 }
 
 async function resolveCatalogStream(type, id, season, episode, server) {
-  const meta = await fetchMetadata(type, id);
-  const canonicalType = canonicalMediaType(meta, type);
-  const attempts = buildResolveAttempts(type, season, episode, canonicalType);
+  let meta = await fetchMetadata(type, id);
+  let canonicalType = canonicalMediaType(meta, type);
+
+  if (canonicalType !== type) {
+    try {
+      meta = await fetchMetadata(canonicalType, id);
+      canonicalType = canonicalMediaType(meta, canonicalType);
+    } catch {
+      /* keep primary meta */
+    }
+  }
+
+  let attemptSeason = season;
+  let attemptEpisode = episode;
+  if (canonicalType === 'movie') {
+    attemptSeason = 0;
+    attemptEpisode = 0;
+  }
+
+  const attempts = buildResolveAttempts(type, attemptSeason, attemptEpisode, canonicalType);
   const servers = [...new Set([server, 1, 2, 3, 5])];
 
   let resolved = null;
-  for (const attempt of attempts) {
-    for (const srv of servers) {
-      try {
-        const hit = await tryResolveAttempt(meta, attempt, srv);
-        if (hit) {
-          resolved = hit;
-          break;
+  const hasSubjectId = Boolean(String(meta?.subjectid || '').trim());
+
+  if (hasSubjectId) {
+    for (const attempt of attempts) {
+      for (const srv of servers) {
+        try {
+          const hit = await tryResolveAttempt(meta, attempt, srv);
+          if (hit) {
+            resolved = hit;
+            break;
+          }
+        } catch {
+          /* try next server / attempt */
         }
-      } catch {
-        /* try next server / attempt */
       }
+      if (resolved) break;
     }
-    if (resolved) break;
   }
 
   let streamWarning = '';
   let streams = resolved?.streams || [];
+
+  if (!streams.length && meta?.embed) {
+    const embedStreams = await resolveEmbedStreams(meta);
+    if (embedStreams.length) {
+      streams = embedStreams;
+      resolved = {
+        streams: embedStreams,
+        auth: null,
+        watchboxUrl: null,
+        resolveType: canonicalType,
+        season: 0,
+        episode: 0,
+        server,
+      };
+    }
+  }
 
   if (!streams.length) {
     const preview = trailerStream(meta);
@@ -369,8 +511,8 @@ async function resolveCatalogStream(type, id, season, episode, server) {
   }
 
   const resolveType = resolved?.resolveType || canonicalType;
-  const resolveSeason = resolved?.season ?? season;
-  const resolveEpisode = resolved?.episode ?? episode;
+  const resolveSeason = resolved?.season ?? attemptSeason;
+  const resolveEpisode = resolved?.episode ?? attemptEpisode;
   const resolveServer = resolved?.server ?? server;
 
   return {
@@ -485,11 +627,19 @@ export async function onRequest(context) {
           media_type: inferCatalogMediaType({
             title: meta.title,
             media_type: meta.media_type || type,
+            duration: meta.duration,
+            embed: meta.embed,
+            subjectid: meta.subjectid,
+            embed_en: meta.embed_en || meta.field_embed_en,
+            season: meta.season,
           }),
           season: meta.season || null,
+          duration: meta.duration || null,
           trailer: meta.trailer || null,
           backdrop_path: meta.backdrop_path || null,
           dp: meta.dp || null,
+          embed: meta.embed || null,
+          embed_en: meta.embed_en || meta.field_embed_en || null,
           vote_average: meta.vote_average || null,
           release_date: meta.release_date || null,
           channel: meta.channel || null,

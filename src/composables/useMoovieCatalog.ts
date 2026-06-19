@@ -9,6 +9,11 @@ export interface MoovieCatalogItem {
     vote_average: string | number;
     channel?: string;
     cn?: string;
+    duration?: string | number | null;
+    subjectid?: string | null;
+    embed?: string | null;
+    embed_en?: string | null;
+    season?: unknown;
 }
 
 export interface MoovieCatalogResponse {
@@ -66,14 +71,61 @@ const CATALOG_FEATURE_FILM_PATTERN =
 const CATALOG_SERIES_PATTERN =
     /\b(series|web series|miniseries|limited series)\b/i;
 
+function parseCatalogDurationMinutes(duration: unknown): number {
+    const n = parseInt(String(duration ?? ''), 10);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    if (n > 500) return Math.round(n / 60);
+    return n;
+}
+
+function looksLikeFeatureFilm(item: { title?: string; duration?: unknown }): boolean {
+    const raw = item.title || '';
+    const parsed = parseCatalogTitle(raw);
+    if (parsed.season != null || /\bS\d{1,2}(?:-S\d+)?\b/i.test(raw)) {
+        return false;
+    }
+
+    const minutes = parseCatalogDurationMinutes(item.duration);
+    return minutes >= 75 && minutes <= 200;
+}
+
+/** Netmirror embed-only rows are almost always standalone film rips, not series. */
+export function isEmbedOnlyCatalogFilm(item: {
+    embed?: string | null;
+    subjectid?: string | null;
+    embed_en?: string | null;
+}): boolean {
+    const hasSubject = Boolean(String(item.subjectid || '').trim());
+    if (hasSubject) return false;
+
+    const hasEmbed = Boolean(String(item.embed || '').trim());
+    if (hasEmbed) return true;
+
+    return String(item.embed_en || '').trim() === '1';
+}
+
+export function hasCatalogSeasonData(season: unknown): boolean {
+    if (Array.isArray(season) && season.length > 0) return true;
+    if (season && typeof season === 'object') return true;
+    if (typeof season === 'string' && season.trim()) return true;
+    return false;
+}
+
+export type CatalogMediaSignals = {
+    title?: string;
+    media_type?: string;
+    duration?: unknown;
+    embed?: string | null;
+    subjectid?: string | null;
+    embed_en?: string | null;
+    season?: unknown;
+};
+
 /**
  * Resolve movie vs TV for catalogue browse rows.
  * Season markers win; then explicit API tags; films mis-tagged as tv are demoted.
  */
-export function inferCatalogMediaType(item: {
-    title?: string;
-    media_type?: string;
-}): 'movie' | 'tv' {
+export function inferCatalogMediaType(item: CatalogMediaSignals): 'movie' | 'tv' {
     const raw = item.title || '';
     const parsed = parseCatalogTitle(raw);
 
@@ -89,7 +141,9 @@ export function inferCatalogMediaType(item: {
     }
 
     if (mt === 'tv') {
+        if (isEmbedOnlyCatalogFilm(item)) return 'movie';
         if (CATALOG_FEATURE_FILM_PATTERN.test(raw)) return 'movie';
+        if (looksLikeFeatureFilm(item)) return 'movie';
         return 'tv';
     }
 
@@ -97,10 +151,10 @@ export function inferCatalogMediaType(item: {
 }
 
 /**
- * Stricter gate for season/episode UI — movie routes need explicit series signals.
+ * Stricter gate for season/episode UI — never trust a bare media_type tag alone.
  */
 export function catalogHasEpisodeGuide(
-    item: { title?: string; media_type?: string },
+    item: CatalogMediaSignals,
     routeType?: 'movie' | 'tv' | string
 ): boolean {
     const raw = item.title || '';
@@ -114,19 +168,27 @@ export function catalogHasEpisodeGuide(
         return false;
     }
 
+    if (inferCatalogMediaType(item) === 'movie') {
+        return false;
+    }
+
     const mt = String(item.media_type || '').toLowerCase();
     if (mt === 'movie') return false;
 
-    // Movie player/detail routes: only explicit season markers qualify.
     if (routeType === 'movie') {
         return false;
+    }
+
+    if (hasCatalogSeasonData(item.season)) {
+        return true;
     }
 
     if (CATALOG_SERIES_PATTERN.test(raw)) {
         return true;
     }
 
-    return mt === 'tv';
+    // Watchbox-capable series carry subjectid even when the title omits S1.
+    return Boolean(String(item.subjectid || '').trim());
 }
 
 const CATALOG_API = '/api/moovie-catalog';

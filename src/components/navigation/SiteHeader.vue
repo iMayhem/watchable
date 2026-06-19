@@ -4,14 +4,30 @@
             <router-link to="/" class="site-header__logo" aria-label="moovie home">
                 <div class="site-header__wordmark">
                     <span class="site-header__mark-text">moovie</span>
-                    <span class="site-header__kicker eyebrow">A Cinema Periodical</span>
+                    <span class="site-header__kicker eyebrow">
+                        {{ isNetflixMode ? 'Netflix Catalogue' : 'A Cinema Periodical' }}
+                    </span>
                 </div>
             </router-link>
-            
 
+            <nav
+                v-if="isNetflixMode"
+                class="site-header__nav site-header__nav--languages"
+                aria-label="Languages"
+            >
+                <button
+                    v-for="lang in netflixLanguages"
+                    :key="lang.category"
+                    type="button"
+                    class="site-header__link"
+                    :class="{ 'is-active': netflixLanguage === lang.category }"
+                    @click="selectNetflixLanguage(lang.category)"
+                >
+                    {{ lang.label }}
+                </button>
+            </nav>
 
-
-            <nav class="site-header__nav" aria-label="Primary">
+            <nav v-else class="site-header__nav" aria-label="Primary">
                 <router-link
                     v-for="item in primaryNav"
                     :key="item.path"
@@ -24,7 +40,7 @@
             </nav>
 
             <div class="site-header__actions">
-                <ExtensionPrompt />
+                <ExtensionPrompt v-if="isNetflixMode" />
 
                 <button
                     v-if="showModeSwitch"
@@ -35,88 +51,85 @@
                     {{ modeLabel }}
                 </button>
 
-                <button
-                    class="site-header__search"
-                    type="button"
-                    aria-label="Open search (⌘K)"
-                    @click="openPalette"
-                >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="m21 21-4.3-4.3" />
-                    </svg>
-                    <span class="site-header__search-label">Search</span>
-                    <kbd class="site-header__search-kbd">{{ modKey }}K</kbd>
-                </button>
-
-
-
-                <!-- Watch Together Party Lobby Link -->
-                <a
-                    href="/party/"
-                    class="site-header__party-btn"
-                    aria-label="Watch Together"
-                    title="Watch Together Party Lobby"
-                >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="site-header__party-icon">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg>
-                    <span class="site-header__party-label">Party</span>
-                </a>
-
-                <!-- User Session Controls -->
-                <button v-if="currentUser" class="site-header__user-badge" @click="handleLogout" title="Sign Out">
-                    <span class="site-header__username">{{ currentUser }}</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="site-header__logout-icon">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                        <polyline points="16 17 21 12 16 7" />
-                        <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                </button>
-                <button
-                    v-else
-                    @click="isAuthModalOpen = true"
-                    class="site-header__login-btn"
-                >
-                    Sign In
-                </button>
-
-                <!-- Regional Settings Dropdown Trigger -->
-                <div ref="regionContainer" class="site-header__region-container">
+                <template v-if="!isNetflixMode">
                     <button
-                        class="site-header__region-toggle"
-                        :class="{ 'is-active': isRegionDropdownOpen }"
+                        class="site-header__search"
                         type="button"
-                        @click="toggleRegionDropdown"
+                        aria-label="Open search (⌘K)"
+                        @click="openPalette"
                     >
-                        <span class="site-header__region-flag">{{ getFlagEmoji(currentRegion) }}</span>
-                        Change Region
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <circle cx="11" cy="11" r="7" />
+                            <path d="m21 21-4.3-4.3" />
+                        </svg>
+                        <span class="site-header__search-label">Search</span>
+                        <kbd class="site-header__search-kbd">{{ modKey }}K</kbd>
                     </button>
-                    
-                    <div v-if="isRegionDropdownOpen" class="region-dropdown">
-                        <div class="region-dropdown__header eyebrow">
-                            Select Region
-                        </div>
-                        <div class="region-dropdown__list">
-                            <button
-                                v-for="r in regions"
-                                :key="r.code"
-                                class="region-dropdown__item"
-                                :class="{ 'is-active': currentRegion === r.code }"
-                                @click="selectRegion(r.code)"
-                            >
-                                <span class="region-dropdown__flag">{{ getFlagEmoji(r.code) }}</span>
-                                <span class="region-dropdown__name">{{ r.name }}</span>
-                                <svg v-if="currentRegion === r.code" class="region-dropdown__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                            </button>
+
+                    <a
+                        href="/party/"
+                        class="site-header__party-btn"
+                        aria-label="Watch Together"
+                        title="Watch Together Party Lobby"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="site-header__party-icon">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        <span class="site-header__party-label">Party</span>
+                    </a>
+
+                    <button v-if="currentUser" class="site-header__user-badge" @click="handleLogout" title="Sign Out">
+                        <span class="site-header__username">{{ currentUser }}</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="site-header__logout-icon">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                    </button>
+                    <button
+                        v-else
+                        @click="isAuthModalOpen = true"
+                        class="site-header__login-btn"
+                    >
+                        Sign In
+                    </button>
+
+                    <div ref="regionContainer" class="site-header__region-container">
+                        <button
+                            class="site-header__region-toggle"
+                            :class="{ 'is-active': isRegionDropdownOpen }"
+                            type="button"
+                            @click="toggleRegionDropdown"
+                        >
+                            <span class="site-header__region-flag">{{ getFlagEmoji(currentRegion) }}</span>
+                            Change Region
+                        </button>
+
+                        <div v-if="isRegionDropdownOpen" class="region-dropdown">
+                            <div class="region-dropdown__header eyebrow">
+                                Select Region
+                            </div>
+                            <div class="region-dropdown__list">
+                                <button
+                                    v-for="r in regions"
+                                    :key="r.code"
+                                    class="region-dropdown__item"
+                                    :class="{ 'is-active': currentRegion === r.code }"
+                                    @click="selectRegion(r.code)"
+                                >
+                                    <span class="region-dropdown__flag">{{ getFlagEmoji(r.code) }}</span>
+                                    <span class="region-dropdown__name">{{ r.name }}</span>
+                                    <svg v-if="currentRegion === r.code" class="region-dropdown__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </template>
 
                 <button
                     class="site-header__icon-btn site-header__menu"
@@ -131,53 +144,76 @@
             </div>
         </div>
 
-        <LmDrawer v-model="drawerOpen" side="right" title="moovie">
-            <nav class="site-header__drawer-nav" aria-label="Mobile">
-                <router-link
-                    v-for="item in primaryNav"
-                    :key="item.path"
-                    :to="item.path"
-                    class="site-header__drawer-link"
-                    :class="{ 'is-active': isActive(item) }"
-                    @click="drawerOpen = false"
-                >
-                    <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
-                    <span class="site-header__drawer-label">{{ item.label }}</span>
-                </router-link>
-
-                <button class="site-header__drawer-link site-header__drawer-search" @click="openFromDrawer">
-                    <span class="eyebrow site-header__drawer-num">✦</span>
-                    <span class="site-header__drawer-label">Search &amp; Jump</span>
-                </button>
-
-                <a href="/party/" class="site-header__drawer-link" @click="drawerOpen = false">
-                    <span class="eyebrow site-header__drawer-num">✦</span>
-                    <span class="site-header__drawer-label">Watch Together</span>
-                </a>
-
-                <button class="site-header__drawer-link" @click="isSettingsModalOpen = true; drawerOpen = false">
-                    <span class="eyebrow site-header__drawer-num">🌐</span>
-                    <span class="site-header__drawer-label">Regional Settings</span>
-                </button>
-
-
-
-                <div v-if="currentUser" class="site-header__drawer-link" style="justify-content: space-between;">
-                    <span class="site-header__drawer-label" style="color: var(--ember); font-weight: 600;">
-                        👤 {{ currentUser }}
-                    </span>
-                    <button @click="handleLogout(); drawerOpen = false" class="site-header__logout-btn" style="margin-left: auto;">
-                        Sign Out
+        <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Languages' : 'moovie'">
+            <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Languages' : 'Mobile'">
+                <template v-if="isNetflixMode">
+                    <button
+                        v-for="(lang, index) in netflixLanguages"
+                        :key="lang.category"
+                        type="button"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': netflixLanguage === lang.category }"
+                        @click="selectNetflixLanguage(lang.category); drawerOpen = false"
+                    >
+                        <span class="eyebrow site-header__drawer-num">0{{ index + 1 }}</span>
+                        <span class="site-header__drawer-label">{{ lang.label }}</span>
                     </button>
-                </div>
-                <button
-                    v-else
-                    @click="isAuthModalOpen = true; drawerOpen = false"
-                    class="site-header__drawer-link"
-                >
-                    <span class="eyebrow site-header__drawer-num">👤</span>
-                    <span class="site-header__drawer-label">Sign In / Up</span>
-                </button>
+
+                    <button
+                        type="button"
+                        class="site-header__drawer-link"
+                        @click="toggleContentMode(); drawerOpen = false"
+                    >
+                        <span class="eyebrow site-header__drawer-num">↔</span>
+                        <span class="site-header__drawer-label">{{ modeLabel }}</span>
+                    </button>
+                </template>
+
+                <template v-else>
+                    <router-link
+                        v-for="item in primaryNav"
+                        :key="item.path"
+                        :to="item.path"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': isActive(item) }"
+                        @click="drawerOpen = false"
+                    >
+                        <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
+                        <span class="site-header__drawer-label">{{ item.label }}</span>
+                    </router-link>
+
+                    <button class="site-header__drawer-link site-header__drawer-search" @click="openFromDrawer">
+                        <span class="eyebrow site-header__drawer-num">✦</span>
+                        <span class="site-header__drawer-label">Search &amp; Jump</span>
+                    </button>
+
+                    <a href="/party/" class="site-header__drawer-link" @click="drawerOpen = false">
+                        <span class="eyebrow site-header__drawer-num">✦</span>
+                        <span class="site-header__drawer-label">Watch Together</span>
+                    </a>
+
+                    <button class="site-header__drawer-link" @click="isSettingsModalOpen = true; drawerOpen = false">
+                        <span class="eyebrow site-header__drawer-num">🌐</span>
+                        <span class="site-header__drawer-label">Regional Settings</span>
+                    </button>
+
+                    <div v-if="currentUser" class="site-header__drawer-link" style="justify-content: space-between;">
+                        <span class="site-header__drawer-label" style="color: var(--ember); font-weight: 600;">
+                            👤 {{ currentUser }}
+                        </span>
+                        <button @click="handleLogout(); drawerOpen = false" class="site-header__logout-btn" style="margin-left: auto;">
+                            Sign Out
+                        </button>
+                    </div>
+                    <button
+                        v-else
+                        @click="isAuthModalOpen = true; drawerOpen = false"
+                        class="site-header__drawer-link"
+                    >
+                        <span class="eyebrow site-header__drawer-num">👤</span>
+                        <span class="site-header__drawer-label">Sign In / Up</span>
+                    </button>
+                </template>
             </nav>
         </LmDrawer>
 
@@ -203,6 +239,7 @@ import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
+import { getNetflixLanguage, NETFLIX_LANGUAGES } from '../../composables/useNetflixLanguage';
 
 interface NavItem {
     label: string;
@@ -247,6 +284,8 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const { contentMode, setContentMode, isChosen } = getContentMode();
+        const { language: netflixLanguage, setLanguage: setNetflixLanguage } = getNetflixLanguage();
+        const isNetflixMode = computed(() => contentMode.value === 'netflix');
         const scrolled = ref(false);
         const drawerOpen = ref(false);
 
@@ -355,6 +394,13 @@ export default defineComponent({
             }
         };
 
+        const selectNetflixLanguage = (category: string) => {
+            setNetflixLanguage(category);
+            if (route.path !== '/') {
+                router.push('/');
+            }
+        };
+
         onMounted(() => {
             onScroll();
             window.addEventListener('scroll', onScroll, { passive: true });
@@ -394,7 +440,12 @@ export default defineComponent({
 
             showModeSwitch,
             modeLabel,
-            toggleContentMode
+            toggleContentMode,
+
+            isNetflixMode,
+            netflixLanguages: NETFLIX_LANGUAGES,
+            netflixLanguage,
+            selectNetflixLanguage
         };
     }
 });
@@ -492,11 +543,34 @@ export default defineComponent({
         @media (max-width: 860px) {
             display: none;
         }
+
+        &--languages {
+            flex: 1;
+            min-width: 0;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            scrollbar-width: none;
+            padding-bottom: 2px;
+
+            &::-webkit-scrollbar {
+                display: none;
+            }
+
+            .site-header__link {
+                flex-shrink: 0;
+                padding: var(--s-2) var(--s-3);
+                font-size: 0.82rem;
+            }
+        }
     }
 
     &__link {
         position: relative;
         padding: var(--s-2) var(--s-4);
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        text-decoration: none;
         font-family: var(--font-ui);
         font-size: var(--fs-sm);
         font-weight: 500;

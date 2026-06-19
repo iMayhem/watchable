@@ -7,38 +7,51 @@
                 :id="hero ? hero.id : ''"
                 :type="hero ? hero.type : 'movie'"
                 :title="hero ? hero.title : ''"
-                :tagline="hero ? hero.languages.join(' · ') : ''"
+                :tagline="activeLang.nativeLabel"
                 :overview="hero ? hero.overview : ''"
                 :backdrop-path="hero ? hero.backdropPath : null"
                 :poster-path="hero ? hero.backdropPath : null"
                 :rating="hero ? hero.rating : 0"
                 :release-date="hero ? hero.releaseDate : ''"
                 :genre-ids="[]"
-                eyebrow="Featured on Netflix"
+                :eyebrow="`Featured · ${activeLang.label}`"
                 :loading="isLoading && !hero"
                 :play-to="heroPlayRoute"
                 :detail-to="heroDetailRoute"
             />
 
             <CuratedRail
-                v-if="trendingItems.length"
+                v-if="trendingItems.length || isLoading"
                 class="home__section"
                 :items="trendingItems"
                 title="Trending now"
-                eyebrow="Top picks"
-                description="What everyone is watching right now."
+                :eyebrow="activeLang.nativeLabel"
+                :description="`Top ${activeLang.label} picks right now.`"
                 catalog="netflix"
+                :loading="isLoading"
             />
 
             <CuratedRail
-                v-for="rail in rails"
-                :key="rail.category"
+                v-if="movieItems.length || isLoading"
                 class="home__section"
-                :items="rail.items"
-                :title="rail.title"
-                :eyebrow="rail.eyebrow"
-                :description="rail.description"
+                :items="movieItems"
+                title="Films"
+                eyebrow="Movies"
+                :description="`${activeLang.label} movies in rotation.`"
                 catalog="netflix"
+                default-type="movie"
+                :loading="isLoading"
+            />
+
+            <CuratedRail
+                v-if="seriesItems.length || isLoading"
+                class="home__section"
+                :items="seriesItems"
+                title="Series"
+                eyebrow="Shows"
+                :description="`${activeLang.label} series and seasons.`"
+                catalog="netflix"
+                default-type="tv"
                 :loading="isLoading"
             />
         </main>
@@ -48,27 +61,24 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
 import CuratedRail, { type CuratedItem } from '../components/rails/CuratedRail.vue';
 import {
-    NETFLIX_RAILS,
     browseNetmirror,
     netmirrorRating,
     parseNetmirrorTitle,
     type NetmirrorBrowseItem
 } from '../composables/useNetmirror';
+import {
+    getNetflixLanguage,
+    getLanguageOption,
+    itemMatchesLanguage,
+    type NetflixLanguageOption
+} from '../composables/useNetflixLanguage';
 import { useSeo } from '../composables/useSeo';
-
-interface RailState {
-    category: string;
-    title: string;
-    eyebrow: string;
-    description: string;
-    items: CuratedItem[];
-}
 
 function toCuratedItem(item: NetmirrorBrowseItem): CuratedItem {
     const parsed = parseNetmirrorTitle(item.title || '');
@@ -89,23 +99,21 @@ export default defineComponent({
     components: { SiteHeader, SiteFooter, BillboardHero, CuratedRail },
     setup() {
         const { updateSeo } = useSeo();
+        const { language, activeLanguage } = getNetflixLanguage();
         const isLoading = ref(true);
         const trendingItems = ref<CuratedItem[]>([]);
-        const rails = ref<RailState[]>(
-            NETFLIX_RAILS.map((rail) => ({
-                ...rail,
-                items: []
-            }))
-        );
+        const movieItems = ref<CuratedItem[]>([]);
+        const seriesItems = ref<CuratedItem[]>([]);
+
+        const activeLang = computed<NetflixLanguageOption>(() => activeLanguage());
 
         const hero = computed(() => {
-            const first = trendingItems.value[0] || rails.value.find((r) => r.items.length)?.items[0];
+            const first = trendingItems.value[0] || movieItems.value[0] || seriesItems.value[0];
             if (!first) return null;
             return {
                 id: first.id,
                 type: first.type || 'movie',
                 title: first.title,
-                languages: first.originalTitle ? first.originalTitle.split(' · ').filter(Boolean) : [],
                 overview: '',
                 backdropPath: first.posterPath,
                 rating: first.rating || 0,
@@ -128,46 +136,63 @@ export default defineComponent({
             return { path: `/nf/${h.type}/${h.id}` };
         });
 
-        const loadRails = async () => {
+        const loadLanguageCatalogue = async () => {
+            const lang = getLanguageOption(language.value);
             isLoading.value = true;
             trendingItems.value = [];
-            rails.value = NETFLIX_RAILS.map((rail) => ({ ...rail, items: [] }));
+            movieItems.value = [];
+            seriesItems.value = [];
 
             try {
-                const [hindiBrowse, ...rest] = await Promise.all([
-                    browseNetmirror('hindi', 0),
-                    ...NETFLIX_RAILS.map((rail) => browseNetmirror(rail.category, 0))
+                const [page0, page1] = await Promise.all([
+                    browseNetmirror(lang.category, 0),
+                    browseNetmirror(lang.category, 1)
                 ]);
 
-                trendingItems.value = (hindiBrowse.results || []).slice(0, 12).map(toCuratedItem);
+                const pool = [...(page0.results || []), ...(page1.results || [])].filter(
+                    (item) => itemMatchesLanguage(item, lang)
+                );
 
-                rails.value = NETFLIX_RAILS.map((rail, index) => ({
-                    ...rail,
-                    items: (rest[index]?.results || []).slice(0, 18).map(toCuratedItem)
-                }));
+                const curated = pool.map(toCuratedItem);
+                const movies = curated.filter((item) => item.type === 'movie');
+                const series = curated.filter((item) => item.type === 'tv');
+
+                trendingItems.value = curated.slice(0, 12);
+                movieItems.value = movies.slice(0, 18);
+                seriesItems.value = series.slice(0, 18);
+
+                updateSeo({
+                    title: `${lang.label} — Netflix on Moovie`,
+                    canonical: 'https://moovie.fun/',
+                    image: 'https://moovie.fun/og-image.png'
+                });
             } catch (err) {
-                console.error('[NetflixHome] Failed to load rails:', err);
+                console.error('[NetflixHome] Failed to load catalogue:', err);
             } finally {
                 isLoading.value = false;
             }
         };
 
+        const onLanguageChange = () => loadLanguageCatalogue();
+
         onMounted(() => {
-            updateSeo({
-                title: 'Netflix — Moovie',
-                canonical: 'https://moovie.fun/',
-                image: 'https://moovie.fun/og-image.png'
-            });
-            loadRails();
+            loadLanguageCatalogue();
+            window.addEventListener('movora_netflix_language_change', onLanguageChange);
+        });
+
+        onBeforeUnmount(() => {
+            window.removeEventListener('movora_netflix_language_change', onLanguageChange);
         });
 
         return {
             isLoading,
+            activeLang,
             hero,
             heroPlayRoute,
             heroDetailRoute,
             trendingItems,
-            rails
+            movieItems,
+            seriesItems
         };
     }
 });

@@ -50,6 +50,11 @@ import {
     parseNetmirrorTitle,
     type NetmirrorBrowseItem
 } from '../composables/useNetmirror';
+import {
+    getNetflixLanguage,
+    getLanguageOption,
+    itemMatchesLanguage
+} from '../composables/useNetflixLanguage';
 import { useSeo } from '../composables/useSeo';
 
 export default defineComponent({
@@ -105,10 +110,11 @@ export default defineComponent({
                 const id = String(route.params.id || '');
                 meta.value = await fetchNetmirrorMeta(mediaType.value, id);
 
-                const browseKey = languageTags.value[0]?.toLowerCase() || 'hindi';
-                const browse = await browseNetmirror(browseKey, 0);
+                const { language } = getNetflixLanguage();
+                const lang = getLanguageOption(language.value);
+                const browse = await browseNetmirror(lang.category, 0);
                 similarItems.value = (browse.results || [])
-                    .filter((item) => item.id !== id)
+                    .filter((item) => item.id !== id && itemMatchesLanguage(item, lang))
                     .slice(0, 14)
                     .map(toCurated);
 

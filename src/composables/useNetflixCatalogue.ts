@@ -12,15 +12,7 @@ export interface NetflixCatalogueOption {
 export const NETFLIX_CATALOGUES: NetflixCatalogueOption[] = [
     { id: 'hollywood', label: 'Hollywood', eyebrow: 'Blockbusters' },
     { id: 'bollywood', label: 'Bollywood', eyebrow: 'Indian cinema' },
-    { id: 'korean', label: 'Korean', eyebrow: 'K-Cinema' },
-    { id: 'japanese', label: 'Japanese', eyebrow: 'Anime' },
-    { id: 'telugu', label: 'Telugu', eyebrow: 'Tollywood' },
-    { id: 'tamil', label: 'Tamil', eyebrow: 'Kollywood' },
-    { id: 'malayalam', label: 'Malayalam', eyebrow: 'Mollywood' },
-    { id: 'bengali', label: 'Bengali', eyebrow: 'Regional' },
-    { id: 'kannada', label: 'Kannada', eyebrow: 'Sandalwood' },
-    { id: 'marathi', label: 'Marathi', eyebrow: 'Regional' },
-    { id: 'punjabi', label: 'Punjabi', eyebrow: 'Regional' }
+    { id: 'korean', label: 'Korean', eyebrow: 'K-Cinema' }
 ];
 
 const selectedCatalogue = useStorage<string>('movora_netflix_catalogue', 'hollywood');

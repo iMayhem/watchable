@@ -104,6 +104,11 @@ const loadArtplayerAssets = (() => {
     };
 })();
 
+export interface PlaybackResumeOptions {
+    resumeAt?: number;
+    resumePlaying?: boolean;
+}
+
 export function formatPlayerTime(seconds: number): string {
     if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
     const h = Math.floor(seconds / 3600);
@@ -140,9 +145,14 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     let artInstance: any = null;
     let prepareToken = 0;
     let refreshInFlight: Promise<MoovieResolve | null> | null = null;
+    let videoClickHandler: ((event: MouseEvent) => void) | null = null;
 
     const clearArtInstance = () => {
         const video = artInstance?.video as HTMLVideoElement | undefined;
+        if (video && videoClickHandler) {
+            video.removeEventListener('click', videoClickHandler);
+            videoClickHandler = null;
+        }
         if (video) {
             try {
                 video.pause();
@@ -172,6 +182,72 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         prepareToken++;
         clearArtInstance();
         loading.value = false;
+    };
+
+    const bindVideoClickToggle = () => {
+        const video = artInstance?.video as HTMLVideoElement | undefined;
+        if (!video || videoClickHandler) return;
+
+        videoClickHandler = (event: MouseEvent) => {
+            event.stopPropagation();
+            if (!artInstance) return;
+            dbg('player:video-click');
+            artInstance.toggle();
+        };
+        video.addEventListener('click', videoClickHandler);
+    };
+
+    const switchStreamUrl = async (
+        stream: MoovieStream,
+        opts: PlaybackResumeOptions = {}
+    ) => {
+        if (!artInstance) return false;
+
+        const resumeAt =
+            opts.resumeAt ?? artInstance.currentTime ?? currentTime.value ?? 0;
+        const resumePlaying = opts.resumePlaying ?? isPlaying.value;
+        const playUrl = resolvePlaybackUrl(stream);
+
+        dbg('player:switch-url', {
+            quality: stream.quality,
+            resumeAt,
+            resumePlaying
+        });
+
+        return new Promise<boolean>((resolve) => {
+            let settled = false;
+            const finish = (ok: boolean) => {
+                if (settled) return;
+                settled = true;
+                artInstance.off('video:canplay', onReady);
+                resolve(ok);
+            };
+
+            const onReady = () => {
+                try {
+                    if (resumeAt > 0) {
+                        artInstance.seek = resumeAt;
+                        currentTime.value = resumeAt;
+                    }
+                    if (resumePlaying) {
+                        void artInstance.play()?.catch(() => artInstance.play());
+                    } else {
+                        artInstance.pause();
+                    }
+                    playbackError.value = '';
+                    finish(true);
+                } catch (err) {
+                    dbgError('player:switch-url:resume-fail', err);
+                    finish(false);
+                }
+            };
+
+            artInstance.on('video:canplay', onReady);
+            void artInstance.switchUrl(playUrl).catch((err: unknown) => {
+                dbgError('player:switch-url:fail', err);
+                finish(false);
+            });
+        });
     };
 
     const bindPlaybackEvents = () => {
@@ -207,6 +283,8 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             dbgError('player:error');
             playbackError.value = 'Playback failed — try another quality or reload.';
         });
+
+        bindVideoClickToggle();
     };
 
     const buildResolveUrl = (opts: {
@@ -296,7 +374,10 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         });
     };
 
-    const mountArtplayer = async (stream: MoovieStream) => {
+    const mountArtplayer = async (
+        stream: MoovieStream,
+        resume: PlaybackResumeOptions = {}
+    ) => {
         dbg('player:mount:start', { quality: stream.quality, extension: extensionActive.value });
         await loadArtplayerAssets();
         const container = artContainer.value;
@@ -304,7 +385,14 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
         clearArtInstance();
         const playUrl = resolvePlaybackUrl(stream);
-        dbg('player:mount:url', { quality: stream.quality, viaExtension: extensionActive.value });
+        const resumeAt = resume.resumeAt ?? 0;
+        const resumePlaying = resume.resumePlaying ?? true;
+        dbg('player:mount:url', {
+            quality: stream.quality,
+            viaExtension: extensionActive.value,
+            resumeAt,
+            resumePlaying
+        });
         const ArtplayerCtor = (window as any).Artplayer;
         const isNetflix = skin === 'netflix';
 
@@ -312,7 +400,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             container,
             url: playUrl,
             type: 'mp4',
-            autoplay: true,
+            autoplay: resumePlaying,
             preload: 'auto',
             theme: '#4eb5ff',
             playbackRate: !isNetflix,
@@ -329,6 +417,24 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         });
 
         bindPlaybackEvents();
+
+        if (resumeAt > 0 || resumePlaying === false) {
+            let resumed = false;
+            const applyResume = () => {
+                if (resumed || !artInstance) return;
+                resumed = true;
+                if (resumeAt > 0) {
+                    artInstance.seek = resumeAt;
+                    currentTime.value = resumeAt;
+                }
+                if (!resumePlaying) {
+                    artInstance.pause();
+                }
+            };
+            artInstance.on('video:loadedmetadata', applyResume);
+            artInstance.on('video:canplay', applyResume);
+        }
+
         artReady.value = true;
         dbg('player:mount:ready', { quality: stream.quality });
     };
@@ -385,9 +491,9 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const preparePlayback = async (
         stream: MoovieStream | null,
         resolveUrl: string,
-        options: { allowRefresh?: boolean } = {}
+        options: { allowRefresh?: boolean; resume?: PlaybackResumeOptions } = {}
     ): Promise<void> => {
-        const { allowRefresh = true } = options;
+        const { allowRefresh = true, resume } = options;
         const token = ++prepareToken;
         clearArtInstance();
         if (!stream) return;
@@ -402,7 +508,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             return preparePlayback(
                 fresh.streams[selectedStreamIndex.value],
                 resolveUrl,
-                { allowRefresh: false }
+                { allowRefresh: false, resume }
             );
         }
 
@@ -421,13 +527,13 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                     return preparePlayback(
                         fresh.streams[selectedStreamIndex.value],
                         resolveUrl,
-                        { allowRefresh: false }
+                        { allowRefresh: false, resume }
                     );
                 }
             }
             if (token !== prepareToken) return;
             await waitForContainer();
-            await mountArtplayer(stream);
+            await mountArtplayer(stream, resume);
             playbackError.value = '';
         } catch (err: any) {
             if (token !== prepareToken) return;
@@ -437,14 +543,17 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         }
     };
 
-    const resolveAndPlay = async (opts: {
-        type: 'movie' | 'tv';
-        id: string;
-        season?: number;
-        episode?: number;
-        server?: number;
-    }) => {
-        dbg('player:resolve:start', opts);
+    const resolveAndPlay = async (
+        opts: {
+            type: 'movie' | 'tv';
+            id: string;
+            season?: number;
+            episode?: number;
+            server?: number;
+        },
+        resume: PlaybackResumeOptions = {}
+    ) => {
+        dbg('player:resolve:start', { ...opts, resume });
         loading.value = true;
         playbackError.value = '';
         streamWarning.value = '';
@@ -501,7 +610,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                 quality: data.streams?.[selectedStreamIndex.value]?.quality
             });
             const stream = data.streams?.[selectedStreamIndex.value] || null;
-            await preparePlayback(stream, url);
+            await preparePlayback(stream, url, { resume });
         } catch (err: any) {
             dbgError('player:resolve:fail', err);
             playbackError.value = err?.message || 'Could not resolve stream.';
@@ -510,16 +619,87 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         }
     };
 
+    const pickStreamIndexPreservingQuality = (
+        streams: MoovieStream[],
+        preferredQuality?: string
+    ) => {
+        if (!streams.length) return 0;
+        if (preferredQuality) {
+            const idx = streams.findIndex((s) => s.quality === preferredQuality);
+            if (idx >= 0) return idx;
+        }
+        return pickDefaultStreamIndex(streams);
+    };
+
+    const switchResolveEntry = async (
+        opts: {
+            type: 'movie' | 'tv';
+            id: string;
+            season?: number;
+            episode?: number;
+            server?: number;
+        },
+        resume: PlaybackResumeOptions = {}
+    ) => {
+        dbg('player:switch-entry:start', { ...opts, resume });
+        const url = buildResolveUrl({
+            type: opts.type,
+            id: opts.id,
+            season: opts.season ?? 0,
+            episode: opts.episode ?? 0,
+            server: opts.server
+        });
+
+        const preferredQuality =
+            resolved.value?.streams?.[selectedStreamIndex.value]?.quality;
+        const data = await fetchResolve(url);
+        const title = data.meta?.title || '';
+
+        if (streamsLookCorrupt(title, data.streams || [])) {
+            throw new Error(
+                'Stream mismatch — the catalogue returned the wrong video for this title.'
+            );
+        }
+
+        resolved.value = data;
+        streamWarning.value = data.streamWarning || '';
+        selectedStreamIndex.value = pickStreamIndexPreservingQuality(
+            data.streams || [],
+            preferredQuality
+        );
+
+        const stream = data.streams?.[selectedStreamIndex.value] || null;
+        if (!stream) throw new Error('No stream available for this audio.');
+
+        if (artInstance) {
+            const ok = await switchStreamUrl(stream, resume);
+            if (!ok) throw new Error('Could not switch audio track.');
+            playbackError.value = '';
+            return;
+        }
+
+        await preparePlayback(stream, url, { resume });
+    };
+
     const switchQuality = async (index: number, resolveUrl: string) => {
-        dbg('player:quality:switch', { index, quality: resolved.value?.streams?.[index]?.quality });
+        const resumeAt = currentTime.value;
+        const resumePlaying = isPlaying.value;
+        dbg('player:quality:switch', {
+            index,
+            quality: resolved.value?.streams?.[index]?.quality,
+            resumeAt,
+            resumePlaying
+        });
         selectedStreamIndex.value = index;
         const stream = resolved.value?.streams?.[index] || null;
         if (!stream) return;
         if (artInstance) {
-            await artInstance.switchUrl(resolvePlaybackUrl(stream));
+            await switchStreamUrl(stream, { resumeAt, resumePlaying });
             return;
         }
-        await preparePlayback(stream, resolveUrl);
+        await preparePlayback(stream, resolveUrl, {
+            resume: { resumeAt, resumePlaying }
+        });
     };
 
     watch(extensionActive, async (active) => {
@@ -528,7 +708,10 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         if (!stream) return;
         dbg('player:extension-switch-url', { quality: stream.quality });
         try {
-            await artInstance.switchUrl(resolvePlaybackUrl(stream));
+            await switchStreamUrl(stream, {
+                resumeAt: currentTime.value,
+                resumePlaying: isPlaying.value
+            });
             playbackError.value = '';
         } catch (err) {
             dbgError('player:extension-switch-url:fail', err);
@@ -556,6 +739,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         progress,
         bufferProgress,
         resolveAndPlay,
+        switchResolveEntry,
         switchQuality,
         togglePlay,
         seekTo,

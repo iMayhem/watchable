@@ -81,6 +81,7 @@ export default defineComponent({
             bufferProgress,
             isMuted,
             resolveAndPlay,
+            switchResolveEntry,
             switchQuality,
             togglePlay,
             seekTo,
@@ -90,6 +91,7 @@ export default defineComponent({
         } = player;
 
         let started = false;
+        let skipRoutePlayback = false;
 
         const bindPlayerContainer = (el: HTMLElement | null) => {
             artContainer.value = el;
@@ -225,8 +227,10 @@ export default defineComponent({
             const currentTitle = resolved.value?.meta?.title || title.value;
             const parsed = parseCatalogTitle(currentTitle);
             const displayTitle = parsed.displayTitle || currentTitle;
+            const resumeAt = currentTime.value;
+            const resumePlaying = isPlaying.value;
 
-            nfDebug('stream:language', { category, displayTitle });
+            nfDebug('stream:language', { category, displayTitle, resumeAt, resumePlaying });
 
             const variant = await findCatalogueVariantForLanguage(displayTitle, lang, {
                 excludeId: String(route.params.id || ''),
@@ -243,11 +247,33 @@ export default defineComponent({
 
             setPlaybackLanguage(category);
             const target = catalogStreamTarget(variant);
-            if (route.path !== target.path) {
-                await router.replace(target.path);
-                return;
+
+            try {
+                await switchResolveEntry(
+                    {
+                        type: target.mediaType,
+                        id: String(variant.id),
+                        season: target.season,
+                        episode: target.episode
+                    },
+                    { resumeAt, resumePlaying }
+                );
+
+                if (parsed.displayTitle) {
+                    void loadAvailableLanguages(parsed.displayTitle);
+                }
+
+                if (route.path !== target.path) {
+                    skipRoutePlayback = true;
+                    await router.replace(target.path);
+                }
+            } catch (err: any) {
+                nfDebug('stream:language:fail', { category, err });
+                addToast(
+                    err?.message || `Could not switch to ${lang.label} audio.`,
+                    'warning'
+                );
             }
-            await startPlayback();
         };
 
         onBeforeRouteLeave(() => {
@@ -275,6 +301,11 @@ export default defineComponent({
         watch(
             () => [route.path, route.params.id, route.params.season, route.params.episode],
             async () => {
+                if (skipRoutePlayback) {
+                    skipRoutePlayback = false;
+                    nfDebug('stream:route-change:skip', { path: route.path });
+                    return;
+                }
                 nfDebug('stream:route-change', {
                     id: route.params.id,
                     season: route.params.season,

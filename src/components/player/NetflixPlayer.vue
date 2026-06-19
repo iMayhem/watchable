@@ -236,10 +236,19 @@ export default defineComponent({
             }
         };
 
-        const onShellClick = () => {
-            nfDebug('player-ui:click-toggle');
+        const onShellClick = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            const stage = stageRef.value;
+            const clickedVideo =
+                Boolean(stage && target && stage.contains(target)) &&
+                !target?.closest('.nf-watch__loader');
+
             revealControls();
-            emit('toggle-play');
+
+            if (clickedVideo) {
+                nfDebug('player-ui:click-toggle');
+                emit('toggle-play');
+            }
         };
 
         const onProgressClick = (event: MouseEvent) => {

@@ -13,18 +13,56 @@
             <nav
                 v-if="isNetflixMode"
                 class="site-header__nav site-header__nav--catalogues"
-                aria-label="Catalogues"
+                aria-label="Netflix"
             >
-                <button
-                    v-for="cat in netflixCatalogues"
-                    :key="cat.id"
-                    type="button"
+                <router-link
+                    v-for="item in netflixNav"
+                    :key="item.label"
+                    :to="item.path"
                     class="site-header__link"
-                    :class="{ 'is-active': netflixCatalogue === cat.id }"
-                    @click="selectNetflixCatalogue(cat.id)"
+                    :class="{ 'is-active': item.isActive() }"
                 >
-                    {{ cat.label }}
-                </button>
+                    {{ item.label }}
+                </router-link>
+
+                <div ref="browseContainer" class="site-header__browse">
+                    <button
+                        type="button"
+                        class="site-header__link site-header__browse-trigger"
+                        :class="{ 'is-active': isBrowseOpen }"
+                        @click="toggleBrowseDropdown"
+                    >
+                        Browse
+                        <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
+                            <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </button>
+                    <div v-if="isBrowseOpen" class="site-header__browse-menu region-dropdown">
+                        <div class="region-dropdown__header eyebrow">Catalogue</div>
+                        <div class="region-dropdown__list">
+                            <button
+                                v-for="cat in netflixCatalogues"
+                                :key="cat.id"
+                                type="button"
+                                class="region-dropdown__item"
+                                :class="{ 'is-active': netflixCatalogue === cat.id }"
+                                @click="selectBrowseCatalogue(cat.id)"
+                            >
+                                <span class="region-dropdown__name">{{ cat.label }}</span>
+                                <svg
+                                    v-if="netflixCatalogue === cat.id"
+                                    class="region-dropdown__check"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2.5"
+                                >
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </nav>
 
             <nav v-else class="site-header__nav" aria-label="Primary">
@@ -50,6 +88,20 @@
                 >
                     {{ modeLabel }}
                 </button>
+
+                <template v-if="isNetflixMode">
+                    <button
+                        class="site-header__search site-header__search--compact"
+                        type="button"
+                        aria-label="Open search"
+                        @click="openPalette"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <circle cx="11" cy="11" r="7" />
+                            <path d="m21 21-4.3-4.3" />
+                        </svg>
+                    </button>
+                </template>
 
                 <template v-if="!isNetflixMode">
                     <button
@@ -144,18 +196,30 @@
             </div>
         </div>
 
-        <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Catalogues' : 'moovie'">
-            <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Catalogues' : 'Mobile'">
+        <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Browse' : 'moovie'">
+            <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Netflix' : 'Mobile'">
                 <template v-if="isNetflixMode">
+                    <router-link
+                        v-for="(item, index) in netflixNav"
+                        :key="item.label"
+                        :to="item.path"
+                        class="site-header__drawer-link"
+                        :class="{ 'is-active': item.isActive() }"
+                        @click="drawerOpen = false"
+                    >
+                        <span class="eyebrow site-header__drawer-num">0{{ index + 1 }}</span>
+                        <span class="site-header__drawer-label">{{ item.label }}</span>
+                    </router-link>
+
+                    <p class="site-header__drawer-section eyebrow">Browse</p>
                     <button
-                        v-for="(cat, index) in netflixCatalogues"
+                        v-for="cat in netflixCatalogues"
                         :key="cat.id"
                         type="button"
                         class="site-header__drawer-link"
                         :class="{ 'is-active': netflixCatalogue === cat.id }"
                         @click="selectNetflixCatalogue(cat.id); drawerOpen = false"
                     >
-                        <span class="eyebrow site-header__drawer-num">0{{ index + 1 }}</span>
                         <span class="site-header__drawer-label">{{ cat.label }}</span>
                     </button>
 
@@ -164,7 +228,6 @@
                         class="site-header__drawer-link"
                         @click="toggleContentMode(); drawerOpen = false"
                     >
-                        <span class="eyebrow site-header__drawer-num">↔</span>
                         <span class="site-header__drawer-label">{{ modeLabel }}</span>
                     </button>
                 </template>
@@ -240,6 +303,7 @@ import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
 import { getNetflixCatalogue, NETFLIX_CATALOGUES } from '../../composables/useNetflixCatalogue';
+import { netflixBrowsePath } from '../../composables/useNetflixRails';
 import { nfDebug } from '../../composables/useNetflixDebug';
 
 interface NavItem {
@@ -376,9 +440,71 @@ export default defineComponent({
             }
         };
 
+        const browseContainer = ref<HTMLElement | null>(null);
+        const isBrowseOpen = ref(false);
+
+        const toggleBrowseDropdown = (e: Event) => {
+            e.stopPropagation();
+            isBrowseOpen.value = !isBrowseOpen.value;
+        };
+
+        const closeBrowseDropdown = () => {
+            isBrowseOpen.value = false;
+        };
+
+        const netflixNav = computed(() => {
+            const cat = netflixCatalogue.value;
+            const path = route.path;
+            return [
+                {
+                    label: 'Home',
+                    path: '/',
+                    isActive: () => path === '/'
+                },
+                {
+                    label: 'TV Shows',
+                    path: netflixBrowsePath(cat, 'exciting-tv'),
+                    isActive: () =>
+                        path === netflixBrowsePath(cat, 'exciting-tv') ||
+                        path === netflixBrowsePath(cat, 'top10-tv') ||
+                        path.startsWith('/nf/tv/') ||
+                        path.includes('/stream/nf/tv/')
+                },
+                {
+                    label: 'Movies',
+                    path: netflixBrowsePath(cat, 'blockbuster-movies'),
+                    isActive: () =>
+                        path === netflixBrowsePath(cat, 'blockbuster-movies') ||
+                        path === netflixBrowsePath(cat, 'top10-movies') ||
+                        path.startsWith('/nf/movie/') ||
+                        path.includes('/stream/nf/movie/')
+                },
+                {
+                    label: 'New & Popular',
+                    path: netflixBrowsePath(cat, 'new-on-netflix'),
+                    isActive: () =>
+                        path === netflixBrowsePath(cat, 'new-on-netflix') ||
+                        path.endsWith('/trending')
+                },
+                {
+                    label: 'Categories',
+                    path: '/nf/categories',
+                    isActive: () => path === '/nf/categories'
+                }
+            ];
+        });
+
+        const selectBrowseCatalogue = (id: string) => {
+            selectNetflixCatalogue(id);
+            closeBrowseDropdown();
+        };
+
         const handleClickOutside = (event: MouseEvent) => {
             if (regionContainer.value && !regionContainer.value.contains(event.target as Node)) {
                 closeRegionDropdown();
+            }
+            if (browseContainer.value && !browseContainer.value.contains(event.target as Node)) {
+                closeBrowseDropdown();
             }
         };
 
@@ -449,7 +575,12 @@ export default defineComponent({
             isNetflixMode,
             netflixCatalogues: NETFLIX_CATALOGUES,
             netflixCatalogue,
-            selectNetflixCatalogue
+            selectNetflixCatalogue,
+            netflixNav,
+            browseContainer,
+            isBrowseOpen,
+            toggleBrowseDropdown,
+            selectBrowseCatalogue
         };
     }
 });
@@ -902,6 +1033,40 @@ export default defineComponent({
             color: var(--ember);
             background: rgba(255, 90, 31, 0.08);
         }
+    }
+
+    &__browse {
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    &__browse-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    &__browse-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        min-width: 200px;
+        z-index: calc(var(--z-header) + 2);
+    }
+
+    &__search--compact {
+        min-width: 0;
+        padding: 0.5rem;
+
+        svg {
+            width: 18px;
+            height: 18px;
+        }
+    }
+
+    &__drawer-section {
+        margin: var(--s-4) var(--s-4) var(--s-2);
+        color: var(--bone-500);
     }
 }
 

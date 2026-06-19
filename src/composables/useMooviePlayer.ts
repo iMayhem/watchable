@@ -314,7 +314,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             type: 'mp4',
             autoplay: true,
             preload: 'auto',
-            theme: isNetflix ? '#e50914' : '#4eb5ff',
+            theme: '#4eb5ff',
             playbackRate: !isNetflix,
             aspectRatio: !isNetflix,
             fullscreen: !isNetflix,

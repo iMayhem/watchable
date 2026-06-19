@@ -2,7 +2,9 @@ import { parseCatalogTitle, type MoovieCatalogItem } from './useMoovieCatalog';
 import {
     getNetflixCuratedRowDef,
     getNetflixRowMeta,
-    rowsForCatalogue,
+    homeRowsForCatalogue,
+    MAX_NETFLIX_HOME_PER_RAIL,
+    MAX_NETFLIX_HOME_RAILS,
     type NetflixBrowseRowId,
     type NetflixCuratedRowDef
 } from './netflixCuratedRows';
@@ -535,6 +537,12 @@ interface NetflixCuratedPlan {
     items: MoovieCatalogItem[];
 }
 
+export interface NetflixHomePlan {
+    top10Movies: MoovieCatalogItem[];
+    top10Tv: MoovieCatalogItem[];
+    rails: NetflixCuratedPlan[];
+}
+
 function itemMatchesGenreRow(
     item: MoovieCatalogItem,
     def: NetflixCuratedRowDef,
@@ -618,28 +626,39 @@ function pickFromRowDef(
     }
 }
 
-/** Netflix homepage rows — editorial first, then netflix-codes.com niche genres. */
-function planNetflixCuratedRows(
+/**
+ * Netflix home: one global used-set so titles never repeat across rows.
+ * Full genre list lives on /nf/categories — not dumped on the homepage.
+ */
+function planNetflixHomeRows(
     filtered: MoovieCatalogItem[],
     catalogueId: string,
     catalogueLabel: string,
     lang: NetflixLanguageOption,
     tmdbById: Map<string, CatalogTmdbMeta>
-): NetflixCuratedPlan[] {
-    const editorialUsed = new Set<string>();
-    const rows: NetflixCuratedPlan[] = [];
+): NetflixHomePlan {
+    const used = new Set<string>();
+    filtered.slice(0, MAX_TRENDING).forEach((item) => used.add(item.id));
 
-    for (const def of rowsForCatalogue(catalogueId)) {
-        const used = def.homeDedupe ? editorialUsed : new Set<string>();
-        const limit =
-            def.section === 'editorial' && def.id.startsWith('top10')
-                ? TOP_CHART_SIZE
-                : MAX_PER_RAIL;
-        const items = pickFromRowDef(filtered, def, used, limit, tmdbById);
+    const top10Movies = takeTopRated(filtered, used, TOP_CHART_SIZE, { movie: true });
+    const top10Tv = takeTopRated(filtered, used, TOP_CHART_SIZE, { tv: true });
+
+    const rails: NetflixCuratedPlan[] = [];
+
+    for (const def of homeRowsForCatalogue(catalogueId)) {
+        if (rails.length >= MAX_NETFLIX_HOME_RAILS) break;
+
+        const items = pickFromRowDef(
+            filtered,
+            def,
+            used,
+            MAX_NETFLIX_HOME_PER_RAIL,
+            tmdbById
+        );
         if (items.length < MIN_RAIL_ITEMS) continue;
 
         const meta = getNetflixRowMeta(def.id as NetflixBrowseRowId, { label: catalogueLabel }, lang);
-        rows.push({
+        rails.push({
             id: def.id,
             title: meta.title,
             eyebrow: meta.eyebrow,
@@ -649,7 +668,7 @@ function planNetflixCuratedRows(
         });
     }
 
-    return rows;
+    return { top10Movies, top10Tv, rails };
 }
 
 const BROWSE_POOL_LIMIT = 240;
@@ -710,6 +729,50 @@ export function filterCataloguePool(
     return pool.filter((item) => itemMatchesCatalogue(item, catalogueId, lang));
 }
 
+export function buildNetflixHomeSections(
+    pool: MoovieCatalogItem[],
+    catalogueId: string,
+    catalogueLabel: string,
+    lang: NetflixLanguageOption,
+    byId: Map<string, CuratedItem>,
+    tmdbById: Map<string, CatalogTmdbMeta>
+): {
+    top10Movies: CuratedItem[];
+    top10Tv: CuratedItem[];
+    rails: NetflixRailSection[];
+} {
+    const filtered = filterCataloguePool(pool, catalogueId, lang);
+    const plan = planNetflixHomeRows(filtered, catalogueId, catalogueLabel, lang, tmdbById);
+
+    const toCurated = (items: MoovieCatalogItem[]) =>
+        items
+            .map((item) => byId.get(String(item.id)))
+            .filter((item): item is CuratedItem => Boolean(item));
+
+    const rails = plan.rails
+        .map((row) => {
+            const items = toCurated(row.items);
+            if (items.length < MIN_RAIL_ITEMS) return null;
+            return {
+                id: `${catalogueId}-${row.id}`,
+                rowId: row.id,
+                title: row.title,
+                eyebrow: row.eyebrow,
+                description: row.description,
+                defaultType: row.defaultType,
+                items
+            };
+        })
+        .filter((section): section is NetflixRailSection => Boolean(section));
+
+    return {
+        top10Movies: toCurated(plan.top10Movies),
+        top10Tv: toCurated(plan.top10Tv),
+        rails
+    };
+}
+
+/** @deprecated Use buildNetflixHomeSections */
 export function buildNetflixCuratedSections(
     pool: MoovieCatalogItem[],
     catalogueId: string,
@@ -718,32 +781,14 @@ export function buildNetflixCuratedSections(
     byId: Map<string, CuratedItem>,
     tmdbById: Map<string, CatalogTmdbMeta>
 ): NetflixRailSection[] {
-    const filtered = filterCataloguePool(pool, catalogueId, lang);
-    const plans = planNetflixCuratedRows(
-        filtered,
+    return buildNetflixHomeSections(
+        pool,
         catalogueId,
         catalogueLabel,
         lang,
+        byId,
         tmdbById
-    );
-
-    return plans
-        .map((plan) => {
-            const items = plan.items
-                .map((item) => byId.get(String(item.id)))
-                .filter((item): item is CuratedItem => Boolean(item));
-            if (items.length < MIN_RAIL_ITEMS) return null;
-            return {
-                id: `${catalogueId}-${plan.id}`,
-                rowId: plan.id,
-                title: plan.title,
-                eyebrow: plan.eyebrow,
-                description: plan.description,
-                defaultType: plan.defaultType,
-                items
-            };
-        })
-        .filter((section): section is NetflixRailSection => Boolean(section));
+    ).rails;
 }
 
 export function collectArtworkIdsForCurated(
@@ -764,13 +809,10 @@ export function collectArtworkIdsForCurated(
     };
 
     filtered.slice(0, MAX_TRENDING).forEach(push);
-    for (const plan of planNetflixCuratedRows(
-        filtered,
-        catalogueId,
-        catalogueLabel,
-        lang,
-        tmdbById
-    )) {
+    const home = planNetflixHomeRows(filtered, catalogueId, catalogueLabel, lang, tmdbById);
+    home.top10Movies.forEach(push);
+    home.top10Tv.forEach(push);
+    for (const plan of home.rails) {
         plan.items.forEach(push);
     }
 

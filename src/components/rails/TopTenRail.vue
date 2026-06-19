@@ -61,7 +61,8 @@ export default defineComponent({
         eyebrow: { type: String, default: 'The Marquee' },
         description: { type: String, default: '' },
         moreTo: { type: [String, Object], default: null },
-        loading: { type: Boolean, default: false }
+        loading: { type: Boolean, default: false },
+        catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' }
     },
     setup(props) {
         const { detailPath } = useAppPaths();
@@ -85,8 +86,13 @@ export default defineComponent({
         const posterFor = (item: TopItem) =>
             item.posterPath ? useWebImage(item.posterPath, 'medium') : '';
 
-        const routeFor = (item: TopItem) =>
-            detailPath(item.type === 'tv' ? 'tv' : 'movie', item.id);
+        const routeFor = (item: TopItem) => {
+            if (props.catalog === 'netflix') {
+                const type = item.type === 'tv' ? 'tv' : 'movie';
+                return `/nf/${type}/${item.id}`;
+            }
+            return detailPath(item.type === 'tv' ? 'tv' : 'movie', item.id);
+        };
 
         return { displayItems, posterFor, routeFor, loadedImages };
     }

@@ -381,7 +381,6 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .nf-watch {
-    --nf-red: #e50914;
     position: relative;
     width: 100%;
     height: 100%;
@@ -446,7 +445,7 @@ export default defineComponent({
         height: 52px;
         margin: 0 auto;
         border: 3px solid rgba(255, 255, 255, 0.15);
-        border-top-color: var(--nf-red);
+        border-top-color: var(--ember);
         border-radius: 50%;
         animation: nf-spin 0.9s linear infinite;
     }
@@ -539,7 +538,7 @@ export default defineComponent({
     &__progress-fill {
         position: absolute;
         inset: 0 auto 0 0;
-        background: var(--nf-red);
+        background: var(--ember);
         border-radius: inherit;
     }
 
@@ -550,7 +549,7 @@ export default defineComponent({
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        background: var(--nf-red);
+        background: var(--ember);
         transform: translate(50%, -50%) scale(0);
         transition: transform 0.15s ease;
     }

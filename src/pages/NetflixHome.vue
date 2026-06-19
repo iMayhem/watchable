@@ -24,11 +24,32 @@
                 v-if="trendingItems.length || isLoading"
                 class="home__section"
                 :items="trendingItems"
-                title="Trending now"
+                title="Trending Now"
                 :eyebrow="activeCatalogue.eyebrow"
-                :description="`Trending ${activeCatalogue.label} titles in ${activeLang.label}.`"
-                :more-to="trendingBrowseTo"
                 catalog="netflix"
+                :more-to="trendingBrowseTo"
+                :loading="isLoading"
+            />
+
+            <TopTenRail
+                v-if="top10Movies.length || isLoading"
+                class="home__section"
+                :items="top10Movies"
+                title="Top 10 Movies Today"
+                eyebrow="Top 10"
+                catalog="netflix"
+                :more-to="top10MoviesBrowseTo"
+                :loading="isLoading"
+            />
+
+            <TopTenRail
+                v-if="top10Tv.length || isLoading"
+                class="home__section"
+                :items="top10Tv"
+                title="Top 10 TV Shows Today"
+                eyebrow="Top 10"
+                catalog="netflix"
+                :more-to="top10TvBrowseTo"
                 :loading="isLoading"
             />
 
@@ -66,6 +87,7 @@ import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
 import CuratedRail, { type CuratedItem } from '../components/rails/CuratedRail.vue';
+import TopTenRail from '../components/rails/TopTenRail.vue';
 import {
     browseMoovieCatalog,
     catalogRating,
@@ -85,7 +107,7 @@ import {
     type NetflixLanguageOption
 } from '../composables/useNetflixLanguage';
 import {
-    buildNetflixCuratedSections,
+    buildNetflixHomeSections,
     buildTrendingItems,
     collectArtworkIdsForCurated,
     enrichCatalogPoolWithTmdb,
@@ -123,13 +145,15 @@ async function toCuratedItem(
 
 export default defineComponent({
     name: 'NetflixHome',
-    components: { SiteHeader, SiteFooter, BillboardHero, CuratedRail },
+    components: { SiteHeader, SiteFooter, BillboardHero, CuratedRail, TopTenRail },
     setup() {
         const { updateSeo } = useSeo();
         const { language, activeLanguage } = getNetflixLanguage();
         const { catalogue, activeCatalogue: resolveCatalogue } = getNetflixCatalogue();
         const isLoading = ref(true);
         const trendingItems = ref<CuratedItem[]>([]);
+        const top10Movies = ref<CuratedItem[]>([]);
+        const top10Tv = ref<CuratedItem[]>([]);
         const catalogueRails = ref<NetflixRailSection[]>([]);
         const lastLoadKey = ref('');
 
@@ -173,6 +197,14 @@ export default defineComponent({
             netflixBrowsePath(activeCatalogue.value.id, 'trending')
         );
 
+        const top10MoviesBrowseTo = computed(() =>
+            netflixBrowsePath(activeCatalogue.value.id, 'top10-movies')
+        );
+
+        const top10TvBrowseTo = computed(() =>
+            netflixBrowsePath(activeCatalogue.value.id, 'top10-tv')
+        );
+
         const browseToForRail = (rail: NetflixRailSection) =>
             netflixBrowsePath(activeCatalogue.value.id, rail.rowId);
 
@@ -189,6 +221,8 @@ export default defineComponent({
             });
             isLoading.value = true;
             trendingItems.value = [];
+            top10Movies.value = [];
+            top10Tv.value = [];
             catalogueRails.value = [];
 
             try {
@@ -218,7 +252,7 @@ export default defineComponent({
                 const byId = new Map(curated.map((item) => [String(item.id), item]));
 
                 trendingItems.value = buildTrendingItems(pool, byId);
-                catalogueRails.value = buildNetflixCuratedSections(
+                const home = buildNetflixHomeSections(
                     browsePool,
                     cat.id,
                     cat.label,
@@ -226,6 +260,9 @@ export default defineComponent({
                     byId,
                     tmdbById
                 );
+                top10Movies.value = home.top10Movies;
+                top10Tv.value = home.top10Tv;
+                catalogueRails.value = home.rails;
 
                 lastLoadKey.value = loadKey;
 
@@ -288,8 +325,12 @@ export default defineComponent({
             heroPlayRoute,
             heroDetailRoute,
             trendingItems,
+            top10Movies,
+            top10Tv,
             catalogueRails,
             trendingBrowseTo,
+            top10MoviesBrowseTo,
+            top10TvBrowseTo,
             browseToForRail
         };
     }

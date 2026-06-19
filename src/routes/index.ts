@@ -27,6 +27,15 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/nf/categories',
+        name: 'NetflixCategories',
+        component: () => import('../pages/NetflixCategories.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Netflix Categories'
+        }
+    },
+    {
         path: '/nf/browse/:catalogue/:row',
         name: 'NetflixBrowse',
         component: () => import('../pages/NetflixBrowse.vue'),

@@ -550,10 +550,10 @@ export default defineComponent({
         const pickDefaultStreamIndex = (streamList: MoovieStream[]) => {
             if (!streamList.length) return 0;
             let bestIndex = 0;
-            let bestRank = qualityRank[streamList[0].quality] ?? 99;
+            let bestRank = qualityRank[streamList[0].quality] ?? -1;
             for (let i = 1; i < streamList.length; i++) {
-                const rank = qualityRank[streamList[i].quality] ?? 99;
-                if (rank < bestRank) {
+                const rank = qualityRank[streamList[i].quality] ?? -1;
+                if (rank > bestRank) {
                     bestRank = rank;
                     bestIndex = i;
                 }

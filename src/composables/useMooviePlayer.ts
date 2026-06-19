@@ -121,8 +121,8 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     let artInstance: any = null;
     let prepareToken = 0;
     let refreshInFlight: Promise<MoovieResolve | null> | null = null;
-    const destroyArt = () => {
-        prepareToken++;
+
+    const clearArtInstance = () => {
         const video = artInstance?.video as HTMLVideoElement | undefined;
         if (video) {
             try {
@@ -147,6 +147,11 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         currentTime.value = 0;
         duration.value = 0;
         buffered.value = 0;
+    };
+
+    const destroyArt = () => {
+        prepareToken++;
+        clearArtInstance();
         loading.value = false;
     };
 
@@ -213,10 +218,10 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const pickDefaultStreamIndex = (streams: MoovieStream[]) => {
         if (!streams.length) return 0;
         let bestIndex = 0;
-        let bestRank = qualityRank[streams[0].quality] ?? 99;
+        let bestRank = qualityRank[streams[0].quality] ?? -1;
         for (let i = 1; i < streams.length; i++) {
-            const rank = qualityRank[streams[i].quality] ?? 99;
-            if (rank < bestRank) {
+            const rank = qualityRank[streams[i].quality] ?? -1;
+            if (rank > bestRank) {
                 bestRank = rank;
                 bestIndex = i;
             }
@@ -246,7 +251,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         dbg('player:container-ready', { waitedMs: Date.now() - started });
     };
 
-    const waitForExtension = async (timeoutMs = 450) => {
+    const waitForExtension = async (timeoutMs = 1000) => {
         dbg('player:wait-extension', { timeoutMs });
         pingExtension();
         checkExtension();
@@ -278,7 +283,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         const container = artContainer.value;
         if (!container) throw new Error('Player container missing');
 
-        destroyArt();
+        clearArtInstance();
         const playUrl = resolvePlaybackUrl(stream);
         dbg('player:mount:url', { quality: stream.quality, viaExtension: extensionActive.value });
         const ArtplayerCtor = (window as any).Artplayer;
@@ -365,7 +370,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     ): Promise<void> => {
         const { allowRefresh = true } = options;
         const token = ++prepareToken;
-        destroyArt();
+        clearArtInstance();
         if (!stream) return;
 
         dbg('player:prepare', { quality: stream?.quality, allowRefresh });

@@ -187,17 +187,15 @@ export default defineComponent({
             catalogueRails.value = [];
 
             try {
-                const [page0, page1, page2] = await Promise.all([
-                    browseMoovieCatalog(lang.category, 0),
-                    browseMoovieCatalog(lang.category, 1),
-                    browseMoovieCatalog(lang.category, 2)
-                ]);
+                const pages = await Promise.all(
+                    Array.from({ length: 5 }, (_, page) =>
+                        browseMoovieCatalog(lang.category, page)
+                    )
+                );
 
-                const browsePool = [
-                    ...(page0.results || []),
-                    ...(page1.results || []),
-                    ...(page2.results || [])
-                ].filter((item) => itemMatchesLanguage(item, lang));
+                const browsePool = pages
+                    .flatMap((page) => page.results || [])
+                    .filter((item) => itemMatchesLanguage(item, lang));
 
                 const pool = filterCataloguePool(browsePool, cat.id, lang);
                 const artworkTargets = collectArtworkIdsForCurated(

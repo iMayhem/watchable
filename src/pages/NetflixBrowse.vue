@@ -11,6 +11,9 @@
                             <h1 class="discover__results-title">{{ rowMeta.title }}</h1>
                             <p v-if="rowMeta.description" class="discover__results-desc">
                                 {{ rowMeta.description }}
+                                <span v-if="rowMeta.netflixCode" class="discover__results-code">
+                                    Netflix code {{ rowMeta.netflixCode }}
+                                </span>
                             </p>
                         </div>
                     </header>
@@ -353,6 +356,15 @@ export default defineComponent({
         max-width: 62ch;
         color: var(--bone-300);
         line-height: 1.55;
+    }
+
+    &__results-code {
+        display: block;
+        margin-top: var(--s-2);
+        font-family: var(--font-mono);
+        font-size: var(--fs-xs);
+        letter-spacing: 0.08em;
+        color: var(--bone-500);
     }
 
     &__grid {

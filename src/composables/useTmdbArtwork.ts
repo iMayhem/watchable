@@ -55,8 +55,22 @@ function normalizeTitle(value: string): string {
         .trim();
 }
 
+const MIN_TITLE_MATCH_SCORE = 80;
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function hasWholePhrase(name: string, phrase: string): boolean {
+    if (!phrase) return false;
+    const pattern = new RegExp(`\\b${escapeRegExp(phrase).replace(/\s+/g, '\\s+')}\\b`);
+    return pattern.test(name);
+}
+
 function titleScore(query: string, candidate: TmdbSearchResult): number {
     const q = normalizeTitle(query);
+    if (!q) return 0;
+
     const names = [
         candidate.title,
         candidate.name,
@@ -68,12 +82,34 @@ function titleScore(query: string, candidate: TmdbSearchResult): number {
 
     let best = 0;
     for (const name of names) {
-        if (name === q) best = Math.max(best, 100);
-        else if (name.startsWith(q) || q.startsWith(name)) best = Math.max(best, 80);
-        else if (name.includes(q) || q.includes(name)) best = Math.max(best, 55);
+        if (name === q) {
+            best = Math.max(best, 100);
+            continue;
+        }
+
+        if (name.startsWith(`${q} `) || name.startsWith(`${q}:`)) {
+            best = Math.max(best, 92);
+            continue;
+        }
+
+        if (q.startsWith(name)) {
+            best = Math.max(best, 72);
+            continue;
+        }
+
+        if (hasWholePhrase(name, q)) {
+            best = Math.max(best, 78);
+            continue;
+        }
+
+        // Loose substring only for longer queries — avoids "the boys" → "the athlete boys".
+        if (q.length >= 12 && (name.includes(q) || q.includes(name))) {
+            best = Math.max(best, 58);
+        }
     }
-    if (candidate.poster_path) best += 8;
-    if (candidate.backdrop_path) best += 4;
+
+    if (candidate.poster_path) best += 4;
+    if (candidate.backdrop_path) best += 2;
     return best;
 }
 
@@ -101,7 +137,7 @@ function pickBestMatch(
         }
     }
 
-    return bestScore >= 45 ? best : results[0] || null;
+    return bestScore >= MIN_TITLE_MATCH_SCORE ? best : null;
 }
 
 function hasUsableArtwork(match: TmdbSearchResult | null): boolean {
@@ -117,8 +153,8 @@ async function searchTmdbByType(
         query: cleanTitle,
         include_adult: 'false'
     };
-    if (type === 'movie' && year) params.year = year;
-    if (type === 'tv' && year) params.first_air_date_year = year;
+    // Never pass year / first_air_date_year to TMDB search. Catalogue release_date is
+    // usually a dub/listing date (e.g. The Boys 2026) and filters out the real title.
 
     const res = await useAxios().get(`search/${type}`, { params });
     const results = (res.data?.results || []) as TmdbSearchResult[];
@@ -155,6 +191,16 @@ export async function resolveTmdbArtwork(opts: {
             }
         }
 
+        // Year is only a tie-breaker in scoring — retry with no year bias if match is weak.
+        if (!hasUsableArtwork(match) && year) {
+            match = await searchTmdbByType(opts.type, cleanTitle, null);
+            if (!hasUsableArtwork(match)) {
+                const altType = opts.type === 'movie' ? 'tv' : 'movie';
+                const altMatch = await searchTmdbByType(altType, cleanTitle, null);
+                if (hasUsableArtwork(altMatch)) match = altMatch;
+            }
+        }
+
         const artwork: TmdbArtwork = {
             posterPath: match?.poster_path || null,
             backdropPath: match?.backdrop_path || null,
@@ -184,9 +230,8 @@ export async function resolveArtworkForCatalogItem(item: {
     const mediaType = inferCatalogMediaType(item);
     const tmdb = await resolveTmdbArtwork({
         title: displayTitle,
-        year: item.release_date,
         type: mediaType,
-        cacheKey: `nm-${mediaType}-${item.id}`
+        cacheKey: `nm2-${mediaType}-${item.id}`
     });
 
     return {

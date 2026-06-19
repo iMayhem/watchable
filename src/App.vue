@@ -5,7 +5,7 @@
         <span class="grain" aria-hidden="true" />
 
         <router-view v-slot="{ Component, route }">
-            <KeepAlive :include="['HomeShell', 'NetflixDetail']">
+            <KeepAlive :include="['HomeShell', 'NetflixDetail', 'StreamNetflix']">
                 <component :is="Component" :key="getRouteKey(route)" />
             </KeepAlive>
         </router-view>
@@ -32,6 +32,10 @@ const getRouteKey = (route: any) => {
     }
     if ((route.name === 'StreamAnime' || route.name === 'StreamAnimeEpisode') && route.params.id) {
         return `anime-stream-${route.params.id}-${region.value}`;
+    }
+    // Keep one player instance when switching Netflix audio (catalogue id in path changes).
+    if (route.name === 'StreamNetflixMovie' || route.name === 'StreamNetflixTV') {
+        return 'stream-netflix';
     }
     // Do NOT include region in the key for Home/listing pages.
     // Those pages handle region changes themselves via the movora_settings_change

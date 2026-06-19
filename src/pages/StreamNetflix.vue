@@ -91,6 +91,7 @@ export default defineComponent({
         } = player;
 
         let started = false;
+        const playbackEntryId = ref(String(route.params.id || ''));
         let skipRoutePlayback = false;
 
         const bindPlayerContainer = (el: HTMLElement | null) => {
@@ -134,7 +135,7 @@ export default defineComponent({
             const params = new URLSearchParams({
                 action: 'resolve',
                 type: mediaType.value,
-                id: String(route.params.id || ''),
+                id: playbackEntryId.value,
                 se: String(route.params.season || '0'),
                 ep: String(route.params.episode || '0'),
                 server: '1'
@@ -153,7 +154,7 @@ export default defineComponent({
 
         const goBack = () => {
             nfDebug('stream:back', { id: route.params.id, type: mediaType.value });
-            const fallback = `/nf/${mediaType.value}/${route.params.id}`;
+            const fallback = `/nf/${mediaType.value}/${playbackEntryId.value}`;
             if (window.history.length > 1) {
                 router.back();
                 scheduleTeardown();
@@ -185,6 +186,8 @@ export default defineComponent({
 
                 if (route.path !== target.path) {
                     nfDebug('stream:canonical-route', { from: route.path, to: target.path });
+                    playbackEntryId.value = id;
+                    skipRoutePlayback = true;
                     await router.replace(target.path);
                     return false;
                 }
@@ -195,8 +198,13 @@ export default defineComponent({
             return true;
         };
 
+        const syncBrowserUrl = (path: string) => {
+            if (route.path === path) return;
+            window.history.replaceState(window.history.state, '', path);
+        };
+
         const startPlayback = async () => {
-            const id = String(route.params.id || '');
+            const id = playbackEntryId.value;
             const type = mediaType.value;
             const season = type === 'tv'
                 ? parseInt(String(route.params.season || '1'), 10)
@@ -245,10 +253,10 @@ export default defineComponent({
                 return;
             }
 
-            setPlaybackLanguage(category);
             const target = catalogStreamTarget(variant);
 
             try {
+                playbackEntryId.value = String(variant.id);
                 await switchResolveEntry(
                     {
                         type: target.mediaType,
@@ -259,15 +267,14 @@ export default defineComponent({
                     { resumeAt, resumePlaying }
                 );
 
+                setPlaybackLanguage(category);
+                syncBrowserUrl(target.path);
+
                 if (parsed.displayTitle) {
                     void loadAvailableLanguages(parsed.displayTitle);
                 }
-
-                if (route.path !== target.path) {
-                    skipRoutePlayback = true;
-                    await router.replace(target.path);
-                }
             } catch (err: any) {
+                playbackEntryId.value = String(route.params.id || playbackEntryId.value);
                 nfDebug('stream:language:fail', { category, err });
                 addToast(
                     err?.message || `Could not switch to ${lang.label} audio.`,
@@ -281,7 +288,8 @@ export default defineComponent({
         });
 
         onMounted(async () => {
-            nfDebug('stream:mount', { path: route.path });
+            playbackEntryId.value = String(route.params.id || playbackEntryId.value);
+            nfDebug('stream:mount', { path: route.path, id: playbackEntryId.value });
             updateSeo({
                 title: 'Watch — Netflix on Moovie',
                 canonical: `https://moovie.fun${route.path}`,
@@ -299,18 +307,16 @@ export default defineComponent({
         });
 
         watch(
-            () => [route.path, route.params.id, route.params.season, route.params.episode],
-            async () => {
+            () => [route.params.id, route.params.season, route.params.episode],
+            async ([id, season, episode], prev) => {
                 if (skipRoutePlayback) {
                     skipRoutePlayback = false;
-                    nfDebug('stream:route-change:skip', { path: route.path });
+                    nfDebug('stream:route-change:skip', { id });
                     return;
                 }
-                nfDebug('stream:route-change', {
-                    id: route.params.id,
-                    season: route.params.season,
-                    episode: route.params.episode
-                });
+                if (!id || id === prev?.[0]) return;
+                playbackEntryId.value = String(id);
+                nfDebug('stream:route-change', { id, season, episode });
                 await startPlayback();
             }
         );

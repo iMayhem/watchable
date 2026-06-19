@@ -642,6 +642,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         resume: PlaybackResumeOptions = {}
     ) => {
         dbg('player:switch-entry:start', { ...opts, resume });
+        playbackError.value = '';
         const url = buildResolveUrl({
             type: opts.type,
             id: opts.id,

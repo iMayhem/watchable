@@ -88,39 +88,3 @@ print('  background.scripts + background.service_worker')
 print('  gecko.data_collection_permissions.required = ["none"]')
 print('  gecko.strict_min_version = 140.0')
 PY
-
-CRX_STAGE="${DIST}/.crx-stage"
-CRX_OUT="${DIST}/moovie.crx"
-CRX_KEY="${DIST}/moovie.pem"
-CHROME_ZIP="${DIST}/moovie-chrome.zip"
-
-rm -rf "$CRX_STAGE"
-mkdir -p "$CRX_STAGE"
-python3 - "$CHROME_ZIP" "$CRX_STAGE" <<'PY'
-import sys
-import zipfile
-from pathlib import Path
-
-zip_path = Path(sys.argv[1])
-stage = Path(sys.argv[2])
-
-with zipfile.ZipFile(zip_path) as zf:
-    zf.extractall(stage)
-PY
-
-echo ""
-echo "Building Chrome CRX..."
-npx --yes crx3@1.1.3 "$CRX_STAGE" -o "$CRX_OUT" -p "$CRX_KEY"
-rm -rf "$CRX_STAGE"
-echo "✓ moovie.crx — Chrome packed extension (self-host / enterprise)"
-if [[ -f "$CRX_KEY" ]]; then
-  echo "  Signing key: moovie.pem (keep this file to preserve extension ID across rebuilds)"
-fi
-
-FIREFOX_ZIP="${DIST}/moovie-firefox.zip"
-XPI_OUT="${DIST}/moovie.xpi"
-
-echo ""
-echo "Building Firefox XPI..."
-cp "$FIREFOX_ZIP" "$XPI_OUT"
-echo "✓ moovie.xpi — Firefox packed extension (AMO / self-host)"

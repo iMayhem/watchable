@@ -12,11 +12,8 @@ STORE PACKAGES (upload these ZIPs — manifest.json is at ZIP root)
 • Chrome:  watchable/extension/dist/moovie-chrome.zip
 • Edge:    watchable/extension/dist/moovie-edge.zip
 • Opera:   watchable/extension/dist/moovie-opera.zip
-• Firefox: watchable/extension/dist/moovie-firefox.zip or moovie.xpi
+• Firefox: watchable/extension/dist/moovie-firefox.zip
 • Brave / Vivaldi sideload: moovie-brave.zip or moovie-vivaldi.zip
-• Chrome CRX (packed): watchable/extension/dist/moovie.crx
-• Firefox XPI (packed): watchable/extension/dist/moovie.xpi
-  Keep dist/moovie.pem safe — same key = same extension ID on rebuild.
 
 Rebuild all packages:
   cd watchable/extension && ./package.sh

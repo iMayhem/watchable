@@ -60,6 +60,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import {
     fetchMoovieCatalogMeta,
+    fetchMoovieCatalogMetaResolved,
     inferCatalogMediaType,
     parseCatalogTitle
 } from '../composables/useMoovieCatalog';
@@ -126,6 +127,7 @@ export default defineComponent({
             isMuted,
             resolveAndPlay,
             switchResolveEntry,
+            resetPlaybackSession,
             switchQuality,
             togglePlay,
             pausePlayback,
@@ -386,27 +388,50 @@ export default defineComponent({
             window.history.replaceState(window.history.state, '', path);
         };
 
+        const playbackTypeForId = (
+            id: string,
+            meta?: { title?: string; media_type?: string } | null
+        ): 'movie' | 'tv' => {
+            if (meta?.title && String(resolved.value?.meta?.id || '') === String(id)) {
+                return inferCatalogMediaType(meta);
+            }
+            if (meta?.title) {
+                return inferCatalogMediaType(meta);
+            }
+            return routeMediaType.value;
+        };
+
         const startPlayback = async () => {
             const id = playbackEntryId.value;
-            const type = streamType.value;
-            const season = type === 'tv'
-                ? parseInt(String(route.params.season || '1'), 10)
-                : 0;
-            const episode = type === 'tv'
-                ? parseInt(String(route.params.episode || '1'), 10)
-                : 0;
-
-            nfDebug('stream:playback:start', { id, type, season, episode });
+            if (!id) return;
 
             languagesLoading.value = true;
-            let catalogMeta: { title?: string; channel?: string } | null = null;
+            let catalogMeta: {
+                title?: string;
+                channel?: string;
+                media_type?: string;
+                release_date?: string;
+            } | null = null;
 
             try {
                 const [meta, cache] = await Promise.all([
-                    fetchMoovieCatalogMeta(type, id),
+                    fetchMoovieCatalogMetaResolved(routeMediaType.value, id),
                     fetchCatalogAudioCacheByIds([id])
                 ]);
                 catalogMeta = meta;
+
+                const type = playbackTypeForId(id, catalogMeta);
+                const season =
+                    type === 'tv'
+                        ? parseInt(String(route.params.season || '1'), 10)
+                        : 0;
+                const episode =
+                    type === 'tv'
+                        ? parseInt(String(route.params.episode || '1'), 10)
+                        : 0;
+
+                nfDebug('stream:playback:start', { id, type, season, episode });
+
                 if (catalogMeta) {
                     syncPlayingLanguageFromTitle(
                         catalogMeta.title || '',
@@ -420,32 +445,43 @@ export default defineComponent({
                     const seeded = languageOptionsFromLabels(cached);
                     if (seeded.length) availableLanguages.value = seeded;
                 }
-            } catch (err) {
-                nfDebug('stream:languages:seed:fail', { id, err });
-            }
 
-            const parsed = parseCatalogTitle(catalogMeta?.title || '');
-            const languageLoadPromise =
-                parsed.displayTitle && catalogMeta?.title
-                    ? loadAvailableLanguages(
-                          parsed.displayTitle,
-                          catalogMeta.title,
-                          id
+                const parsed = parseCatalogTitle(catalogMeta?.title || '');
+                const languageLoadPromise =
+                    parsed.displayTitle && catalogMeta?.title
+                        ? loadAvailableLanguages(
+                              parsed.displayTitle,
+                              catalogMeta.title,
+                              id
+                          )
+                        : Promise.resolve();
+
+                const episodesPromise = catalogMeta
+                    ? loadEpisodes(
+                          {
+                              id,
+                              title: catalogMeta.title || '',
+                              release_date: catalogMeta.release_date,
+                              media_type: type
+                          },
+                          { season }
                       )
                     : Promise.resolve();
 
-            try {
                 await Promise.all([
                     resolveAndPlay({ type, id, season, episode }),
-                    languageLoadPromise
+                    languageLoadPromise,
+                    episodesPromise
                 ]);
+
+                const title = resolved.value?.meta?.title || catalogMeta?.title || '';
+                if (title) {
+                    syncPlayingLanguageFromTitle(title, catalogMeta?.channel);
+                }
+            } catch (err) {
+                nfDebug('stream:playback:fail', { id, err });
             } finally {
                 languagesLoading.value = false;
-            }
-
-            const title = resolved.value?.meta?.title || catalogMeta?.title || '';
-            if (title) {
-                syncPlayingLanguageFromTitle(title, catalogMeta?.channel);
             }
         };
 
@@ -480,7 +516,12 @@ export default defineComponent({
 
             try {
                 await switchResolveEntry(
-                    { type: streamType.value, id, season, episode },
+                    {
+                        type: playbackTypeForId(id, resolved.value?.meta),
+                        id,
+                        season,
+                        episode
+                    },
                     { resumeAt: 0, resumePlaying: true }
                 );
 
@@ -489,6 +530,7 @@ export default defineComponent({
                 syncBrowserUrl(path);
                 await router.replace(path);
             } catch (err: any) {
+                if (err?.name === 'ResolveAborted') return;
                 nfDebug('stream:episode:fail', { id, season, episode, err });
                 addToast(err?.message || 'Could not switch episode.', 'warning');
             } finally {
@@ -730,6 +772,8 @@ export default defineComponent({
                 nfDebug('stream:route-change', { id, season, episode, idChanged, seasonChanged, episodeChanged });
 
                 if (idChanged) {
+                    resetPlaybackSession();
+                    availableLanguages.value = [];
                     await startPlayback();
                     return;
                 }
@@ -738,11 +782,12 @@ export default defineComponent({
 
                 const nextSeason = parseInt(String(season || '1'), 10);
                 const nextEpisode = parseInt(String(episode || '1'), 10);
+                const type = playbackTypeForId(String(id), resolved.value?.meta);
 
                 try {
                     await switchResolveEntry(
                         {
-                            type: streamType.value,
+                            type,
                             id: String(id),
                             season: nextSeason,
                             episode: nextEpisode
@@ -750,6 +795,7 @@ export default defineComponent({
                         { resumeAt: 0, resumePlaying: true }
                     );
                 } catch (err: any) {
+                    if (err?.name === 'ResolveAborted') return;
                     nfDebug('stream:route-episode:fail', { id, season, episode, err });
                     addToast(err?.message || 'Could not switch episode.', 'warning');
                 }

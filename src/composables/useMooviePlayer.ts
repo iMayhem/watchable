@@ -226,7 +226,14 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
     let artInstance: any = null;
     let prepareToken = 0;
+    let resolveToken = 0;
     let refreshInFlight: Promise<MoovieResolve | null> | null = null;
+
+    class ResolveAborted extends Error {
+        override name = 'ResolveAborted';
+    }
+
+    const isResolveActive = (token: number) => token === resolveToken;
     let videoClickHandler: ((event: MouseEvent) => void) | null = null;
 
     const clearArtInstance = () => {
@@ -265,6 +272,94 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         prepareToken++;
         clearArtInstance();
         loading.value = false;
+    };
+
+    const resetPlaybackSession = () => {
+        resolveToken++;
+        prepareToken++;
+        playbackError.value = '';
+        streamWarning.value = '';
+        resolved.value = null;
+        destroyArt();
+    };
+
+    const fetchResolveForPlayback = async (
+        opts: {
+            type: 'movie' | 'tv';
+            id: string;
+            season?: number;
+            episode?: number;
+            server?: number;
+        },
+        token: number
+    ) => {
+        const types: Array<'movie' | 'tv'> = [opts.type];
+        const altType = opts.type === 'tv' ? 'movie' : 'tv';
+        types.push(altType);
+
+        let lastCorrupt: MoovieResolve | null = null;
+
+        for (const type of types) {
+            if (!isResolveActive(token)) throw new ResolveAborted();
+
+            const url = buildResolveUrl({
+                type,
+                id: opts.id,
+                season: type === 'tv' ? opts.season ?? 1 : 0,
+                episode: type === 'tv' ? opts.episode ?? 1 : 0,
+                server: opts.server
+            });
+
+            let data = await fetchResolve(url);
+            if (!isResolveActive(token)) throw new ResolveAborted();
+
+            if (data.streamWarning) {
+                try {
+                    const altUrl = buildResolveUrl({
+                        type: altType,
+                        id: opts.id,
+                        season: altType === 'tv' ? opts.season ?? 1 : 0,
+                        episode: altType === 'tv' ? opts.episode ?? 1 : 0,
+                        server: opts.server
+                    });
+                    const altData = await fetchResolve(altUrl);
+                    if (!isResolveActive(token)) throw new ResolveAborted();
+                    if (!altData.streamWarning && (altData.streams?.length || 0) > 0) {
+                        dbg('player:resolve:fallback-type', {
+                            from: type,
+                            to: altType,
+                            title: altData.meta?.title
+                        });
+                        data = altData;
+                    }
+                } catch {
+                    /* keep primary resolve */
+                }
+            }
+
+            const title = data.meta?.title || '';
+            if (!streamsLookCorrupt(title, data.streams || [])) {
+                if (type !== opts.type) {
+                    dbg('player:resolve:corrupt-retry', {
+                        from: opts.type,
+                        to: type,
+                        title
+                    });
+                }
+                return data;
+            }
+
+            lastCorrupt = data;
+            dbg('player:resolve:corrupt', { type, title, streamCount: data.streams?.length ?? 0 });
+        }
+
+        if (lastCorrupt?.streams?.length) {
+            throw new Error(
+                'Stream mismatch — the catalogue returned the wrong video for this title. Try another entry or search again.'
+            );
+        }
+
+        throw new Error('No stream available for this title. Try again in a moment.');
     };
 
     const bindVideoClickToggle = () => {
@@ -636,7 +731,8 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         },
         resume: PlaybackResumeOptions = {}
     ) => {
-        dbg('player:resolve:start', { ...opts, resume });
+        const token = ++resolveToken;
+        dbg('player:resolve:start', { ...opts, resume, token });
         loading.value = true;
         playbackError.value = '';
         streamWarning.value = '';
@@ -644,43 +740,9 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
         try {
             await waitForContainer();
-            const url = buildResolveUrl({
-                type: opts.type,
-                id: opts.id,
-                season: opts.season ?? 0,
-                episode: opts.episode ?? 0,
-                server: opts.server
-            });
+            if (!isResolveActive(token)) return;
 
-            const resolveTask = (async () => {
-                let data = await fetchResolve(url);
-
-                if (data.streamWarning) {
-                    const altType = opts.type === 'tv' ? 'movie' : 'tv';
-                    const altUrl = buildResolveUrl({
-                        type: altType,
-                        id: opts.id,
-                        season: altType === 'movie' ? 0 : opts.season ?? 0,
-                        episode: altType === 'movie' ? 0 : opts.episode ?? 0,
-                        server: opts.server
-                    });
-                    try {
-                        const altData = await fetchResolve(altUrl);
-                        if (!altData.streamWarning && (altData.streams?.length || 0) > 0) {
-                            dbg('player:resolve:fallback-type', {
-                                from: opts.type,
-                                to: altType,
-                                title: altData.meta?.title
-                            });
-                            data = altData;
-                        }
-                    } catch {
-                        /* keep original resolve */
-                    }
-                }
-
-                return data;
-            })();
+            const resolveTask = fetchResolveForPlayback(opts, token);
 
             await Promise.all([
                 resolveTask,
@@ -688,29 +750,36 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                 loadArtplayerAssets()
             ]);
 
-            let data = await resolveTask;
-            const title = data.meta?.title || '';
+            if (!isResolveActive(token)) return;
 
-            if (streamsLookCorrupt(title, data.streams || [])) {
-                throw new Error(
-                    'Stream mismatch — the catalogue returned the wrong video for this title. Try another entry or search again.'
-                );
-            }
+            const data = await resolveTask;
+            const url = buildResolveUrl({
+                type: data.resolveType === 'tv' ? 'tv' : opts.type,
+                id: opts.id,
+                season: data.resolveSeason ?? opts.season ?? 0,
+                episode: data.resolveEpisode ?? opts.episode ?? 0,
+                server: opts.server
+            });
+
             resolved.value = data;
             streamWarning.value = data.streamWarning || '';
             selectedStreamIndex.value = pickDefaultStreamIndex(data.streams || []);
             dbg('player:resolve:ok', {
                 title: data.meta?.title,
                 streamCount: data.streams?.length ?? 0,
-                quality: data.streams?.[selectedStreamIndex.value]?.quality
+                quality: data.streams?.[selectedStreamIndex.value]?.quality,
+                token
             });
             const stream = data.streams?.[selectedStreamIndex.value] || null;
             await preparePlayback(stream, url, { resume });
         } catch (err: any) {
+            if (err instanceof ResolveAborted || !isResolveActive(token)) return;
             dbgError('player:resolve:fail', err);
             playbackError.value = err?.message || 'Could not resolve stream.';
         } finally {
-            loading.value = false;
+            if (isResolveActive(token)) {
+                loading.value = false;
+            }
         }
     };
 
@@ -736,26 +805,22 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         },
         resume: PlaybackResumeOptions = {}
     ) => {
-        dbg('player:switch-entry:start', { ...opts, resume });
+        const token = ++resolveToken;
+        dbg('player:switch-entry:start', { ...opts, resume, token });
         playbackError.value = '';
-        const url = buildResolveUrl({
-            type: opts.type,
-            id: opts.id,
-            season: opts.season ?? 0,
-            episode: opts.episode ?? 0,
-            server: opts.server
-        });
 
         const preferredQuality =
             resolved.value?.streams?.[selectedStreamIndex.value]?.quality;
-        const data = await fetchResolve(url);
-        const title = data.meta?.title || '';
+        const data = await fetchResolveForPlayback(opts, token);
+        if (!isResolveActive(token)) throw new ResolveAborted();
 
-        if (streamsLookCorrupt(title, data.streams || [])) {
-            throw new Error(
-                'Stream mismatch — the catalogue returned the wrong video for this title.'
-            );
-        }
+        const url = buildResolveUrl({
+            type: data.resolveType === 'tv' ? 'tv' : opts.type,
+            id: opts.id,
+            season: data.resolveSeason ?? opts.season ?? 0,
+            episode: data.resolveEpisode ?? opts.episode ?? 0,
+            server: opts.server
+        });
 
         resolved.value = data;
         streamWarning.value = data.streamWarning || '';
@@ -769,6 +834,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
         if (artInstance) {
             const ok = await switchStreamUrl(stream, resume);
+            if (!isResolveActive(token)) throw new ResolveAborted();
             if (!ok) throw new Error('Could not switch audio track.');
             playbackError.value = '';
             return;
@@ -837,6 +903,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         bufferProgress,
         resolveAndPlay,
         switchResolveEntry,
+        resetPlaybackSession,
         switchQuality,
         togglePlay,
         pausePlayback,

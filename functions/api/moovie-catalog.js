@@ -149,10 +149,48 @@ function extractStreams(html) {
   return streams;
 }
 
+const LANGUAGE_PATTERN = /\[([^\]]+)\]/g;
+const SEASON_PATTERN = /\bS(\d+)(?:-S\d+)?\b/i;
+
+function parseCatalogTitle(raw) {
+  const languages = [];
+  let match;
+  const source = String(raw || '');
+
+  while ((match = LANGUAGE_PATTERN.exec(source)) !== null) {
+    const tag = match[1].trim();
+    if (tag && !languages.includes(tag)) languages.push(tag);
+  }
+
+  const seasonMatch = source.match(SEASON_PATTERN);
+  const season = seasonMatch ? parseInt(seasonMatch[1], 10) : null;
+  const displayTitle = source
+    .replace(LANGUAGE_PATTERN, '')
+    .replace(/\bS\d+(?:-S\d+)?\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  return { displayTitle, languages, season };
+}
+
+/** Catalogue films are often tagged tv without season/episode structure. */
+function inferCatalogMediaType(item) {
+  const raw = String(item?.title || '');
+  const parsed = parseCatalogTitle(raw);
+
+  if (parsed.season != null || /\bS\d{1,2}(?:-S\d+)?\b/i.test(raw)) {
+    return 'tv';
+  }
+
+  const mt = String(item?.media_type || '').toLowerCase();
+  if (mt === 'movie') return 'movie';
+
+  return 'movie';
+}
+
 function canonicalMediaType(meta, fallbackType) {
-  const mt = String(meta?.media_type || '').toLowerCase();
-  if (mt === 'tv' || mt === 'movie') return mt;
-  return fallbackType;
+  if (!meta?.title && !meta?.media_type) return fallbackType;
+  return inferCatalogMediaType(meta);
 }
 
 function titleSuggestsAnime(title) {
@@ -373,8 +411,14 @@ export async function onRequest(context) {
       }
       const page = parseInt(searchParams.get('page') || '0', 10);
       const encoded = encodeURIComponent(query.trim()).replace(/%20/g, '+');
+      const upstream = new URLSearchParams();
+      upstream.set('page', String(Number.isFinite(page) ? page : 0));
+      for (const key of ['dubbing', 'country', 'type', 'genre']) {
+        const value = searchParams.get(key);
+        if (value) upstream.set(key, value);
+      }
       const resp = await fetch(
-        `https://api2.imdb4.shop/api/search2/${encoded}?page=${Number.isFinite(page) ? page : 0}`,
+        `https://api2.imdb4.shop/api/search2/${encoded}?${upstream}`,
         { headers: { 'User-Agent': UA } }
       );
       const data = await resp.json();
@@ -397,7 +441,10 @@ export async function onRequest(context) {
           id: meta.id,
           title: (meta.title || '').trim(),
           subjectid: meta.subjectid,
-          media_type: meta.media_type || type,
+          media_type: inferCatalogMediaType({
+            title: meta.title,
+            media_type: meta.media_type || type,
+          }),
           season: meta.season || null,
           trailer: meta.trailer || null,
           backdrop_path: meta.backdrop_path || null,

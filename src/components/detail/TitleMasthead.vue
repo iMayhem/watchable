@@ -77,10 +77,14 @@
             />
 
             <div class="container-lm masthead__inner">
-                <router-link :to="homePath" class="masthead__crumb eyebrow">
+                <button
+                    type="button"
+                    class="masthead__crumb eyebrow"
+                    @click="goBackToIssue"
+                >
                     <span aria-hidden="true">←</span>
                     Back to issue
-                </router-link>
+                </button>
 
                 <div class="masthead__content">
                     <span class="eyebrow masthead__eyebrow">
@@ -94,12 +98,23 @@
                         <span class="masthead__quote" aria-hidden="true">“</span>{{ tagline }}<span class="masthead__quote" aria-hidden="true">”</span>
                     </p>
 
-                    <ul v-if="genres.length || ratingLabel" class="masthead__chips">
+                    <ul
+                        v-if="audioTags.length || genres.length || ratingLabel"
+                        class="masthead__chips"
+                    >
                         <li v-if="ratingLabel" class="masthead__rating">
                             <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
                                 <path fill="currentColor" d="M12 2l2.9 6.88L22 9.82l-5.34 4.94L18.18 22 12 18.27 5.82 22l1.52-7.24L2 9.82l7.1-.94z"/>
                             </svg>
                             {{ ratingLabel }}
+                        </li>
+                        <li
+                            v-for="tag in audioTags"
+                            :key="`audio-${tag}`"
+                            class="masthead__chip masthead__chip--audio"
+                            :class="{ 'masthead__chip--english': tag === 'English' }"
+                        >
+                            {{ tag }}
                         </li>
                         <li v-for="g in genres.slice(0, 4)" :key="g" class="masthead__chip">{{ g }}</li>
                         <li v-if="adult" class="masthead__cert">18+</li>
@@ -170,7 +185,7 @@ import TrailerIframe from '../hero/TrailerIframe.vue';
 import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { usePrefetch } from '../../composables/usePrefetch';
-import { useAppPaths } from '../../composables/useAppPaths';
+import { useDetailBackNavigation } from '../../composables/useDetailBackNavigation';
 import { useWebImage } from '../../utils/useWebImage';
 
 export default defineComponent({
@@ -188,6 +203,7 @@ export default defineComponent({
         rating: { type: Number, default: 0 },
         releaseDate: { type: String, default: '' },
         genres: { type: Array as PropType<string[]>, default: () => [] },
+        audioTags: { type: Array as PropType<string[]>, default: () => [] },
         genreIds: { type: Array as PropType<number[]>, default: () => [] },
         adult: { type: Boolean, default: false },
         playRoute: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: '' },
@@ -196,8 +212,7 @@ export default defineComponent({
         loading: { type: Boolean, default: false }
     },
     setup(props) {
-        const { home } = useAppPaths();
-        const homePath = home;
+        const { goBackToIssue } = useDetailBackNavigation();
         const rootRef = ref<HTMLElement | null>(null);
         const ambientPath = computed(() => props.backdropPath || props.posterPath);
         useAmbientColor(ambientPath, rootRef);
@@ -285,7 +300,7 @@ export default defineComponent({
         });
 
         return {
-            homePath,
+            goBackToIssue,
             rootRef,
             backdropUrl,
             isVerticalBackdrop,
@@ -417,6 +432,11 @@ export default defineComponent({
         gap: 0.4rem;
         color: var(--bone-200);
         margin-bottom: var(--s-8);
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        cursor: pointer;
         text-decoration: none;
         transition: color var(--dur-fast) var(--ease-out);
 
@@ -498,6 +518,19 @@ export default defineComponent({
         font-family: var(--font-mono);
         text-transform: uppercase;
         letter-spacing: 0.1em;
+
+        &--audio {
+            text-transform: none;
+            letter-spacing: 0.06em;
+            background: rgba(255, 90, 31, 0.1);
+            border-color: rgba(255, 90, 31, 0.22);
+        }
+
+        &--english {
+            color: var(--bone-50);
+            background: rgba(96, 165, 250, 0.14);
+            border-color: rgba(96, 165, 250, 0.42);
+        }
     }
 
     &__rating {

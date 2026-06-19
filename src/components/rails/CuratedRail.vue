@@ -23,6 +23,8 @@
             :catalog="catalog"
             :language-tags="item.languageTags || []"
             :catalog-title="item.catalogTitle || ''"
+            :anilist-id="item.anilistId || 0"
+            :moovie-catalog-id="item.moovieCatalogId || ''"
         />
     </LmRail>
 </template>
@@ -47,6 +49,8 @@ export interface CuratedItem {
     languageTags?: string[];
     backdropPath?: string | null;
     catalogTitle?: string;
+    anilistId?: number;
+    moovieCatalogId?: string;
 }
 
 export default defineComponent({

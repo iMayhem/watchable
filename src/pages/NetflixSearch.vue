@@ -183,9 +183,6 @@ import LmTabs, { TabDef } from '../components/primitives/Tabs.vue';
 import PosterCard from '../components/cards/PosterCard.vue';
 import type { CuratedItem } from '../components/rails/CuratedRail.vue';
 import {
-    catalogRating,
-    inferCatalogMediaType,
-    parseCatalogTitle,
     searchMoovieCatalog,
     type MoovieCatalogItem
 } from '../composables/useMoovieCatalog';
@@ -194,41 +191,16 @@ import { getNetflixLanguage, getLanguageOption } from '../composables/useNetflix
 import { filterCataloguePool } from '../composables/useNetflixRails';
 import { addNetflixSearchTerm, netflixSearchHistory } from '../composables/useHistory';
 import { useSeo } from '../composables/useSeo';
-import {
-    buildCatalogLanguageMap,
-    resolveLanguageTagsForItem
-} from '../composables/useNetflixCatalogLookup';
+import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
+import { buildCatalogLanguageMap } from '../composables/useNetflixCatalogLookup';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
+import { mapWithConcurrency } from '../composables/useTmdbArtwork';
 import {
-    mapWithConcurrency,
-    pickCatalogArtwork,
-    resolveArtworkForCatalogItem
-} from '../composables/useTmdbArtwork';
+    toCuratedItemFast,
+    toCuratedItemUpgraded
+} from '../composables/useNetflixArtwork';
 
 type TabKey = 'movies' | 'shows';
-
-async function toCuratedItem(
-    item: MoovieCatalogItem,
-    languageMap?: Map<string, string[]>
-): Promise<CuratedItem> {
-    const parsed = parseCatalogTitle(item.title || '');
-    const resolved = await resolveArtworkForCatalogItem(item);
-    const artwork = pickCatalogArtwork(resolved);
-
-    return {
-        id: item.id,
-        title: parsed.displayTitle || item.title,
-        originalTitle: parsed.languages.join(' · '),
-        catalogTitle: item.title,
-        posterPath: artwork.posterPath,
-        backdropPath: artwork.backdropPath,
-        rating: catalogRating(item.vote_average),
-        releaseDate: item.release_date || '',
-        type: inferCatalogMediaType(item),
-        languageTags: resolveLanguageTagsForItem(item, languageMap),
-        genreIds: resolved.genreIds || []
-    };
-}
 
 export default defineComponent({
     name: 'NetflixSearch',
@@ -254,6 +226,7 @@ export default defineComponent({
         const loadedPage = ref(-1);
         const totalPages = ref(1);
         const searchVariantPool = ref<MoovieCatalogItem[]>([]);
+        const searchGeneration = ref(0);
 
         const popularSearches = [
             'Stranger Things', 'Wednesday', 'RRR', 'Sacred Games',
@@ -297,24 +270,42 @@ export default defineComponent({
             syncRoute();
         };
 
-        const mapFilteredResults = async (
-            pool: MoovieCatalogItem[],
-            languageMap: Map<string, string[]>
-        ) => {
-            const curated = await mapWithConcurrency(
-                pool,
-                (item) => toCuratedItem(item, languageMap),
-                5
-            );
+        const splitCuratedByType = (curated: CuratedItem[]) => {
             const nextMovies: CuratedItem[] = [];
             const nextShows: CuratedItem[] = [];
-
             for (const item of curated) {
                 if (item.type === 'tv') nextShows.push(item);
                 else nextMovies.push(item);
             }
-
             return { nextMovies, nextShows };
+        };
+
+        const mapFilteredResults = (
+            pool: MoovieCatalogItem[],
+            languageMap: Map<string, string[]>,
+            audioCache: Map<string, string[]>
+        ) => {
+            const curated = pool.map((item) =>
+                toCuratedItemFast(item, [], languageMap, audioCache)
+            );
+            return splitCuratedByType(curated);
+        };
+
+        const upgradeSearchArtwork = async (
+            pool: MoovieCatalogItem[],
+            languageMap: Map<string, string[]>,
+            audioCache: Map<string, string[]>,
+            generation: number
+        ) => {
+            const upgraded = await mapWithConcurrency(
+                pool,
+                (item) => toCuratedItemUpgraded(item, [], languageMap, audioCache),
+                8
+            );
+            if (searchGeneration.value !== generation) return;
+            const { nextMovies, nextShows } = splitCuratedByType(upgraded);
+            movies.value = nextMovies;
+            shows.value = nextShows;
         };
 
         const performSearch = async (query: string, page = 0) => {
@@ -347,12 +338,22 @@ export default defineComponent({
 
                 const languageMap = buildCatalogLanguageMap(searchVariantPool.value);
                 const filtered = filterCataloguePool(rawResults, cat.id, lang);
-                const { nextMovies, nextShows } = await mapFilteredResults(filtered, languageMap);
+                const audioCache = await fetchCatalogAudioCacheByIds(
+                    searchVariantPool.value.map((item) => item.id)
+                );
+                const { nextMovies, nextShows } = mapFilteredResults(
+                    filtered,
+                    languageMap,
+                    audioCache
+                );
+                const generation = searchGeneration.value + 1;
+                searchGeneration.value = generation;
 
                 if (page === 0) {
                     movies.value = nextMovies;
                     shows.value = nextShows;
                     chooseDefaultTab();
+                    void upgradeSearchArtwork(filtered, languageMap, audioCache, generation);
                 } else {
                     const seenMovies = new Set(movies.value.map((item) => String(item.id)));
                     const seenShows = new Set(shows.value.map((item) => String(item.id)));

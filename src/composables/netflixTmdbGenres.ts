@@ -137,12 +137,30 @@ export const TMDB_NICHE: Record<string, TmdbGenreSpec> = {
         movie: [M.HORROR],
         tv: [T.DRAMA]
     },
-    'anime-action': { movie: [M.ANIMATION], tv: [T.ANIMATION] },
-    'anime-fantasy': { movie: [M.ANIMATION, M.FANTASY], tv: [T.ANIMATION, T.SCIFI_FANTASY] },
-    'anime-sci-fi': { movie: [M.ANIMATION, M.SCIFI], tv: [T.ANIMATION, T.SCIFI_FANTASY] },
-    'anime-horror': { movie: [M.ANIMATION, M.HORROR], tv: [T.ANIMATION] },
-    'anime-comedies': { movie: [M.ANIMATION, M.COMEDY], tv: [T.ANIMATION, T.COMEDY] },
-    'anime-dramas': { movie: [M.ANIMATION, M.DRAMA], tv: [T.ANIMATION, T.DRAMA] },
+    'anime-action': {
+        movieGroups: [[M.ANIMATION], [M.ACTION, M.ADVENTURE]],
+        tvGroups: [[T.ANIMATION], [T.ACTION_ADVENTURE]]
+    },
+    'anime-fantasy': {
+        movieGroups: [[M.ANIMATION], [M.FANTASY]],
+        tvGroups: [[T.ANIMATION], [T.SCIFI_FANTASY]]
+    },
+    'anime-sci-fi': {
+        movieGroups: [[M.ANIMATION], [M.SCIFI]],
+        tvGroups: [[T.ANIMATION], [T.SCIFI_FANTASY]]
+    },
+    'anime-horror': {
+        movieGroups: [[M.ANIMATION], [M.HORROR]],
+        tvGroups: [[T.ANIMATION]]
+    },
+    'anime-comedies': {
+        movieGroups: [[M.ANIMATION], [M.COMEDY]],
+        tvGroups: [[T.ANIMATION], [T.COMEDY]]
+    },
+    'anime-dramas': {
+        movieGroups: [[M.ANIMATION], [M.DRAMA]],
+        tvGroups: [[T.ANIMATION], [T.DRAMA]]
+    },
     'fantasy-movies': { movie: [M.FANTASY], tv: [T.SCIFI_FANTASY] },
     'alien-sci-fi': { movie: [M.SCIFI], tv: [T.SCIFI_FANTASY] },
     'sci-fi-adventure': {
@@ -178,6 +196,22 @@ export function parentCategoryKey(eyebrow: string, title: string) {
     return eyebrow;
 }
 
+export function isNicheBrowseRow(rowId: string): boolean {
+    return rowId in TMDB_NICHE;
+}
+
+export function isAnimeSubRow(rowId: string): boolean {
+    return rowId.startsWith('anime-');
+}
+
+export function resolveParentTmdbGenreSpec(eyebrow: string, title: string): TmdbGenreSpec {
+    const parent = parentCategoryKey(eyebrow, title);
+    return {
+        movie: TMDB_PARENT_MOVIE[parent],
+        tv: TMDB_PARENT_TV[parent]
+    };
+}
+
 export function resolveTmdbGenreSpec(
     rowId: string,
     eyebrow: string,
@@ -186,11 +220,7 @@ export function resolveTmdbGenreSpec(
     const niche = TMDB_NICHE[rowId];
     if (niche) return niche;
 
-    const parent = parentCategoryKey(eyebrow, title);
-    return {
-        movie: TMDB_PARENT_MOVIE[parent],
-        tv: TMDB_PARENT_TV[parent]
-    };
+    return resolveParentTmdbGenreSpec(eyebrow, title);
 }
 
 export function genreIdsMatchSpec(

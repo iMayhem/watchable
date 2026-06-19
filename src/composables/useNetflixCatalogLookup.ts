@@ -1,4 +1,10 @@
 import {
+    catalogIdCollidesWithAnilist,
+    isKnownAnilistCatalogId,
+    peekAnilistIdForMoovieCatalogId
+} from './useAnimeCatalogCache';
+import { peekCatalogAudioCache } from './useCatalogAudioCache';
+import {
     browseMoovieCatalog,
     inferCatalogMediaType,
     parseCatalogTitle,
@@ -17,6 +23,171 @@ function normalizeCatalogTitle(value: string): string {
         .trim();
 }
 
+export const ANIME_CATALOG_MIN_MATCH_SCORE = 92;
+
+export function titleMatchScore(query: string, candidate: string): number {
+    const q = normalizeCatalogTitle(query);
+    const c = normalizeCatalogTitle(candidate);
+    if (!q || !c) return 0;
+    if (q === c) return 100;
+    if (c.startsWith(`${q} `) || c.startsWith(`${q}:`)) return 92;
+    if (c.includes(q) || q.includes(c)) return 72;
+    return 0;
+}
+
+export function bestTitleMatchScore(queries: string[], candidateTitle: string): number {
+    let best = 0;
+    for (const query of queries) {
+        best = Math.max(best, titleMatchScore(query, candidateTitle));
+    }
+    return best;
+}
+
+export function scoreCatalogTitleCandidates(
+    queries: string[],
+    candidates: MoovieCatalogItem[],
+    opts: {
+        tvOnly?: boolean;
+        movieOnly?: boolean;
+        minScore?: number;
+        /** When set, reject catalogue rows whose id equals this AniList id unless title score is high. */
+        anilistId?: number;
+    } = {}
+): MoovieCatalogItem[] {
+    const minScore =
+        opts.minScore ?? (opts.anilistId ? ANIME_CATALOG_MIN_MATCH_SCORE : 80);
+    const scored: Array<{ item: MoovieCatalogItem; score: number }> = [];
+
+    for (const item of candidates) {
+        if (opts.tvOnly && inferCatalogMediaType(item) !== 'tv') continue;
+        if (opts.movieOnly && inferCatalogMediaType(item) !== 'movie') continue;
+
+        const parsed = parseCatalogTitle(item.title || '');
+        const display = parsed.displayTitle || item.title || '';
+        const best = bestTitleMatchScore(queries, display);
+
+        // AniList and Moovie catalogue ids share one number space — never trust a numeric match.
+        if (
+            opts.anilistId &&
+            (String(item.id) === String(opts.anilistId) ||
+                catalogIdCollidesWithAnilist(opts.anilistId, item.id))
+        ) {
+            continue;
+        }
+
+        if (best >= minScore) {
+            scored.push({ item, score: best });
+        }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map((row) => row.item);
+}
+
+/** Prefer active audio tab, then English, then any other tagged variant. */
+export function pickCatalogPlayVariant(
+    variants: MoovieCatalogItem[],
+    preferredLang?: NetflixLanguageOption
+): MoovieCatalogItem | null {
+    if (!variants.length) return null;
+
+    const labeled = variants.map((item) => ({
+        item,
+        labels: languageTagsForItem(item)
+    }));
+
+    if (preferredLang) {
+        const preferred = labeled.find((row) => row.labels.includes(preferredLang.label));
+        if (preferred) return preferred.item;
+    }
+
+    const english = labeled.find((row) => row.labels.includes('English'));
+    if (english) return english.item;
+
+    const tagged = labeled.find((row) => row.labels.length);
+    if (tagged) return tagged.item;
+
+    return variants[0];
+}
+
+export function sortLanguageTagsForDisplay(tags: string[]): string[] {
+    const unique = [...new Set(tags.filter(Boolean))];
+    return unique.sort((a, b) => {
+        if (a === 'English') return -1;
+        if (b === 'English') return 1;
+        return a.localeCompare(b);
+    });
+}
+
+export async function resolveCatalogPlayVariantForTitles(
+    queries: string[],
+    opts: {
+        preferredLang?: NetflixLanguageOption;
+        tvOnly?: boolean;
+        movieOnly?: boolean;
+        searchPages?: number;
+        minScore?: number;
+        anilistId?: number;
+        candidatePool?: MoovieCatalogItem[];
+    } = {}
+): Promise<{ item: MoovieCatalogItem | null; languageTags: string[] }> {
+    const searchPages = opts.searchPages ?? 3;
+    const seen = new Set<string>();
+    const candidates: MoovieCatalogItem[] = [];
+
+    for (const item of opts.candidatePool || []) {
+        if (seen.has(item.id)) continue;
+        seen.add(item.id);
+        candidates.push(item);
+    }
+
+    for (const query of queries) {
+        const trimmed = query.trim();
+        if (!trimmed) continue;
+        for (let page = 0; page < searchPages; page += 1) {
+            const data = await searchMoovieCatalog(trimmed, page);
+            for (const item of data.results || []) {
+                if (seen.has(item.id)) continue;
+                seen.add(item.id);
+                candidates.push(item);
+            }
+            const totalPages = data.pager?.total_pages ?? 1;
+            if (page + 1 >= totalPages) break;
+        }
+    }
+
+    const matched = scoreCatalogTitleCandidates(queries, candidates, {
+        tvOnly: opts.tvOnly,
+        movieOnly: opts.movieOnly,
+        minScore: opts.minScore,
+        anilistId: opts.anilistId
+    });
+    if (!matched.length) {
+        return { item: null, languageTags: [] };
+    }
+
+    const anchor = matched[0];
+    const parsed = parseCatalogTitle(anchor.title || '');
+    const variants = await findCatalogueLanguageVariants(parsed.displayTitle || '', {
+        anchor
+    });
+
+    const familySeen = new Set<string>();
+    const family: MoovieCatalogItem[] = [];
+    for (const item of [...matched, ...variants]) {
+        if (familySeen.has(item.id)) continue;
+        familySeen.add(item.id);
+        family.push(item);
+    }
+
+    const languageTags = sortLanguageTagsForDisplay(
+        resolveVerifiedLanguageTags(anchor, family)
+    );
+    const item = pickCatalogPlayVariant(family, opts.preferredLang);
+
+    return { item, languageTags };
+}
+
 export interface CatalogStreamTarget {
     mediaType: 'movie' | 'tv';
     season: number;
@@ -24,13 +195,69 @@ export interface CatalogStreamTarget {
     path: string;
 }
 
-export function catalogStreamTarget(item: {
-    id: string;
+export function netflixCatalogDetailPath(item: {
+    id: string | number;
     title?: string;
     media_type?: string;
-}): CatalogStreamTarget {
-    const mediaType = inferCatalogMediaType(item);
+    type?: 'movie' | 'tv';
+    anilistId?: number;
+}): string {
+    if (item.anilistId && Number(item.anilistId) > 0) {
+        return `/nf/anime/${item.anilistId}`;
+    }
+
+    const moovieId = String(item.id);
+    const mappedAnilist = peekAnilistIdForMoovieCatalogId(moovieId);
+    if (mappedAnilist) {
+        return `/nf/anime/${mappedAnilist}`;
+    }
+
+    const numericId = Number(item.id);
+    if (Number.isFinite(numericId) && isKnownAnilistCatalogId(numericId)) {
+        return `/nf/anime/${numericId}`;
+    }
+
+    const mediaType = inferCatalogMediaType({
+        title: item.title || '',
+        media_type: item.media_type || item.type
+    });
+    return `/nf/${mediaType}/${item.id}`;
+}
+
+export function catalogStreamPath(
+    id: string | number,
+    season: number,
+    episode: number
+): string {
+    return `/stream/nf/tv/${id}/season/${season}/episode/${episode}`;
+}
+
+export function catalogStreamTarget(
+    item: {
+        id: string;
+        title?: string;
+        media_type?: string;
+    },
+    opts: {
+        supportsEpisodes?: boolean;
+        season?: number;
+        episode?: number;
+    } = {}
+): CatalogStreamTarget {
     const parsed = parseCatalogTitle(item.title || '');
+    const season = opts.season ?? parsed.season ?? 1;
+    const episode = opts.episode ?? 1;
+
+    if (opts.supportsEpisodes) {
+        return {
+            mediaType: 'tv',
+            season,
+            episode,
+            path: catalogStreamPath(item.id, season, episode)
+        };
+    }
+
+    const mediaType = inferCatalogMediaType(item);
 
     if (mediaType === 'movie') {
         return {
@@ -41,12 +268,11 @@ export function catalogStreamTarget(item: {
         };
     }
 
-    const season = parsed.season || 1;
     return {
         mediaType,
         season,
         episode: 1,
-        path: `/stream/nf/tv/${item.id}/season/${season}/episode/1`
+        path: catalogStreamPath(item.id, season, 1)
     };
 }
 
@@ -57,7 +283,7 @@ export async function findCatalogueLanguageVariants(
         anchor?: MoovieCatalogItem | { title?: string; media_type?: string };
     } = {}
 ): Promise<MoovieCatalogItem[]> {
-    const maxPages = opts.maxPages ?? 3;
+    const maxPages = opts.maxPages ?? 12;
     const needle = normalizeCatalogTitle(displayTitle);
     if (!needle) return [];
 
@@ -82,9 +308,10 @@ export async function findCatalogueLanguageVariants(
     return matches;
 }
 
+/** First season only — S1-S2 and S1-S3 are the same dub family as S1. */
 function seasonSignature(title: string): string {
-    const match = title.match(/\bS\d+(?:-S\d+)?\b/i);
-    return match ? match[0].toUpperCase() : '';
+    const match = title.match(/\bS(\d+)(?:-S\d+)?\b/i);
+    return match ? `S${match[1]}` : '';
 }
 
 /** Groups true dub variants — same clean title, media type, and season marker. */
@@ -120,6 +347,18 @@ function normalizeLanguageTag(tag: string): string | null {
     }
 
     return null;
+}
+
+/** Languages tagged on this catalogue row's channel field (e.g. HindiDub, Hindi). */
+function channelLanguageLabels(item: MoovieCatalogItem): string[] {
+    const labels: string[] = [];
+    for (const part of (item.channel || '').split(',')) {
+        const label = normalizeLanguageTag(part.trim());
+        if (label && !labels.includes(label)) {
+            labels.push(label);
+        }
+    }
+    return labels;
 }
 
 /** Only languages explicitly tagged in the catalogue title, e.g. [Hindi] [Telugu]. */
@@ -188,6 +427,20 @@ export function languageTagsForItem(item: MoovieCatalogItem): string[] {
     return explicitLanguageLabels(item);
 }
 
+/** Audio language of this catalogue row — explicit [Tag] first, then channel dub hints. */
+export function playbackLanguageCategoryForItem(
+    item: Pick<MoovieCatalogItem, 'title' | 'media_type' | 'channel'>
+): string | null {
+    const explicit = explicitLanguageLabels(item as MoovieCatalogItem);
+    const labels = sortLanguageTagsForDisplay(
+        explicit.length ? explicit : channelLanguageLabels(item as MoovieCatalogItem)
+    );
+    if (!labels.length) return null;
+
+    const lang = NETFLIX_LANGUAGES.find((row) => row.label === labels[0]);
+    return lang?.category ?? null;
+}
+
 /** Group verified dub variants and collect only explicit [Language] tags. */
 export function buildCatalogLanguageMap(
     pool: MoovieCatalogItem[]
@@ -211,11 +464,21 @@ export function buildCatalogLanguageMap(
 
 export function resolveLanguageTagsForItem(
     item: MoovieCatalogItem,
-    map?: Map<string, string[]>
+    map?: Map<string, string[]>,
+    audioCacheById?: Map<string, string[]>
 ): string[] {
+    const fromAudio =
+        audioCacheById?.get(String(item.id)) ??
+        peekCatalogAudioCache(item.id);
+    if (fromAudio?.length) return sortLanguageTagsForDisplay(fromAudio);
+
     const fromMap = map?.get(catalogVariantFamilyKey(item));
-    if (fromMap?.length) return fromMap;
-    return explicitLanguageLabels(item);
+    if (fromMap?.length) return sortLanguageTagsForDisplay(fromMap);
+
+    const explicit = explicitLanguageLabels(item);
+    if (explicit.length) return sortLanguageTagsForDisplay(explicit);
+
+    return sortLanguageTagsForDisplay(channelLanguageLabels(item));
 }
 
 export function resolveVerifiedLanguageTags(
@@ -223,7 +486,9 @@ export function resolveVerifiedLanguageTags(
     variants: MoovieCatalogItem[]
 ): string[] {
     const labels = languagesForCatalogueItems(variants, item).map((lang) => lang.label);
-    return labels.length ? labels : explicitLanguageLabels(item);
+    return sortLanguageTagsForDisplay(
+        labels.length ? labels : explicitLanguageLabels(item)
+    );
 }
 
 const VARIANT_SNAPSHOT_TTL_MS = 10 * 60 * 1000;
@@ -242,9 +507,12 @@ export async function fetchCatalogVariantSnapshot(
         return variantSnapshotCache.items;
     }
 
+    const VARIANT_PAGES_PER_LANG = 4;
     const pages = await Promise.all(
-        NETFLIX_LANGUAGES.map((lang) =>
-            browseMoovieCatalog(lang.category, 0).catch(() => ({ results: [] }))
+        NETFLIX_LANGUAGES.flatMap((lang) =>
+            Array.from({ length: VARIANT_PAGES_PER_LANG }, (_, page) =>
+                browseMoovieCatalog(lang.category, page).catch(() => ({ results: [] }))
+            )
         )
     );
 

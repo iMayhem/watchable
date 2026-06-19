@@ -5,7 +5,15 @@
         <span class="grain" aria-hidden="true" />
 
         <router-view v-slot="{ Component, route }">
-            <KeepAlive :include="['HomeShell', 'NetflixDetail', 'StreamNetflix']">
+            <KeepAlive
+                :include="[
+                    'HomeShell',
+                    'NetflixBrowse',
+                    'NetflixSearch',
+                    'NetflixDetail',
+                    'StreamNetflix'
+                ]"
+            >
                 <component :is="Component" :key="getRouteKey(route)" />
             </KeepAlive>
         </router-view>

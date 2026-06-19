@@ -2,16 +2,69 @@
     <div
         ref="shellRef"
         class="nf-watch"
-        :class="{ 'is-idle': !controlsVisible && artReady, 'is-fs': isFullscreen }"
+        :class="{
+            'is-idle': !controlsVisible && artReady && !switchingAudioLabel && !switchingEpisodeLabel && !menuOpen && !episodesOpen,
+            'is-fs': isFullscreen,
+            'is-switching-audio': Boolean(switchingAudioLabel),
+            'is-switching-episode': Boolean(switchingEpisodeLabel),
+            'is-menu-open': menuOpen,
+            'is-episodes-open': episodesOpen
+        }"
         @mousemove="revealControls"
         @touchstart.passive="revealControls"
         @click="onShellClick"
     >
         <div class="nf-watch__video">
             <div ref="stageRef" class="nf-watch__stage" />
+            <button
+                v-if="canTapVideo"
+                type="button"
+                class="nf-watch__tap-layer"
+                :aria-label="isPlaying ? 'Pause' : 'Play'"
+                @click.stop="onVideoTap"
+            />
             <div v-if="loading || !artReady" class="nf-watch__loader" aria-live="polite">
                 <span class="nf-watch__spinner" aria-hidden="true" />
                 <p>{{ loading ? 'Loading your video…' : 'Starting playback…' }}</p>
+            </div>
+
+            <div
+                v-if="switchingAudioLabel"
+                class="nf-watch__status-overlay"
+                role="status"
+                aria-live="polite"
+            >
+                <div class="nf-watch__status-card">
+                    <span class="nf-watch__status-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor" stroke="none" />
+                            <path d="M15.5 8.5a4.5 4.5 0 0 1 0 7" stroke-linecap="round" />
+                            <path d="M18 6a7.5 7.5 0 0 1 0 12" stroke-linecap="round" />
+                        </svg>
+                    </span>
+                    <p class="nf-watch__status-title">Changing audio</p>
+                    <p class="nf-watch__status-label">{{ switchingAudioLabel }}</p>
+                    <span class="nf-watch__spinner nf-watch__status-spinner" aria-hidden="true" />
+                </div>
+            </div>
+
+            <div
+                v-if="switchingEpisodeLabel"
+                class="nf-watch__status-overlay"
+                role="status"
+                aria-live="polite"
+            >
+                <div class="nf-watch__status-card">
+                    <span class="nf-watch__status-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <rect x="3" y="5" width="18" height="14" rx="2" />
+                            <path d="M10 9.5v5l4.5-2.5L10 9.5z" fill="currentColor" stroke="none" />
+                        </svg>
+                    </span>
+                    <p class="nf-watch__status-title">Changing episode</p>
+                    <p class="nf-watch__status-label">{{ switchingEpisodeLabel }}</p>
+                    <span class="nf-watch__spinner nf-watch__status-spinner" aria-hidden="true" />
+                </div>
             </div>
         </div>
 
@@ -80,12 +133,25 @@
                 </div>
 
                 <div class="nf-watch__bar-right">
+                    <button
+                        v-if="showEpisodes"
+                        type="button"
+                        class="nf-watch__episodes-btn"
+                        aria-haspopup="dialog"
+                        :aria-expanded="episodesOpen"
+                        @click.stop="toggleEpisodesPanel"
+                    >
+                        Episodes
+                    </button>
+
                     <div ref="languageRef" class="nf-watch__quality nf-watch__language">
                         <button
                             type="button"
                             class="nf-watch__quality-btn"
                             aria-haspopup="listbox"
                             :aria-expanded="languageOpen"
+                            :aria-busy="languagesLoading"
+                            :disabled="languagesLoading && !languages.length"
                             @click.stop="toggleLanguageMenu"
                         >
                             {{ activeLanguageLabel }}
@@ -94,6 +160,9 @@
                             </svg>
                         </button>
                         <ul v-if="languageOpen" class="nf-watch__quality-menu nf-watch__language-menu" role="listbox">
+                            <li v-if="languagesLoading" class="nf-watch__quality-loading" role="presentation">
+                                Loading audio tracks…
+                            </li>
                             <li
                                 v-for="lang in languages"
                                 :key="lang.category"
@@ -156,6 +225,56 @@
             </div>
         </div>
 
+        <div
+            v-if="episodesOpen && showEpisodes"
+            class="nf-watch__episodes"
+            role="dialog"
+            aria-label="Episodes"
+            @click.stop
+        >
+            <button
+                type="button"
+                class="nf-watch__episodes-backdrop"
+                aria-label="Close episodes"
+                @click="episodesOpen = false"
+            />
+            <aside
+                class="nf-watch__episodes-panel"
+                @click.stop
+                @pointerdown.stop
+                @pointerup.stop
+            >
+                <header class="nf-watch__episodes-head">
+                    <div class="nf-watch__episodes-intro">
+                        <p v-if="title" class="nf-watch__episodes-show">{{ title }}</p>
+                        <h2 class="nf-watch__episodes-label">Episodes</h2>
+                    </div>
+                    <button
+                        type="button"
+                        class="nf-watch__episodes-close"
+                        aria-label="Close episodes"
+                        @click="episodesOpen = false"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" />
+                        </svg>
+                    </button>
+                </header>
+                <NetflixEpisodePicker
+                    panel
+                    :seasons="episodeSeasons"
+                    :episodes="episodeList"
+                    :current-season="currentSeason"
+                    :current-episode="currentEpisode"
+                    :loading="episodesLoading"
+                    @season-change="onEpisodeSeasonChange"
+                    @select="onEpisodeSelect"
+                    @previous="onEpisodePrevious"
+                    @next="onEpisodeNext"
+                />
+            </aside>
+        </div>
+
         <p v-if="streamWarning && !playbackError" class="nf-watch__warning" role="status">{{ streamWarning }}</p>
         <p v-if="playbackError" class="nf-watch__error" role="alert">{{ playbackError }}</p>
     </div>
@@ -176,10 +295,19 @@ import {
     type MoovieStream
 } from '../../composables/useMooviePlayer';
 import { nfDebug } from '../../composables/useNetflixDebug';
-import type { NetflixLanguageOption } from '../../composables/useNetflixLanguage';
+import {
+    getLanguageOption,
+    type NetflixLanguageOption
+} from '../../composables/useNetflixLanguage';
+import NetflixEpisodePicker from './NetflixEpisodePicker.vue';
+import type {
+    NetflixCatalogEpisode,
+    NetflixCatalogSeason
+} from '../../composables/useNetflixCatalogEpisodes';
 
 export default defineComponent({
     name: 'NetflixPlayer',
+    components: { NetflixEpisodePicker },
     props: {
         title: { type: String, default: '' },
         subtitle: { type: String, default: '' },
@@ -197,12 +325,39 @@ export default defineComponent({
         selectedStreamIndex: { type: Number, default: 0 },
         languages: { type: Array as PropType<NetflixLanguageOption[]>, default: () => [] },
         selectedLanguage: { type: String, default: 'hindi' },
+        languagesLoading: { type: Boolean, default: false },
+        switchingAudioLabel: { type: String, default: '' },
+        switchingEpisodeLabel: { type: String, default: '' },
+        showEpisodes: { type: Boolean, default: false },
+        episodeSeasons: {
+            type: Array as PropType<NetflixCatalogSeason[]>,
+            default: () => []
+        },
+        episodeList: {
+            type: Array as PropType<NetflixCatalogEpisode[]>,
+            default: () => []
+        },
+        currentSeason: { type: Number, default: 1 },
+        currentEpisode: { type: Number, default: 1 },
+        episodesLoading: { type: Boolean, default: false },
         bindContainer: {
             type: Function as PropType<(el: HTMLElement | null) => void>,
             required: true
         }
     },
-    emits: ['back', 'toggle-play', 'skip-back', 'toggle-mute', 'seek', 'quality', 'language'],
+    emits: [
+        'back',
+        'toggle-play',
+        'skip-back',
+        'toggle-mute',
+        'seek',
+        'quality',
+        'language',
+        'episode-select',
+        'episode-season-change',
+        'episode-previous',
+        'episode-next'
+    ],
     setup(props, { emit }) {
         const shellRef = ref<HTMLElement | null>(null);
         const stageRef = ref<HTMLElement | null>(null);
@@ -210,9 +365,35 @@ export default defineComponent({
         const languageRef = ref<HTMLElement | null>(null);
         const qualityOpen = ref(false);
         const languageOpen = ref(false);
+        const episodesOpen = ref(false);
+        const blockVideoTap = ref(false);
         const controlsVisible = ref(true);
         const isFullscreen = ref(false);
         let hideTimer: number | null = null;
+        let tapLockTimer: number | null = null;
+
+        const lockVideoTap = (ms = 450) => {
+            blockVideoTap.value = true;
+            if (tapLockTimer !== null) window.clearTimeout(tapLockTimer);
+            tapLockTimer = window.setTimeout(() => {
+                blockVideoTap.value = false;
+                tapLockTimer = null;
+            }, ms);
+        };
+
+        const menuOpen = computed(
+            () => qualityOpen.value || languageOpen.value || episodesOpen.value
+        );
+
+        const canTapVideo = computed(
+            () =>
+                props.artReady &&
+                !props.loading &&
+                !props.switchingAudioLabel &&
+                !props.switchingEpisodeLabel &&
+                !menuOpen.value &&
+                !blockVideoTap.value
+        );
 
         const activeQualityLabel = computed(() => {
             const stream = props.streams[props.selectedStreamIndex];
@@ -221,34 +402,71 @@ export default defineComponent({
 
         const activeLanguageLabel = computed(() => {
             const lang = props.languages.find((l) => l.category === props.selectedLanguage);
-            return lang?.label || 'Language';
+            if (lang?.label) return lang.label;
+            if (props.selectedLanguage) {
+                return getLanguageOption(props.selectedLanguage).label;
+            }
+            if (props.languagesLoading) return 'Audio…';
+            return 'Language';
         });
 
         const revealControls = () => {
             controlsVisible.value = true;
             if (hideTimer !== null) window.clearTimeout(hideTimer);
-            if (props.isPlaying && props.artReady && !qualityOpen.value && !languageOpen.value) {
+            if (
+                props.isPlaying &&
+                props.artReady &&
+                !qualityOpen.value &&
+                !languageOpen.value &&
+                !episodesOpen.value
+            ) {
                 hideTimer = window.setTimeout(() => {
-                    if (!qualityOpen.value && !languageOpen.value) {
+                    if (!qualityOpen.value && !languageOpen.value && !episodesOpen.value) {
                         controlsVisible.value = false;
                     }
                 }, 3200);
             }
         };
 
-        const onShellClick = (event: MouseEvent) => {
-            const target = event.target as HTMLElement | null;
-            const stage = stageRef.value;
-            const clickedVideo =
-                Boolean(stage && target && stage.contains(target)) &&
-                !target?.closest('.nf-watch__loader');
-
+        const onVideoTap = () => {
+            if (blockVideoTap.value || menuOpen.value) return;
+            nfDebug('player-ui:tap-toggle');
             revealControls();
+            emit('toggle-play');
+        };
 
-            if (clickedVideo) {
-                nfDebug('player-ui:click-toggle');
-                emit('toggle-play');
+        const toggleEpisodesPanel = () => {
+            episodesOpen.value = !episodesOpen.value;
+            if (episodesOpen.value) {
+                qualityOpen.value = false;
+                languageOpen.value = false;
+                controlsVisible.value = true;
+                if (hideTimer !== null) window.clearTimeout(hideTimer);
             }
+        };
+
+        const onEpisodeSeasonChange = (season: number) => {
+            emit('episode-season-change', season);
+        };
+
+        const onEpisodeSelect = (episode: number) => {
+            lockVideoTap();
+            emit('episode-select', episode);
+        };
+
+        const onEpisodePrevious = () => {
+            lockVideoTap();
+            emit('episode-previous');
+        };
+
+        const onEpisodeNext = () => {
+            lockVideoTap();
+            emit('episode-next');
+        };
+
+        const onShellClick = () => {
+            if (menuOpen.value) return;
+            revealControls();
         };
 
         const onProgressClick = (event: MouseEvent) => {
@@ -268,8 +486,13 @@ export default defineComponent({
         };
 
         const toggleLanguageMenu = () => {
+            if (props.languagesLoading && !props.languages.length) return;
             languageOpen.value = !languageOpen.value;
-            if (languageOpen.value) qualityOpen.value = false;
+            if (languageOpen.value) {
+                qualityOpen.value = false;
+                controlsVisible.value = true;
+                if (hideTimer !== null) window.clearTimeout(hideTimer);
+            }
         };
 
         const selectLanguage = (category: string) => {
@@ -314,6 +537,30 @@ export default defineComponent({
         );
 
         watch(
+            () => props.switchingAudioLabel,
+            (label) => {
+                if (!label) return;
+                controlsVisible.value = true;
+                qualityOpen.value = false;
+                languageOpen.value = false;
+                episodesOpen.value = false;
+                if (hideTimer !== null) window.clearTimeout(hideTimer);
+            }
+        );
+
+        watch(
+            () => props.switchingEpisodeLabel,
+            (label) => {
+                if (!label) return;
+                controlsVisible.value = true;
+                qualityOpen.value = false;
+                languageOpen.value = false;
+                episodesOpen.value = false;
+                if (hideTimer !== null) window.clearTimeout(hideTimer);
+            }
+        );
+
+        watch(
             stageRef,
             (el) => {
                 nfDebug('player-ui:stage-bind', { hasElement: Boolean(el) });
@@ -345,6 +592,7 @@ export default defineComponent({
 
         watch(qualityOpen, keepControlsForMenu);
         watch(languageOpen, keepControlsForMenu);
+        watch(episodesOpen, keepControlsForMenu);
 
         onMounted(() => {
             nfDebug('player-ui:mount');
@@ -359,6 +607,7 @@ export default defineComponent({
             document.removeEventListener('fullscreenchange', onFullscreenChange);
             document.removeEventListener('click', onDocClick);
             if (hideTimer !== null) window.clearTimeout(hideTimer);
+            if (tapLockTimer !== null) window.clearTimeout(tapLockTimer);
         });
 
         return {
@@ -368,12 +617,22 @@ export default defineComponent({
             languageRef,
             qualityOpen,
             languageOpen,
+            episodesOpen,
+            menuOpen,
+            toggleEpisodesPanel,
+            onEpisodeSeasonChange,
+            onEpisodeSelect,
+            onEpisodePrevious,
+            onEpisodeNext,
+            emit,
             controlsVisible,
             isFullscreen,
             activeQualityLabel,
             activeLanguageLabel,
             formatPlayerTime,
             revealControls,
+            canTapVideo,
+            onVideoTap,
             onShellClick,
             onProgressClick,
             selectQuality,
@@ -402,6 +661,7 @@ export default defineComponent({
     &__video {
         position: absolute;
         inset: 0;
+        z-index: 1;
         display: grid;
         place-items: center;
         background: #000;
@@ -410,6 +670,7 @@ export default defineComponent({
     &__stage {
         position: relative;
         z-index: 1;
+        pointer-events: auto;
         width: 100%;
         height: 100%;
 
@@ -434,6 +695,78 @@ export default defineComponent({
         :deep(.art-contextmenus) {
             display: none !important;
         }
+    }
+
+    &__tap-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        border: none;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    &__status-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: grid;
+        place-content: center;
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(4px);
+        pointer-events: none;
+    }
+
+    &__status-card {
+        display: grid;
+        justify-items: center;
+        gap: 0.55rem;
+        padding: 1.35rem 1.75rem;
+        border-radius: 12px;
+        background: rgba(16, 16, 16, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+        min-width: min(88vw, 280px);
+        text-align: center;
+    }
+
+    &__status-icon {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: rgba(255, 90, 31, 0.14);
+        color: var(--ember);
+
+        svg {
+            width: 28px;
+            height: 28px;
+        }
+    }
+
+    &__status-title {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #fff;
+        letter-spacing: 0.02em;
+    }
+
+    &__status-label {
+        margin: 0;
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.72);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    &__status-spinner {
+        width: 28px;
+        height: 28px;
+        margin-top: 0.25rem;
+        border-width: 2px;
     }
 
     &__loader {
@@ -484,7 +817,7 @@ export default defineComponent({
         position: absolute;
         left: 0;
         right: 0;
-        z-index: 20;
+        z-index: 40;
         pointer-events: auto;
         transition: opacity 0.25s ease, transform 0.25s ease;
     }
@@ -522,6 +855,7 @@ export default defineComponent({
     &__controls {
         bottom: 0;
         padding: 0 1.5rem 1.25rem;
+        overflow: visible;
     }
 
     &__progress {
@@ -584,6 +918,7 @@ export default defineComponent({
 
     &__bar-right {
         flex-shrink: 0;
+        overflow: visible;
     }
 
     &__icon-btn {
@@ -630,6 +965,11 @@ export default defineComponent({
 
     &__quality {
         position: relative;
+        z-index: 1;
+    }
+
+    &__language {
+        z-index: 2;
     }
 
     &__quality-btn {
@@ -659,11 +999,19 @@ export default defineComponent({
         overflow-y: auto;
     }
 
+    &__quality-loading {
+        padding: 0.65rem 0.9rem;
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.55);
+        list-style: none;
+    }
+
     &__quality-menu {
         position: absolute;
         right: 0;
         bottom: calc(100% + 8px);
-        z-index: 30;
+        z-index: 60;
+        pointer-events: auto;
         min-width: 120px;
         margin: 0;
         padding: 0.35rem 0;
@@ -733,10 +1081,150 @@ export default defineComponent({
     &.is-idle {
         cursor: none;
     }
+
+    &__episodes-btn {
+        display: inline-flex;
+        align-items: center;
+        height: 36px;
+        padding: 0 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 4px;
+        background: rgba(20, 20, 20, 0.8);
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    }
+
+    &__episodes {
+        position: absolute;
+        inset: 0;
+        z-index: 60;
+        display: flex;
+        pointer-events: auto;
+        isolation: isolate;
+    }
+
+    &__episodes-backdrop {
+        all: unset;
+        flex: 1;
+        cursor: pointer;
+        background: rgba(0, 0, 0, 0.45);
+    }
+
+    &__episodes-panel {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        width: min(400px, 42vw);
+        height: 100%;
+        padding: 1rem 1rem 1.25rem;
+        background: rgba(20, 20, 20, 0.97);
+        border-left: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: -16px 0 48px rgba(0, 0, 0, 0.55);
+        animation: nf-ep-panel-in 0.28s var(--ease-out, ease-out);
+        overflow: hidden;
+        pointer-events: auto;
+
+        :deep(.nf-episodes--panel) {
+            flex: 1;
+            min-height: 0;
+        }
+    }
+
+    &__episodes-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--s-3);
+        margin-bottom: 0.85rem;
+        flex-shrink: 0;
+    }
+
+    &__episodes-intro {
+        min-width: 0;
+    }
+
+    &__episodes-show {
+        margin: 0 0 0.2rem;
+        font-size: 0.72rem;
+        color: rgba(255, 255, 255, 0.62);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__episodes-label {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: 1.35rem;
+        font-weight: 500;
+        color: #fff;
+    }
+
+    &__episodes-close {
+        all: unset;
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        color: #fff;
+        flex-shrink: 0;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        svg {
+            width: 18px;
+            height: 18px;
+        }
+    }
+
+    &.is-menu-open,
+    &.is-episodes-open {
+        cursor: default;
+
+        .nf-watch__top,
+        .nf-watch__controls,
+        .nf-watch__shade {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .nf-watch__stage {
+            pointer-events: none;
+        }
+    }
+
+    &.is-switching-audio,
+    &.is-switching-episode {
+        cursor: default;
+    }
 }
 
 @keyframes nf-spin {
     to { transform: rotate(360deg); }
+}
+
+@keyframes nf-ep-panel-in {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
 }
 
 @media (max-width: 640px) {
@@ -761,6 +1249,10 @@ export default defineComponent({
 
         &__time {
             font-size: 0.72rem;
+        }
+
+        &__episodes-panel {
+            width: min(400px, 88vw);
         }
     }
 }

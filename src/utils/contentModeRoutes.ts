@@ -4,6 +4,10 @@ export function isNetflixContentPath(path: string): boolean {
     return path.startsWith('/nf/') || path.startsWith('/stream/nf/');
 }
 
+export function isNetflixAnimePath(path: string): boolean {
+    return path.startsWith('/nf/anime/');
+}
+
 export function isGlobalContentPath(path: string): boolean {
     if (path === '/search') return true;
     if (path.startsWith('/movies')) return true;

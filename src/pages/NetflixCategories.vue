@@ -6,47 +6,27 @@
             <header class="nf-categories__head">
                 <h1 class="nf-categories__title">Categories</h1>
                 <p class="nf-categories__desc">
-                    Browse every {{ activeCatalogue.label }} genre — same hidden codes as
-                    <a href="https://www.netflix-codes.com/" target="_blank" rel="noopener noreferrer">netflix-codes.com</a>.
+                    Browse {{ activeCatalogue.label }} by genre — the same kinds of categories
+                    you see on Netflix.
                 </p>
             </header>
 
             <section
-                v-for="group in categoryGroups"
-                :key="group.parentId"
+                v-for="section in categorySections"
+                :key="section.id"
                 class="nf-categories__section"
             >
-                <div class="nf-categories__section-head">
-                    <h2 class="nf-categories__section-title">{{ group.parentTitle }}</h2>
-                    <router-link
-                        :to="browsePath(group.parentId)"
-                        class="nf-categories__section-all"
-                    >
-                        Browse all
-                    </router-link>
-                </div>
+                <h2 class="nf-categories__section-title">{{ section.title }}</h2>
 
                 <div class="nf-categories__grid" role="list">
                     <router-link
-                        :to="browsePath(group.parentId)"
-                        class="nf-categories__tile nf-categories__tile--parent"
-                        role="listitem"
-                    >
-                        <span class="nf-categories__tile-label">{{ group.parentTitle }}</span>
-                        <span v-if="group.netflixCode" class="nf-categories__tile-code">
-                            {{ group.netflixCode }}
-                        </span>
-                    </router-link>
-
-                    <router-link
-                        v-for="child in group.children"
-                        :key="child.id"
-                        :to="browsePath(child.id)"
+                        v-for="genre in section.genres"
+                        :key="genre.id"
+                        :to="browsePath(genre.id)"
                         class="nf-categories__tile"
                         role="listitem"
                     >
-                        <span class="nf-categories__tile-label">{{ child.title }}</span>
-                        <span class="nf-categories__tile-code">{{ child.netflixCode }}</span>
+                        <span class="nf-categories__tile-label">{{ genre.title }}</span>
                     </router-link>
                 </div>
             </section>
@@ -61,7 +41,7 @@ import { computed, defineComponent, watch } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import { getCatalogueOption, getNetflixCatalogue } from '../composables/useNetflixCatalogue';
-import { getNetflixCategoryGroups } from '../composables/netflixCuratedRows';
+import { getNetflixCategorySections } from '../composables/netflixCuratedRows';
 import { netflixBrowsePath } from '../composables/useNetflixRails';
 import { useSeo } from '../composables/useSeo';
 
@@ -73,9 +53,14 @@ export default defineComponent({
         const { catalogue, activeCatalogue: resolveCatalogue } = getNetflixCatalogue();
 
         const activeCatalogue = computed(() => resolveCatalogue());
-        const categoryGroups = computed(() => getNetflixCategoryGroups(catalogue.value));
+        const categorySections = computed(() => getNetflixCategorySections(catalogue.value));
 
-        const browsePath = (rowId: string) => netflixBrowsePath(catalogue.value, rowId);
+        const browsePath = (rowId: string) => {
+            if (catalogue.value === 'korean' && rowId === 'anime') {
+                return netflixBrowsePath('hollywood', 'anime');
+            }
+            return netflixBrowsePath(catalogue.value, rowId);
+        };
 
         const refreshSeo = () => {
             const cat = getCatalogueOption(catalogue.value);
@@ -91,7 +76,7 @@ export default defineComponent({
 
         return {
             activeCatalogue,
-            categoryGroups,
+            categorySections,
             browsePath
         };
     }
@@ -106,7 +91,7 @@ export default defineComponent({
 
     &__main {
         padding-top: clamp(var(--s-6), 6vw, var(--s-8));
-        padding-bottom: clamp(var(--s-9), 10vw, var(--s-11));
+        padding-bottom: clamp(var(--s-9), 10vw, var(--s-10));
     }
 
     &__head {
@@ -126,55 +111,22 @@ export default defineComponent({
         max-width: 58ch;
         color: var(--bone-300);
         line-height: 1.55;
-
-        a {
-            color: var(--bone-100);
-            text-decoration: underline;
-            text-underline-offset: 0.15em;
-
-            &:hover {
-                color: var(--ember);
-            }
-        }
     }
 
     &__section {
         margin-bottom: clamp(var(--s-7), 7vw, var(--s-9));
 
         &:last-child {
-            margin-bottom: 0;
+            margin-bottom: clamp(var(--s-8), 8vw, var(--s-10));
         }
-    }
-
-    &__section-head {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: var(--s-4);
-        margin-bottom: var(--s-4);
     }
 
     &__section-title {
         font-family: var(--font-display);
         font-size: clamp(1.25rem, 2.5vw, 1.5rem);
         font-weight: 500;
-        margin: 0;
+        margin: 0 0 var(--s-4);
         letter-spacing: -0.01em;
-    }
-
-    &__section-all {
-        font-family: var(--font-mono);
-        font-size: var(--fs-xs);
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--bone-300);
-        white-space: nowrap;
-        transition: color var(--dur-fast) var(--ease-out);
-
-        &:hover,
-        &:focus-visible {
-            color: var(--ember);
-        }
     }
 
     &__grid {
@@ -207,19 +159,8 @@ export default defineComponent({
         &:hover,
         &:focus-visible {
             transform: translateY(-2px);
-            border-color: var(--rule-strong);
+            border-color: var(--ember);
             background: linear-gradient(145deg, var(--ink-650, #2a2a2a) 0%, var(--ink-750) 100%);
-        }
-
-        &--parent {
-            background: linear-gradient(145deg, var(--ink-650, #2a2a2a) 0%, var(--ink-800) 55%);
-            border-color: var(--rule-strong);
-            min-height: 96px;
-
-            &:hover,
-            &:focus-visible {
-                border-color: var(--ember);
-            }
         }
     }
 
@@ -227,14 +168,6 @@ export default defineComponent({
         font-size: var(--fs-sm);
         font-weight: 500;
         line-height: 1.3;
-    }
-
-    &__tile-code {
-        margin-top: 0.35rem;
-        font-family: var(--font-mono);
-        font-size: 0.65rem;
-        letter-spacing: 0.08em;
-        color: var(--bone-500);
     }
 }
 </style>

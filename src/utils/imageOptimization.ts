@@ -3,7 +3,7 @@
  * Provides lazy loading, WebP conversion, and responsive image handling
  */
 
-import { buildProxiedImageUrl } from './useWebImage';
+import { buildWsrvImageUrl } from './useWebImage';
 
 interface ImageOptions {
   width?: number;
@@ -13,37 +13,46 @@ interface ImageOptions {
   blur?: number;
 }
 
+const TMDB_BASE = 'https://image.tmdb.org/t/p/';
+
 /**
- * Generate optimized image URL.
- * In production routes through /api/img (our Cloudflare proxy) to bypass ISP blocks.
- * In dev, falls back to direct TMDB.
+ * Generate optimized image URL via wsrv.nl (production) or direct TMDB (dev).
  */
 export function getOptimizedImageUrl(
   originalUrl: string,
-  _options: ImageOptions = {}
+  options: ImageOptions = {}
 ): string {
   if (!originalUrl) return '';
 
-  // Non-TMDB external URL — return as-is
   if (originalUrl.startsWith('http') && !originalUrl.includes('tmdb.org')) {
-    return originalUrl;
+    if (import.meta.env.DEV) return originalUrl;
+    return buildWsrvImageUrl(originalUrl, {
+      width: options.width,
+      quality: options.quality,
+      blur: options.blur
+    });
   }
 
-  // Resolve raw TMDB path (e.g. /abc.jpg) to a full path
   let tmdbPath: string;
   if (originalUrl.startsWith('/') && !originalUrl.startsWith('/api')) {
-    // e.g. /abc.jpg → original/abc.jpg
     const clean = originalUrl.slice(1);
     tmdbPath = `original/${clean}`;
   } else if (originalUrl.includes('image.tmdb.org')) {
-    // Strip base URL down to the path portion e.g. /t/p/original/abc.jpg
     const match = originalUrl.match(/\/t\/p\/(.+)/);
     tmdbPath = match ? match[1] : `original/${originalUrl.split('/').pop()}`;
   } else {
     return originalUrl;
   }
 
-  return buildProxiedImageUrl(tmdbPath);
+  if (import.meta.env.DEV) {
+    return `${TMDB_BASE}${tmdbPath}`;
+  }
+
+  return buildWsrvImageUrl(`${TMDB_BASE}${tmdbPath}`, {
+    width: options.width,
+    quality: options.quality,
+    blur: options.blur
+  });
 }
 
 /**
@@ -83,7 +92,6 @@ export function lazyLoadImage(
 
   observer.observe(img);
 
-  // Return cleanup function
   return () => observer.disconnect();
 }
 
@@ -118,7 +126,7 @@ export function getBlurPlaceholder(
  */
 export function isWebPSupported(): boolean {
   if (typeof window === 'undefined') return false;
-  
+
   const canvas = document.createElement('canvas');
   if (canvas.getContext && canvas.getContext('2d')) {
     return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
@@ -131,7 +139,7 @@ export function isWebPSupported(): boolean {
  */
 export function createDebouncedImageLoader(delay: number = 100) {
   let timeoutId: ReturnType<typeof setTimeout>;
-  
+
   return (callback: () => void) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(callback, delay);

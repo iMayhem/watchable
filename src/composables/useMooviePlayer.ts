@@ -208,6 +208,9 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         const resumePlaying = opts.resumePlaying ?? isPlaying.value;
         const playUrl = resolvePlaybackUrl(stream);
 
+        artInstance.pause();
+        isPlaying.value = false;
+
         dbg('player:switch-url', {
             quality: stream.quality,
             resumeAt,
@@ -442,6 +445,12 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const togglePlay = () => {
         if (!artInstance) return;
         artInstance.toggle();
+    };
+
+    const pausePlayback = () => {
+        if (!artInstance) return;
+        artInstance.pause();
+        isPlaying.value = false;
     };
 
     const seekTo = (time: number) => {
@@ -743,6 +752,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         switchResolveEntry,
         switchQuality,
         togglePlay,
+        pausePlayback,
         seekTo,
         skipBack,
         toggleMute,

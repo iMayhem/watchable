@@ -8,6 +8,7 @@ export interface AnimeMedia {
     native: string;
   };
   coverImage: {
+    extraLarge?: string | null;
     large: string;
     medium: string;
   };
@@ -38,7 +39,29 @@ export interface AnimeResponse {
 
 const ANILIST_API = 'https://graphql.anilist.co';
 
-async function queryAniList(query: string, variables: any): Promise<any> {
+const ANIME_BROWSE_MEDIA_FIELDS = `
+  id
+  title {
+    romaji
+    english
+    native
+  }
+  coverImage {
+    extraLarge
+    large
+    medium
+  }
+  bannerImage
+  description
+  averageScore
+  genres
+  seasonYear
+  episodes
+  format
+  status
+`;
+
+export async function queryAniListApi(query: string, variables: Record<string, unknown> = {}) {
   const response = await fetch(ANILIST_API, {
     method: 'POST',
     headers: {
@@ -56,6 +79,52 @@ async function queryAniList(query: string, variables: any): Promise<any> {
   }
 
   return response.json();
+}
+
+/** TV anime catalogue pages — series only, no feature films. */
+export async function fetchAnimeBrowseMedia(options: {
+  page?: number;
+  perPage?: number;
+  sort?: string;
+} = {}): Promise<AnimeResponse> {
+  const query = `
+    query ($page: Int, $perPage: Int, $sort: [MediaSort]) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo {
+          total
+          currentPage
+          lastPage
+          hasNextPage
+          perPage
+        }
+        media(
+          type: ANIME,
+          sort: $sort,
+          format_in: [TV, ONA, SPECIAL]
+        ) {
+          ${ANIME_BROWSE_MEDIA_FIELDS}
+        }
+      }
+    }
+  `;
+
+  return queryAniListApi(query, {
+    page: options.page || 1,
+    perPage: options.perPage || 50,
+    sort: [options.sort || 'POPULARITY_DESC']
+  }) as Promise<AnimeResponse>;
+}
+
+export async function fetchAnimeMediaById(id: number) {
+  const query = `
+    query ($id: Int) {
+      Media(id: $id, type: ANIME) {
+        ${ANIME_BROWSE_MEDIA_FIELDS}
+      }
+    }
+  `;
+
+  return queryAniListApi(query, { id });
 }
 
 export function useAniList() {
@@ -101,7 +170,7 @@ export function useAniList() {
     `;
 
     try {
-      const response = await queryAniList(query, { page, perPage });
+      const response = await queryAniListApi(query, { page, perPage });
       loading.value = false;
       return response as AnimeResponse;
     } catch (err: any) {
@@ -150,7 +219,7 @@ export function useAniList() {
     `;
 
     try {
-      const response = await queryAniList(query, { page, perPage });
+      const response = await queryAniListApi(query, { page, perPage });
       loading.value = false;
       return response as AnimeResponse;
     } catch (err: any) {
@@ -199,7 +268,7 @@ export function useAniList() {
     `;
 
     try {
-      const response = await queryAniList(query, { search: searchTerm, page, perPage });
+      const response = await queryAniListApi(query, { search: searchTerm, page, perPage });
       loading.value = false;
       return response as AnimeResponse;
     } catch (err: any) {
@@ -283,7 +352,7 @@ export function useAniList() {
     `;
 
     try {
-      const response = await queryAniList(query, { id });
+      const response = await queryAniListApi(query, { id });
       loading.value = false;
       return response;
     } catch (err: any) {
@@ -368,7 +437,7 @@ export function useAniList() {
     }
 
     try {
-      const response = await queryAniList(query, variables);
+      const response = await queryAniListApi(query, variables);
       loading.value = false;
       return response as AnimeResponse;
     } catch (err: any) {

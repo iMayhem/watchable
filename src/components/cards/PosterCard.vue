@@ -22,7 +22,10 @@
                     :alt="title"
                     class="poster-card__img"
                     :class="{ 'is-loaded': imageLoaded }"
-                    @load="imageLoaded = true"
+                    loading="lazy"
+                    decoding="async"
+                    fetchpriority="low"
+                    @load="onPosterLoad"
                 />
                 <div v-else class="poster-card__img poster-card__img--empty">
                     <span class="display display--italic">{{ initial }}</span>
@@ -58,6 +61,7 @@
                         v-for="tag in audioLabels"
                         :key="tag"
                         class="poster-card__audio-chip"
+                        :class="{ 'poster-card__audio-chip--english': tag === 'English' }"
                     >
                         {{ tag }}
                     </span>
@@ -105,16 +109,26 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onBeforeUnmount, PropType, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, PropType, ref, watch } from 'vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { genreName } from '../../composables/useGenreLookup';
 import { isInWatchlist, toggleWatchlistItem } from '../../composables/useWatchlist';
 import { useRouter } from 'vue-router';
 import { useAppPaths } from '../../composables/useAppPaths';
-import { catalogStreamTarget } from '../../composables/useNetflixCatalogLookup';
-import { inferCatalogMediaType } from '../../composables/useMoovieCatalog';
+import {
+    isKnownAnilistCatalogId,
+    peekAnilistIdForMoovieCatalogId
+} from '../../composables/useAnimeCatalogCache';
+import {
+    catalogStreamTarget,
+    netflixCatalogDetailPath,
+    sortLanguageTagsForDisplay
+} from '../../composables/useNetflixCatalogLookup';
+
 
 type MediaType = 'movie' | 'tv' | 'anime';
+
+const loadedPosterUrls = new Set<string>();
 
 export default defineComponent({
     name: 'PosterCard',
@@ -137,10 +151,14 @@ export default defineComponent({
         query: { type: Object as PropType<Record<string, any>>, default: () => ({}) },
         catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' },
         languageTags: { type: Array as PropType<string[]>, default: () => [] },
-        catalogTitle: { type: String, default: '' }
+        catalogTitle: { type: String, default: '' },
+        anilistId: { type: Number, default: 0 },
+        moovieCatalogId: { type: String, default: '' }
     },
     setup(props) {
-        const imageLoaded = ref(false);
+        const imageLoaded = ref(
+            Boolean(props.posterPath && loadedPosterUrls.has(props.posterPath))
+        );
         const router = useRouter();
         const { detailPath } = useAppPaths();
         const peeking = ref(false);
@@ -149,9 +167,29 @@ export default defineComponent({
 
         const imageUrl = computed(() => {
             if (!props.posterPath) return '';
-            const size = props.size === 'lg' ? 'large' : 'medium';
+            const isAnilist = /anilist\.co/i.test(props.posterPath);
+            const size =
+                props.size === 'lg' || isAnilist
+                    ? 'large'
+                    : props.size === 'sm'
+                      ? 'small'
+                      : 'medium';
             return useWebImage(props.posterPath, size);
         });
+
+        watch(
+            () => props.posterPath,
+            (path) => {
+                imageLoaded.value = Boolean(path && loadedPosterUrls.has(path));
+            }
+        );
+
+        const onPosterLoad = () => {
+            imageLoaded.value = true;
+            if (props.posterPath) {
+                loadedPosterUrls.add(props.posterPath);
+            }
+        };
 
         const initial = computed(() => props.title?.[0]?.toUpperCase() ?? '·');
 
@@ -166,7 +204,7 @@ export default defineComponent({
 
         const audioLabels = computed(() => {
             if (props.catalog !== 'netflix') return [];
-            return props.languageTags;
+            return sortLanguageTagsForDisplay(props.languageTags || []);
         });
 
         const genreLabel = computed(() => {
@@ -180,11 +218,25 @@ export default defineComponent({
 
         const routeTo = computed(() => {
             if (props.catalog === 'netflix') {
-                const kind = inferCatalogMediaType({
-                    title: netflixCatalogTitle.value,
-                    media_type: props.type
-                });
-                return { path: `/nf/${kind}/${props.id}` };
+                if (props.anilistId) {
+                    return { path: `/nf/anime/${props.anilistId}` };
+                }
+                const catalogId = props.moovieCatalogId || String(props.id);
+                const mappedAnilist = peekAnilistIdForMoovieCatalogId(catalogId);
+                if (mappedAnilist) {
+                    return { path: `/nf/anime/${mappedAnilist}` };
+                }
+                if (isKnownAnilistCatalogId(catalogId)) {
+                    return { path: `/nf/anime/${catalogId}` };
+                }
+                return {
+                    path: netflixCatalogDetailPath({
+                        id: catalogId,
+                        title: netflixCatalogTitle.value,
+                        media_type: props.type,
+                        anilistId: props.anilistId || undefined
+                    })
+                };
             }
             const kind = props.type === 'anime' ? 'anime' : props.type === 'tv' ? 'tv' : 'movie';
             return {
@@ -212,6 +264,39 @@ export default defineComponent({
         const goToStream = () => {
             const query = props.query && Object.keys(props.query).length ? props.query : undefined;
             if (props.catalog === 'netflix') {
+                if (props.anilistId) {
+                    router.push({
+                        path: `/nf/anime/${props.anilistId}`,
+                        query: { play: '1' }
+                    });
+                    return;
+                }
+                const catalogId = props.moovieCatalogId || String(props.id);
+                const mappedAnilist = peekAnilistIdForMoovieCatalogId(catalogId);
+                if (mappedAnilist) {
+                    router.push({
+                        path: `/nf/anime/${mappedAnilist}`,
+                        query: { play: '1' }
+                    });
+                    return;
+                }
+                if (isKnownAnilistCatalogId(catalogId)) {
+                    router.push({
+                        path: `/nf/anime/${catalogId}`,
+                        query: { play: '1' }
+                    });
+                    return;
+                }
+                if (props.moovieCatalogId && props.catalogTitle) {
+                    router.push({
+                        path: catalogStreamTarget({
+                            id: props.moovieCatalogId,
+                            title: props.catalogTitle,
+                            media_type: 'tv'
+                        }).path
+                    });
+                    return;
+                }
                 router.push({
                     path: catalogStreamTarget({
                         id: String(props.id),
@@ -288,7 +373,8 @@ export default defineComponent({
             handleEnter,
             handleLeave,
             handleLeaveFocus,
-            imageLoaded
+            imageLoaded,
+            onPosterLoad
         };
     }
 });
@@ -478,6 +564,12 @@ export default defineComponent({
         border-radius: var(--r-pill);
         padding: 0.12rem 0.45rem;
         line-height: 1.35;
+
+        &--english {
+            color: var(--bone-50);
+            background: rgba(96, 165, 250, 0.14);
+            border-color: rgba(96, 165, 250, 0.42);
+        }
     }
 
     &__meta {

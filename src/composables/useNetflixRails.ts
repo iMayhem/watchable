@@ -1,4 +1,8 @@
-import { parseCatalogTitle, type MoovieCatalogItem } from './useMoovieCatalog';
+import {
+    inferCatalogMediaType,
+    parseCatalogTitle,
+    type MoovieCatalogItem
+} from './useMoovieCatalog';
 import {
     getNetflixCuratedRowDef,
     getNetflixRowMeta,
@@ -13,11 +17,27 @@ import {
     type NetflixLanguageOption
 } from './useNetflixLanguage';
 import type { CuratedItem } from '../components/rails/CuratedRail.vue';
-import { genreIdsMatchSpec } from './netflixTmdbGenres';
+import {
+    getNetflixStandardGenre,
+    isStandardNetflixGenre,
+    type GenreBrowseRailDef
+} from '../data/netflixStandardGenres';
+import { hasNativeBrowseCategory } from '../data/netflixCatalogCategories';
+import {
+    genreIdsMatchSpec,
+    TMDB_MOVIE,
+    TMDB_TV,
+    type TmdbGenreSpec
+} from './netflixTmdbGenres';
 import {
     enrichCatalogPoolWithTmdb,
     type CatalogTmdbMeta
 } from './useTmdbArtwork';
+import {
+    getNetflixAvailabilityIndex,
+    netflixAvailabilityBoost
+} from './useNetflixProvider';
+import type { CatalogEnrichmentRow } from './useCatalogEnrichmentCache';
 
 export { enrichCatalogPoolWithTmdb, type CatalogTmdbMeta };
 
@@ -111,6 +131,39 @@ function haystack(item: MoovieCatalogItem): string {
         .toLowerCase();
 }
 
+function haystackWithTmdb(
+    item: MoovieCatalogItem,
+    meta?: CatalogTmdbMeta
+): string {
+    return [haystack(item), meta?.overview || ''].filter(Boolean).join(' ').toLowerCase();
+}
+
+function itemHasKeywordNeedles(
+    item: MoovieCatalogItem,
+    needles: string[],
+    meta?: CatalogTmdbMeta
+): boolean {
+    const h = haystackWithTmdb(item, meta);
+    return needles.some((needle) => h.includes(needle.toLowerCase()));
+}
+
+function lgbtqGenreConflict(
+    item: MoovieCatalogItem,
+    genreIds: number[]
+): boolean {
+    if (!genreIds.length) return false;
+    const isTv = inferCatalogMediaType(item) === 'tv';
+    if (isTv) return false;
+    if (genreIds.includes(TMDB_MOVIE.HORROR)) return true;
+    if (
+        genreIds.includes(TMDB_MOVIE.THRILLER) &&
+        !genreIds.includes(TMDB_MOVIE.ROMANCE)
+    ) {
+        return true;
+    }
+    return false;
+}
+
 function countryOf(item: MoovieCatalogItem): string {
     return (item.cn || '').trim().toLowerCase();
 }
@@ -120,11 +173,34 @@ function channelOf(item: MoovieCatalogItem): string {
 }
 
 function isMovie(item: MoovieCatalogItem) {
-    return item.media_type !== 'tv';
+    return inferCatalogMediaType(item) === 'movie';
 }
 
 function isSeries(item: MoovieCatalogItem) {
-    return item.media_type === 'tv';
+    return inferCatalogMediaType(item) === 'tv';
+}
+
+const ANIME_FEATURE_FILM_PATTERN =
+    /\b(film|the movie|movie:|movie -|ova\b|episode of|stampede|strong world|infinity castle|gekijouban)\b/i;
+
+function isAnimeFeatureFilm(item: MoovieCatalogItem): boolean {
+    const title = item.title || '';
+    if (/\bS\d/i.test(title)) return false;
+    if (ANIME_FEATURE_FILM_PATTERN.test(title)) return true;
+    return inferCatalogMediaType(item) === 'movie' && hasAnimeCatalogueSignal(item);
+}
+
+/** Anime browse is series-only — not one-off films/OVAs. */
+function isAnimeSeriesItem(item: MoovieCatalogItem): boolean {
+    if (isAnimeFeatureFilm(item)) return false;
+    if (!isSeries(item)) return false;
+    if (isRegionalIndianAnimation(item)) return false;
+    return hasAnimeCatalogueSignal(item) || channelOf(item).includes('anime');
+}
+
+function animeSeriesInCatalogue(item: MoovieCatalogItem, lang: NetflixLanguageOption): boolean {
+    if (!hasLangBase(item, lang)) return false;
+    return isAnimeSeriesItem(item);
 }
 
 function hasAny(item: MoovieCatalogItem, needles: string[]) {
@@ -140,10 +216,159 @@ function hasKeywordGroups(item: MoovieCatalogItem, groups: string[][]) {
 }
 
 function matchesRowMediaType(item: MoovieCatalogItem, def: NetflixCuratedRowDef) {
-    if (def.defaultType === 'movie' && !isMovie(item)) return false;
-    if (def.defaultType === 'tv' && !isSeries(item)) return false;
+    if (def.browseAllMediaTypes) return true;
+    const mediaType = inferCatalogMediaType(item);
+    if (def.defaultType === 'movie' && mediaType !== 'movie') return false;
+    if (def.defaultType === 'tv' && mediaType !== 'tv') return false;
     return true;
 }
+
+function tmdbGenresMatchItem(
+    item: MoovieCatalogItem,
+    genreIds: number[],
+    spec?: TmdbGenreSpec
+): boolean {
+    if (!genreIds.length || !spec) return false;
+    const isTv = inferCatalogMediaType(item) === 'tv';
+    return genreIdsMatchSpec(genreIds, isTv, spec);
+}
+
+const ANIME_CATALOGUE_NEEDLES = [
+    'anime',
+    'naruto',
+    'one piece',
+    'dragon ball',
+    'demon slayer',
+    'gundam',
+    'mecha',
+    'jujutsu kaisen',
+    'attack on titan',
+    'bleach',
+    'my hero academia',
+    'one punch man',
+    'death note',
+    'spy x family',
+    'chainsaw man',
+    'hunter x hunter',
+    'fullmetal alchemist',
+    'cowboy bebop',
+    'evangelion',
+    'sailor moon',
+    'pokemon',
+    'digimon',
+    'studio ghibli',
+    'ghibli',
+    'kimetsu',
+    'haikyu',
+    'tokyo ghoul',
+    'vinland saga',
+    'sword art online',
+    'fairy tail',
+    'black clover',
+    'boruto',
+    'jojo',
+    'blue exorcist',
+    'shield hero',
+    'sakamoto',
+    'horimiya',
+    'frieren',
+    'solo leveling',
+    'dandadan',
+    'mashle',
+    're:zero',
+    'overlord',
+    'konosuba',
+    'mob psycho',
+    'fire force',
+    'dr. stone',
+    'dr stone',
+    'baki',
+    'kengan',
+    'yugioh',
+    'beyblade',
+    'toradora',
+    'clannad',
+    'steins;gate',
+    'steins gate',
+    'code geass',
+    'gintama',
+    'inuyasha',
+    'samurai champloo',
+    'trigun',
+    'hellsing',
+    'parasyte',
+    'erased'
+];
+
+const INDIAN_CARTOON_NEEDLES = [
+    'chhota bheem',
+    'little singham',
+    'motu patlu',
+    'pakdam pakdai',
+    'keymon ache',
+    'bal ganesh',
+    'tenali raman',
+    'suppandi',
+    'shaktimaan',
+    'roll no 21',
+    'krishna aur',
+    'luv kush',
+    'shiva ',
+    'pernema',
+    'selfie with bajrangi',
+    'vir: the robot boy'
+];
+
+function isRegionalIndianAnimation(item: MoovieCatalogItem): boolean {
+    if (hasAny(item, INDIAN_CARTOON_NEEDLES)) return true;
+    if (channelOf(item).includes('anime')) return false;
+    if (hasAny(item, ANIME_CATALOGUE_NEEDLES)) return false;
+    return isIndia(item);
+}
+
+function hasAnimeCatalogueSignal(item: MoovieCatalogItem): boolean {
+    if (isRegionalIndianAnimation(item)) return false;
+    return (
+        channelOf(item).includes('anime') || hasAny(item, ANIME_CATALOGUE_NEEDLES)
+    );
+}
+
+function hasJapaneseAnimeOrigin(item: MoovieCatalogItem): boolean {
+    if (isRegionalIndianAnimation(item)) return false;
+    return (
+        JAPAN_COUNTRIES.has(countryOf(item)) || channelOf(item).includes('anime')
+    );
+}
+
+function hasAnimationTmdbGenre(
+    item: MoovieCatalogItem,
+    genreIds: number[]
+): boolean {
+    return tmdbGenresMatchItem(item, genreIds, {
+        movie: [TMDB_MOVIE.ANIMATION],
+        tv: [TMDB_TV.ANIMATION]
+    });
+}
+
+/** Japanese anime series only — not films or Indian cartoons. */
+function itemMatchesAnimeRow(
+    item: MoovieCatalogItem,
+    genreIds: number[]
+): boolean {
+    if (!isAnimeSeriesItem(item)) return false;
+
+    if (hasAnimeCatalogueSignal(item)) {
+        return true;
+    }
+
+    if (!hasAnimationTmdbGenre(item, genreIds)) {
+        return false;
+    }
+
+    return hasJapaneseAnimeOrigin(item);
+}
+
+
 
 function hasLangTag(item: MoovieCatalogItem, ...needles: string[]) {
     const parsed = parseCatalogTitle(item.title || '');
@@ -191,14 +416,34 @@ function bollywoodMovie(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     return isIndia(item);
 }
 
+function isKoreanOrigin(item: MoovieCatalogItem) {
+    const c = countryOf(item);
+    return (
+        KOREAN_COUNTRIES.has(c) ||
+        c.includes('korea') ||
+        hasAny(item, ['korean', 'k-drama', 'korea', 'hwaesang', 'sageuk'])
+    );
+}
+
 function koreanMovie(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     if (!isMovie(item) || !hasLangBase(item, lang)) return false;
-    return KOREAN_COUNTRIES.has(countryOf(item)) || hasLangTag(item, 'korean', 'korea');
+    if (isAnimeSeriesItem(item) || hasAnimeCatalogueSignal(item)) return false;
+    return isKoreanOrigin(item) || hasLangTag(item, 'korean', 'korea');
 }
 
 function koreanSeries(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
     if (!isSeries(item) || !hasLangBase(item, lang)) return false;
-    return KOREAN_COUNTRIES.has(countryOf(item)) || hasAny(item, ['korean', 'k-drama', 'korea']);
+    if (isAnimeSeriesItem(item)) return false;
+    return isKoreanOrigin(item);
+}
+
+/** Korean browse rows are K-drama/K-film only — anime has its own catalogue tab. */
+function isExcludedFromKoreanBrowse(
+    item: MoovieCatalogItem,
+    rowId: NetflixBrowseRowId
+) {
+    if (rowId === 'anime') return false;
+    return isAnimeSeriesItem(item) || hasAnimeCatalogueSignal(item);
 }
 
 function englishSeries(item: MoovieCatalogItem, lang: NetflixLanguageOption) {
@@ -401,9 +646,16 @@ type CatalogueMatcher = (
 ) => boolean;
 
 const HEADER_CATALOGUE_MATCHERS: Record<string, CatalogueMatcher> = {
-    hollywood: (item, lang) => hollywoodMovie(item, lang) || englishSeries(item, lang),
-    bollywood: (item, lang) => bollywoodMovie(item, lang) || hindiSeries(item, lang),
-    korean: (item, lang) => koreanMovie(item, lang) || koreanSeries(item, lang),
+    hollywood: (item, lang) =>
+        hollywoodMovie(item, lang) ||
+        englishSeries(item, lang) ||
+        animeSeriesInCatalogue(item, lang),
+    bollywood: (item, lang) =>
+        bollywoodMovie(item, lang) ||
+        hindiSeries(item, lang) ||
+        animeSeriesInCatalogue(item, lang),
+    korean: (item, lang) =>
+        koreanMovie(item, lang) || koreanSeries(item, lang),
     japanese: (item, lang) => japaneseSeries(item, lang),
     telugu: (item, lang) => regionalMovies(item, lang, ['telugu', 'tollywood']),
     tamil: (item, lang) => regionalMovies(item, lang, ['tamil', 'kollywood']),
@@ -528,6 +780,86 @@ function takeByKeywords(
     });
 }
 
+function browseItemScore(item: MoovieCatalogItem, tmdbById: Map<string, CatalogTmdbMeta>) {
+    const meta = tmdbById.get(String(item.id));
+    const nfIndex = getNetflixAvailabilityIndex();
+    return itemRating(item) + netflixAvailabilityBoost(meta?.tmdbId, nfIndex);
+}
+
+function matchesNativeBrowseRow(
+    item: MoovieCatalogItem,
+    rowId: NetflixBrowseRowId,
+    def: NetflixCuratedRowDef | undefined,
+    tmdbById: Map<string, CatalogTmdbMeta>,
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
+): boolean {
+    if (rowId === 'trending') return true;
+    if (!def) return true;
+
+    const enrichment = enrichmentById.get(String(item.id));
+    if (enrichment) {
+        return enrichment.browse_categories.includes(rowId);
+    }
+
+    if (isStandardNetflixGenre(rowId) && enrichmentById.size > 0) {
+        return false;
+    }
+
+    if (rowId === 'anime') {
+        const genreIds = tmdbById.get(String(item.id))?.genreIds ?? [];
+        return itemMatchesAnimeRow(item, genreIds);
+    }
+
+    if (rowId === 'lgbtq' || def.pick === 'tmdb-genre') {
+        return itemMatchesGenreRow(item, def, tmdbById, enrichmentById);
+    }
+
+    return matchesRowMediaType(item, def);
+}
+
+/** NetMirror-style browse: trust the upstream category index, filter lightly. */
+export function pickNativeCategoryBrowseItems(
+    pool: MoovieCatalogItem[],
+    rowId: NetflixBrowseRowId,
+    tmdbById: Map<string, CatalogTmdbMeta>,
+    limit = BROWSE_POOL_LIMIT,
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
+): MoovieCatalogItem[] {
+    const def = getNetflixCuratedRowDef(rowId);
+
+    return pool
+        .filter((item) =>
+            matchesNativeBrowseRow(item, rowId, def, tmdbById, enrichmentById)
+        )
+        .sort((a, b) => browseItemScore(b, tmdbById) - browseItemScore(a, tmdbById))
+        .slice(0, limit);
+}
+
+function takeGenreMatches(
+    pool: MoovieCatalogItem[],
+    used: Set<string>,
+    limit: number,
+    def: NetflixCuratedRowDef,
+    tmdbById: Map<string, CatalogTmdbMeta>,
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
+) {
+    const candidates = pool
+        .filter(
+            (item) =>
+                !used.has(item.id) &&
+                itemMatchesGenreRow(item, def, tmdbById, enrichmentById)
+        )
+        .sort((a, b) => browseItemScore(b, tmdbById) - browseItemScore(a, tmdbById));
+
+    const out: MoovieCatalogItem[] = [];
+    for (const item of candidates) {
+        if (out.length >= limit) break;
+        used.add(item.id);
+        out.push(item);
+    }
+    return out;
+}
+
 interface NetflixCuratedPlan {
     id: string;
     title: string;
@@ -546,38 +878,56 @@ export interface NetflixHomePlan {
 function itemMatchesGenreRow(
     item: MoovieCatalogItem,
     def: NetflixCuratedRowDef,
-    tmdbById: Map<string, CatalogTmdbMeta>
+    tmdbById: Map<string, CatalogTmdbMeta>,
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
 ): boolean {
     if (!matchesRowMediaType(item, def)) return false;
     if (def.cataloguePoolOnly) return true;
 
-    const meta = tmdbById.get(item.id);
-    const genreIds = meta?.genreIds ?? [];
-    const text = `${haystack(item)} ${(meta?.overview || '').toLowerCase()}`;
-
-    if (def.eyebrow === 'Anime' || def.id.startsWith('anime')) {
-        if (
-            channelOf(item).includes('anime') ||
-            hasAny(item, ['anime', 'naruto', 'one piece', 'dragon ball', 'demon slayer'])
-        ) {
+    const enrichment = enrichmentById.get(String(item.id));
+    if (enrichment) {
+        if (enrichment.browse_categories.includes(def.id)) {
             return true;
+        }
+        if (isStandardNetflixGenre(def.id)) {
+            return false;
         }
     }
 
-    if (genreIds.length && def.tmdbGenres) {
-        if (genreIdsMatchSpec(genreIds, isSeries(item), def.tmdbGenres)) {
-            return true;
-        }
+    const meta = tmdbById.get(String(item.id));
+    const genreIds = meta?.genreIds ?? enrichment?.tmdb_genre_ids ?? [];
+
+    if (def.id === 'anime' || def.id.startsWith('anime-')) {
+        return itemMatchesAnimeRow(item, genreIds);
     }
 
-    if (def.keywordGroups?.length) {
-        return def.keywordGroups.every((group) =>
-            group.some((kw) => text.includes(kw.toLowerCase()))
-        );
+    if (def.id === 'lgbtq' && lgbtqGenreConflict(item, genreIds)) {
+        return false;
     }
 
     if (def.keywords?.length) {
-        return def.keywords.some((kw) => text.includes(kw.toLowerCase()));
+        if (itemHasKeywordNeedles(item, def.keywords, meta)) {
+            return true;
+        }
+        if (isStandardNetflixGenre(def.id)) {
+            return false;
+        }
+    }
+
+    if (isStandardNetflixGenre(def.id)) {
+        return tmdbGenresMatchItem(item, genreIds, def.tmdbGenres);
+    }
+
+    if (def.keywordGroups?.length && hasKeywordGroups(item, def.keywordGroups)) {
+        return true;
+    }
+
+    if (tmdbGenresMatchItem(item, genreIds, def.tmdbGenres)) {
+        return true;
+    }
+
+    if (def.keywords?.length && hasAny(item, def.keywords)) {
+        return true;
     }
 
     return false;
@@ -588,7 +938,8 @@ function pickFromRowDef(
     def: NetflixCuratedRowDef,
     used: Set<string>,
     limit: number,
-    tmdbById: Map<string, CatalogTmdbMeta> = new Map()
+    tmdbById: Map<string, CatalogTmdbMeta> = new Map(),
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
 ): MoovieCatalogItem[] {
     switch (def.pick) {
         case 'top-rated':
@@ -614,9 +965,7 @@ function pickFromRowDef(
                     hasKeywordGroups(item, def.keywordGroups || [])
             );
         case 'tmdb-genre':
-            return takeUnique(filtered, used, limit, (item) =>
-                itemMatchesGenreRow(item, def, tmdbById)
-            );
+            return takeGenreMatches(filtered, used, limit, def, tmdbById, enrichmentById);
         case 'keywords':
         default:
             return takeByKeywords(filtered, used, limit, def.keywords || [], {
@@ -645,16 +994,57 @@ function planNetflixHomeRows(
 
     const rails: NetflixCuratedPlan[] = [];
 
+    if (catalogueId === 'korean') {
+        for (const def of RAIL_DEFINITIONS.filter(
+            (row) => row.id === 'korean-series' || row.id === 'korean-movies'
+        )) {
+            const rowUsed = new Set(used);
+            const items = takeTopRated(
+                filtered.filter((item) => def.match(item, lang)),
+                rowUsed,
+                MAX_NETFLIX_HOME_PER_RAIL,
+                {
+                    movie: def.defaultType === 'movie',
+                    tv: def.defaultType === 'tv'
+                }
+            );
+            if (items.length < MIN_RAIL_ITEMS) continue;
+            items.forEach((item) => used.add(item.id));
+            rails.push({
+                id: def.id,
+                title: def.title,
+                eyebrow: def.eyebrow,
+                description: def.description(lang),
+                defaultType: def.defaultType,
+                items
+            });
+        }
+    }
+
     for (const def of homeRowsForCatalogue(catalogueId)) {
         if (rails.length >= MAX_NETFLIX_HOME_RAILS) break;
 
-        const items = pickFromRowDef(
-            filtered,
-            def,
-            used,
-            MAX_NETFLIX_HOME_PER_RAIL,
-            tmdbById
-        );
+        const dedupeAcrossHome = def.homeDedupe !== false;
+        const rowUsed = dedupeAcrossHome ? used : new Set<string>();
+        const items =
+            catalogueId === 'korean'
+                ? pickKoreanCatalogueBrowseItems(
+                      filtered,
+                      def.id as NetflixBrowseRowId,
+                      rowUsed,
+                      MAX_NETFLIX_HOME_PER_RAIL,
+                      tmdbById
+                  )
+                : pickFromRowDef(
+                      filtered,
+                      def,
+                      rowUsed,
+                      MAX_NETFLIX_HOME_PER_RAIL,
+                      tmdbById
+                  );
+        if (dedupeAcrossHome) {
+            items.forEach((item) => used.add(item.id));
+        }
         if (items.length < MIN_RAIL_ITEMS) continue;
 
         const meta = getNetflixRowMeta(def.id as NetflixBrowseRowId, { label: catalogueLabel }, lang);
@@ -671,7 +1061,88 @@ function planNetflixHomeRows(
     return { top10Movies, top10Tv, rails };
 }
 
-const BROWSE_POOL_LIMIT = 240;
+const BROWSE_POOL_LIMIT = 600;
+
+/**
+ * Korean titles are filtered by country in the pool already. TMDB genre tags are
+ * often missing on first paint — fall back to media-type slices (K-dramas = TV).
+ */
+export function pickKoreanCatalogueBrowseItems(
+    pool: MoovieCatalogItem[],
+    rowId: NetflixBrowseRowId,
+    used: Set<string>,
+    limit: number,
+    tmdbById: Map<string, CatalogTmdbMeta>,
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
+): MoovieCatalogItem[] {
+    const available = pool.filter(
+        (item) => !used.has(item.id) && !isExcludedFromKoreanBrowse(item, rowId)
+    );
+    if (!available.length) return [];
+
+    if (rowId === 'trending') {
+        return available.slice(0, limit);
+    }
+
+    const def = getNetflixCuratedRowDef(rowId);
+    if (!def) {
+        return available.slice(0, limit);
+    }
+
+    const strict = pickFromRowDef(
+        available,
+        def,
+        new Set(used),
+        limit,
+        tmdbById,
+        enrichmentById
+    );
+    if (strict.length >= MIN_RAIL_ITEMS) {
+        return strict;
+    }
+
+    switch (rowId) {
+        case 'dramas':
+        case 'exciting-tv':
+        case 'tv-show':
+            return takeTopRated(available, used, limit, {
+                tv: true,
+                minRating: def.minRating ?? 0
+            });
+        case 'blockbuster-movies':
+        case 'critically-acclaimed':
+            return takeTopRated(available, used, limit, {
+                movie: true,
+                minRating: def.minRating ?? 0
+            });
+        case 'new-on-netflix':
+            return takeNewest(available, used, limit, {
+                movie: def.defaultType === 'movie',
+                tv: def.defaultType === 'tv'
+            });
+        case 'romantic-movies':
+        case 'thrillers':
+        case 'action-adventure':
+        case 'sci-fi-fantasy':
+        case 'horror-movies':
+        case 'comedies':
+            if (def.defaultType === 'tv') {
+                return takeTopRated(available, used, limit, { tv: true });
+            }
+            if (def.defaultType === 'movie') {
+                return takeTopRated(available, used, limit, { movie: true });
+            }
+            return takeTopRated(available, used, limit);
+        default:
+            if (def.defaultType === 'tv') {
+                return takeTopRated(available, used, limit, { tv: true });
+            }
+            if (def.defaultType === 'movie') {
+                return takeTopRated(available, used, limit, { movie: true });
+            }
+            return takeTopRated(available, used, limit);
+    }
+}
 
 function pickRowItems(
     filtered: MoovieCatalogItem[],
@@ -679,12 +1150,21 @@ function pickRowItems(
     _catalogueLabel: string,
     _lang: NetflixLanguageOption,
     limit: number,
-    tmdbById: Map<string, CatalogTmdbMeta>
+    tmdbById: Map<string, CatalogTmdbMeta>,
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
 ): MoovieCatalogItem[] {
     if (rowId === 'trending') return filtered.slice(0, limit);
     const def = getNetflixCuratedRowDef(rowId);
     if (!def) return [];
-    return pickFromRowDef(filtered, def, new Set<string>(), limit, tmdbById);
+
+    return pickFromRowDef(
+        filtered,
+        def,
+        new Set<string>(),
+        limit,
+        tmdbById,
+        enrichmentById
+    );
 }
 
 export function pickNetflixBrowseItems(
@@ -693,9 +1173,116 @@ export function pickNetflixBrowseItems(
     catalogue: { label: string },
     lang: NetflixLanguageOption,
     tmdbById: Map<string, CatalogTmdbMeta>,
-    limit = BROWSE_POOL_LIMIT
+    limit = BROWSE_POOL_LIMIT,
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
 ): MoovieCatalogItem[] {
-    return pickRowItems(pool, rowId, catalogue.label, lang, limit, tmdbById);
+    return pickRowItems(
+        pool,
+        rowId,
+        catalogue.label,
+        lang,
+        limit,
+        tmdbById,
+        enrichmentById
+    );
+}
+
+export interface GenreBrowseRailPlan {
+    id: string;
+    title: string;
+    defaultType: 'movie' | 'tv';
+    items: MoovieCatalogItem[];
+}
+
+function sliceGenreBrowseRail(
+    pool: MoovieCatalogItem[],
+    def: NetflixCuratedRowDef,
+    rail: GenreBrowseRailDef,
+    used: Set<string>,
+    tmdbById: Map<string, CatalogTmdbMeta>,
+    nativeCategory = false,
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
+): MoovieCatalogItem[] {
+    const genrePool = nativeCategory
+        ? pool.filter(
+              (item) =>
+                  enrichmentById.size === 0 ||
+                  itemMatchesGenreRow(item, def, tmdbById, enrichmentById)
+          )
+        : pool.filter((item) =>
+              itemMatchesGenreRow(item, def, tmdbById, enrichmentById)
+          );
+
+    switch (rail.kind) {
+        case 'tv':
+            return takeUnique(genrePool, used, rail.limit, (item) => isSeries(item));
+        case 'movie':
+            return takeUnique(genrePool, used, rail.limit, (item) => isMovie(item));
+        case 'top-rated':
+            return takeTopRated(genrePool, used, rail.limit);
+        case 'newest':
+            return takeNewest(genrePool, used, rail.limit);
+        default:
+            return [];
+    }
+}
+
+/** Netflix genre pages: horizontal sub-rails below "Your Next Watch" (e.g. Exciting TV Shows). */
+export function pickGenreBrowseRails(
+    pool: MoovieCatalogItem[],
+    rowId: NetflixBrowseRowId,
+    tmdbById: Map<string, CatalogTmdbMeta>,
+    nativeCategory = hasNativeBrowseCategory(rowId),
+    enrichmentById: Map<string, CatalogEnrichmentRow> = new Map()
+): GenreBrowseRailPlan[] {
+    const genre = getNetflixStandardGenre(rowId);
+    const def = getNetflixCuratedRowDef(rowId);
+    if (!genre?.browseRails?.length || !def) return [];
+
+    const used = new Set<string>();
+    const rails: GenreBrowseRailPlan[] = [];
+
+    for (const rail of genre.browseRails) {
+        const items = sliceGenreBrowseRail(
+            pool,
+            def,
+            rail,
+            used,
+            tmdbById,
+            nativeCategory,
+            enrichmentById
+        );
+        if (items.length < MIN_RAIL_ITEMS) continue;
+
+        rails.push({
+            id: rail.id,
+            title: rail.title,
+            defaultType:
+                rail.kind === 'tv' ? 'tv' : rail.kind === 'movie' ? 'movie' : def.defaultType,
+            items
+        });
+    }
+
+    return rails;
+}
+
+export function isNetflixGenreBrowsePage(rowId: string): boolean {
+    return isStandardNetflixGenre(rowId);
+}
+
+/** Genre browse rows need TMDB metadata before items can be matched. */
+export function browseRowNeedsTmdbForPick(
+    rowId: NetflixBrowseRowId,
+    enrichmentLoaded = false
+): boolean {
+    if (enrichmentLoaded) return false;
+    if (rowId === 'trending' || rowId === 'top10-movies' || rowId === 'top10-tv') {
+        return false;
+    }
+    if (rowId === 'lgbtq') return true;
+    if (hasNativeBrowseCategory(rowId)) return false;
+    const def = getNetflixCuratedRowDef(rowId);
+    return def?.pick === 'tmdb-genre';
 }
 
 export function railTitleWithLanguage(base: string, lang: NetflixLanguageOption) {

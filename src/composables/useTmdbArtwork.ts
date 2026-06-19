@@ -201,12 +201,31 @@ export async function resolveTmdbArtwork(opts: {
             }
         }
 
+        let posterPath = match?.poster_path || null;
+        let backdropPath = match?.backdrop_path || null;
+        let genreIds = match?.genre_ids || [];
+        let overview = match?.overview || '';
+        const tmdbId = match?.id;
+
+        if (tmdbId) {
+            try {
+                const detail = await useAxios().get(`${opts.type}/${tmdbId}`);
+                const d = detail.data || {};
+                posterPath = d.poster_path || posterPath;
+                backdropPath = d.backdrop_path || backdropPath;
+                genreIds = (d.genres || []).map((g: { id: number }) => g.id);
+                overview = d.overview || overview;
+            } catch {
+                /* search result is enough */
+            }
+        }
+
         const artwork: TmdbArtwork = {
-            posterPath: match?.poster_path || null,
-            backdropPath: match?.backdrop_path || null,
-            tmdbId: match?.id,
-            genreIds: match?.genre_ids || [],
-            overview: match?.overview || ''
+            posterPath,
+            backdropPath,
+            tmdbId,
+            genreIds,
+            overview
         };
         artworkCache.set(cacheId, artwork);
         return artwork;
@@ -216,6 +235,29 @@ export async function resolveTmdbArtwork(opts: {
         artworkCache.set(cacheId, empty);
         return empty;
     }
+}
+
+function catalogArtworkCacheKey(item: {
+    id: string;
+    title: string;
+    media_type: 'movie' | 'tv';
+}) {
+    const mediaType = inferCatalogMediaType(item);
+    return `nm2-${mediaType}-${item.id}`;
+}
+
+export function getCachedArtworkForCatalogItem(item: {
+    id: string;
+    title: string;
+    media_type: 'movie' | 'tv';
+    backdrop_path?: string | null;
+}): (TmdbArtwork & { fallbackPath: string | null }) | null {
+    const cached = artworkCache.get(catalogArtworkCacheKey(item));
+    if (!cached) return null;
+    return {
+        ...cached,
+        fallbackPath: item.backdrop_path || null
+    };
 }
 
 export async function resolveArtworkForCatalogItem(item: {
@@ -231,7 +273,7 @@ export async function resolveArtworkForCatalogItem(item: {
     const tmdb = await resolveTmdbArtwork({
         title: displayTitle,
         type: mediaType,
-        cacheKey: `nm2-${mediaType}-${item.id}`
+        cacheKey: catalogArtworkCacheKey(item)
     });
 
     return {
@@ -243,6 +285,7 @@ export async function resolveArtworkForCatalogItem(item: {
 export interface CatalogTmdbMeta {
     genreIds: number[];
     overview: string;
+    tmdbId?: number;
 }
 
 export async function enrichCatalogPoolWithTmdb(
@@ -263,7 +306,8 @@ export async function enrichCatalogPoolWithTmdb(
                 String(item.id),
                 {
                     genreIds: art.genreIds || [],
-                    overview: art.overview || ''
+                    overview: art.overview || '',
+                    tmdbId: art.tmdbId
                 }
             ] as const;
         },

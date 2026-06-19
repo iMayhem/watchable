@@ -81,16 +81,28 @@ export function inferCatalogMediaType(item: {
 
 const CATALOG_API = '/api/moovie-catalog';
 
+export interface BrowseCatalogOptions {
+    dubbing?: string;
+    country?: string;
+    type?: string;
+    genre?: string;
+}
+
 export async function browseMoovieCatalog(
     category: string,
-    page = 0
+    page = 0,
+    options?: BrowseCatalogOptions
 ): Promise<MoovieCatalogResponse> {
-    nfDebug('catalog:browse:start', { category, page });
+    nfDebug('catalog:browse:start', { category, page, options });
     const params = new URLSearchParams({
         action: 'browse',
         category,
         page: String(page)
     });
+    if (options?.dubbing) params.set('dubbing', options.dubbing);
+    if (options?.country) params.set('country', options.country);
+    if (options?.type) params.set('type', options.type);
+    if (options?.genre) params.set('genre', options.genre);
     try {
         const resp = await fetch(`${CATALOG_API}?${params}`);
         const data = await resp.json();
@@ -148,5 +160,24 @@ export async function fetchMoovieCatalogMeta(type: 'movie' | 'tv', id: string) {
     } catch (err) {
         nfDebugError('catalog:meta:fail', { type, id, err });
         throw err;
+    }
+}
+
+/** Try requested media type, then flip movie/tv when catalogue tags disagree. */
+export async function fetchMoovieCatalogMetaResolved(
+    type: 'movie' | 'tv',
+    id: string
+) {
+    try {
+        return await fetchMoovieCatalogMeta(type, id);
+    } catch (primaryErr) {
+        const alt: 'movie' | 'tv' = type === 'movie' ? 'tv' : 'movie';
+        try {
+            const meta = await fetchMoovieCatalogMeta(alt, id);
+            nfDebug('catalog:meta:resolved-alt-type', { id, from: type, to: alt });
+            return meta;
+        } catch {
+            throw primaryErr;
+        }
     }
 }

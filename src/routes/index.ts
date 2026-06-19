@@ -56,6 +56,15 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/nf/anime/:id',
+        name: 'NetflixAnimeDetail',
+        component: () => import('../pages/NetflixAnimeBridge.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Anime'
+        }
+    },
+    {
         path: '/nf/:type(movie|tv)/:id',
         name: 'NetflixDetail',
         component: () => import('../pages/NetflixDetail.vue'),
@@ -240,10 +249,26 @@ const router = createRouter({
     routes,
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) return savedPosition;
+        // Back from title detail → restore catalogue browse / home scroll.
+        if (
+            (from.name === 'NetflixDetail' ||
+                from.name === 'NetflixAnimeDetail' ||
+                from.name === 'Movie' ||
+                from.name === 'TVShow' ||
+                from.name === 'AnimeDetail') &&
+            (to.name === 'NetflixBrowse' ||
+                to.name === 'Home' ||
+                to.name === 'NetflixSearch' ||
+                to.name === 'Movies' ||
+                to.name === 'TVShows' ||
+                to.name === 'Anime')
+        ) {
+            return false;
+        }
         // Back from Netflix player → restore detail scroll instead of jumping to top.
         if (
             (from.name === 'StreamNetflixMovie' || from.name === 'StreamNetflixTV') &&
-            to.name === 'NetflixDetail'
+            (to.name === 'NetflixDetail' || to.name === 'NetflixAnimeDetail')
         ) {
             return false;
         }
@@ -294,7 +319,7 @@ if (typeof window !== 'undefined') {
 }
 
 router.afterEach((to) => {
-    const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode', 'NetflixDetail', 'StreamNetflixMovie', 'StreamNetflixTV'];
+    const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode', 'NetflixDetail', 'NetflixAnimeDetail', 'StreamNetflixMovie', 'StreamNetflixTV'];
     if (to.name && dynamicRoutes.includes(to.name as string)) {
         return;
     }

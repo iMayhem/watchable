@@ -21,6 +21,7 @@
                     :to="item.path"
                     class="site-header__link"
                     :class="{ 'is-active': item.isActive() }"
+                    @click="onNetflixNavClick(item)"
                 >
                     {{ item.label }}
                 </router-link>
@@ -81,7 +82,7 @@
                 <ExtensionPrompt v-if="isNetflixMode" />
 
                 <button
-                    v-if="showModeSwitch"
+                    v-if="showModeSwitch && isNetflixMode"
                     type="button"
                     class="site-header__mode-btn"
                     @click="toggleContentMode"
@@ -89,35 +90,20 @@
                     {{ modeLabel }}
                 </button>
 
-                <template v-if="isNetflixMode">
-                    <button
-                        class="site-header__search site-header__search--compact"
-                        type="button"
-                        aria-label="Open search"
-                        @click="openPalette"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <circle cx="11" cy="11" r="7" />
-                            <path d="m21 21-4.3-4.3" />
-                        </svg>
-                    </button>
-                </template>
+                <button
+                    class="site-header__search site-header__search--compact"
+                    type="button"
+                    :aria-label="isNetflixMode ? 'Open search' : `Open search (${modKey}K)`"
+                    :title="isNetflixMode ? 'Search' : `Search (${modKey}K)`"
+                    @click="openPalette"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m21 21-4.3-4.3" />
+                    </svg>
+                </button>
 
                 <template v-if="!isNetflixMode">
-                    <button
-                        class="site-header__search"
-                        type="button"
-                        aria-label="Open search (⌘K)"
-                        @click="openPalette"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                            <circle cx="11" cy="11" r="7" />
-                            <path d="m21 21-4.3-4.3" />
-                        </svg>
-                        <span class="site-header__search-label">Search</span>
-                        <kbd class="site-header__search-kbd">{{ modKey }}K</kbd>
-                    </button>
-
                     <a
                         href="/party/"
                         class="site-header__party-btn"
@@ -147,6 +133,15 @@
                         class="site-header__login-btn"
                     >
                         Sign In
+                    </button>
+
+                    <button
+                        v-if="showModeSwitch"
+                        type="button"
+                        class="site-header__mode-btn"
+                        @click="toggleContentMode"
+                    >
+                        {{ modeLabel }}
                     </button>
 
                     <div ref="regionContainer" class="site-header__region-container">
@@ -205,7 +200,7 @@
                         :to="item.path"
                         class="site-header__drawer-link"
                         :class="{ 'is-active': item.isActive() }"
-                        @click="drawerOpen = false"
+                        @click="onNetflixNavClick(item); drawerOpen = false"
                     >
                         <span class="eyebrow site-header__drawer-num">0{{ index + 1 }}</span>
                         <span class="site-header__drawer-label">{{ item.label }}</span>
@@ -305,6 +300,28 @@ import { getContentMode } from '../../composables/useContentMode';
 import { getNetflixCatalogue, NETFLIX_CATALOGUES } from '../../composables/useNetflixCatalogue';
 import { netflixBrowsePath } from '../../composables/useNetflixRails';
 import { nfDebug } from '../../composables/useNetflixDebug';
+
+/** Korean header tab — not shared rows like anime/movies under the korean feed */
+const KOREAN_NAV_ROW_IDS = new Set([
+    'dramas',
+    'thrillers',
+    'romantic-movies',
+    'action-adventure'
+]);
+
+function isKoreanNavActive(path: string): boolean {
+    const match = path.match(/^\/nf\/browse\/korean\/([^/?#]+)/);
+    if (!match) return false;
+    return KOREAN_NAV_ROW_IDS.has(match[1]);
+}
+
+function isAnimeNavActive(path: string, catalogueId: string): boolean {
+    return (
+        path === netflixBrowsePath(catalogueId, 'anime') ||
+        /^\/nf\/browse\/[^/]+\/anime\/?$/.test(path) ||
+        path.startsWith('/nf/anime/')
+    );
+}
 
 interface NavItem {
     label: string;
@@ -480,6 +497,17 @@ export default defineComponent({
                         path.includes('/stream/nf/movie/')
                 },
                 {
+                    label: 'Anime',
+                    path: netflixBrowsePath(cat, 'anime'),
+                    isActive: () => isAnimeNavActive(path, cat)
+                },
+                {
+                    label: 'Korean',
+                    path: netflixBrowsePath('korean', 'dramas'),
+                    setCatalogue: 'korean',
+                    isActive: () => isKoreanNavActive(path)
+                },
+                {
                     label: 'New & Popular',
                     path: netflixBrowsePath(cat, 'new-on-netflix'),
                     isActive: () =>
@@ -497,6 +525,12 @@ export default defineComponent({
         const selectBrowseCatalogue = (id: string) => {
             selectNetflixCatalogue(id);
             closeBrowseDropdown();
+        };
+
+        const onNetflixNavClick = (item: { setCatalogue?: string }) => {
+            if (item.setCatalogue) {
+                setNetflixCatalogue(item.setCatalogue);
+            }
         };
 
         const handleClickOutside = (event: MouseEvent) => {
@@ -580,7 +614,8 @@ export default defineComponent({
             browseContainer,
             isBrowseOpen,
             toggleBrowseDropdown,
-            selectBrowseCatalogue
+            selectBrowseCatalogue,
+            onNetflixNavClick
         };
     }
 });
@@ -1055,12 +1090,15 @@ export default defineComponent({
     }
 
     &__search--compact {
+        justify-content: center;
         min-width: 0;
-        padding: 0.5rem;
+        width: 36px;
+        height: 36px;
+        padding: 0;
 
         svg {
-            width: 18px;
-            height: 18px;
+            width: 17px;
+            height: 17px;
         }
     }
 

@@ -28,7 +28,7 @@
                 :eyebrow="activeCatalogue.eyebrow"
                 catalog="netflix"
                 :more-to="trendingBrowseTo"
-                :loading="isLoading"
+                :loading="isLoading && !trendingItems.length"
             />
 
             <TopTenRail
@@ -39,7 +39,7 @@
                 eyebrow="Top 10"
                 catalog="netflix"
                 :more-to="top10MoviesBrowseTo"
-                :loading="isLoading"
+                :loading="isLoading && !top10Movies.length"
             />
 
             <TopTenRail
@@ -50,7 +50,7 @@
                 eyebrow="Top 10"
                 catalog="netflix"
                 :more-to="top10TvBrowseTo"
-                :loading="isLoading"
+                :loading="isLoading && !top10Tv.length"
             />
 
             <CuratedRail
@@ -88,13 +88,9 @@ import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
 import CuratedRail, { type CuratedItem } from '../components/rails/CuratedRail.vue';
 import TopTenRail from '../components/rails/TopTenRail.vue';
-import {
-    browseMoovieCatalog,
-    catalogRating,
-    inferCatalogMediaType,
-    parseCatalogTitle,
-    type MoovieCatalogItem
-} from '../composables/useMoovieCatalog';
+import { browseMoovieCatalog } from '../composables/useMoovieCatalog';
+import { getCatalogueHomeFetchSources } from '../data/netflixCatalogCategories';
+import { netflixCatalogDetailPath } from '../composables/useNetflixCatalogLookup';
 import {
     getNetflixCatalogue,
     getCatalogueOption,
@@ -115,43 +111,20 @@ import {
     netflixBrowsePath,
     type NetflixRailSection
 } from '../composables/useNetflixRails';
+import { loadNetflixAvailabilityIndex } from '../composables/useNetflixProvider';
 import { useSeo } from '../composables/useSeo';
+import { mapWithConcurrency } from '../composables/useTmdbArtwork';
 import {
-    mapWithConcurrency,
-    pickCatalogArtwork,
-    resolveArtworkForCatalogItem
-} from '../composables/useTmdbArtwork';
+    toCuratedItemFast,
+    toCuratedItemUpgraded
+} from '../composables/useNetflixArtwork';
+import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
 import {
     buildCatalogLanguageMap,
     catalogStreamTarget,
-    fetchCatalogVariantSnapshot,
-    resolveLanguageTagsForItem
+    fetchCatalogVariantSnapshot
 } from '../composables/useNetflixCatalogLookup';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
-
-async function toCuratedItem(
-    item: MoovieCatalogItem,
-    genreIds: number[] = [],
-    languageMap?: Map<string, string[]>
-): Promise<CuratedItem> {
-    const parsed = parseCatalogTitle(item.title || '');
-    const resolved = await resolveArtworkForCatalogItem(item);
-    const artwork = pickCatalogArtwork(resolved);
-
-    return {
-        id: item.id,
-        title: parsed.displayTitle || item.title,
-        originalTitle: parsed.languages.join(' · '),
-        catalogTitle: item.title,
-        posterPath: artwork.posterPath,
-        backdropPath: artwork.backdropPath,
-        rating: catalogRating(item.vote_average),
-        releaseDate: item.release_date || '',
-        type: inferCatalogMediaType(item),
-        languageTags: resolveLanguageTagsForItem(item, languageMap),
-        genreIds: genreIds.length ? genreIds : resolved.genreIds || []
-    };
-}
 
 export default defineComponent({
     name: 'NetflixHome',
@@ -204,7 +177,13 @@ export default defineComponent({
         const heroDetailRoute = computed(() => {
             if (!hero.value) return undefined;
             const h = hero.value;
-            return { path: `/nf/${h.type}/${h.id}` };
+            return {
+                path: netflixCatalogDetailPath({
+                    id: h.id,
+                    title: h.catalogTitle || h.title,
+                    type: h.type
+                })
+            };
         });
 
         const trendingBrowseTo = computed(() =>
@@ -224,7 +203,19 @@ export default defineComponent({
 
         const currentLoadKey = () => `${catalogue.value}:${language.value}`;
 
+        const hasCatalogue = () =>
+            trendingItems.value.length > 0 || catalogueRails.value.length > 0;
+
+        const restoreHomeCache = () => {
+            if (!hasCatalogue() || lastLoadKey.value !== currentLoadKey()) return false;
+            isLoading.value = false;
+            nfDebug('home:restore-cache', { key: lastLoadKey.value });
+            return true;
+        };
+
         const loadCatalogue = async () => {
+            if (restoreHomeCache()) return;
+
             const lang = getLanguageOption(language.value);
             const cat = getCatalogueOption(catalogue.value);
             const loadKey = currentLoadKey();
@@ -240,59 +231,101 @@ export default defineComponent({
             catalogueRails.value = [];
 
             try {
+                void loadNetflixAvailabilityIndex();
+                const fetchSources = getCatalogueHomeFetchSources(cat.id, lang.category);
                 const [pages, variantSnapshot] = await Promise.all([
                     Promise.all(
-                        Array.from({ length: 5 }, (_, page) =>
-                            browseMoovieCatalog(lang.category, page)
+                        fetchSources.flatMap((source) =>
+                            Array.from({ length: source.pages }, (_, page) =>
+                                browseMoovieCatalog(source.slug, page)
+                            )
                         )
                     ),
                     fetchCatalogVariantSnapshot()
                 ]);
 
+                const seenPoolIds = new Set<string>();
                 const browsePool = pages
                     .flatMap((page) => page.results || [])
-                    .filter((item) => itemMatchesLanguage(item, lang));
+                    .filter((item) => {
+                        if (!itemMatchesLanguage(item, lang) || seenPoolIds.has(item.id)) {
+                            return false;
+                        }
+                        seenPoolIds.add(item.id);
+                        return true;
+                    });
 
                 const languageMap = buildCatalogLanguageMap([
                     ...browsePool,
                     ...variantSnapshot
                 ]);
+                const audioCache = await fetchCatalogAudioCacheByIds(
+                    browsePool.map((item) => item.id)
+                );
 
                 const pool = filterCataloguePool(browsePool, cat.id, lang);
-                const tmdbById = await enrichCatalogPoolWithTmdb(pool, 8);
                 const artworkTargets = collectArtworkIdsForCurated(
                     browsePool,
                     cat.id,
                     lang,
                     cat.label,
-                    tmdbById
+                    new Map()
                 );
-                const curated = await mapWithConcurrency(artworkTargets, (item) => {
-                    const meta = tmdbById.get(String(item.id));
-                    return toCuratedItem(item, meta?.genreIds || [], languageMap);
-                }, 5);
-                const byId = new Map(curated.map((item) => [String(item.id), item]));
 
-                trendingItems.value = buildTrendingItems(pool, byId);
-                const home = buildNetflixHomeSections(
-                    browsePool,
-                    cat.id,
-                    cat.label,
-                    lang,
-                    byId,
-                    tmdbById
+                const applyHomeSections = (
+                    byId: Map<string, CuratedItem>,
+                    tmdbById: Map<string, import('../composables/useTmdbArtwork').CatalogTmdbMeta>
+                ) => {
+                    trendingItems.value = buildTrendingItems(pool, byId);
+                    const home = buildNetflixHomeSections(
+                        browsePool,
+                        cat.id,
+                        cat.label,
+                        lang,
+                        byId,
+                        tmdbById
+                    );
+                    top10Movies.value = home.top10Movies;
+                    top10Tv.value = home.top10Tv;
+                    catalogueRails.value = home.rails;
+                };
+
+                const fastCurated = artworkTargets.map((item) =>
+                    toCuratedItemFast(item, [], languageMap, audioCache)
                 );
-                top10Movies.value = home.top10Movies;
-                top10Tv.value = home.top10Tv;
-                catalogueRails.value = home.rails;
-
+                const fastById = new Map(fastCurated.map((item) => [String(item.id), item]));
+                applyHomeSections(fastById, new Map());
                 lastLoadKey.value = loadKey;
+                isLoading.value = false;
+
+                void (async () => {
+                    try {
+                        const tmdbById = await enrichCatalogPoolWithTmdb(pool, 14);
+                        const upgraded = await mapWithConcurrency(
+                            artworkTargets,
+                            (item) => {
+                                const meta = tmdbById.get(String(item.id));
+                                return toCuratedItemUpgraded(
+                                    item,
+                                    meta?.genreIds || [],
+                                    languageMap,
+                                    audioCache
+                                );
+                            },
+                            10
+                        );
+                        if (currentLoadKey() !== loadKey) return;
+                        const byId = new Map(upgraded.map((item) => [String(item.id), item]));
+                        applyHomeSections(byId, tmdbById);
+                    } catch (err) {
+                        nfDebugError('home:artwork-upgrade:fail', { err });
+                    }
+                })();
 
                 nfDebug('home:load:ok', {
                     catalogue: cat.id,
                     language: lang.category,
                     pool: pool.length,
-                    tmdbEnriched: tmdbById.size,
                     trending: trendingItems.value.length,
                     rails: catalogueRails.value.length,
                     railTitles: catalogueRails.value.slice(0, 12).map((r) => r.title)
@@ -305,7 +338,6 @@ export default defineComponent({
                 });
             } catch (err) {
                 nfDebugError('home:load:fail', { catalogue: cat.id, language: lang.category, err });
-            } finally {
                 isLoading.value = false;
             }
         };
@@ -315,9 +347,6 @@ export default defineComponent({
             loadCatalogue();
         };
 
-        const hasCatalogue = () =>
-            trendingItems.value.length > 0 || catalogueRails.value.length > 0;
-
         onMounted(() => {
             nfDebug('home:mount');
             loadCatalogue();
@@ -326,11 +355,7 @@ export default defineComponent({
         });
 
         onActivated(() => {
-            if (hasCatalogue() && lastLoadKey.value === currentLoadKey()) {
-                nfDebug('home:reactivate');
-                isLoading.value = false;
-                return;
-            }
+            if (restoreHomeCache()) return;
             loadCatalogue();
         });
 

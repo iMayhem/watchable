@@ -1,6 +1,9 @@
 import type { NetflixLanguageOption } from './useNetflixLanguage';
-import { resolveTmdbGenreSpec, type TmdbGenreSpec } from './netflixTmdbGenres';
-import genreRows from '../data/netflixGenreCodes.json';
+import { type TmdbGenreSpec } from './netflixTmdbGenres';
+import {
+    NETFLIX_STANDARD_GENRES,
+    standardGenresForCatalogue
+} from '../data/netflixStandardGenres';
 
 export type NetflixRowSection = 'editorial' | 'genre';
 
@@ -19,23 +22,21 @@ export interface NetflixCuratedRowDef {
     defaultType: 'movie' | 'tv';
     section: NetflixRowSection;
     priority: number;
-    netflixCode?: number;
     catalogues?: string[];
     keywords?: string[];
     keywordGroups?: string[][];
     pick: NetflixRowPickKind;
     minRating?: number;
     homeDedupe?: boolean;
-    /** Foreign/regional row — take top titles from the already-filtered catalogue pool. */
     cataloguePoolOnly?: boolean;
     tmdbGenres?: TmdbGenreSpec;
-    isParent?: boolean;
+    browseAllMediaTypes?: boolean;
     description?: (catalogueLabel: string, lang: NetflixLanguageOption) => string;
 }
 
-/** Netflix home shows ~12 curated rows — not every browse genre. */
-export const MAX_NETFLIX_HOME_RAILS = 10;
-export const MAX_NETFLIX_HOME_PER_RAIL = 10;
+/** Netflix home shows curated rows — full genre list lives on /nf/categories. */
+export const MAX_NETFLIX_HOME_RAILS = 12;
+export const MAX_NETFLIX_HOME_PER_RAIL = 20;
 
 const NETFLIX_HOME_EDITORIAL_IDS = [
     'new-on-netflix',
@@ -56,7 +57,7 @@ const NETFLIX_HOME_GENRE_IDS: Record<string, string[]> = {
         'anime'
     ],
     bollywood: ['dramas', 'comedies', 'romantic-movies', 'action-adventure', 'thrillers'],
-    korean: ['dramas', 'thrillers', 'romantic-movies', 'anime', 'action-adventure']
+    korean: ['dramas', 'thrillers', 'romantic-movies', 'action-adventure']
 };
 
 const NETFLIX_HOME_TAIL_IDS = ['only-on-netflix'] as const;
@@ -66,11 +67,15 @@ export function homeRowIdsForCatalogue(catalogueId: string): string[] {
     return [...NETFLIX_HOME_EDITORIAL_IDS, ...genres, ...NETFLIX_HOME_TAIL_IDS];
 }
 
-export interface NetflixCategoryGroup {
-    parentId: string;
-    parentTitle: string;
-    netflixCode?: number;
-    children: Array<{ id: string; title: string; netflixCode: number }>;
+export interface NetflixCategoryTile {
+    id: string;
+    title: string;
+}
+
+export interface NetflixCategorySection {
+    id: string;
+    title: string;
+    genres: NetflixCategoryTile[];
 }
 
 const EDITORIAL_ROWS: NetflixCuratedRowDef[] = [
@@ -159,57 +164,26 @@ const EDITORIAL_ROWS: NetflixCuratedRowDef[] = [
     }
 ];
 
-function genreRowDescription(
-    title: string,
-    eyebrow: string,
-    catalogueLabel: string,
-    lang: NetflixLanguageOption
-) {
-    if (eyebrow === 'Browse') {
-        return `${title} from ${catalogueLabel} in ${lang.label}.`;
-    }
-    return `${title} — ${eyebrow} picks in ${catalogueLabel}.`;
-}
-
-const IMPORTED_GENRE_ROWS: NetflixCuratedRowDef[] = (genreRows as Array<{
-    id: string;
-    netflixCode: number;
-    title: string;
-    eyebrow: string;
-    defaultType: 'movie' | 'tv';
-    keywords: string[];
-    keywordGroups?: string[][];
-    catalogues?: string[];
-    priority: number;
-    section: 'genre';
-    isParent?: boolean;
-}>).map((row) => {
-    const cataloguePoolOnly =
-        row.eyebrow === 'Foreign movies' && Boolean(row.catalogues?.length);
-    return {
-        id: row.id,
-        netflixCode: row.netflixCode,
-        title: row.title,
-        eyebrow: row.eyebrow,
-        defaultType: row.defaultType,
-        section: 'genre' as const,
-        priority: row.priority,
-        catalogues: row.catalogues,
-        keywords: row.keywords,
-        keywordGroups: row.keywordGroups,
-        pick: cataloguePoolOnly ? 'top-rated' : 'tmdb-genre',
-        cataloguePoolOnly,
-        tmdbGenres: resolveTmdbGenreSpec(row.id, row.eyebrow, row.title),
-        isParent: row.isParent === true,
-        homeDedupe: false,
-        description: (catalogueLabel, lang) =>
-            genreRowDescription(row.title, row.eyebrow, catalogueLabel, lang)
-    };
-});
+const STANDARD_GENRE_ROWS: NetflixCuratedRowDef[] = NETFLIX_STANDARD_GENRES.map((row) => ({
+    id: row.id,
+    title: row.title,
+    eyebrow: row.id === 'tv-show' || row.id === 'anime' ? 'TV' : 'Browse',
+    defaultType: row.id === 'tv-show' || row.id === 'anime' ? 'tv' : 'movie',
+    section: 'genre' as const,
+    priority: row.priority,
+    catalogues: row.catalogues,
+    pick: 'tmdb-genre' as const,
+    cataloguePoolOnly: false,
+    tmdbGenres: row.tmdbGenres,
+    keywords: row.keywords,
+    browseAllMediaTypes: row.browseAllMediaTypes ?? (row.id !== 'tv-show' && row.id !== 'anime'),
+    homeDedupe: false,
+    description: (_catalogueLabel, _lang) => row.tagline
+}));
 
 export const NETFLIX_CURATED_ROW_DEFS: NetflixCuratedRowDef[] = [
     ...EDITORIAL_ROWS,
-    ...IMPORTED_GENRE_ROWS
+    ...STANDARD_GENRE_ROWS
 ].sort((a, b) => b.priority - a.priority);
 
 export const NETFLIX_BROWSE_ROW_IDS = [
@@ -243,70 +217,22 @@ export function homeRowsForCatalogue(catalogueId: string): NetflixCuratedRowDef[
         .filter((row): row is NetflixCuratedRowDef => Boolean(row));
 }
 
-const PARENT_SECTION_ORDER = [
-    'Action & adventure',
-    'Comedies',
-    'Dramas',
-    'Horror movies',
-    'Romantic movies',
-    'Sci - Fi & Fantasy',
-    'Thrillers',
-    'Anime',
-    'Documentaries',
-    'Children & family movies',
-    'Classic Movies',
-    'Foreign movies',
-    'TV Show',
-    'Music',
-    'Sports movies',
-    'Independent movies',
-    'LGBTQ+',
-    'Others'
-];
+export function getNetflixCategorySections(catalogueId: string): NetflixCategorySection[] {
+    const genres = standardGenresForCatalogue(catalogueId);
+    if (!genres.length) return [];
 
-export function getNetflixCategoryGroups(catalogueId: string): NetflixCategoryGroup[] {
-    const rows = rowsForCatalogue(catalogueId).filter((row) => row.section === 'genre');
-    const parents = rows.filter((row) => row.isParent);
-    const children = rows.filter((row) => !row.isParent);
-
-    const parentByTitle = new Map(parents.map((p) => [p.title, p]));
-    const grouped = new Map<string, NetflixCategoryGroup>();
-
-    for (const parent of parents) {
-        grouped.set(parent.title, {
-            parentId: parent.id,
-            parentTitle: parent.title,
-            netflixCode: parent.netflixCode,
-            children: []
-        });
-    }
-
-    for (const child of children) {
-        const key = child.eyebrow;
-        if (!grouped.has(key)) {
-            const fallback = parentByTitle.get(key);
-            grouped.set(key, {
-                parentId: fallback?.id || child.id,
-                parentTitle: key,
-                netflixCode: fallback?.netflixCode,
-                children: []
-            });
+    return [
+        {
+            id: 'browse',
+            title: 'Browse by genre',
+            genres: genres.map((row) => ({ id: row.id, title: row.title }))
         }
-        grouped.get(key)!.children.push({
-            id: child.id,
-            title: child.title,
-            netflixCode: child.netflixCode || 0
-        });
-    }
+    ];
+}
 
-    const rank = (title: string) => {
-        const idx = PARENT_SECTION_ORDER.indexOf(title);
-        return idx === -1 ? PARENT_SECTION_ORDER.length : idx;
-    };
-
-    return [...grouped.values()]
-        .filter((g) => g.children.length > 0 || g.netflixCode)
-        .sort((a, b) => rank(a.parentTitle) - rank(b.parentTitle));
+/** @deprecated Use getNetflixCategorySections */
+export function getNetflixCategoryGroups(catalogueId: string) {
+    return getNetflixCategorySections(catalogueId);
 }
 
 export function getNetflixRowMeta(
@@ -318,7 +244,6 @@ export function getNetflixRowMeta(
     eyebrow: string;
     description: string;
     defaultType: 'movie' | 'tv';
-    netflixCode?: number;
 } {
     if (rowId === 'trending') {
         return {
@@ -345,7 +270,6 @@ export function getNetflixRowMeta(
         description: def.description
             ? def.description(catalogue.label, lang)
             : `${def.title} in ${catalogue.label}.`,
-        defaultType: def.defaultType,
-        netflixCode: def.netflixCode
+        defaultType: def.defaultType
     };
 }

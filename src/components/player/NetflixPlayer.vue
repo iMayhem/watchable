@@ -140,8 +140,8 @@ import {
 } from 'vue';
 import {
     formatPlayerTime,
-    type NetmirrorStream
-} from '../../composables/useNetmirrorPlayer';
+    type MoovieStream
+} from '../../composables/useMooviePlayer';
 import { nfDebug } from '../../composables/useNetflixDebug';
 
 export default defineComponent({
@@ -158,7 +158,7 @@ export default defineComponent({
         progress: { type: Number, default: 0 },
         bufferProgress: { type: Number, default: 0 },
         isMuted: { type: Boolean, default: false },
-        streams: { type: Array as PropType<NetmirrorStream[]>, default: () => [] },
+        streams: { type: Array as PropType<MoovieStream[]>, default: () => [] },
         selectedStreamIndex: { type: Number, default: 0 },
         bindContainer: {
             type: Function as PropType<(el: HTMLElement | null) => void>,

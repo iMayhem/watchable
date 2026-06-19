@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Moovie Stream Boost",
-  "version": "1.2.0",
-  "description": "NetMirror-style ModHeader for MovieBox CDNs — Referer fmoviesunblocked.net on moovie.fun and player mirrors.",
+  "version": "1.2.1",
+  "description": "Moovie stream headers for direct CDN playback on moovie.fun and player mirrors.",
   "permissions": ["declarativeNetRequest", "declarativeNetRequestWithHostAccess", "storage"],
   "host_permissions": [
     "*://*.hakunaymatata.com/*",

@@ -187,8 +187,8 @@ const routes: Array<RouteRecordRaw> = [
     },
     {
         path: '/test',
-        name: 'TestNetmirror',
-        component: () => import('../pages/TestNetmirror.vue'),
+        name: 'TestMoovieStream',
+        component: () => import('../pages/TestMoovieStream.vue'),
         meta: {
             showInHeader: false,
             hidden: true,
@@ -235,7 +235,7 @@ router.afterEach((to) => {
         return;
     }
 
-    if (to.name === 'TestNetmirror') {
+    if (to.name === 'TestMoovieStream') {
         return;
     }
 

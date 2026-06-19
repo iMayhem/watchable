@@ -1,6 +1,6 @@
 import { useStorage } from '@vueuse/core';
 import { readonly } from 'vue';
-import { parseNetmirrorTitle, type NetmirrorBrowseItem } from './useNetmirror';
+import { parseCatalogTitle, type MoovieCatalogItem } from './useMoovieCatalog';
 import { nfDebug } from './useNetflixDebug';
 
 export interface NetflixLanguageOption {
@@ -32,10 +32,10 @@ export function getLanguageOption(category: string): NetflixLanguageOption {
 }
 
 export function itemMatchesLanguage(
-    item: NetmirrorBrowseItem,
+    item: MoovieCatalogItem,
     lang: NetflixLanguageOption
 ): boolean {
-    const parsed = parseNetmirrorTitle(item.title || '');
+    const parsed = parseCatalogTitle(item.title || '');
     const titleLower = (item.title || '').toLowerCase();
     const channelLower = (item.channel || '').toLowerCase();
 

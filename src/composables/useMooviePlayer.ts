@@ -4,13 +4,13 @@ import { nfDebug, nfDebugError } from './useNetflixDebug';
 
 export type PlayerSkin = 'default' | 'netflix';
 
-export interface NetmirrorStream {
+export interface MoovieStream {
     quality: string;
     url: string;
     proxiedUrl: string;
 }
 
-export interface NetmirrorResolve {
+export interface MoovieResolve {
     meta: {
         id: string;
         title: string;
@@ -18,7 +18,7 @@ export interface NetmirrorResolve {
         media_type: string;
         backdrop_path: string | null;
     };
-    streams: NetmirrorStream[];
+    streams: MoovieStream[];
     playerProxyUrl: string;
 }
 
@@ -57,7 +57,7 @@ async function parseApiResponse(resp: Response) {
         text.trimStart().startsWith('<') || /<!doctype/i.test(text.slice(0, 200));
     if (looksLikeHtml) {
         throw new Error(
-            'API returned HTML instead of JSON. Deploy /api/netmirror or run npm run dev locally.'
+            'API returned HTML instead of JSON. Deploy /api/moovie-catalog or run npm run dev locally.'
         );
     }
     return JSON.parse(text);
@@ -69,11 +69,11 @@ const loadArtplayerAssets = (() => {
         if ((window as any).Artplayer) return Promise.resolve();
         if (promise) return promise;
         promise = new Promise((resolve, reject) => {
-            if (!document.querySelector('link[data-nm-art-css]')) {
+            if (!document.querySelector('link[data-moovie-art-css]')) {
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.href = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.css';
-                link.setAttribute('data-nm-art-css', '1');
+                link.setAttribute('data-moovie-art-css', '1');
                 document.head.appendChild(link);
             }
             const script = document.createElement('script');
@@ -97,7 +97,7 @@ export function formatPlayerTime(seconds: number): string {
     return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
+export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const skin = options.skin ?? 'default';
     const dbg = (step: string, detail?: unknown) => {
         if (skin === 'netflix') nfDebug(step, detail);
@@ -108,7 +108,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     const { extensionActive, checkExtension, pingExtension } = useStreamExtension();
     const loading = ref(false);
     const playbackError = ref('');
-    const resolved = ref<NetmirrorResolve | null>(null);
+    const resolved = ref<MoovieResolve | null>(null);
     const selectedStreamIndex = ref(0);
     const artReady = ref(false);
     const artContainer = ref<HTMLElement | null>(null);
@@ -120,7 +120,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
 
     let artInstance: any = null;
     let prepareToken = 0;
-    let refreshInFlight: Promise<NetmirrorResolve | null> | null = null;
+    let refreshInFlight: Promise<MoovieResolve | null> | null = null;
     const destroyArt = () => {
         if (artInstance) {
             dbg('player:destroy');
@@ -188,17 +188,17 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
             ep: String(opts.episode),
             server: String(opts.server ?? 1)
         });
-        return `/api/netmirror?${params.toString()}`;
+        return `/api/moovie-catalog?${params.toString()}`;
     };
 
     const fetchResolve = async (url: string) => {
         const resp = await fetch(url);
         const data = await parseApiResponse(resp);
         if (!resp.ok) throw new Error(data.error || `Resolve failed (${resp.status})`);
-        return data as NetmirrorResolve;
+        return data as MoovieResolve;
     };
 
-    const pickDefaultStreamIndex = (streams: NetmirrorStream[]) => {
+    const pickDefaultStreamIndex = (streams: MoovieStream[]) => {
         if (!streams.length) return 0;
         let bestIndex = 0;
         let bestRank = qualityRank[streams[0].quality] ?? 99;
@@ -212,7 +212,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
         return bestIndex;
     };
 
-    const resolvePlaybackUrl = (stream: NetmirrorStream) => {
+    const resolvePlaybackUrl = (stream: MoovieStream) => {
         if (extensionActive.value) {
             return withPlaybackCacheBuster(stream.url);
         }
@@ -260,7 +260,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
         });
     };
 
-    const mountArtplayer = async (stream: NetmirrorStream) => {
+    const mountArtplayer = async (stream: MoovieStream) => {
         dbg('player:mount:start', { quality: stream.quality, extension: extensionActive.value });
         await loadArtplayerAssets();
         const container = artContainer.value;
@@ -330,7 +330,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
 
     const refreshResolve = async (
         resolveUrl: string
-    ): Promise<NetmirrorResolve | null> => {
+    ): Promise<MoovieResolve | null> => {
         if (refreshInFlight) return refreshInFlight;
         refreshInFlight = (async () => {
             try {
@@ -347,7 +347,7 @@ export function useNetmirrorPlayer(options: { skin?: PlayerSkin } = {}) {
     };
 
     const preparePlayback = async (
-        stream: NetmirrorStream | null,
+        stream: MoovieStream | null,
         resolveUrl: string,
         options: { allowRefresh?: boolean } = {}
     ): Promise<void> => {

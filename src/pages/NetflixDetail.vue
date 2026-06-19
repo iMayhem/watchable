@@ -44,12 +44,12 @@ import SiteFooter from '../components/navigation/SiteFooter.vue';
 import TitleMasthead from '../components/detail/TitleMasthead.vue';
 import CuratedRail, { type CuratedItem } from '../components/rails/CuratedRail.vue';
 import {
-    browseNetmirror,
-    fetchNetmirrorMeta,
-    netmirrorRating,
-    parseNetmirrorTitle,
-    type NetmirrorBrowseItem
-} from '../composables/useNetmirror';
+    browseMoovieCatalog,
+    fetchMoovieCatalogMeta,
+    catalogRating,
+    parseCatalogTitle,
+    type MoovieCatalogItem
+} from '../composables/useMoovieCatalog';
 import {
     getNetflixLanguage,
     getLanguageOption,
@@ -58,7 +58,7 @@ import {
 import { useSeo } from '../composables/useSeo';
 import {
     mapWithConcurrency,
-    resolveArtworkForNetmirrorItem,
+    resolveArtworkForCatalogItem,
     resolveTmdbArtwork
 } from '../composables/useTmdbArtwork';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
@@ -82,13 +82,13 @@ export default defineComponent({
         );
 
         const parsed = computed(() =>
-            parseNetmirrorTitle(meta.value?.title || '')
+            parseCatalogTitle(meta.value?.title || '')
         );
 
         const displayTitle = computed(() => parsed.value.displayTitle || meta.value?.title || '');
         const languageTags = computed(() => parsed.value.languages);
         const languageLine = computed(() => languageTags.value.join(' · '));
-        const rating = computed(() => netmirrorRating(meta.value?.vote_average));
+        const rating = computed(() => catalogRating(meta.value?.vote_average));
 
         const playRoute = computed(() => {
             const id = route.params.id;
@@ -99,16 +99,16 @@ export default defineComponent({
             return `/stream/nf/movie/${id}`;
         });
 
-        const toCurated = async (item: NetmirrorBrowseItem): Promise<CuratedItem> => {
-            const p = parseNetmirrorTitle(item.title || '');
-            const art = await resolveArtworkForNetmirrorItem(item);
+        const toCurated = async (item: MoovieCatalogItem): Promise<CuratedItem> => {
+            const p = parseCatalogTitle(item.title || '');
+            const art = await resolveArtworkForCatalogItem(item);
             return {
                 id: item.id,
                 title: p.displayTitle || item.title,
                 originalTitle: p.languages.join(' · '),
                 posterPath: art.posterPath || art.fallbackPath,
                 backdropPath: art.backdropPath || art.fallbackPath,
-                rating: netmirrorRating(item.vote_average),
+                rating: catalogRating(item.vote_average),
                 releaseDate: item.release_date || '',
                 type: item.media_type === 'tv' ? 'tv' : 'movie',
                 languageTags: p.languages
@@ -122,9 +122,9 @@ export default defineComponent({
             similarItems.value = [];
             artwork.value = { posterPath: null, backdropPath: null };
             try {
-                meta.value = await fetchNetmirrorMeta(mediaType.value, id);
+                meta.value = await fetchMoovieCatalogMeta(mediaType.value, id);
 
-                const parsedTitle = parseNetmirrorTitle(meta.value?.title || '');
+                const parsedTitle = parseCatalogTitle(meta.value?.title || '');
                 const tmdbArt = await resolveTmdbArtwork({
                     title: parsedTitle.displayTitle || meta.value?.title || '',
                     year: meta.value?.release_date,
@@ -138,7 +138,7 @@ export default defineComponent({
 
                 const { language } = getNetflixLanguage();
                 const lang = getLanguageOption(language.value);
-                const browse = await browseNetmirror(lang.category, 0);
+                const browse = await browseMoovieCatalog(lang.category, 0);
                 const similarPool = (browse.results || [])
                     .filter((item) => item.id !== id && itemMatchesLanguage(item, lang))
                     .slice(0, 14);

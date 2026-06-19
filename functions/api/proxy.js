@@ -72,7 +72,7 @@ export async function onRequest(context) {
     
     const headers = new Headers();
     const isPeachifyGateway = targetUrl.includes('eat-peach.sbs') || targetUrl.includes('workers.dev');
-    const isMovieboxCdn =
+    const isMoovieStreamCdn =
         targetUrl.includes('hakunaymatata.com') ||
         targetUrl.includes('aoneroom.com') ||
         targetUrl.includes('watch21.shop') ||
@@ -82,9 +82,9 @@ export async function onRequest(context) {
         headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36');
         headers.set('Referer', 'https://peachify.top/');
         headers.set('Origin', 'https://peachify.top');
-    } else if (isMovieboxCdn) {
+    } else if (isMoovieStreamCdn) {
         headers.set('User-Agent', userAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/148.0.0.0 Safari/537.36');
-        // hakunaymatata CDN only accepts this referer; spedostream2/netmirror are rejected
+        // hakunaymatata CDN only accepts this referer on direct stream hosts
         headers.set('Referer', 'https://fmoviesunblocked.net/');
         headers.set('Origin', 'https://h5.aoneroom.com');
     } else {
@@ -99,7 +99,7 @@ export async function onRequest(context) {
 
     if (clientRange) {
         headers.set('Range', clientRange);
-    } else if (isMovieboxCdn && isMp4 && method !== 'HEAD') {
+    } else if (isMoovieStreamCdn && isMp4 && method !== 'HEAD') {
         // hakunaymatata often 403s on full GET; browsers may stall without an initial range
         headers.set('Range', 'bytes=0-1048575');
     }
@@ -111,7 +111,7 @@ export async function onRequest(context) {
     try {
         let resp = await fetchUpstream();
 
-        if (resp.status === 403 && isMovieboxCdn && isMp4) {
+        if (resp.status === 403 && isMoovieStreamCdn && isMp4) {
             for (const range of ['bytes=0-65535', 'bytes=0-1048575', 'bytes=0-']) {
                 headers.set('Range', range);
                 resp = await fetchUpstream();

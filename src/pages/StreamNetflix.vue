@@ -29,8 +29,8 @@
 import { computed, defineComponent, nextTick, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
-import { parseNetmirrorTitle } from '../composables/useNetmirror';
-import { useNetmirrorPlayer } from '../composables/useNetmirrorPlayer';
+import { parseCatalogTitle } from '../composables/useMoovieCatalog';
+import { useMooviePlayer } from '../composables/useMooviePlayer';
 import { useSeo } from '../composables/useSeo';
 import { nfDebug } from '../composables/useNetflixDebug';
 
@@ -41,7 +41,7 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const { updateSeo } = useSeo();
-        const player = useNetmirrorPlayer({ skin: 'netflix' });
+        const player = useMooviePlayer({ skin: 'netflix' });
         const {
             loading,
             playbackError,
@@ -75,7 +75,7 @@ export default defineComponent({
 
         const parsedMeta = computed(() => {
             const raw = resolved.value?.meta?.title || '';
-            return parseNetmirrorTitle(raw);
+            return parseCatalogTitle(raw);
         });
 
         const title = computed(() => parsedMeta.value.displayTitle || 'Now playing');
@@ -102,7 +102,7 @@ export default defineComponent({
                 ep: String(route.params.episode || '0'),
                 server: '1'
             });
-            return `/api/netmirror?${params.toString()}`;
+            return `/api/moovie-catalog?${params.toString()}`;
         });
 
         const goBack = () => {

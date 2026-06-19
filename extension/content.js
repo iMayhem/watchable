@@ -1,15 +1,17 @@
 (function initMoovieStreamBoost() {
   const API = {
     active: true,
-    version: '1.2.0',
+    version: '1.2.1',
     mode: 'direct-cdn',
   };
 
-  /** Inject into the page's JS world — isolated content-script `window` is invisible to Vue. */
+  /** Page-world bridge is injected once — re-injecting on every DOM mutation caused hangs. */
+  let pageBridgeInjected = false;
+
   function injectPageBridge() {
+    if (pageBridgeInjected) return;
     const payload = JSON.stringify(API);
     const script = document.createElement('script');
-    script.setAttribute('data-moovie-stream-boost', '1');
     script.textContent = `(function(){
       var api = ${payload};
       window.__MOOVIE_STREAM_EXT__ = api;
@@ -19,6 +21,7 @@
     if (!parent) return;
     parent.appendChild(script);
     script.remove();
+    pageBridgeInjected = true;
   }
 
   function announceIsolated() {
@@ -36,7 +39,7 @@
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
     if (event.data?.type !== 'MOOVIE_EXT_PING') return;
-    injectPageBridge();
+    if (!pageBridgeInjected) injectPageBridge();
     window.postMessage(
       {
         type: 'MOOVIE_EXT_PONG',
@@ -45,19 +48,4 @@
       '*'
     );
   });
-
-  const observer = new MutationObserver(() => {
-    if (document.documentElement && !document.querySelector('script[data-moovie-stream-boost]')) {
-      injectPageBridge();
-    }
-  });
-
-  if (document.documentElement) {
-    observer.observe(document.documentElement, { childList: true, subtree: false });
-  } else {
-    document.addEventListener('DOMContentLoaded', () => {
-      announce();
-      observer.observe(document.documentElement, { childList: true, subtree: false });
-    });
-  }
 })();

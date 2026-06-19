@@ -67,11 +67,11 @@ import SiteFooter from '../components/navigation/SiteFooter.vue';
 import BillboardHero from '../components/hero/BillboardHero.vue';
 import CuratedRail, { type CuratedItem } from '../components/rails/CuratedRail.vue';
 import {
-    browseNetmirror,
-    netmirrorRating,
-    parseNetmirrorTitle,
-    type NetmirrorBrowseItem
-} from '../composables/useNetmirror';
+    browseMoovieCatalog,
+    catalogRating,
+    parseCatalogTitle,
+    type MoovieCatalogItem
+} from '../composables/useMoovieCatalog';
 import {
     getNetflixLanguage,
     getLanguageOption,
@@ -81,13 +81,13 @@ import {
 import { useSeo } from '../composables/useSeo';
 import {
     mapWithConcurrency,
-    resolveArtworkForNetmirrorItem
+    resolveArtworkForCatalogItem
 } from '../composables/useTmdbArtwork';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 
-async function toCuratedItem(item: NetmirrorBrowseItem): Promise<CuratedItem> {
-    const parsed = parseNetmirrorTitle(item.title || '');
-    const artwork = await resolveArtworkForNetmirrorItem(item);
+async function toCuratedItem(item: MoovieCatalogItem): Promise<CuratedItem> {
+    const parsed = parseCatalogTitle(item.title || '');
+    const artwork = await resolveArtworkForCatalogItem(item);
 
     return {
         id: item.id,
@@ -95,7 +95,7 @@ async function toCuratedItem(item: NetmirrorBrowseItem): Promise<CuratedItem> {
         originalTitle: parsed.languages.join(' · '),
         posterPath: artwork.posterPath || artwork.fallbackPath,
         backdropPath: artwork.backdropPath || artwork.fallbackPath,
-        rating: netmirrorRating(item.vote_average),
+        rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
         type: item.media_type === 'tv' ? 'tv' : 'movie',
         languageTags: parsed.languages
@@ -155,21 +155,39 @@ export default defineComponent({
 
             try {
                 const [page0, page1] = await Promise.all([
-                    browseNetmirror(lang.category, 0),
-                    browseNetmirror(lang.category, 1)
+                    browseMoovieCatalog(lang.category, 0),
+                    browseMoovieCatalog(lang.category, 1)
                 ]);
 
                 const pool = [...(page0.results || []), ...(page1.results || [])].filter(
                     (item) => itemMatchesLanguage(item, lang)
                 );
 
-                const curated = await mapWithConcurrency(pool, toCuratedItem, 6);
-                const movies = curated.filter((item) => item.type === 'movie');
-                const series = curated.filter((item) => item.type === 'tv');
+                // Only resolve TMDB art for cards we actually render (not the full pool).
+                const moviePool = pool.filter((item) => item.media_type !== 'tv');
+                const seriesPool = pool.filter((item) => item.media_type === 'tv');
+                const displayRaw: MoovieCatalogItem[] = [];
+                const seen = new Set<string>();
+                const pushUnique = (item: MoovieCatalogItem) => {
+                    if (seen.has(item.id)) return;
+                    seen.add(item.id);
+                    displayRaw.push(item);
+                };
+                pool.slice(0, 12).forEach(pushUnique);
+                moviePool.slice(0, 18).forEach(pushUnique);
+                seriesPool.slice(0, 18).forEach(pushUnique);
 
-                trendingItems.value = curated.slice(0, 12);
-                movieItems.value = movies.slice(0, 18);
-                seriesItems.value = series.slice(0, 18);
+                const curated = await mapWithConcurrency(displayRaw, toCuratedItem, 4);
+                const byId = new Map(curated.map((item) => [String(item.id), item]));
+                const pick = (items: MoovieCatalogItem[], limit: number) =>
+                    items
+                        .map((item) => byId.get(String(item.id)))
+                        .filter((item): item is CuratedItem => Boolean(item))
+                        .slice(0, limit);
+
+                trendingItems.value = pick(pool, 12);
+                movieItems.value = pick(moviePool, 18);
+                seriesItems.value = pick(seriesPool, 18);
 
                 nfDebug('home:load:ok', {
                     language: lang.category,

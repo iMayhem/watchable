@@ -16,7 +16,7 @@
 
         <LmDialog v-model="open" title="Moovie Stream Boost">
             <p class="ext-prompt__lead">
-                Install our free browser extension for direct CDN playback — the same fast path NetMirror uses.
+                Install our free Moovie Stream Boost extension for direct CDN playback on moovie.fun.
             </p>
 
             <div v-if="extensionActive" class="ext-prompt__status ext-prompt__status--ok">

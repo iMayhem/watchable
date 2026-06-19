@@ -2,7 +2,7 @@
     <div class="nm-test">
         <header class="nm-test__header">
             <p class="nm-test__badge">Internal · Hidden</p>
-            <h1>NetMirror Lab</h1>
+            <h1>Moovie Stream Lab</h1>
             <p class="nm-test__sub">
                 Test stream resolution through moovie proxy. Not linked anywhere on the site.
             </p>
@@ -14,7 +14,7 @@
         <section class="nm-test__panel">
             <div class="nm-test__row">
                 <label>
-                    <span>NetMirror ID</span>
+                    <span>Moovie catalogue ID</span>
                     <input v-model="mediaId" type="text" placeholder="111489" @change="onFieldChange('mediaId', mediaId)" />
                 </label>
                 <label>
@@ -45,7 +45,7 @@
 
             <div class="nm-test__row">
                 <label class="nm-test__search">
-                    <span>Search NetMirror</span>
+                    <span>Search catalogue</span>
                     <input
                         v-model="searchQuery"
                         type="text"
@@ -101,7 +101,7 @@
                     :class="{ 'is-active': playerMode === 'iframe' }"
                     @click="setPlayerMode('iframe')"
                 >
-                    NetMirror iframe
+                    Moovie player iframe
                 </button>
             </div>
 
@@ -115,7 +115,7 @@
                     v-if="playerMode === 'iframe' && playerProxyUrl"
                     :key="playerProxyUrl"
                     :src="playerProxyUrl"
-                    title="NetMirror player"
+                    title="Moovie player"
                     allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                     frameborder="0"
                 />
@@ -130,7 +130,7 @@
             <p v-if="playbackError" class="nm-test__error" role="alert">{{ playbackError }}</p>
             <p v-if="activeStream && playerMode === 'direct'" class="nm-test__stream-url">
                 {{ activeStream.quality }} ·
-                {{ extensionActive ? 'direct CDN + ArtPlayer (NetMirror path)' : 'proxied via /api/proxy' }}
+                {{ extensionActive ? 'direct CDN + ArtPlayer (Moovie direct path)' : 'proxied via /api/proxy' }}
             </p>
 
             <div v-if="streams.length" class="nm-test__qualities">
@@ -160,15 +160,15 @@
 import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useSeo } from '../composables/useSeo';
 
-const LOG_PREFIX = '[NetMirror Test]';
+const LOG_PREFIX = '[Moovie Stream Test]';
 
-interface NetmirrorStream {
+interface MoovieStream {
     quality: string;
     url: string;
     proxiedUrl: string;
 }
 
-interface NetmirrorResolve {
+interface MoovieResolve {
     meta: {
         id: string;
         title: string;
@@ -181,8 +181,8 @@ interface NetmirrorResolve {
     auth: { timestamp: number; signature: string };
     watchboxUrl: string;
     playerProxyUrl: string;
-    streams: NetmirrorStream[];
-    defaultStream: NetmirrorStream | null;
+    streams: MoovieStream[];
+    defaultStream: MoovieStream | null;
 }
 
 interface SearchResult {
@@ -192,7 +192,7 @@ interface SearchResult {
 }
 
 export default defineComponent({
-    name: 'TestNetmirror',
+    name: 'TestMoovieStream',
     setup() {
         const { updateSeo } = useSeo();
 
@@ -230,7 +230,7 @@ export default defineComponent({
 
         const loading = ref(false);
         const error = ref('');
-        const resolved = ref<NetmirrorResolve | null>(null);
+        const resolved = ref<MoovieResolve | null>(null);
         const searchResults = ref<SearchResult[]>([]);
 
         const playerMode = ref<'iframe' | 'direct'>('direct');
@@ -242,7 +242,7 @@ export default defineComponent({
         const artContainer = ref<HTMLElement | null>(null);
         let prepareToken = 0;
         let artInstance: any = null;
-        let refreshInFlight: Promise<NetmirrorResolve | null> | null = null;
+        let refreshInFlight: Promise<MoovieResolve | null> | null = null;
 
         const streamUrlAgeSec = (rawUrl: string) => {
             try {
@@ -363,14 +363,14 @@ export default defineComponent({
             artReady.value = false;
         };
 
-        const resolvePlaybackUrl = (stream: NetmirrorStream) => {
+        const resolvePlaybackUrl = (stream: MoovieStream) => {
             if (extensionActive.value) {
                 return withPlaybackCacheBuster(stream.url);
             }
             return withPlaybackCacheBuster(toAbsoluteUrl(stream.proxiedUrl));
         };
 
-        const mountArtplayer = async (stream: NetmirrorStream) => {
+        const mountArtplayer = async (stream: MoovieStream) => {
             await loadArtplayerAssets();
             const container = artContainer.value;
             if (!container) {
@@ -421,7 +421,7 @@ export default defineComponent({
             artReady.value = true;
         };
 
-        const switchArtQuality = async (stream: NetmirrorStream) => {
+        const switchArtQuality = async (stream: MoovieStream) => {
             const playUrl = resolvePlaybackUrl(stream);
             if (!artInstance) {
                 await mountArtplayer(stream);
@@ -437,7 +437,7 @@ export default defineComponent({
             if (!resp.ok) {
                 throw new Error(data.error || `Request failed (${resp.status})`);
             }
-            return data as NetmirrorResolve;
+            return data as MoovieResolve;
         };
 
         const refreshResolve = async (reason: string) => {
@@ -472,7 +472,7 @@ export default defineComponent({
         };
 
         const prepareArtPlayback = async (
-            stream: NetmirrorStream | null,
+            stream: MoovieStream | null,
             options: { allowRefresh?: boolean } = {}
         ): Promise<void> => {
             const { allowRefresh = true } = options;
@@ -547,7 +547,7 @@ export default defineComponent({
             unknown: 4,
         };
 
-        const pickDefaultStreamIndex = (streamList: NetmirrorStream[]) => {
+        const pickDefaultStreamIndex = (streamList: MoovieStream[]) => {
             if (!streamList.length) return 0;
             let bestIndex = 0;
             let bestRank = qualityRank[streamList[0].quality] ?? 99;
@@ -585,7 +585,7 @@ export default defineComponent({
                 ep: String(episode.value),
                 server: String(server.value),
             });
-            return `/api/netmirror?${params.toString()}`;
+            return `/api/moovie-catalog?${params.toString()}`;
         };
 
         const parseApiResponse = async (resp: Response, context: string) => {
@@ -603,7 +603,7 @@ export default defineComponent({
             if (!contentType.includes('application/json') && looksLikeHtml) {
                 debugError(`${context}:html-fallback`, { preview: text.slice(0, 120) });
                 throw new Error(
-                    'API returned HTML instead of JSON. Deploy /api/netmirror to Cloudflare Pages, or run npm run dev locally (functions middleware is enabled).'
+                    'API returned HTML instead of JSON. Deploy /api/moovie-catalog to Cloudflare Pages, or run npm run dev locally (functions middleware is enabled).'
                 );
             }
 
@@ -672,7 +672,7 @@ export default defineComponent({
                     title: data.meta?.title,
                     subjectid: data.meta?.subjectid,
                     streamCount: data.streams?.length || 0,
-                    qualities: (data.streams || []).map((s: NetmirrorStream) => s.quality),
+                    qualities: (data.streams || []).map((s: MoovieStream) => s.quality),
                     defaultQuality: data.streams?.[streamIndex]?.quality || null,
                     playerMode: playerMode.value,
                     watchboxUrl: data.watchboxUrl,
@@ -698,7 +698,7 @@ export default defineComponent({
                 return;
             }
 
-            const url = `/api/netmirror?${new URLSearchParams({ action: 'search', q: query }).toString()}`;
+            const url = `/api/moovie-catalog?${new URLSearchParams({ action: 'search', q: query }).toString()}`;
             debug('search:start', { query, url });
 
             loading.value = true;

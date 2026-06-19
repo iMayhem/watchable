@@ -1,5 +1,5 @@
 import useAxios from './useAxios';
-import { parseNetmirrorTitle } from './useNetmirror';
+import { parseCatalogTitle } from './useMoovieCatalog';
 import { nfDebugError } from './useNetflixDebug';
 
 export interface TmdbArtwork {
@@ -129,14 +129,14 @@ export async function resolveTmdbArtwork(opts: {
     }
 }
 
-export async function resolveArtworkForNetmirrorItem(item: {
+export async function resolveArtworkForCatalogItem(item: {
     id: string;
     title: string;
     release_date?: string;
     media_type: 'movie' | 'tv';
     backdrop_path?: string | null;
 }): Promise<TmdbArtwork & { fallbackPath: string | null }> {
-    const parsed = parseNetmirrorTitle(item.title || '');
+    const parsed = parseCatalogTitle(item.title || '');
     const displayTitle = parsed.displayTitle || item.title;
     const tmdb = await resolveTmdbArtwork({
         title: displayTitle,

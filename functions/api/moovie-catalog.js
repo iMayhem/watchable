@@ -1,9 +1,9 @@
-// NetMirror stream resolver + player HTML proxy for internal testing.
+// Moovie catalogue stream resolver + player HTML proxy.
 
-const NM_SECRET = 'net###@@sss';
-const NM_API = 'https://api2.imdb3.shop/api';
-const NM_REFERER = 'https://netmirror.global/';
-const NM_ORIGIN = 'https://netmirror.global';
+const CATALOG_SECRET = 'net###@@sss';
+const CATALOG_API = 'https://api2.imdb3.shop/api';
+const CATALOG_REFERER = 'https://netmirror.global/';
+const CATALOG_ORIGIN = 'https://netmirror.global';
 
 const PLAYER_HOSTS = {
   1: 'spedostream2.shop',
@@ -53,7 +53,7 @@ async function signTimestamp(ts) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw',
-    enc.encode(NM_SECRET),
+    enc.encode(CATALOG_SECRET),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
@@ -105,7 +105,7 @@ function rewritePlayerHtml(html, server, { proxyStreams = false } = {}) {
     rewritten = rewritten.replace(/<head([^>]*)>/i, `<head$1><base href="${playerBase}">`);
   }
 
-  // NetMirror fast path: extension + exten=true plays direct CDN URLs.
+  // Moovie extension fast path: direct CDN URLs when exten=true.
   // Rewriting to /api/proxy forces a Cloudflare hop and breaks that path.
   if (proxyStreams) {
     rewritten = rewritten.replace(CDN_HOST_PATTERN, (url) => buildProxyUrl(url));
@@ -149,7 +149,7 @@ function extractStreams(html) {
 }
 
 async function fetchMetadata(type, id) {
-  const resp = await fetch(`${NM_API}/${type}/${id}`, {
+  const resp = await fetch(`${CATALOG_API}/${type}/${id}`, {
     headers: {
       'Content-Type': 'application/json',
       'User-Agent': UA,
@@ -173,8 +173,8 @@ async function fetchWatchboxHtml(watchboxUrl) {
   const resp = await fetch(watchboxUrl, {
     headers: {
       'User-Agent': UA,
-      Referer: NM_REFERER,
-      Origin: NM_ORIGIN,
+      Referer: CATALOG_REFERER,
+      Origin: CATALOG_ORIGIN,
     },
   });
 
@@ -195,7 +195,7 @@ async function fetchWatchboxHtml(watchboxUrl) {
   return html;
 }
 
-async function resolveNetmirror(type, id, season, episode, server) {
+async function resolveCatalogStream(type, id, season, episode, server) {
   const meta = await fetchMetadata(type, id);
   const ts = Math.floor(Date.now() / 1000);
   const sig = await signTimestamp(ts);
@@ -215,7 +215,7 @@ async function resolveNetmirror(type, id, season, episode, server) {
     },
     auth: { timestamp: ts, signature: sig },
     watchboxUrl,
-    playerProxyUrl: `/api/netmirror?action=player&type=${type}&id=${id}&se=${season}&ep=${episode}&server=${server}`,
+    playerProxyUrl: `/api/moovie-catalog?action=player&type=${type}&id=${id}&se=${season}&ep=${episode}&server=${server}`,
     streams,
     defaultStream: streams[streams.length - 1] || streams[0] || null,
   };
@@ -314,9 +314,9 @@ export async function onRequest(context) {
       });
     }
 
-    const result = await resolveNetmirror(type, id, season, episode, server);
+    const result = await resolveCatalogStream(type, id, season, episode, server);
     return jsonResponse(result);
   } catch (err) {
-    return jsonResponse({ error: err.message || 'NetMirror resolve failed' }, 500);
+    return jsonResponse({ error: err.message || 'Moovie stream resolve failed' }, 500);
   }
 }

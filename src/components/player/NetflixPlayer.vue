@@ -183,10 +183,11 @@ export default defineComponent({
         const revealControls = () => {
             controlsVisible.value = true;
             if (hideTimer !== null) window.clearTimeout(hideTimer);
-            if (props.isPlaying && props.artReady) {
+            if (props.isPlaying && props.artReady && !qualityOpen.value) {
                 hideTimer = window.setTimeout(() => {
-                    controlsVisible.value = false;
-                    qualityOpen.value = false;
+                    if (!qualityOpen.value) {
+                        controlsVisible.value = false;
+                    }
                 }, 3200);
             }
         };
@@ -270,6 +271,13 @@ export default defineComponent({
             }
         );
 
+        watch(qualityOpen, (open) => {
+            if (open) {
+                controlsVisible.value = true;
+                if (hideTimer !== null) window.clearTimeout(hideTimer);
+            }
+        });
+
         onMounted(() => {
             nfDebug('player-ui:mount');
             props.bindContainer(stageRef.value);
@@ -287,6 +295,7 @@ export default defineComponent({
 
         return {
             shellRef,
+            stageRef,
             qualityRef,
             qualityOpen,
             controlsVisible,
@@ -327,10 +336,13 @@ export default defineComponent({
     }
 
     &__stage {
+        position: relative;
+        z-index: 1;
         width: 100%;
         height: 100%;
 
         :deep(.art-video-player) {
+            z-index: 1 !important;
             width: 100% !important;
             height: 100% !important;
         }
@@ -400,7 +412,8 @@ export default defineComponent({
         position: absolute;
         left: 0;
         right: 0;
-        z-index: 4;
+        z-index: 20;
+        pointer-events: auto;
         transition: opacity 0.25s ease, transform 0.25s ease;
     }
 
@@ -572,6 +585,7 @@ export default defineComponent({
         position: absolute;
         right: 0;
         bottom: calc(100% + 8px);
+        z-index: 30;
         min-width: 120px;
         margin: 0;
         padding: 0.35rem 0;

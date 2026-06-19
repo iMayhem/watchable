@@ -1,6 +1,6 @@
 import useAxios from './useAxios';
 import { parseNetmirrorTitle } from './useNetmirror';
-import { nfDebug, nfDebugError } from './useNetflixDebug';
+import { nfDebugError } from './useNetflixDebug';
 
 export interface TmdbArtwork {
     posterPath: string | null;
@@ -99,10 +99,7 @@ export async function resolveTmdbArtwork(opts: {
         opts.cacheKey ||
         `${opts.type}:${normalizeTitle(cleanTitle)}:${parseYear(opts.year) ?? 'na'}`;
     const cached = artworkCache.get(cacheId);
-    if (cached) {
-        nfDebug('tmdb:artwork:cache-hit', { cacheId, title: cleanTitle });
-        return cached;
-    }
+    if (cached) return cached;
 
     const year = parseYear(opts.year);
     const params: Record<string, string | number> = {
@@ -112,7 +109,6 @@ export async function resolveTmdbArtwork(opts: {
     if (opts.type === 'movie' && year) params.year = year;
     if (opts.type === 'tv' && year) params.first_air_date_year = year;
 
-    nfDebug('tmdb:artwork:lookup', { title: cleanTitle, type: opts.type, year });
     try {
         const res = await useAxios().get(`search/${opts.type}`, { params });
         const results = (res.data?.results || []) as TmdbSearchResult[];
@@ -123,12 +119,6 @@ export async function resolveTmdbArtwork(opts: {
             backdropPath: match?.backdrop_path || null,
             tmdbId: match?.id
         };
-        nfDebug('tmdb:artwork:ok', {
-            title: cleanTitle,
-            tmdbId: artwork.tmdbId,
-            hasPoster: Boolean(artwork.posterPath),
-            hasBackdrop: Boolean(artwork.backdropPath)
-        });
         artworkCache.set(cacheId, artwork);
         return artwork;
     } catch (err) {
@@ -148,7 +138,6 @@ export async function resolveArtworkForNetmirrorItem(item: {
 }): Promise<TmdbArtwork & { fallbackPath: string | null }> {
     const parsed = parseNetmirrorTitle(item.title || '');
     const displayTitle = parsed.displayTitle || item.title;
-    nfDebug('tmdb:artwork:netmirror-item', { id: item.id, displayTitle });
     const tmdb = await resolveTmdbArtwork({
         title: displayTitle,
         year: item.release_date,

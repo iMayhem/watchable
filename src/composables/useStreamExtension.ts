@@ -19,6 +19,11 @@ export function useStreamExtension() {
 
     const applyDetection = (info: StreamExtensionInfo | null, source: string) => {
         const active = Boolean(info?.active);
+        // Window-flag reads can be null in the page JS world; never downgrade a
+        // confirmed pong/ready detection — that was flipping extension off every 1.5s.
+        if (!active && extensionActive.value && source === 'window-flag') {
+            return;
+        }
         if (active !== extensionActive.value) {
             nfDebug('extension:detected', { active, source, version: info?.version, mode: info?.mode });
             extensionActive.value = active;
@@ -29,7 +34,10 @@ export function useStreamExtension() {
     };
 
     const checkExtension = () => {
-        applyDetection(readWindowFlag(), 'window-flag');
+        const info = readWindowFlag();
+        if (info?.active) {
+            applyDetection(info, 'window-flag');
+        }
     };
 
     const onExtensionReady = (event: Event) => {

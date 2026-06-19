@@ -16,7 +16,7 @@
             :is-muted="isMuted"
             :streams="resolved?.streams || []"
             :selected-stream-index="selectedStreamIndex"
-            :languages="netflixLanguages"
+            :languages="availableLanguages"
             :selected-language="playbackLanguage"
             @back="goBack"
             @toggle-play="togglePlay"
@@ -30,13 +30,28 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onBeforeUnmount, onMounted, watch } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
-import { parseCatalogTitle } from '../composables/useMoovieCatalog';
+import {
+    fetchMoovieCatalogMeta,
+    inferCatalogMediaType,
+    parseCatalogTitle
+} from '../composables/useMoovieCatalog';
 import { useMooviePlayer } from '../composables/useMooviePlayer';
 import { useSeo } from '../composables/useSeo';
-import { getNetflixLanguage, NETFLIX_LANGUAGES } from '../composables/useNetflixLanguage';
+import {
+    catalogStreamTarget,
+    findCatalogueLanguageVariants,
+    findCatalogueVariantForLanguage,
+    languagesForCatalogueItems
+} from '../composables/useNetflixCatalogLookup';
+import {
+    getNetflixLanguage,
+    getLanguageOption,
+    type NetflixLanguageOption
+} from '../composables/useNetflixLanguage';
+import { useToast } from '../composables/useToast';
 import { nfDebug } from '../composables/useNetflixDebug';
 
 export default defineComponent({
@@ -48,6 +63,8 @@ export default defineComponent({
         const { updateSeo } = useSeo();
         const { language: playbackLanguage, setLanguage: setPlaybackLanguage } =
             getNetflixLanguage();
+        const { addToast } = useToast();
+        const availableLanguages = ref<NetflixLanguageOption[]>([]);
         const player = useMooviePlayer({ skin: 'netflix' });
         const {
             loading,
@@ -78,9 +95,17 @@ export default defineComponent({
             artContainer.value = el;
         };
 
-        const mediaType = computed((): 'movie' | 'tv' => {
+        const routeMediaType = computed((): 'movie' | 'tv' => {
             if (route.name === 'StreamNetflixTV') return 'tv';
             return 'movie';
+        });
+
+        const mediaType = computed((): 'movie' | 'tv' => {
+            const meta = resolved.value?.meta;
+            if (meta?.title) {
+                return inferCatalogMediaType(meta);
+            }
+            return routeMediaType.value;
         });
 
         const parsedMeta = computed(() => {
@@ -136,19 +161,56 @@ export default defineComponent({
             scheduleTeardown();
         };
 
-        const startPlayback = () => {
-            nfDebug('stream:playback:start', {
-                id: route.params.id,
-                type: mediaType.value,
-                season: route.params.season,
-                episode: route.params.episode
-            });
-            resolveAndPlay({
-                type: mediaType.value,
-                id: String(route.params.id || ''),
-                season: parseInt(String(route.params.season || '0'), 10),
-                episode: parseInt(String(route.params.episode || '0'), 10)
-            });
+        const loadAvailableLanguages = async (displayTitle: string) => {
+            const variants = await findCatalogueLanguageVariants(displayTitle);
+            availableLanguages.value = languagesForCatalogueItems(variants);
+            if (!availableLanguages.value.length) {
+                availableLanguages.value = [getLanguageOption(playbackLanguage.value)];
+            }
+        };
+
+        const ensureCanonicalStreamRoute = async (): Promise<boolean> => {
+            const id = String(route.params.id || '');
+            if (!id) return true;
+
+            try {
+                const meta = await fetchMoovieCatalogMeta(routeMediaType.value, id);
+                const target = catalogStreamTarget({
+                    id,
+                    title: meta.title,
+                    media_type: meta.media_type
+                });
+
+                if (route.path !== target.path) {
+                    nfDebug('stream:canonical-route', { from: route.path, to: target.path });
+                    await router.replace(target.path);
+                    return false;
+                }
+            } catch (err) {
+                nfDebug('stream:canonical-route:skip', { id, err });
+            }
+
+            return true;
+        };
+
+        const startPlayback = async () => {
+            const id = String(route.params.id || '');
+            const type = mediaType.value;
+            const season = type === 'tv'
+                ? parseInt(String(route.params.season || '1'), 10)
+                : 0;
+            const episode = type === 'tv'
+                ? parseInt(String(route.params.episode || '1'), 10)
+                : 0;
+
+            nfDebug('stream:playback:start', { id, type, season, episode });
+            await resolveAndPlay({ type, id, season, episode });
+
+            const title = resolved.value?.meta?.title || '';
+            const parsed = parseCatalogTitle(title);
+            if (parsed.displayTitle) {
+                void loadAvailableLanguages(parsed.displayTitle);
+            }
         };
 
         const onQuality = (index: number) => {
@@ -156,18 +218,43 @@ export default defineComponent({
             switchQuality(index, resolveUrl.value);
         };
 
-        const onLanguage = (category: string) => {
+        const onLanguage = async (category: string) => {
             if (category === playbackLanguage.value) return;
-            nfDebug('stream:language', { category });
+
+            const lang = getLanguageOption(category);
+            const currentTitle = resolved.value?.meta?.title || title.value;
+            const parsed = parseCatalogTitle(currentTitle);
+            const displayTitle = parsed.displayTitle || currentTitle;
+
+            nfDebug('stream:language', { category, displayTitle });
+
+            const variant = await findCatalogueVariantForLanguage(displayTitle, lang, {
+                excludeId: String(route.params.id || ''),
+                mediaType: mediaType.value
+            });
+
+            if (!variant) {
+                addToast(
+                    `${lang.label} audio is not available for this title.`,
+                    'warning'
+                );
+                return;
+            }
+
             setPlaybackLanguage(category);
-            startPlayback();
+            const target = catalogStreamTarget(variant);
+            if (route.path !== target.path) {
+                await router.replace(target.path);
+                return;
+            }
+            await startPlayback();
         };
 
         onBeforeRouteLeave(() => {
             scheduleTeardown();
         });
 
-        onMounted(() => {
+        onMounted(async () => {
             nfDebug('stream:mount', { path: route.path });
             updateSeo({
                 title: 'Watch — Netflix on Moovie',
@@ -176,7 +263,8 @@ export default defineComponent({
             });
             if (!started) {
                 started = true;
-                startPlayback();
+                const ok = await ensureCanonicalStreamRoute();
+                if (ok) await startPlayback();
             }
         });
 
@@ -185,14 +273,14 @@ export default defineComponent({
         });
 
         watch(
-            () => [route.params.id, route.params.season, route.params.episode],
-            () => {
+            () => [route.path, route.params.id, route.params.season, route.params.episode],
+            async () => {
                 nfDebug('stream:route-change', {
                     id: route.params.id,
                     season: route.params.season,
                     episode: route.params.episode
                 });
-                startPlayback();
+                await startPlayback();
             }
         );
 
@@ -220,7 +308,7 @@ export default defineComponent({
             toggleMute,
             onQuality,
             onLanguage,
-            netflixLanguages: NETFLIX_LANGUAGES,
+            availableLanguages,
             playbackLanguage
         };
     }

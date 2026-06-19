@@ -51,6 +51,7 @@ import {
     parseCatalogTitle,
     type MoovieCatalogItem
 } from '../composables/useMoovieCatalog';
+import { catalogStreamTarget } from '../composables/useNetflixCatalogLookup';
 import {
     getNetflixLanguage,
     getLanguageOption,
@@ -94,12 +95,14 @@ export default defineComponent({
         const rating = computed(() => catalogRating(meta.value?.vote_average));
 
         const playRoute = computed(() => {
-            const id = route.params.id;
-            if (mediaType.value === 'tv') {
-                const season = parsed.value.season || 1;
-                return `/stream/nf/tv/${id}/season/${season}/episode/1`;
+            if (!meta.value) {
+                return `/stream/nf/${mediaType.value}/${route.params.id}`;
             }
-            return `/stream/nf/movie/${id}`;
+            return catalogStreamTarget({
+                id: String(meta.value.id || route.params.id),
+                title: meta.value.title,
+                media_type: meta.value.media_type
+            }).path;
         });
 
         const syncRouteMediaType = () => {

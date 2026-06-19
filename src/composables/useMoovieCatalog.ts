@@ -60,15 +60,22 @@ export function catalogRating(value: string | number | undefined): number {
     return Number.isFinite(n) ? n : 0;
 }
 
-/** Browse/search media_type is often wrong — prefer title season hints + metadata. */
+/** Browse/search media_type is often wrong — prefer title season hints over API tags. */
 export function inferCatalogMediaType(item: {
     title?: string;
     media_type?: string;
 }): 'movie' | 'tv' {
-    const parsed = parseCatalogTitle(item.title || '');
-    if (parsed.mediaTypeHint === 'tv') return 'tv';
+    const raw = item.title || '';
+    const parsed = parseCatalogTitle(raw);
+
+    if (parsed.season != null || /\bS\d{1,2}(?:-S\d+)?\b/i.test(raw)) {
+        return 'tv';
+    }
+
     const mt = String(item.media_type || '').toLowerCase();
-    if (mt === 'tv') return 'tv';
+    if (mt === 'movie') return 'movie';
+
+    // Many catalogue films are tagged tv without season/episode structure.
     return 'movie';
 }
 

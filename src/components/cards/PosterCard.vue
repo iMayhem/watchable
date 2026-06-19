@@ -43,11 +43,31 @@
 
             <div class="poster-card__caption">
                 <h4 class="poster-card__title">{{ title }}</h4>
-                <p v-if="originalTitle && originalTitle !== title" class="poster-card__original-title">{{ originalTitle }}</p>
+                <p
+                    v-if="catalog !== 'netflix' && originalTitle && originalTitle !== title"
+                    class="poster-card__original-title"
+                >
+                    {{ originalTitle }}
+                </p>
+                <div
+                    v-if="catalog === 'netflix' && audioLabels.length"
+                    class="poster-card__audio"
+                    aria-label="Available audio"
+                >
+                    <span
+                        v-for="tag in audioLabels"
+                        :key="tag"
+                        class="poster-card__audio-chip"
+                    >
+                        {{ tag }}
+                    </span>
+                </div>
                 <div class="poster-card__meta meta">
                     <span v-if="year">{{ year }}</span>
-                    <span v-if="year && genreLabel" class="poster-card__dot">·</span>
-                    <span v-if="genreLabel">{{ genreLabel }}</span>
+                    <template v-if="catalog !== 'netflix'">
+                        <span v-if="year && genreLabel" class="poster-card__dot">·</span>
+                        <span v-if="genreLabel">{{ genreLabel }}</span>
+                    </template>
                 </div>
             </div>
         </router-link>
@@ -91,6 +111,7 @@ import { genreName } from '../../composables/useGenreLookup';
 import { isInWatchlist, toggleWatchlistItem } from '../../composables/useWatchlist';
 import { useRouter } from 'vue-router';
 import { useAppPaths } from '../../composables/useAppPaths';
+import { catalogStreamTarget } from '../../composables/useNetflixCatalogLookup';
 
 type MediaType = 'movie' | 'tv' | 'anime';
 
@@ -141,10 +162,16 @@ export default defineComponent({
             return props.releaseDate ? String(new Date(props.releaseDate).getFullYear()) : '';
         });
 
-        const genreLabel = computed(() => {
-            if (props.catalog === 'netflix' && props.languageTags.length) {
-                return props.languageTags.join(' · ');
+        const audioLabels = computed(() => {
+            if (props.catalog !== 'netflix') return [];
+            if (props.languageTags.length) return props.languageTags;
+            if (props.originalTitle && props.originalTitle !== props.title) {
+                return props.originalTitle.split(' · ').filter(Boolean);
             }
+            return [];
+        });
+
+        const genreLabel = computed(() => {
             if (props.type === 'anime' || !props.genreIds?.length) return '';
             return genreName(props.genreIds[0], props.type as 'movie' | 'tv') ?? '';
         });
@@ -180,11 +207,13 @@ export default defineComponent({
         const goToStream = () => {
             const query = props.query && Object.keys(props.query).length ? props.query : undefined;
             if (props.catalog === 'netflix') {
-                if (props.type === 'tv') {
-                    router.push({ path: `/stream/nf/tv/${props.id}/season/1/episode/1` });
-                } else {
-                    router.push({ path: `/stream/nf/movie/${props.id}` });
-                }
+                router.push({
+                    path: catalogStreamTarget({
+                        id: String(props.id),
+                        title: props.title,
+                        media_type: props.type
+                    }).path
+                });
                 return;
             }
             if (props.type === 'anime') {
@@ -246,6 +275,7 @@ export default defineComponent({
             ratingLabel,
             year: yearLabel,
             genreLabel,
+            audioLabels,
             routeTo,
             inWatchlist,
             toggleWatchlist,
@@ -423,6 +453,26 @@ export default defineComponent({
         .is-peeking & {
             color: var(--bone-200);
         }
+    }
+
+    &__audio {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin-top: 0.35rem;
+    }
+
+    &__audio-chip {
+        font-family: var(--font-mono);
+        font-size: 0.58rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--bone-200);
+        background: rgba(255, 90, 31, 0.1);
+        border: 1px solid rgba(255, 90, 31, 0.22);
+        border-radius: var(--r-pill);
+        padding: 0.12rem 0.45rem;
+        line-height: 1.35;
     }
 
     &__meta {

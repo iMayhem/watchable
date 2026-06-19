@@ -460,8 +460,33 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                 episode: opts.episode ?? 0,
                 server: opts.server
             });
-            const data = await fetchResolve(url);
+            let data = await fetchResolve(url);
             const title = data.meta?.title || '';
+
+            if (data.streamWarning) {
+                const altType = opts.type === 'tv' ? 'movie' : 'tv';
+                const altUrl = buildResolveUrl({
+                    type: altType,
+                    id: opts.id,
+                    season: altType === 'movie' ? 0 : opts.season ?? 0,
+                    episode: altType === 'movie' ? 0 : opts.episode ?? 0,
+                    server: opts.server
+                });
+                try {
+                    const altData = await fetchResolve(altUrl);
+                    if (!altData.streamWarning && (altData.streams?.length || 0) > 0) {
+                        dbg('player:resolve:fallback-type', {
+                            from: opts.type,
+                            to: altType,
+                            title: altData.meta?.title
+                        });
+                        data = altData;
+                    }
+                } catch {
+                    /* keep original resolve */
+                }
+            }
+
             if (streamsLookCorrupt(title, data.streams || [])) {
                 throw new Error(
                     'Stream mismatch — the catalogue returned the wrong video for this title. Try another entry or search again.'

@@ -61,14 +61,77 @@
 
             <section class="discover__body container-lm">
                 <div class="discover__results">
-                    <header v-if="!isGenreBrowse" class="discover__results-head">
-                        <div>
-                            <p class="eyebrow discover__results-eyebrow">{{ rowMeta.eyebrow }}</p>
-                            <h1 class="discover__results-title">{{ rowMeta.title }}</h1>
-                            <p v-if="rowMeta.description" class="discover__results-desc">
-                                {{ rowMeta.description }}
-                            </p>
+                    <header class="discover__results-head discover__results-head--nf">
+                        <div class="nf-browse-header-row">
+                            <div class="nf-browse-title-group">
+                                <h1 class="discover__results-title nf-browse-title">
+                                    {{ pageHeaderTitle }}
+                                </h1>
+                                
+                                <!-- Industry Selector (Hollywood / Bollywood / Korean) -->
+                                <div class="nf-dropdown-container">
+                                    <button 
+                                        type="button" 
+                                        class="nf-dropdown-trigger" 
+                                        :class="{ 'is-open': isIndustryOpen }"
+                                        @click.stop="isIndustryOpen = !isIndustryOpen; isGenreOpen = false"
+                                    >
+                                        <span>{{ activeCatalogue.label }}</span>
+                                        <svg class="nf-dropdown-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="m6 9 6 6 6-6"/>
+                                        </svg>
+                                    </button>
+                                    <div v-if="isIndustryOpen" class="nf-dropdown-overlay" @click.stop="isIndustryOpen = false"></div>
+                                    <transition name="fade-slide">
+                                        <div v-if="isIndustryOpen" class="nf-dropdown-menu">
+                                            <button 
+                                                v-for="catOpt in industries" 
+                                                :key="catOpt.id"
+                                                type="button"
+                                                class="nf-dropdown-item"
+                                                :class="{ 'is-active': catalogueId === catOpt.id }"
+                                                @click="selectIndustry(catOpt.id)"
+                                            >
+                                                {{ catOpt.label }}
+                                            </button>
+                                        </div>
+                                    </transition>
+                                </div>
+
+                                <!-- Genre/Category Selector -->
+                                <div class="nf-dropdown-container">
+                                    <button 
+                                        type="button" 
+                                        class="nf-dropdown-trigger nf-dropdown-trigger--genre" 
+                                        :class="{ 'is-open': isGenreOpen }"
+                                        @click.stop="isGenreOpen = !isGenreOpen; isIndustryOpen = false"
+                                    >
+                                        <span>{{ currentGenreLabel }}</span>
+                                        <svg class="nf-dropdown-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="m6 9 6 6 6-6"/>
+                                        </svg>
+                                    </button>
+                                    <div v-if="isGenreOpen" class="nf-dropdown-overlay" @click.stop="isGenreOpen = false"></div>
+                                    <transition name="fade-slide">
+                                        <div v-if="isGenreOpen" class="nf-dropdown-menu">
+                                            <button 
+                                                v-for="gOpt in genresList" 
+                                                :key="gOpt.id"
+                                                type="button"
+                                                class="nf-dropdown-item"
+                                                :class="{ 'is-active': rowId === gOpt.id }"
+                                                @click="selectGenre(gOpt.id)"
+                                            >
+                                                {{ gOpt.label }}
+                                            </button>
+                                        </div>
+                                    </transition>
+                                </div>
+                            </div>
                         </div>
+                        <p v-if="!isGenreBrowse && rowMeta.description" class="discover__results-desc">
+                            {{ rowMeta.description }}
+                        </p>
                     </header>
 
                     <h2
@@ -87,7 +150,7 @@
 
                     <div v-if="isLoading && !results.length" class="discover__grid">
                         <PosterCard
-                            v-for="n in BROWSE_FAST_BATCH"
+                            v-for="n in initialBatchSize"
                             :key="n"
                             loading
                             id=""
@@ -287,6 +350,82 @@ export default defineComponent({
         const genreRailPlans = ref<GenreBrowseRailPlan[]>([]);
         const genreRails = ref<GenreRailDisplay[]>([]);
 
+        const isIndustryOpen = ref(false);
+        const isGenreOpen = ref(false);
+
+        const browseMediaType = computed<'movie' | 'tv'>(() => {
+            const r = rowId.value;
+            if (r === 'exciting-tv' || r === 'top10-tv' || r === 'tv-show' || r === 'korean-series') return 'tv';
+            if (r === 'blockbuster-movies' || r === 'top10-movies' || r === 'korean-movies') return 'movie';
+            if (typeFilter.value) return typeFilter.value;
+            return (rowMeta.value.defaultType || 'movie') as 'movie' | 'tv';
+        });
+
+        const pageHeaderTitle = computed(() => {
+            return browseMediaType.value === 'tv' ? 'TV Shows' : 'Movies';
+        });
+
+        const industries = NETFLIX_CATALOGUES;
+
+        const genresList = computed(() => {
+            const list = [];
+            const isTv = browseMediaType.value === 'tv';
+            const mainRowId = catalogueId.value === 'korean' 
+                ? (isTv ? 'korean-series' : 'korean-movies')
+                : (isTv ? 'exciting-tv' : 'blockbuster-movies');
+                
+            list.push({ id: mainRowId, label: 'All Genres' });
+            
+            list.push({ id: 'action-adventure', label: 'Action & Adventure' });
+            list.push({ id: 'anime', label: 'Anime' });
+            list.push({ id: 'children-family-movies', label: 'Children & Family' });
+            list.push({ id: 'comedies', label: 'Comedies' });
+            list.push({ id: 'documentaries', label: 'Documentaries' });
+            list.push({ id: 'dramas', label: 'Dramas' });
+            list.push({ id: 'horror-movies', label: 'Horror' });
+            list.push({ id: 'romantic-movies', label: 'Romance' });
+            list.push({ id: 'sci-fi-fantasy', label: 'Sci-Fi & Fantasy' });
+            list.push({ id: 'thrillers', label: 'Thrillers' });
+            
+            return list;
+        });
+
+        const currentGenreLabel = computed(() => {
+            const found = genresList.value.find(g => g.id === rowId.value);
+            return found ? found.label : 'Genres';
+        });
+
+        const selectIndustry = (newCatalogueId: string) => {
+            isIndustryOpen.value = false;
+            let targetRow = rowId.value;
+            
+            if (newCatalogueId === 'korean') {
+                targetRow = browseMediaType.value === 'tv' ? 'korean-series' : 'korean-movies';
+            } else {
+                if (rowId.value === 'korean-movies' || rowId.value === 'blockbuster-movies') {
+                    targetRow = 'blockbuster-movies';
+                } else if (rowId.value === 'korean-series' || rowId.value === 'exciting-tv') {
+                    targetRow = 'exciting-tv';
+                }
+            }
+            
+            const query = typeFilter.value ? { type: typeFilter.value } : undefined;
+            router.push({
+                name: 'NetflixBrowse',
+                params: { catalogue: newCatalogueId, row: targetRow },
+                query
+            });
+        };
+
+        const selectGenre = (newRowId: string) => {
+            isGenreOpen.value = false;
+            router.push({
+                name: 'NetflixBrowse',
+                params: { catalogue: catalogueId.value, row: newRowId },
+                query: { type: browseMediaType.value }
+            });
+        };
+
         const typeFilter = computed(() => {
             const t = route.query.type;
             if (t === 'tv' || t === 'movie') return t;
@@ -374,6 +513,10 @@ export default defineComponent({
         });
 
         const isGenreBrowse = computed(() => isNetflixGenreBrowsePage(rowId.value));
+
+        const initialBatchSize = computed(() =>
+            catalogueId.value === 'korean' ? 40 : BROWSE_FAST_GRID_BATCH
+        );
 
         const genreHeroFeatured = computed(() => {
             if (!isGenreBrowse.value) return null;
@@ -932,7 +1075,7 @@ export default defineComponent({
             };
 
             try {
-                await appendDisplayedBatch(BROWSE_FAST_BATCH, {
+                await appendDisplayedBatch(initialBatchSize.value, {
                     fastPaint: true,
                     pickOptions: fastPick
                 });
@@ -1055,6 +1198,7 @@ export default defineComponent({
         return {
             BROWSE_PAGE_SIZE,
             BROWSE_FAST_BATCH,
+            initialBatchSize,
             isLoading,
             isRefreshing,
             isLoadingMore,
@@ -1071,7 +1215,18 @@ export default defineComponent({
             genreHeroPartyHref,
             genreHeroBackdrop,
             genreHeroStyle,
-            genreRails
+            genreRails,
+            isIndustryOpen,
+            isGenreOpen,
+            browseMediaType,
+            pageHeaderTitle,
+            industries,
+            genresList,
+            currentGenreLabel,
+            selectIndustry,
+            selectGenre,
+            catalogueId,
+            rowId
         };
     }
 });
@@ -1323,6 +1478,143 @@ export default defineComponent({
     }
     100% {
         background-position: -200% 0;
+    }
+}
+
+.discover__results-head--nf {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    margin-bottom: var(--s-6);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: var(--s-4);
+}
+
+.nf-browse-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.nf-browse-title-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--s-4);
+}
+
+.nf-browse-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    color: var(--bone-50);
+    margin: 0;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.nf-dropdown-container {
+    position: relative;
+}
+
+.nf-dropdown-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--bone-50);
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    padding: 0.35rem 0.85rem;
+    cursor: pointer;
+    transition: 
+        border-color var(--dur-fast) var(--ease-out),
+        background-color var(--dur-fast) var(--ease-out);
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    &.is-open {
+        border-color: var(--ember);
+        background: rgba(255, 255, 255, 0.08);
+    }
+}
+
+.nf-dropdown-chevron {
+    color: var(--bone-400);
+    transition: transform var(--dur-fast) var(--ease-out);
+    
+    .is-open & {
+        transform: rotate(180deg);
+        color: var(--ember);
+    }
+}
+
+.nf-dropdown-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: transparent;
+}
+
+.nf-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 101;
+    min-width: 180px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: rgba(11, 10, 8, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255, 90, 31, 0.15);
+    padding: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+
+    &::-webkit-scrollbar {
+        width: 4px;
+    }
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+    }
+}
+
+.nf-dropdown-item {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    color: var(--bone-300);
+    background: transparent;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+    transition: 
+        color var(--dur-fast) var(--ease-out),
+        background-color var(--dur-fast) var(--ease-out);
+
+    &:hover {
+        color: var(--bone-50);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.is-active {
+        color: var(--ink-900);
+        background: var(--ember);
+        font-weight: 600;
     }
 }
 </style>

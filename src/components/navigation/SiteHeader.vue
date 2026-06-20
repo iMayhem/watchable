@@ -63,6 +63,20 @@
             </nav>
 
             <div class="site-header__actions">
+                <button
+                    type="button"
+                    class="site-header__search"
+                    @click="openPalette"
+                    aria-label="Search and jump"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <span class="site-header__search-label">Search &amp; Jump</span>
+                    <kbd class="site-header__search-kbd">{{ modKey }}K</kbd>
+                </button>
+
                 <ExtensionPrompt v-if="isNetflixMode" />
 
                 <button
@@ -203,6 +217,11 @@
                         <span class="eyebrow site-header__drawer-num">0{{ index + 4 }}</span>
                         <span class="site-header__drawer-label">{{ item.label }}</span>
                     </a>
+
+                    <button class="site-header__drawer-link site-header__drawer-search" @click="openFromDrawer">
+                        <span class="eyebrow site-header__drawer-num">✦</span>
+                        <span class="site-header__drawer-label">Search &amp; Jump</span>
+                    </button>
 
                     <button
                         type="button"

@@ -84,7 +84,11 @@ import {
     languagesForCatalogueItems,
     playbackLanguageCategoryForItem
 } from '../composables/useNetflixCatalogLookup';
-import { useNetflixCatalogEpisodes } from '../composables/useNetflixCatalogEpisodes';
+import { fetchEnrichmentByCatalogIds } from '../composables/useCatalogEnrichmentCache';
+import {
+    episodeRowsNeedStillsUpgrade,
+    useNetflixCatalogEpisodes
+} from '../composables/useNetflixCatalogEpisodes';
 import {
     fetchCatalogAudioCacheByIds,
     peekCatalogAudioCache
@@ -245,11 +249,22 @@ export default defineComponent({
             return routeMediaType.value;
         });
 
+        const metaHasEpisodeGuide = (
+            meta?: {
+                title?: string;
+                media_type?: string;
+                duration?: unknown;
+                embed?: string | null;
+                subjectid?: string | null;
+                embed_en?: string | null;
+                season?: unknown;
+            } | null
+        ) => Boolean(meta?.title && catalogHasEpisodeGuide(meta));
+
         const showEpisodePicker = computed(() => {
-            if (!supportsEpisodes.value) return false;
-            const meta = resolved.value?.meta;
-            if (!meta?.title) return false;
-            return catalogHasEpisodeGuide(meta, routeMediaType.value);
+            if (isTvRoute.value) return true;
+            if (supportsEpisodes.value) return true;
+            return metaHasEpisodeGuide(resolved.value?.meta);
         });
 
         const streamType = computed((): 'movie' | 'tv' => {
@@ -495,7 +510,11 @@ export default defineComponent({
                         embed_en: meta.embed_en,
                         season: meta.season
                     },
-                    { season, episode }
+                    {
+                        season,
+                        episode,
+                        supportsEpisodes: catalogHasEpisodeGuide(meta) || isTvRoute.value
+                    }
                 );
 
                 const targetPath = streamPathForEmbed(target.path);
@@ -531,13 +550,92 @@ export default defineComponent({
                 season?: unknown;
             } | null
         ): 'movie' | 'tv' => {
+            if (isTvRoute.value) return 'tv';
             if (meta?.title) {
-                if (!catalogHasEpisodeGuide(meta, routeMediaType.value)) {
+                if (!catalogHasEpisodeGuide(meta)) {
                     return 'movie';
                 }
                 return inferCatalogMediaType(meta);
             }
             return routeMediaType.value === 'tv' ? 'tv' : 'movie';
+        };
+
+        type EpisodeCatalogMeta = {
+            title?: string;
+            media_type?: string;
+            release_date?: string;
+            duration?: unknown;
+            embed?: string | null;
+            subjectid?: string | null;
+            embed_en?: string | null;
+            season?: unknown;
+        };
+
+        let episodeCatalogLoadId = '';
+
+        const shouldLoadEpisodeCatalog = (
+            playbackType: 'movie' | 'tv',
+            meta?: EpisodeCatalogMeta | null
+        ) => {
+            if (!meta?.title) return false;
+            return (
+                playbackType === 'tv' ||
+                isTvRoute.value ||
+                catalogHasEpisodeGuide(meta)
+            );
+        };
+
+        const kickoffEpisodeCatalog = async (
+            id: string,
+            meta: EpisodeCatalogMeta,
+            playbackType: 'movie' | 'tv',
+            playbackSeason: number
+        ) => {
+            if (!shouldLoadEpisodeCatalog(playbackType, meta)) return;
+            if (episodesLoading.value && episodeCatalogLoadId === id) return;
+            if (
+                episodeCatalogLoadId === id &&
+                episodeList.value.length &&
+                !episodeRowsNeedStillsUpgrade(episodeList.value)
+            ) {
+                return;
+            }
+
+            let tmdbId: number | undefined;
+            try {
+                const enrichment = await fetchEnrichmentByCatalogIds([id]);
+                const row = enrichment.get(id);
+                if (row?.tmdb_id && Number.isFinite(row.tmdb_id)) {
+                    tmdbId = row.tmdb_id;
+                }
+            } catch {
+                /* optional TMDB hint */
+            }
+
+            episodeCatalogLoadId = id;
+            void loadEpisodes(
+                {
+                    id,
+                    title: meta.title || '',
+                    release_date: meta.release_date,
+                    media_type:
+                        meta.media_type === 'tv'
+                            ? 'tv'
+                            : meta.media_type === 'movie'
+                              ? 'movie'
+                              : playbackType,
+                    duration: meta.duration as
+                        | string
+                        | number
+                        | null
+                        | undefined,
+                    embed: meta.embed,
+                    subjectid: meta.subjectid,
+                    embed_en: meta.embed_en,
+                    season: meta.season
+                },
+                { season: playbackSeason, routeType: 'tv', tmdbId }
+            );
         };
 
         const hydratePlaybackSidecars = async (
@@ -553,8 +651,8 @@ export default defineComponent({
                 embed_en?: string | null;
                 season?: unknown;
             },
-            type: 'movie' | 'tv',
-            season: number
+            _type: 'movie' | 'tv',
+            _season: number
         ) => {
             if (catalogMeta.title) {
                 syncPlayingLanguageFromTitle(
@@ -572,38 +670,13 @@ export default defineComponent({
                     id
                 );
             }
-
-            if (catalogHasEpisodeGuide(catalogMeta, routeMediaType.value)) {
-                await loadEpisodes(
-                    {
-                        id,
-                        title: catalogMeta.title || '',
-                        release_date: catalogMeta.release_date,
-                        media_type:
-                            catalogMeta.media_type === 'tv'
-                                ? 'tv'
-                                : catalogMeta.media_type === 'movie'
-                                  ? 'movie'
-                                  : type,
-                        duration: catalogMeta.duration as
-                            | string
-                            | number
-                            | null
-                            | undefined,
-                        embed: catalogMeta.embed,
-                        subjectid: catalogMeta.subjectid,
-                        embed_en: catalogMeta.embed_en,
-                        season: catalogMeta.season
-                    },
-                    { season, routeType: routeMediaType.value }
-                );
-            }
         };
 
         const startPlayback = async () => {
             const id = playbackEntryId.value;
             if (!id) return;
 
+            episodeCatalogLoadId = '';
             resetEpisodes();
 
             const routeSeason = parseInt(String(route.params.season || '1'), 10);
@@ -642,7 +715,12 @@ export default defineComponent({
                           embed_en: catalogMeta.embed_en,
                           season: catalogMeta.season
                       },
-                      { season: routeSeason, episode: routeEpisode }
+                      {
+                          season: routeSeason,
+                          episode: routeEpisode,
+                          supportsEpisodes:
+                              catalogHasEpisodeGuide(catalogMeta) || isTvRoute.value
+                      }
                   )
                 : null;
 
@@ -658,6 +736,10 @@ export default defineComponent({
 
             nfDebug('stream:playback:start', { id, type, season, episode });
 
+            if (catalogMeta?.title) {
+                void kickoffEpisodeCatalog(id, catalogMeta, type, season);
+            }
+
             try {
                 // Resolve streams first — languages/episodes must not block playback.
                 await resolveAndPlay({ type, id, season, episode });
@@ -668,15 +750,39 @@ export default defineComponent({
                     : catalogMeta;
                 if (!sidecarMeta?.title) return;
 
+                const episodeMeta: EpisodeCatalogMeta = {
+                    title: sidecarMeta.title,
+                    media_type: sidecarMeta.media_type ?? catalogMeta?.media_type,
+                    release_date: catalogMeta?.release_date || '',
+                    duration: catalogMeta?.duration,
+                    embed: catalogMeta?.embed,
+                    subjectid: sidecarMeta.subjectid ?? catalogMeta?.subjectid,
+                    embed_en: catalogMeta?.embed_en,
+                    season: catalogMeta?.season
+                };
+
+                if (
+                    episodeCatalogLoadId !== id ||
+                    (!episodesLoading.value &&
+                        episodeRowsNeedStillsUpgrade(episodeList.value))
+                ) {
+                    void kickoffEpisodeCatalog(id, episodeMeta, type, season);
+                }
+
                 languagesLoading.value = true;
                 try {
                     await hydratePlaybackSidecars(
                         id,
                         {
-                            title: sidecarMeta.title,
-                            media_type: sidecarMeta.media_type,
+                            title: episodeMeta.title,
+                            media_type: episodeMeta.media_type,
                             channel: catalogMeta?.channel,
-                            release_date: catalogMeta?.release_date || ''
+                            release_date: episodeMeta.release_date,
+                            duration: episodeMeta.duration,
+                            embed: episodeMeta.embed,
+                            subjectid: episodeMeta.subjectid,
+                            embed_en: episodeMeta.embed_en,
+                            season: episodeMeta.season
                         },
                         type,
                         season

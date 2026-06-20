@@ -121,7 +121,7 @@ import {
 } from '../../composables/useAnimeCatalogCache';
 import {
     catalogStreamTarget,
-    netflixCatalogDetailPath,
+    netflixCatalogPlayPath,
     sortLanguageTagsForDisplay
 } from '../../composables/useNetflixCatalogLookup';
 import {
@@ -235,22 +235,14 @@ export default defineComponent({
 
         const routeTo = computed(() => {
             if (props.catalog === 'netflix') {
-                if (props.anilistId) {
-                    return { path: `/nf/anime/${props.anilistId}` };
-                }
-                const catalogId = props.moovieCatalogId || String(props.id);
-                const mappedAnilist = peekAnilistIdForMoovieCatalogId(catalogId);
-                if (mappedAnilist) {
-                    return { path: `/nf/anime/${mappedAnilist}` };
-                }
-                if (isKnownAnilistCatalogId(catalogId)) {
-                    return { path: `/nf/anime/${catalogId}` };
-                }
                 return {
-                    path: netflixCatalogDetailPath({
-                        id: catalogId,
+                    path: netflixCatalogPlayPath({
+                        id: props.id,
+                        moovieCatalogId: props.moovieCatalogId || undefined,
                         title: netflixCatalogTitle.value,
-                        media_type: props.type,
+                        catalogTitle: netflixCatalogTitle.value,
+                        type: props.type,
+                        media_type: props.type === 'anime' ? 'tv' : props.type,
                         anilistId: props.anilistId || undefined
                     })
                 };
@@ -305,46 +297,17 @@ export default defineComponent({
             const query = props.query && Object.keys(props.query).length ? props.query : undefined;
             if (props.catalog === 'netflix') {
                 warmNetflixPlayback();
-                if (props.anilistId) {
-                    router.push({
-                        path: `/nf/anime/${props.anilistId}`,
-                        query: { play: '1' }
-                    });
-                    return;
-                }
-                const catalogId = props.moovieCatalogId || String(props.id);
-                const mappedAnilist = peekAnilistIdForMoovieCatalogId(catalogId);
-                if (mappedAnilist) {
-                    router.push({
-                        path: `/nf/anime/${mappedAnilist}`,
-                        query: { play: '1' }
-                    });
-                    return;
-                }
-                if (isKnownAnilistCatalogId(catalogId)) {
-                    router.push({
-                        path: `/nf/anime/${catalogId}`,
-                        query: { play: '1' }
-                    });
-                    return;
-                }
-                if (props.moovieCatalogId && props.catalogTitle) {
-                    router.push({
-                        path: catalogStreamTarget({
-                            id: props.moovieCatalogId,
-                            title: props.catalogTitle,
-                            media_type: props.type === 'tv' ? 'tv' : 'movie'
-                        }).path,
-                        query: { play: '1' }
-                    });
-                    return;
-                }
                 router.push({
-                    path: catalogStreamTarget({
-                        id: String(props.id),
+                    path: netflixCatalogPlayPath({
+                        id: props.id,
+                        moovieCatalogId: props.moovieCatalogId || undefined,
                         title: netflixCatalogTitle.value,
-                        media_type: props.type
-                    }).path
+                        catalogTitle: netflixCatalogTitle.value,
+                        type: props.type,
+                        media_type: props.type === 'anime' ? 'tv' : props.type,
+                        anilistId: props.anilistId || undefined
+                    }),
+                    query: { play: '1' }
                 });
                 return;
             }

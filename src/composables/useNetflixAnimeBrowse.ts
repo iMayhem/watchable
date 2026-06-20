@@ -5,6 +5,7 @@ import {
 } from './useAniList';
 import {
     explicitLanguageLabels,
+    netflixCatalogPlayPath,
     resolveCatalogPlayVariantForTitles,
     sortLanguageTagsForDisplay
 } from './useNetflixCatalogLookup';
@@ -88,7 +89,7 @@ export function animeMediaToCuratedItem(
             null,
         rating: media.averageScore ? media.averageScore / 10 : 0,
         releaseDate: media.seasonYear ? String(media.seasonYear) : '',
-        type: 'tv',
+        type: 'anime',
         genreIds: [],
         languageTags: tags
     };
@@ -315,7 +316,14 @@ export async function fetchAnimeBrowseBatch(
 }
 
 export function streamPathForAnimeBrowseItem(item: NetflixAnimeBrowseItem): string {
-    return `/nf/anime/${item.anilistId}`;
+    return netflixCatalogPlayPath({
+        id: item.id,
+        moovieCatalogId: item.moovieCatalogId,
+        title: item.title,
+        catalogTitle: item.catalogTitle || item.title,
+        type: 'anime',
+        anilistId: item.anilistId
+    });
 }
 
 export interface AnimeGenreRailDisplay {

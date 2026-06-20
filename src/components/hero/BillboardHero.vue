@@ -121,6 +121,7 @@
 
 
                     <LmButton
+                        v-if="partySource !== 'netflix'"
                         variant="ghost"
                         size="lg"
                         :to="detailRoute"

@@ -45,7 +45,7 @@ export interface CuratedItem {
     releaseDate?: string;
     genreIds?: number[];
     adult?: boolean;
-    type?: 'movie' | 'tv';
+    type?: 'movie' | 'tv' | 'anime';
     isMock?: boolean;
     query?: Record<string, any>;
     languageTags?: string[];

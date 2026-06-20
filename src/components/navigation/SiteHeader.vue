@@ -5,7 +5,11 @@
                 <div class="site-header__wordmark">
                     <span class="site-header__mark-text">moovie</span>
                     <span class="site-header__kicker eyebrow">
-                        {{ isNetflixMode ? 'Netflix Catalogue' : 'A Cinema Periodical' }}
+                        <template v-if="isNetflixMode">
+                            Netflix Catalogue
+                            <span class="site-header__beta">(beta)</span>
+                        </template>
+                        <template v-else>A Cinema Periodical</template>
                     </span>
                 </div>
             </router-link>
@@ -1320,6 +1324,16 @@ export default defineComponent({
         margin-top: 3px;
         color: var(--bone-400);
         font-size: 0.625rem;
+    }
+
+    &__beta {
+        margin-left: 0.2em;
+        font-size: 0.58em;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        text-transform: lowercase;
+        color: var(--bone-500);
+        font-style: italic;
     }
 
     // ── Nav links ────────────────────────────────────────────────────────

@@ -12,7 +12,6 @@
                     'HomeShell',
                     'NetflixBrowse',
                     'NetflixSearch',
-                    'NetflixDetail',
                     'NetflixCategories',
                     'NetflixExplore',
                     'StreamNetflix'
@@ -75,11 +74,6 @@ const getRouteKey = (route: any) => {
     if (route.name === 'NetflixExplore') {
         return `nf-explore-${route.params.mediaType || 'all'}-${route.fullPath}`;
     }
-    // Canonical movie/tv type is corrected in-page — key by id only to avoid remount flicker.
-    if (route.name === 'NetflixDetail') {
-        return `nf-detail-${route.params.id}`;
-    }
-
     // Do NOT include region in the key for Home/listing pages.
     // Those pages handle region changes themselves via the movora_settings_change
     // event + their own watch(region) watcher. Including region here would

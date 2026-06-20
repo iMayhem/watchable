@@ -30,14 +30,6 @@
                                 Play
                             </LmButton>
                             <LmButton
-                                variant="ghost"
-                                size="lg"
-                                :to="genreHeroDetailRoute"
-                                aria-label="More info"
-                            >
-                                More info
-                            </LmButton>
-                            <LmButton
                                 variant="outline"
                                 size="lg"
                                 :href="genreHeroPartyHref"
@@ -311,8 +303,7 @@ import {
 import type { AnimeMedia } from '../composables/useAniList';
 import { fetchAnimeCatalogCacheByMoovieIds } from '../composables/useAnimeCatalogCache';
 import {
-    catalogStreamTarget,
-    netflixCatalogDetailPath
+    netflixCatalogPlayPath
 } from '../composables/useNetflixCatalogLookup';
 import { buildPartyHref } from '../utils/partyRoom';
 import { useInfiniteScroll } from '../composables/useLazyLoad';
@@ -565,22 +556,12 @@ export default defineComponent({
             const item = genreHeroFeatured.value;
             if (!item) return undefined;
             return {
-                path: catalogStreamTarget({
-                    id: String(item.id),
+                path: netflixCatalogPlayPath({
+                    id: item.id,
+                    moovieCatalogId: item.moovieCatalogId,
                     title: item.catalogTitle || item.title,
-                    media_type: item.type || rowMeta.value.defaultType
-                }).path
-            };
-        });
-
-        const genreHeroDetailRoute = computed(() => {
-            const item = genreHeroFeatured.value;
-            if (!item) return undefined;
-            return {
-                path: netflixCatalogDetailPath({
-                    id: String(item.id),
-                    title: item.catalogTitle || item.title,
-                    media_type: item.type || rowMeta.value.defaultType,
+                    catalogTitle: item.catalogTitle || item.title,
+                    type: item.type,
                     anilistId: item.anilistId
                 })
             };
@@ -1242,7 +1223,6 @@ export default defineComponent({
             isGenreBrowse,
             genreHeroFeatured,
             genreHeroPlayRoute,
-            genreHeroDetailRoute,
             genreHeroPartyHref,
             genreHeroBackdrop,
             genreHeroStyle,

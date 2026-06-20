@@ -56,7 +56,7 @@ export function toCuratedItemFast(
         backdropPath: instant.backdropPath,
         rating: catalogRating(item.vote_average),
         releaseDate: item.release_date || '',
-        type: curatedMediaType(item, enrichment),
+        type: anilistId ? 'anime' : curatedMediaType(item, enrichment),
         languageTags: resolveLanguageTagsForItem(item, languageMap, audioCacheById),
         genreIds,
         anilistId,

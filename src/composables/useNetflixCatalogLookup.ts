@@ -1,8 +1,10 @@
 import {
     catalogIdCollidesWithAnilist,
     isKnownAnilistCatalogId,
+    netflixAnimeDetailPath,
     peekAnilistIdForMoovieCatalogId
 } from './useAnimeCatalogCache';
+import { isAnimeCatalogueItem } from './useNetflixRails';
 import { peekCatalogAudioCache } from './useCatalogAudioCache';
 import {
     browseMoovieCatalog,
@@ -216,31 +218,79 @@ export interface CatalogStreamTarget {
     path: string;
 }
 
-export function netflixCatalogDetailPath(item: {
+export type CatalogDetailRouteInput = {
     id: string | number;
     title?: string;
     media_type?: string;
-    type?: 'movie' | 'tv';
+    type?: 'movie' | 'tv' | 'anime';
+    channel?: string;
     anilistId?: number;
     duration?: unknown;
     embed?: string | null;
     subjectid?: string | null;
     embed_en?: string | null;
     season?: unknown;
-}): string {
+};
+
+export function resolveCatalogAnimeAnilistId(
+    item: CatalogDetailRouteInput
+): number | undefined {
+    if (item.type === 'anime' && item.anilistId && Number(item.anilistId) > 0) {
+        return Number(item.anilistId);
+    }
     if (item.anilistId && Number(item.anilistId) > 0) {
-        return `/nf/anime/${item.anilistId}`;
+        return Number(item.anilistId);
     }
 
     const moovieId = String(item.id);
     const mappedAnilist = peekAnilistIdForMoovieCatalogId(moovieId);
     if (mappedAnilist) {
-        return `/nf/anime/${mappedAnilist}`;
+        return mappedAnilist;
     }
 
     const numericId = Number(item.id);
     if (Number.isFinite(numericId) && isKnownAnilistCatalogId(numericId)) {
-        return `/nf/anime/${numericId}`;
+        return numericId;
+    }
+
+    if (item.type === 'anime' && Number.isFinite(numericId) && numericId > 0) {
+        return numericId;
+    }
+
+    return undefined;
+}
+
+export function netflixCatalogDetailPath(item: CatalogDetailRouteInput): string {
+    const anilistId = resolveCatalogAnimeAnilistId(item);
+    if (anilistId) {
+        return netflixAnimeDetailPath(anilistId);
+    }
+
+    const catalogItem: MoovieCatalogItem = {
+        id: String(item.id),
+        title: item.title || '',
+        backdrop_path: null,
+        release_date: '',
+        vote_average: 0,
+        media_type:
+            item.media_type === 'tv' || item.type === 'tv'
+                ? 'tv'
+                : item.media_type === 'movie' || item.type === 'movie'
+                  ? 'movie'
+                  : 'movie',
+        channel: item.channel,
+        duration: item.duration as MoovieCatalogItem['duration'],
+        embed: item.embed,
+        subjectid: item.subjectid,
+        embed_en: item.embed_en,
+        season: item.season as MoovieCatalogItem['season']
+    };
+
+    if (isAnimeCatalogueItem(catalogItem)) {
+        const numericId = Number(item.id);
+        if (Number.isFinite(numericId) && numericId > 0) {
+            return netflixAnimeDetailPath(numericId);
+        }
     }
 
     const mediaType = inferCatalogMediaType({
@@ -253,6 +303,50 @@ export function netflixCatalogDetailPath(item: {
         season: item.season
     });
     return `/nf/${mediaType}/${item.id}`;
+}
+
+export type CatalogPlayRouteInput = CatalogDetailRouteInput & {
+    moovieCatalogId?: string;
+    catalogTitle?: string;
+};
+
+/** Netflix catalogue cards and heroes open the player — not info pages. */
+export function netflixCatalogPlayPath(item: CatalogPlayRouteInput): string {
+    const title = item.catalogTitle || item.title || '';
+    const catalogId = item.moovieCatalogId || String(item.id);
+    const streamItem = {
+        id: catalogId,
+        title,
+        media_type:
+            item.media_type ||
+            (item.type === 'anime' ? 'tv' : item.type === 'tv' ? 'tv' : undefined),
+        duration: item.duration,
+        embed: item.embed,
+        subjectid: item.subjectid,
+        embed_en: item.embed_en,
+        season: item.season
+    };
+
+    if (item.type === 'anime' || resolveCatalogAnimeAnilistId(item)) {
+        if (item.moovieCatalogId) {
+            return catalogStreamTarget(streamItem, { supportsEpisodes: true }).path;
+        }
+    }
+
+    const inferred = inferCatalogMediaType({
+        title,
+        media_type: streamItem.media_type,
+        duration: item.duration,
+        embed: item.embed,
+        subjectid: item.subjectid,
+        embed_en: item.embed_en,
+        season: item.season
+    });
+
+    return catalogStreamTarget(
+        { ...streamItem, media_type: inferred },
+        { supportsEpisodes: inferred === 'tv' }
+    ).path;
 }
 
 export function catalogStreamPath(

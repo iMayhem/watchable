@@ -84,6 +84,8 @@
                             catalog="netflix"
                             :language-tags="item.languageTags || []"
                             :catalog-title="item.catalogTitle || ''"
+                            :anilist-id="item.anilistId || 0"
+                            :moovie-catalog-id="item.moovieCatalogId || ''"
                         />
                     </div>
 

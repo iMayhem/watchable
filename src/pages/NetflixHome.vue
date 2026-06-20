@@ -18,7 +18,6 @@
                 :eyebrow="`Featured · ${activeCatalogue.label}`"
                 :loading="isLoading && !hero"
                 :play-to="heroPlayRoute"
-                :detail-to="heroDetailRoute"
             />
 
             <CuratedRail
@@ -100,7 +99,7 @@ import {
     getCatalogueHomeInitialPageCount,
     type CatalogueHomeFetchSource
 } from '../data/netflixCatalogCategories';
-import { netflixCatalogDetailPath } from '../composables/useNetflixCatalogLookup';
+
 import {
     getNetflixCatalogue,
     getCatalogueOption,
@@ -175,6 +174,7 @@ type HomeHeroSnapshot = {
     type: 'movie' | 'tv' | 'anime';
     title: string;
     catalogTitle: string;
+    anilistId?: number;
     overview: string;
     backdropPath: string | null;
     posterPath: string | null;
@@ -185,7 +185,10 @@ type HomeHeroSnapshot = {
 function heroSnapshotFromItem(item: CuratedItem): HomeHeroSnapshot {
     return {
         id: item.id,
-        type: (item.anilistId ? 'anime' : (item.type || 'movie')) as 'movie' | 'tv' | 'anime',
+        type: (item.type === 'anime' || item.anilistId
+            ? 'anime'
+            : (item.type || 'movie')) as 'movie' | 'tv' | 'anime',
+        anilistId: item.anilistId,
         title: item.title,
         catalogTitle: item.catalogTitle || item.title,
         overview: '',
@@ -257,18 +260,6 @@ export default defineComponent({
                     title: h.catalogTitle || h.title,
                     media_type: h.type
                 }).path
-            };
-        });
-
-        const heroDetailRoute = computed(() => {
-            if (!hero.value) return undefined;
-            const h = hero.value;
-            return {
-                path: netflixCatalogDetailPath({
-                    id: h.id,
-                    title: h.catalogTitle || h.title,
-                    type: h.type === 'anime' ? undefined : (h.type as 'movie' | 'tv')
-                })
             };
         });
 
@@ -577,7 +568,6 @@ export default defineComponent({
             activeCatalogue,
             hero,
             heroPlayRoute,
-            heroDetailRoute,
             trendingItems,
             top10Movies,
             top10Tv,

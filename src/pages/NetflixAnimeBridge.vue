@@ -7,7 +7,7 @@
                 <TitleMasthead
                     :id="catalogMatch ? catalogMatch.id : anilistId"
                     party-source="netflix"
-                    :type="supportsEpisodes ? 'tv' : 'movie'"
+                    type="anime"
                     :title="displayTitle"
                     :tagline="tagline"
                     eyebrow="Anime"

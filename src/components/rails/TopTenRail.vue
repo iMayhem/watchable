@@ -44,12 +44,16 @@ import { computed, defineComponent, PropType, ref } from 'vue';
 import LmRail from './Rail.vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { useAppPaths } from '../../composables/useAppPaths';
+import { netflixCatalogPlayPath } from '../../composables/useNetflixCatalogLookup';
 
 export interface TopItem {
     id: number | string;
     title: string;
     posterPath: string | null;
-    type?: 'movie' | 'tv';
+    type?: 'movie' | 'tv' | 'anime';
+    catalogTitle?: string;
+    moovieCatalogId?: string;
+    anilistId?: number;
     isMock?: boolean;
 }
 
@@ -89,10 +93,18 @@ export default defineComponent({
 
         const routeFor = (item: TopItem) => {
             if (props.catalog === 'netflix') {
-                const type = item.type === 'tv' ? 'tv' : 'movie';
-                return `/nf/${type}/${item.id}`;
+                return netflixCatalogPlayPath({
+                    id: item.id,
+                    moovieCatalogId: item.moovieCatalogId,
+                    title: item.catalogTitle || item.title,
+                    catalogTitle: item.catalogTitle || item.title,
+                    type: item.type,
+                    anilistId: item.anilistId
+                });
             }
-            return detailPath(item.type === 'tv' ? 'tv' : 'movie', item.id);
+            const kind =
+                item.type === 'anime' ? 'anime' : item.type === 'tv' ? 'tv' : 'movie';
+            return detailPath(kind, item.id);
         };
 
         return { displayItems, posterFor, routeFor, loadedImages };

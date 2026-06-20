@@ -81,8 +81,10 @@ import {
     catalogStreamPath,
     catalogStreamTarget,
     findCatalogueLanguageVariants,
+    resolveCatalogAnimeAnilistId,
     resolveVerifiedLanguageTags
 } from '../composables/useNetflixCatalogLookup';
+import { isAnimeCatalogueItem } from '../composables/useNetflixRails';
 import { fetchAnimeMediaById } from '../composables/useAniList';
 import { useNetflixCatalogEpisodes } from '../composables/useNetflixCatalogEpisodes';
 import {
@@ -195,6 +197,40 @@ export default defineComponent({
         const syncRouteMediaType = () => {
             const id = routeId();
             if (!meta.value || String(meta.value.id) !== id) return;
+
+            const catalogItem = {
+                id: String(meta.value.id),
+                title: meta.value.title || '',
+                media_type: meta.value.media_type,
+                release_date: meta.value.release_date,
+                vote_average: meta.value.vote_average,
+                backdrop_path: meta.value.backdrop_path
+            };
+
+            const anilistId = resolveCatalogAnimeAnilistId({
+                id,
+                title: meta.value.title || '',
+                media_type: meta.value.media_type
+            });
+            if (anilistId) {
+                const animePath = netflixAnimeDetailPath(anilistId);
+                if (route.path !== animePath) {
+                    nfDebug('detail:redirect-anime', { id, animePath, source: 'canonical-sync' });
+                    router.replace(animePath);
+                }
+                return;
+            }
+
+            if (isAnimeCatalogueItem(catalogItem)) {
+                void resolveAnimeDetailRedirect(id, meta.value).then((animePath) => {
+                    if (animePath && route.path !== animePath) {
+                        nfDebug('detail:redirect-anime', { id, animePath, source: 'anime-signal' });
+                        router.replace(animePath);
+                    }
+                });
+                return;
+            }
+
             const canonical = supportsEpisodes.value ? 'tv' : mediaType.value;
             if (route.params.type === canonical) return;
             nfDebug('detail:canonical-type', {

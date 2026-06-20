@@ -59,10 +59,11 @@
             >
                 <div class="nf-episodes__thumb">
                     <img
-                        v-if="ep.still_path"
-                        :src="stillUrl(ep.still_path)"
+                        v-if="episodeStillUrl(ep)"
+                        :src="episodeStillUrl(ep)"
                         :alt="`Episode ${ep.episode_number}`"
                         loading="lazy"
+                        decoding="async"
                     />
                     <div v-else class="nf-episodes__thumb-fallback" aria-hidden="true">
                         {{ ep.episode_number }}
@@ -119,12 +120,15 @@ export default defineComponent({
             }
         };
 
-        const stillUrl = (path: string) => useWebImage(path, 'medium');
+        const episodeStillUrl = (ep: NetflixCatalogEpisode) => {
+            if (!ep.still_path) return '';
+            return useWebImage(ep.still_path, props.panel ? 'large' : 'medium');
+        };
 
         return {
             seasonSelectId,
             onSeasonChange,
-            stillUrl,
+            episodeStillUrl,
             emit
         };
     }

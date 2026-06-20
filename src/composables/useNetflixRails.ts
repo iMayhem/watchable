@@ -344,6 +344,11 @@ function hasAnimeCatalogueSignal(item: MoovieCatalogItem): boolean {
     );
 }
 
+/** Moovie catalogue rows that belong on /nf/anime, not /nf/tv or /nf/movie. */
+export function isAnimeCatalogueItem(item: MoovieCatalogItem): boolean {
+    return isAnimeSeriesItem(item) || hasAnimeCatalogueSignal(item);
+}
+
 function hasJapaneseAnimeOrigin(item: MoovieCatalogItem): boolean {
     if (isRegionalIndianAnimation(item)) return false;
     return (

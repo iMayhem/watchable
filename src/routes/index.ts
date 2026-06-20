@@ -75,19 +75,19 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/nf/anime/:id',
         name: 'NetflixAnimeDetail',
-        component: () => import('../pages/NetflixAnimeBridge.vue'),
+        component: () => import('../pages/NetflixPlayRedirect.vue'),
         meta: {
             showInHeader: false,
-            title: 'Anime'
+            title: 'Stream'
         }
     },
     {
         path: '/nf/:type(movie|tv)/:id',
         name: 'NetflixDetail',
-        component: () => import('../pages/NetflixDetail.vue'),
+        component: () => import('../pages/NetflixPlayRedirect.vue'),
         meta: {
             showInHeader: false,
-            title: 'Netflix Title'
+            title: 'Stream'
         }
     },
     {
@@ -290,9 +290,7 @@ const router = createRouter({
         if (savedPosition) return savedPosition;
         // Back from title detail → restore catalogue browse / home scroll.
         if (
-            (from.name === 'NetflixDetail' ||
-                from.name === 'NetflixAnimeDetail' ||
-                from.name === 'Movie' ||
+            (from.name === 'Movie' ||
                 from.name === 'TVShow' ||
                 from.name === 'AnimeDetail') &&
             (to.name === 'NetflixBrowse' ||
@@ -301,13 +299,6 @@ const router = createRouter({
                 to.name === 'Movies' ||
                 to.name === 'TVShows' ||
                 to.name === 'Anime')
-        ) {
-            return false;
-        }
-        // Back from Netflix player → restore detail scroll instead of jumping to top.
-        if (
-            (from.name === 'StreamNetflixMovie' || from.name === 'StreamNetflixTV') &&
-            (to.name === 'NetflixDetail' || to.name === 'NetflixAnimeDetail')
         ) {
             return false;
         }

@@ -1443,6 +1443,7 @@
         let activeRoom = null;
         let channel = null;
         let isHost = false;
+        let lobbyChannels = [];
 
         // Update Header user badge
         function updateHeaderBadge() {
@@ -1501,6 +1502,10 @@
         }
 
         function showCreateView(title = '', embedUrl = '') {
+            if (lobbyChannels && lobbyChannels.length) {
+                lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
+                lobbyChannels = [];
+            }
             document.body.classList.remove('room-view-active');
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             
@@ -1512,6 +1517,10 @@
         }
 
         async function showRoomView(room) {
+            if (lobbyChannels && lobbyChannels.length) {
+                lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
+                lobbyChannels = [];
+            }
             document.body.classList.add('room-view-active');
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('room-view').classList.add('active');
@@ -1964,6 +1973,11 @@
         async function loadActiveRooms() {
             const container = document.getElementById('rooms-container');
             
+            if (lobbyChannels && lobbyChannels.length) {
+                lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
+                lobbyChannels = [];
+            }
+            
             try {
                 // Automatically prune rooms older than 24 hours from the database on page load
                 const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -2003,11 +2017,44 @@
                             <div class="room-info-item">🕒 <strong>Started:</strong> ${new Date(room.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                         </div>
                         <div class="room-footer">
-                            <span class="room-participants">👥 Open lobby</span>
+                            <span class="room-participants skeleton-shimmer-inline" data-room-id="${room.id}">👥 Open lobby</span>
                             <button class="btn btn-primary" onclick="joinExistingRoom('${room.id}')">Join Party</button>
                         </div>
                     </div>
                 `).join('');
+
+                // Connect to presence channel for each room to display online count dynamically
+                rooms.forEach(room => {
+                    const tempChannel = supabaseClient.channel(`lobby_presence_${room.id}`, {
+                        config: {
+                            presence: {
+                                key: 'lobby_viewer'
+                            }
+                        }
+                    });
+
+                    // Match the actual room presence channel
+                    const roomPresenceChannel = supabaseClient.channel(`party_room_${room.id}`);
+                    
+                    roomPresenceChannel.on('presence', { event: 'sync' }, () => {
+                        const state = roomPresenceChannel.presenceState();
+                        let count = 0;
+                        Object.keys(state).forEach(k => {
+                            if (k !== 'lobby_viewer') {
+                                count += state[k].length || 1;
+                            }
+                        });
+                        
+                        const countEl = document.querySelector(`.room-participants[data-room-id="${room.id}"]`);
+                        if (countEl) {
+                            countEl.classList.remove('skeleton-shimmer-inline');
+                            countEl.textContent = `👥 ${count} ${count === 1 ? 'person' : 'people'} online`;
+                        }
+                    });
+
+                    roomPresenceChannel.subscribe();
+                    lobbyChannels.push(roomPresenceChannel);
+                });
 
             } catch (err) {
                 console.error('Error fetching rooms:', err);

@@ -7,8 +7,7 @@
                 <p class="eyebrow search-page__eyebrow">Netflix Catalogue</p>
                 <h1 class="search-page__title display">Search the catalogue</h1>
                 <p class="search-page__subtitle">
-                    Find titles in {{ activeCatalogue.label }} with {{ activeLang.label }} audio —
-                    results open in the Netflix player.
+                    Search the full catalogue — same index as NetMirror. Results open in the Netflix player.
                 </p>
 
                 <form class="search-page__search" role="search" @submit.prevent>
@@ -111,9 +110,8 @@
                         </div>
                         <h3 class="search-page__empty-title display">Not in this catalogue.</h3>
                         <p class="search-page__empty-desc">
-                            No {{ emptyLabel }} matched "{{ searchTerm }}" in
-                            {{ activeCatalogue.label }} ({{ activeLang.label }}). Try another spelling
-                            or switch catalogue in Browse.
+                            No {{ emptyLabel }} matched "{{ searchTerm }}". Try another spelling
+                            or load more pages below.
                         </p>
                     </div>
 
@@ -188,7 +186,6 @@ import {
 } from '../composables/useMoovieCatalog';
 import { getNetflixCatalogue, getCatalogueOption } from '../composables/useNetflixCatalogue';
 import { getNetflixLanguage, getLanguageOption } from '../composables/useNetflixLanguage';
-import { filterCataloguePool } from '../composables/useNetflixRails';
 import { addNetflixSearchTerm, netflixSearchHistory } from '../composables/useHistory';
 import { useSeo } from '../composables/useSeo';
 import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
@@ -295,6 +292,50 @@ export default defineComponent({
             return splitCuratedByType(curated);
         };
 
+        /** NetMirror shows raw search2 hits — do not apply browse catalogue/language gates. */
+        const prepareSearchResults = (pool: MoovieCatalogItem[]) => {
+            const lang = activeLang.value;
+            const languageMap = buildCatalogLanguageMap(pool);
+            const deduped = sortCatalogByBrowseRank(
+                dedupeCatalogItemsByVariantFamily(pool, {
+                    preferredLang: lang
+                })
+            );
+            return { deduped, languageMap };
+        };
+
+        const applySearchResults = (
+            deduped: MoovieCatalogItem[],
+            languageMap: Map<string, string[]>,
+            generation: number
+        ) => {
+            const { nextMovies, nextShows } = mapFilteredResults(deduped, languageMap);
+            movies.value = nextMovies;
+            shows.value = nextShows;
+
+            void (async () => {
+                try {
+                    const [audioCache, artworkUrls] = await Promise.all([
+                        fetchCatalogAudioCacheByIds(
+                            searchVariantPool.value.map((item) => item.id)
+                        ),
+                        fetchCatalogArtworkUrlsByIds(deduped.map((item) => item.id))
+                    ]);
+                    if (generation !== searchGeneration.value) return;
+                    const upgraded = mapFilteredResults(
+                        deduped,
+                        languageMap,
+                        audioCache,
+                        artworkUrls
+                    );
+                    movies.value = upgraded.nextMovies;
+                    shows.value = upgraded.nextShows;
+                } catch (err) {
+                    nfDebugError('search:grid-upgrade:fail', { err });
+                }
+            })();
+        };
+
         const performSearch = async (query: string, page = 0) => {
             const q = query.trim();
             if (!q) return;
@@ -303,9 +344,11 @@ export default defineComponent({
             else isLoadingMore.value = true;
 
             try {
-                const lang = activeLang.value;
-                const cat = activeCatalogue.value;
-                nfDebug('search:page', { query: q, page, catalogue: cat.id, language: lang.category });
+                nfDebug('search:page', {
+                    query: q,
+                    page,
+                    language: activeLang.value.category
+                });
 
                 const data = await searchMoovieCatalog(q, page);
                 totalPages.value = Math.max(1, data.pager?.total_pages ?? 1);
@@ -323,45 +366,11 @@ export default defineComponent({
                     }
                 }
 
-                const languageMap = buildCatalogLanguageMap(searchVariantPool.value);
-                const filtered = filterCataloguePool(searchVariantPool.value, cat.id, lang);
-                const deduped = sortCatalogByBrowseRank(
-                    dedupeCatalogItemsByVariantFamily(filtered, {
-                        preferredLang: lang
-                    })
-                );
+                const { deduped, languageMap } = prepareSearchResults(searchVariantPool.value);
                 const generation = searchGeneration.value + 1;
                 searchGeneration.value = generation;
-
-                const { nextMovies, nextShows } = mapFilteredResults(
-                    deduped,
-                    languageMap
-                );
-                movies.value = nextMovies;
-                shows.value = nextShows;
+                applySearchResults(deduped, languageMap, generation);
                 if (page === 0) chooseDefaultTab();
-
-                void (async () => {
-                    try {
-                        const [audioCache, artworkUrls] = await Promise.all([
-                            fetchCatalogAudioCacheByIds(
-                                searchVariantPool.value.map((item) => item.id)
-                            ),
-                            fetchCatalogArtworkUrlsByIds(deduped.map((item) => item.id))
-                        ]);
-                        if (generation !== searchGeneration.value) return;
-                        const upgraded = mapFilteredResults(
-                            deduped,
-                            languageMap,
-                            audioCache,
-                            artworkUrls
-                        );
-                        movies.value = upgraded.nextMovies;
-                        shows.value = upgraded.nextShows;
-                    } catch (err) {
-                        nfDebugError('search:grid-upgrade:fail', { err });
-                    }
-                })();
             } catch (err) {
                 nfDebugError('search:fail', { query: q, page, err });
                 if (page === 0) clearResults();
@@ -442,10 +451,12 @@ export default defineComponent({
             await performSearch(searchTerm.value, loadedPage.value + 1);
         };
 
-        const reloadForCatalogueOrLanguage = () => {
-            if (searchTerm.value.trim()) {
-                performSearch(searchTerm.value);
-            }
+        const reloadForLanguagePreference = () => {
+            if (!searchVariantPool.value.length) return;
+            const { deduped, languageMap } = prepareSearchResults(searchVariantPool.value);
+            const generation = searchGeneration.value + 1;
+            searchGeneration.value = generation;
+            applySearchResults(deduped, languageMap, generation);
         };
 
         watch(activeTab, () => syncRoute());
@@ -471,13 +482,11 @@ export default defineComponent({
                 clearResults();
             }
 
-            window.addEventListener('movora_netflix_catalogue_change', reloadForCatalogueOrLanguage);
-            window.addEventListener('movora_netflix_language_change', reloadForCatalogueOrLanguage);
+            window.addEventListener('movora_netflix_language_change', reloadForLanguagePreference);
         });
 
         onBeforeUnmount(() => {
-            window.removeEventListener('movora_netflix_catalogue_change', reloadForCatalogueOrLanguage);
-            window.removeEventListener('movora_netflix_language_change', reloadForCatalogueOrLanguage);
+            window.removeEventListener('movora_netflix_language_change', reloadForLanguagePreference);
         });
 
         return {

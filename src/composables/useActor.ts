@@ -43,6 +43,11 @@ export interface ActorCombinedCredits {
     cast : Movie[] | TVShowType[],
     crew : TVShowType[] | Movie[]
 }
+const topActorsCache = new Map<string, Promise<any>>();
+const detailsCache = new Map<number, Promise<any>>();
+const imagesCache = new Map<number, Promise<any>>();
+const creditsCache = new Map<number, Promise<any>>();
+
 export const useActor = () => {
     const fetchTopActors = async (url: string = "https://api.themoviedb.org/3/trending/person/day" ) => {
         let loading = ref(false)
@@ -50,13 +55,16 @@ export const useActor = () => {
         let data = ref<ActorResponse>()
         try {
             loading.value = true
-            const req = useAxios().get(url)
-            const res = (await req).data
+            if (!topActorsCache.has(url)) {
+                topActorsCache.set(url, useAxios().get(url).then(r => r.data));
+            }
+            const res = await topActorsCache.get(url)!;
             if (res.results) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            topActorsCache.delete(url);
         } finally {
             loading.value = false
         }
@@ -72,13 +80,16 @@ export const useActor = () => {
         let data = ref<ActorDetails>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/person/${id}`)
-            const res = (await req).data
+            if (!detailsCache.has(id)) {
+                detailsCache.set(id, useAxios().get(`https://api.themoviedb.org/3/person/${id}`).then(r => r.data));
+            }
+            const res = await detailsCache.get(id)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            detailsCache.delete(id);
         } finally {
             loading.value = false
         }
@@ -94,13 +105,16 @@ export const useActor = () => {
         let data = ref<ActorImages>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/person/${id}/images`)
-            const res = (await req).data
+            if (!imagesCache.has(id)) {
+                imagesCache.set(id, useAxios().get(`https://api.themoviedb.org/3/person/${id}/images`).then(r => r.data));
+            }
+            const res = await imagesCache.get(id)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            imagesCache.delete(id);
         } finally {
             loading.value = false
         }
@@ -116,13 +130,16 @@ export const useActor = () => {
         let data = ref<ActorCombinedCredits>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/person/${id}/combined_credits`)
-            const res = (await req).data
+            if (!creditsCache.has(id)) {
+                creditsCache.set(id, useAxios().get(`https://api.themoviedb.org/3/person/${id}/combined_credits`).then(r => r.data));
+            }
+            const res = await creditsCache.get(id)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            creditsCache.delete(id);
         } finally {
             loading.value = false
         }

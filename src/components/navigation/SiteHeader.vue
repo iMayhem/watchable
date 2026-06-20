@@ -63,19 +63,18 @@
             </nav>
 
             <div class="site-header__actions">
-                <button
-                    type="button"
+                <router-link
+                    :to="isNetflixMode ? '/nf/search' : '/search'"
                     class="site-header__search"
-                    @click="openPalette"
-                    aria-label="Search and jump"
+                    aria-label="Search"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                         <circle cx="11" cy="11" r="8" />
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    <span class="site-header__search-label">Search &amp; Jump</span>
+                    <span class="site-header__search-label">Search</span>
                     <kbd class="site-header__search-kbd">{{ modKey }}K</kbd>
-                </button>
+                </router-link>
 
                 <ExtensionPrompt v-if="isNetflixMode" />
 
@@ -218,10 +217,14 @@
                         <span class="site-header__drawer-label">{{ item.label }}</span>
                     </a>
 
-                    <button class="site-header__drawer-link site-header__drawer-search" @click="openFromDrawer">
+                    <router-link
+                        :to="isNetflixMode ? '/nf/search' : '/search'"
+                        class="site-header__drawer-link site-header__drawer-search"
+                        @click="drawerOpen = false"
+                    >
                         <span class="eyebrow site-header__drawer-num">✦</span>
-                        <span class="site-header__drawer-label">Search &amp; Jump</span>
-                    </button>
+                        <span class="site-header__drawer-label">Search</span>
+                    </router-link>
 
                     <button
                         type="button"
@@ -245,10 +248,14 @@
                         <span class="site-header__drawer-label">{{ item.label }}</span>
                     </router-link>
 
-                    <button class="site-header__drawer-link site-header__drawer-search" @click="openFromDrawer">
+                    <router-link
+                        :to="isNetflixMode ? '/nf/search' : '/search'"
+                        class="site-header__drawer-link site-header__drawer-search"
+                        @click="drawerOpen = false"
+                    >
                         <span class="eyebrow site-header__drawer-num">✦</span>
-                        <span class="site-header__drawer-label">Search &amp; Jump</span>
-                    </button>
+                        <span class="site-header__drawer-label">Search</span>
+                    </router-link>
 
                     <a href="/party/" class="site-header__drawer-link" @click="drawerOpen = false">
                         <span class="eyebrow site-header__drawer-num">✦</span>

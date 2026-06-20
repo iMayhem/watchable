@@ -105,73 +105,174 @@
                         </footer>
                     </div>
 
-                    <!-- Right Side: Movie Reviews Feed (Newest first, clickable redirects) -->
+                    <!-- Right Side: Movie Reviews Feed (Newest first, clickable redirects) OR Movie-specific chat -->
                     <div class="discuss-chat">
-                        <header class="discuss-chat__header">
-                            <div class="discuss-chat__header-info">
-                                <span class="discuss-chat__status-dot" style="background: var(--ember); box-shadow: 0 0 6px var(--ember);"></span>
-                                <span class="discuss-chat__panel-title">🎬 Movie & Series Activity</span>
-                            </div>
-                            <div class="discuss-chat__user-badge">
-                                <span class="meta">Click to watch/discuss</span>
-                            </div>
-                        </header>
+                        <template v-if="selectedMovieId">
+                            <header class="discuss-chat__header">
+                                <div class="discuss-chat__header-info">
+                                    <button @click="closeMovieDiscussion" class="btn btn-secondary btn-xs discuss-chat__back-btn" style="margin-right: var(--s-2); padding: 2px 6px;">
+                                        ← Back
+                                    </button>
+                                    <span class="discuss-chat__status-dot" style="background: var(--ember); box-shadow: 0 0 6px var(--ember);"></span>
+                                    <span class="discuss-chat__panel-title" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        🎬 {{ getMediaName(selectedMovieType, selectedMovieId) }}
+                                    </span>
+                                </div>
+                                <div class="discuss-chat__user-badge">
+                                    <span class="meta">Review Room</span>
+                                </div>
+                            </header>
 
-                        <!-- Scrollable Movies Feed -->
-                        <div class="discuss-chat__messages">
-                            <div v-if="loadingMovie" class="discuss-chat__loading" role="status">
-                                <div class="discuss-chat__spinner" aria-hidden="true" />
-                                <span class="meta">Retrieving latest reviews…</span>
-                            </div>
+                            <!-- Scrollable Movie Chat Messages -->
+                            <div ref="movieChatBox" class="discuss-chat__messages" @scroll="handleMovieChatScroll">
+                                <div v-if="loadingSelectedMovie" class="discuss-chat__loading" role="status">
+                                    <div class="discuss-chat__spinner" aria-hidden="true" />
+                                    <span class="meta">Loading comments…</span>
+                                </div>
 
-                            <div v-else-if="!movieComments.length" class="discuss-chat__empty">
-                                <p class="meta">No movie or TV comments exist yet. Start writing reviews on film pages!</p>
-                            </div>
+                                <div v-else-if="!selectedMovieComments.length" class="discuss-chat__empty">
+                                    <p class="meta">No reviews yet for this title. Be the first to share your thoughts!</p>
+                                </div>
 
-                            <div v-else class="discuss-chat__message-list">
-                                <div 
-                                    v-for="c in movieComments" 
-                                    :key="c.id" 
-                                    class="discuss-msg discuss-msg--movie-card"
-                                    :class="{ 'discuss-msg--reported': c.isReported }"
-                                >
-                                    <div class="discuss-msg__avatar" :style="avatarStyle(c.username)">
-                                        {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
-                                    </div>
-
-                                    <div class="discuss-msg__body" style="width: 100%;">
-                                        <div class="discuss-msg__meta">
-                                            <span class="discuss-msg__username">{{ c.username }}</span>
-                                            <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
-                                            
-                                            <!-- Category tag displaying target movie name/ID -->
-                                            <span class="discuss-msg__topic-badge">
-                                                {{ getCategoryIcon(c.media_type) }} {{ c.media_type.toUpperCase() }} #{{ c.media_id }}
-                                            </span>
+                                <div v-else class="discuss-chat__message-list">
+                                    <div 
+                                        v-for="c in selectedMovieComments" 
+                                        :key="c.id" 
+                                        class="discuss-msg"
+                                        :class="{ 
+                                            'discuss-msg--self': isSelf(c.username),
+                                            'discuss-msg--reported': c.isReported 
+                                        }"
+                                    >
+                                        <div class="discuss-msg__avatar" :style="avatarStyle(c.username)">
+                                            {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
                                         </div>
 
-                                        <div class="discuss-msg__bubble discuss-msg__bubble--movie">
-                                            <p class="discuss-msg__text">{{ c.content }}</p>
-                                        </div>
-
-                                        <div class="discuss-msg__movie-footer">
-                                            <router-link :to="getMovieLink(c.media_type, c.media_id)" class="discuss-msg__redirect-link btn btn-secondary btn-xs">
-                                                Go to Discussion Page →
-                                            </router-link>
-
-                                            <button 
-                                                v-if="!c.isReported"
-                                                @click="openReportModal(c)" 
-                                                class="discuss-msg__report-btn"
-                                            >
-                                                Report
-                                            </button>
-                                            <span v-else class="discuss-msg__reported-tag">⚠️ Reported</span>
+                                        <div class="discuss-msg__body">
+                                            <div class="discuss-msg__meta">
+                                                <span class="discuss-msg__username">{{ c.username }}</span>
+                                                <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
+                                                <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
+                                            </div>
+                                            <div class="discuss-msg__bubble">
+                                                <p class="discuss-msg__text">{{ c.content }}</p>
+                                            </div>
+                                            <div class="discuss-msg__actions">
+                                                <button 
+                                                    v-if="!c.isReported"
+                                                    @click="openReportModal(c)" 
+                                                    class="discuss-msg__report-btn"
+                                                >
+                                                    Report
+                                                </button>
+                                                <span v-else class="discuss-msg__reported-tag">⚠️ Reported</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+
+                            <!-- Movie Comment Composer -->
+                            <footer class="discuss-chat__composer">
+                                <div v-if="!isLoggedIn" class="discuss-chat__login-prompt">
+                                    <p class="meta">You must be signed in to post comments in this room.</p>
+                                    <button @click="showAuthModal = true" class="btn btn-primary btn-sm login-prompt-btn">
+                                        Sign In
+                                    </button>
+                                </div>
+
+                                <template v-else>
+                                    <form @submit.prevent="postSelectedMovieComment" class="discuss-composer-form">
+                                        <input 
+                                            type="text" 
+                                            v-model="newSelectedCommentText" 
+                                            :placeholder="'Reply to discussion...'" 
+                                            required
+                                            class="discuss-chat__message-input"
+                                            :disabled="submittingSelected"
+                                        />
+                                        <button 
+                                            type="submit" 
+                                            class="btn btn-primary discuss-chat__send-btn"
+                                            :disabled="submittingSelected || !newSelectedCommentText.trim()"
+                                        >
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </template>
+                            </footer>
+                        </template>
+
+                        <template v-else>
+                            <header class="discuss-chat__header">
+                                <div class="discuss-chat__header-info">
+                                    <span class="discuss-chat__status-dot" style="background: var(--ember); box-shadow: 0 0 6px var(--ember);"></span>
+                                    <span class="discuss-chat__panel-title">🎬 Movie & Series Activity</span>
+                                </div>
+                                <div class="discuss-chat__user-badge">
+                                    <span class="meta">Select a title to discuss</span>
+                                </div>
+                            </header>
+
+                            <!-- Scrollable Movies Feed -->
+                            <div class="discuss-chat__messages">
+                                <div v-if="loadingMovie" class="discuss-chat__loading" role="status">
+                                    <div class="discuss-chat__spinner" aria-hidden="true" />
+                                    <span class="meta">Retrieving latest reviews…</span>
+                                </div>
+
+                                <div v-else-if="!movieComments.length" class="discuss-chat__empty">
+                                    <p class="meta">No movie or TV comments exist yet. Start writing reviews on film pages!</p>
+                                </div>
+
+                                <div v-else class="discuss-chat__message-list">
+                                    <div 
+                                        v-for="c in movieComments" 
+                                        :key="c.id" 
+                                        class="discuss-msg discuss-msg--movie-card"
+                                        :class="{ 'discuss-msg--reported': c.isReported }"
+                                    >
+                                        <div class="discuss-msg__avatar" :style="avatarStyle(c.username)">
+                                            {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
+                                        </div>
+
+                                        <div class="discuss-msg__body" style="width: 100%;">
+                                            <div class="discuss-msg__meta">
+                                                <span class="discuss-msg__username">{{ c.username }}</span>
+                                                <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
+                                                
+                                                <!-- Category tag displaying target movie name/ID -->
+                                                <span class="discuss-msg__topic-badge">
+                                                    {{ getCategoryIcon(c.media_type) }} {{ getMediaName(c.media_type, c.media_id) }}
+                                                </span>
+                                            </div>
+
+                                            <div class="discuss-msg__bubble discuss-msg__bubble--movie">
+                                                <p class="discuss-msg__text">{{ c.content }}</p>
+                                            </div>
+
+                                            <div class="discuss-msg__movie-footer">
+                                                <button @click="viewMovieDiscussion(c.media_type, c.media_id)" class="discuss-msg__redirect-link btn btn-secondary btn-xs">
+                                                    Go to Discussion Page →
+                                                </button>
+
+                                                <button 
+                                                    v-if="!c.isReported"
+                                                    @click="openReportModal(c)" 
+                                                    class="discuss-msg__report-btn"
+                                                >
+                                                    Report
+                                                </button>
+                                                <span v-else class="discuss-msg__reported-tag">⚠️ Reported</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
 
                 </div>
@@ -233,6 +334,9 @@ import SiteHeader from '../components/navigation/SiteHeader.vue';
 import AuthModal from '../components/navigation/AuthModal.vue';
 import { getSupabaseClient } from '../lib/supabase';
 import { useSeo } from '../composables/useSeo';
+import { useMovies } from '../composables/useMovies';
+import { useTvShows } from '../composables/useTvShows';
+import { useAniList } from '../composables/useAniList';
 
 interface Comment {
     id: string;
@@ -273,6 +377,198 @@ export default defineComponent({
         const reportReason = ref('spam');
         const reportDetails = ref('');
         const submittingReport = ref(false);
+
+        // Movie-specific Discussion State
+        const selectedMovieId = ref<string | null>(null);
+        const selectedMovieType = ref<string>('movie');
+        const selectedMovieComments = ref<Comment[]>([]);
+        const loadingSelectedMovie = ref(false);
+        const submittingSelected = ref(false);
+        const newSelectedCommentText = ref('');
+        const movieChatBox = ref<HTMLElement | null>(null);
+        let selectedMovieRealtimeChannel: any = null;
+        let isMovieChatAtBottom = true;
+
+        const resolvedNames = ref<Record<string, string>>({});
+
+        const getOrFetchMediaName = async (mediaType: string, mediaId: string) => {
+            const key = `${mediaType}:${mediaId}`;
+            if (resolvedNames.value[key]) return resolvedNames.value[key];
+
+            resolvedNames.value[key] = `Loading...`;
+
+            try {
+                if (mediaType === 'movie') {
+                    const { fetchMovie } = useMovies();
+                    const { data } = await fetchMovie(mediaId);
+                    if (data.value && data.value.title) {
+                        resolvedNames.value[key] = data.value.title;
+                    } else {
+                        resolvedNames.value[key] = `Movie #${mediaId}`;
+                    }
+                } else if (mediaType === 'tv') {
+                    const { fetchTvShow } = useTvShows();
+                    const { data } = await fetchTvShow(mediaId);
+                    if (data.value && data.value.name) {
+                        resolvedNames.value[key] = data.value.name;
+                    } else {
+                        resolvedNames.value[key] = `TV Show #${mediaId}`;
+                    }
+                } else if (mediaType === 'anime') {
+                    const { fetchAnimeById } = useAniList();
+                    const response = await fetchAnimeById(Number(mediaId));
+                    if (response && response.data && response.data.Media && response.data.Media.title) {
+                        resolvedNames.value[key] = response.data.Media.title.english || response.data.Media.title.romaji || `Anime #${mediaId}`;
+                    } else {
+                        resolvedNames.value[key] = `Anime #${mediaId}`;
+                    }
+                }
+            } catch (e) {
+                resolvedNames.value[key] = `${mediaType.toUpperCase()} #${mediaId}`;
+            }
+            return resolvedNames.value[key];
+        };
+
+        const getMediaName = (type: string, id: string) => {
+            const key = `${type}:${id}`;
+            if (resolvedNames.value[key] && resolvedNames.value[key] !== 'Loading...') {
+                return resolvedNames.value[key];
+            }
+            getOrFetchMediaName(type, id);
+            return resolvedNames.value[key] || 'Loading...';
+        };
+
+        const scrollMovieChatToBottom = () => {
+            nextTick(() => {
+                if (movieChatBox.value) {
+                    movieChatBox.value.scrollTop = movieChatBox.value.scrollHeight;
+                }
+            });
+        };
+
+        const handleMovieChatScroll = () => {
+            if (movieChatBox.value) {
+                const threshold = 60;
+                const position = movieChatBox.value.scrollHeight - movieChatBox.value.clientHeight - movieChatBox.value.scrollTop;
+                isMovieChatAtBottom = position < threshold;
+            }
+        };
+
+        const viewMovieDiscussion = async (type: string, id: string) => {
+            selectedMovieId.value = id;
+            selectedMovieType.value = type;
+            selectedMovieComments.value = [];
+            
+            // Clean up previous movie realtime sub
+            if (selectedMovieRealtimeChannel) {
+                const supabase = await getSupabaseClient();
+                supabase.removeChannel(selectedMovieRealtimeChannel);
+                selectedMovieRealtimeChannel = null;
+            }
+
+            await fetchSelectedMovieComments();
+            await setupSelectedMovieRealtime();
+            scrollMovieChatToBottom();
+        };
+
+        const closeMovieDiscussion = async () => {
+            selectedMovieId.value = null;
+            if (selectedMovieRealtimeChannel) {
+                const supabase = await getSupabaseClient();
+                supabase.removeChannel(selectedMovieRealtimeChannel);
+                selectedMovieRealtimeChannel = null;
+            }
+        };
+
+        const fetchSelectedMovieComments = async () => {
+            if (!selectedMovieId.value) return;
+            loadingSelectedMovie.value = true;
+            try {
+                const supabase = await getSupabaseClient();
+                const { data, error } = await supabase
+                    .from('movora_comments')
+                    .select('*')
+                    .eq('media_type', selectedMovieType.value)
+                    .eq('media_id', selectedMovieId.value)
+                    .order('created_at', { ascending: true })
+                    .limit(100);
+
+                if (error) throw error;
+                selectedMovieComments.value = data || [];
+            } catch (e) {
+                console.error(e);
+            } finally {
+                loadingSelectedMovie.value = false;
+            }
+        };
+
+        const setupSelectedMovieRealtime = async () => {
+            if (!selectedMovieId.value) return;
+            try {
+                const supabase = await getSupabaseClient();
+                selectedMovieRealtimeChannel = supabase
+                    .channel(`public:movora_selected_movie:${selectedMovieType.value}:${selectedMovieId.value}`)
+                    .on(
+                        'postgres_changes',
+                        { event: 'INSERT', schema: 'public', table: 'movora_comments' },
+                        (payload: any) => {
+                            const newMsg = payload.new as Comment;
+                            if (newMsg.media_type === selectedMovieType.value && newMsg.media_id === selectedMovieId.value) {
+                                if (!selectedMovieComments.value.some(c => c.id === newMsg.id)) {
+                                    selectedMovieComments.value.push(newMsg);
+                                    if (isMovieChatAtBottom) {
+                                        scrollMovieChatToBottom();
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    .subscribe();
+            } catch (e) {
+                console.error(e);
+            }
+        };
+
+        const postSelectedMovieComment = async () => {
+            if (!isLoggedIn.value) {
+                showAuthModal.value = true;
+                return;
+            }
+            if (!newSelectedCommentText.value.trim() || !selectedMovieId.value) return;
+            submittingSelected.value = true;
+
+            const nameToPost = `@${currentUsername.value}`;
+
+            try {
+                const supabase = await getSupabaseClient();
+                const { data, error } = await supabase
+                    .from('movora_comments')
+                    .insert([
+                        {
+                            media_id: selectedMovieId.value,
+                            media_type: selectedMovieType.value,
+                            username: nameToPost,
+                            content: newSelectedCommentText.value.trim()
+                        }
+                    ])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    newSelectedCommentText.value = '';
+                    if (!selectedMovieComments.value.some(c => c.id === data.id)) {
+                        selectedMovieComments.value.push(data);
+                        scrollMovieChatToBottom();
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to post movie comment:', e);
+            } finally {
+                submittingSelected.value = false;
+            }
+        };
 
         // Realtime Subscription references
         let realtimeChannel: any = null;
@@ -597,6 +893,10 @@ export default defineComponent({
                 const supabase = await getSupabaseClient();
                 supabase.removeChannel(movieRealtimeChannel);
             }
+            if (selectedMovieRealtimeChannel) {
+                const supabase = await getSupabaseClient();
+                supabase.removeChannel(selectedMovieRealtimeChannel);
+            }
         });
 
         return {
@@ -631,7 +931,21 @@ export default defineComponent({
             submittingReport,
             openReportModal,
             closeReportModal,
-            submitReport
+            submitReport,
+
+            // Movie-specific Discussion
+            selectedMovieId,
+            selectedMovieType,
+            selectedMovieComments,
+            loadingSelectedMovie,
+            submittingSelected,
+            newSelectedCommentText,
+            movieChatBox,
+            getMediaName,
+            handleMovieChatScroll,
+            viewMovieDiscussion,
+            closeMovieDiscussion,
+            postSelectedMovieComment
         };
     }
 });

@@ -1186,7 +1186,9 @@ export default defineComponent({
 .watch-stage {
     min-height: 100dvh;
     height: auto;
-    overflow-x: hidden;
+    // clip — not hidden — so overflow-y stays visible and the page scrolls (not this box)
+    overflow-x: clip;
+    overflow-y: visible;
     background-color: var(--ink-950);
     color: var(--bone-50);
 

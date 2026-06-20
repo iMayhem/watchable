@@ -21,17 +21,22 @@ const CommandPalette = defineAsyncComponent(() => import('@/components/navigatio
 
 // Lazy refs to cleanup functions — populated after dynamic import resolves
 let _stopReveal: (() => void) | null = null;
+let _uninstallAntiInspect: (() => void) | null = null;
 
 const initIdle = async () => {
-    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }] = await Promise.all([
-        import('@/composables/useCommandPalette'),
-        import('@/composables/useReveal')
-    ]);
+    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }, { installAntiInspect, uninstallAntiInspect }] =
+        await Promise.all([
+            import('@/composables/useCommandPalette'),
+            import('@/composables/useReveal'),
+            import('@/composables/useAntiInspect')
+        ]);
 
     bindCommandPaletteHotkey();
     startReveal();
+    installAntiInspect();
 
     _stopReveal = stopReveal;
+    _uninstallAntiInspect = uninstallAntiInspect;
 
     // Prefetch main mobile pages in the background
     import('./pages/Movies.vue');
@@ -51,6 +56,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     _stopReveal?.();
+    _uninstallAntiInspect?.();
 });
 </script>
 
@@ -127,18 +133,9 @@ textarea:focus-visible {
     outline: none;
 }
 
-html, body {
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
-    user-select: text;
-}
-
-input, textarea, [contenteditable="true"] {
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
-    user-select: text;
+img {
+    -webkit-user-drag: none;
+    user-drag: none;
 }
 
 

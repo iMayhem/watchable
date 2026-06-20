@@ -19,7 +19,12 @@ import {
     NETFLIX_LANGUAGES,
     type NetflixLanguageOption
 } from './useNetflixLanguage';
-import { catalogBrowseRankScore } from './useNetflixBrowseRank';
+import {
+    catalogBrowseRankScore,
+    compareCatalogBrowseRank,
+    sortCatalogByBrowseRank,
+    type CatalogBrowseRankContext
+} from './useNetflixBrowseRank';
 import type { CatalogTmdbMeta } from './useTmdbArtwork';
 
 function normalizeCatalogTitle(value: string): string {
@@ -61,6 +66,39 @@ export function bestTitleMatchScore(queries: string[], candidateTitle: string): 
         best = Math.max(best, titleMatchScore(query, candidateTitle));
     }
     return best;
+}
+
+export function catalogSearchMatchScore(
+    query: string,
+    item: Pick<MoovieCatalogItem, 'title'>
+): number {
+    const q = query.trim();
+    if (!q) return 0;
+
+    const displayTitle = catalogSearchTitle(item.title || '');
+    const displayScore = titleMatchScore(q, displayTitle);
+    if (displayScore) return displayScore;
+
+    return titleMatchScore(q, item.title || '');
+}
+
+/** Search grids — exact title matches first, then editorial browse rank. */
+export function sortCatalogBySearchRelevance(
+    pool: MoovieCatalogItem[],
+    query: string,
+    ctx: CatalogBrowseRankContext = {}
+): MoovieCatalogItem[] {
+    const q = query.trim();
+    if (!q || pool.length < 2) {
+        return sortCatalogByBrowseRank(pool, ctx);
+    }
+
+    return [...pool].sort((a, b) => {
+        const matchDiff =
+            catalogSearchMatchScore(q, b) - catalogSearchMatchScore(q, a);
+        if (matchDiff !== 0) return matchDiff;
+        return compareCatalogBrowseRank(a, b, ctx);
+    });
 }
 
 export function scoreCatalogTitleCandidates(

@@ -187,9 +187,9 @@ import { useSeo } from '../composables/useSeo';
 import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
 import {
     buildCatalogLanguageMap,
-    dedupeCatalogItemsByVariantFamily
+    dedupeCatalogItemsByVariantFamily,
+    sortCatalogBySearchRelevance
 } from '../composables/useNetflixCatalogLookup';
-import { sortCatalogByBrowseRank } from '../composables/useNetflixBrowseRank';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
 import {
     toCuratedItemFast
@@ -293,13 +293,14 @@ export default defineComponent({
         };
 
         /** NetMirror shows raw search2 hits — do not apply browse catalogue/language gates. */
-        const prepareSearchResults = (pool: MoovieCatalogItem[]) => {
+        const prepareSearchResults = (pool: MoovieCatalogItem[], query: string) => {
             const lang = activeLang.value;
             const languageMap = buildCatalogLanguageMap(pool);
-            const deduped = sortCatalogByBrowseRank(
+            const deduped = sortCatalogBySearchRelevance(
                 dedupeCatalogItemsByVariantFamily(pool, {
                     preferredLang: lang
-                })
+                }),
+                query
             );
             return { deduped, languageMap };
         };
@@ -357,7 +358,7 @@ export default defineComponent({
                 const totalPages = Math.max(1, first.pager?.total_pages ?? 1);
                 appendToSearchPool(first.results || []);
 
-                let prepared = prepareSearchResults(searchVariantPool.value);
+                let prepared = prepareSearchResults(searchVariantPool.value, q);
                 applySearchResults(prepared.deduped, prepared.languageMap, generation);
                 chooseDefaultTab();
 
@@ -380,7 +381,7 @@ export default defineComponent({
                             appendToSearchPool(data.results || []);
                         }
 
-                        prepared = prepareSearchResults(searchVariantPool.value);
+                        prepared = prepareSearchResults(searchVariantPool.value, q);
                         applySearchResults(prepared.deduped, prepared.languageMap, generation);
                     }
                 }
@@ -469,7 +470,9 @@ export default defineComponent({
 
         const reloadForLanguagePreference = () => {
             if (!searchVariantPool.value.length) return;
-            const { deduped, languageMap } = prepareSearchResults(searchVariantPool.value);
+            const q = searchTerm.value.trim();
+            if (!q) return;
+            const { deduped, languageMap } = prepareSearchResults(searchVariantPool.value, q);
             const generation = searchGeneration.value + 1;
             searchGeneration.value = generation;
             applySearchResults(deduped, languageMap, generation);

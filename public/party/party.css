@@ -346,6 +346,29 @@
             user-select: none;
         }
 
+        .party-nf-watch__bar-right .party-ep-nav {
+            margin-right: 0.15rem;
+        }
+
+        .party-nf-watch__bar-right .party-ep-nav__btn {
+            width: 28px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.14);
+            color: var(--bone-100);
+        }
+
+        .party-nf-watch__bar-right .party-ep-nav__btn svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .party-nf-watch__bar-right .party-ep-nav__label {
+            font-size: 0.58rem;
+            min-width: 2rem;
+            color: rgba(255, 255, 255, 0.72);
+        }
+
         /* Container Layout */
         main {
             max-width: 1440px;

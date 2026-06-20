@@ -18,6 +18,34 @@
             }
         };
 
+        const PARTY_HOST_KEY = 'watchable_party_hosts';
+
+        function readPartyHostMap() {
+            try {
+                return JSON.parse(safeLocalStorage.getItem(PARTY_HOST_KEY) || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function markAsPartyHost(roomId) {
+            if (!roomId) return;
+            const map = readPartyHostMap();
+            map[roomId] = { user: currentUserName, at: Date.now() };
+            safeLocalStorage.setItem(PARTY_HOST_KEY, JSON.stringify(map));
+        }
+
+        function checkIsPartyHost(room) {
+            if (!room?.id) return false;
+            const entry = readPartyHostMap()[room.id];
+            return Boolean(entry && entry.user === currentUserName);
+        }
+
+        function applyRoomHostRole(room, created = false) {
+            isHost = created || checkIsPartyHost(room);
+            if (isHost && room?.id) markAsPartyHost(room.id);
+        }
+
         // Adjust links for file:// protocol vs http:// protocol dynamically
         if (window.location.protocol !== 'file:') {
             document.querySelectorAll('a[href="../index.html"]').forEach(link => {
@@ -572,10 +600,15 @@
             return isNetflix && (isTv || isAnime || netflixSupportsEpisodes);
         }
 
+        function partySupportsEpisodeControl() {
+            if (isNetflix) return partyHasEpisodeRail();
+            return isAnime || isTv;
+        }
+
         function updatePartyNfAutoNextButton() {
             const btn = document.getElementById('party-nf-autonext');
             if (!btn) return;
-            const show = partyHasEpisodeRail();
+            const show = isHost && partyHasEpisodeRail();
             btn.hidden = !show;
             if (!show) return;
             btn.setAttribute('aria-pressed', partyAutoNext ? 'true' : 'false');
@@ -585,7 +618,7 @@
         function updatePartyNfEpisodesButton() {
             const btn = document.getElementById('party-nf-episodes-btn');
             if (!btn) return;
-            btn.hidden = !partyHasEpisodeRail();
+            btn.hidden = !(isHost && partyHasEpisodeRail());
         }
 
         async function fetchPartyTmdb(path) {
@@ -919,6 +952,7 @@
         }
 
         function openPartyEpisodesPanel() {
+            if (!isHost) return;
             const panel = document.getElementById('party-nf-episodes');
             const btn = document.getElementById('party-nf-episodes-btn');
             const shell = document.getElementById('party-nf-watch');
@@ -986,10 +1020,7 @@
         }
 
         function selectPartyEpisode(epNum, seasonNum) {
-            if (!isHost) {
-                alert('Only the party host can change episodes!');
-                return;
-            }
+            if (!isHost) return;
             closePartyEpisodesPanel();
             changePartyEpisode(epNum, seasonNum);
         }
@@ -1463,8 +1494,9 @@
                 currentUserName = next.trim();
                 safeLocalStorage.setItem('movora_username', currentUserName);
                 updateHeaderBadge();
+                if (isHost && activeRoom?.id) markAsPartyHost(activeRoom.id);
                 if (channel) {
-                    channel.track({ user: currentUserName, joinedAt: new Date().toISOString() });
+                    channel.track({ user: currentUserName, joinedAt: new Date().toISOString(), isHost: isHost });
                 }
             }
         }
@@ -1787,22 +1819,33 @@
         }
 
         function updatePartyEpNavButtons() {
-            const nav = document.getElementById('party-ep-nav');
-            const prevBtn = document.getElementById('party-prev-btn');
-            const nextBtn = document.getElementById('party-next-btn');
-            const label = document.getElementById('party-ep-nav-label');
-            const showNav = isHost && (isAnime || isTv) && !isNetflix;
+            const showNav = isHost && partySupportsEpisodeControl();
+            const epLabel = isTv && season > 1
+                ? `S${season}·${episode}`
+                : `Ep ${episode}`;
+            const hasNext = Boolean(getNextPartyEpisodeTarget());
 
-            if (nav) nav.hidden = !showNav;
-            if (!showNav) return;
+            document.querySelectorAll('.party-ep-nav').forEach((nav) => {
+                nav.hidden = !showNav;
+            });
+            document.querySelectorAll('.party-ep-nav__btn--prev').forEach((btn) => {
+                btn.disabled = episode <= 1;
+            });
+            document.querySelectorAll('.party-ep-nav__btn--next').forEach((btn) => {
+                btn.disabled = !hasNext;
+            });
+            document.querySelectorAll('.party-ep-nav__label').forEach((label) => {
+                label.textContent = epLabel;
+            });
+        }
 
-            if (prevBtn) prevBtn.disabled = episode <= 1;
-            if (nextBtn) nextBtn.disabled = !getNextPartyEpisodeTarget();
-            if (label) {
-                label.textContent = isTv && season > 1
-                    ? `S${season}·${episode}`
-                    : `Ep ${episode}`;
-            }
+        function bindPartyEpNavButtons() {
+            document.querySelectorAll('.party-ep-nav__btn--prev').forEach((btn) => {
+                bindPartyNfButton(btn, () => handlePrevEpisode());
+            });
+            document.querySelectorAll('.party-ep-nav__btn--next').forEach((btn) => {
+                bindPartyNfButton(btn, () => handleNextEpisode());
+            });
         }
 
         function changePartyEpisode(nextEp, nextSeason = null) {
@@ -1873,6 +1916,7 @@
                 updatePartyNfInviteButton();
                 updatePartyNfAutoNextButton();
                 updatePartyNfEpisodesButton();
+                updatePartyEpNavButtons();
                 return;
             }
 
@@ -2075,7 +2119,7 @@
 
                 if (error) throw error;
                 activeRoom = room;
-                isHost = false;
+                applyRoomHostRole(room);
                 showRoomView(room);
             } catch (err) {
                 alert('Party room not found or has been closed.');
@@ -2109,7 +2153,7 @@
                 if (error) throw error;
 
                 activeRoom = room;
-                isHost = true;
+                applyRoomHostRole(room, true);
                 showRoomView(room);
 
             } catch (err) {
@@ -2409,6 +2453,7 @@
         // Page Init logic
         window.addEventListener('DOMContentLoaded', async () => {
             updateHeaderBadge();
+            bindPartyEpNavButtons();
 
             // Fast navigation helper when leaving the party page back to home
             document.querySelectorAll('a[href="../index.html"]').forEach(link => {
@@ -2465,7 +2510,7 @@
                         
                         if (!error && room) {
                             activeRoom = room;
-                            isHost = false;
+                            applyRoomHostRole(room);
                             showRoomView(room);
                         } else {
                             alert('Party room not found or has been closed.');
@@ -2487,7 +2532,7 @@
                         if (!error && existingRooms && existingRooms.length > 0) {
                             const room = existingRooms[0];
                             activeRoom = room;
-                            isHost = false;
+                            applyRoomHostRole(room);
                             showRoomView(room);
                         } else {
                             // Check if bot/crawler to prevent automated room insertion
@@ -2515,7 +2560,7 @@
                                 if (createError) throw createError;
 
                                 activeRoom = newRoom;
-                                isHost = true;
+                                applyRoomHostRole(newRoom, true);
                                 showRoomView(newRoom);
                             }
                         }

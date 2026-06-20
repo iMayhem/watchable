@@ -322,6 +322,19 @@
                                             <span id="party-nf-time" class="party-nf-watch__time">0:00 / 0:00</span>
                                             </div>
                                             <div class="party-nf-watch__bar-right">
+                                            <div class="party-ep-nav party-ep-nav--nf" hidden>
+                                                <button type="button" class="party-ep-nav__btn party-ep-nav__btn--prev" aria-label="Previous episode">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                                        <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
+                                                    </svg>
+                                                </button>
+                                                <span class="party-ep-nav__label" aria-live="polite">Ep 1</span>
+                                                <button type="button" class="party-ep-nav__btn party-ep-nav__btn--next" aria-label="Next episode">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                                        <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                             <button type="button" id="party-nf-invite-btn" class="party-nf-watch__episodes-btn party-nf-watch__invite-btn" hidden>
                                                 Invite Friends
                                             </button>
@@ -390,14 +403,14 @@
                         <div class="controls-right" style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; flex-wrap: nowrap;">
                             <button class="cinema-mode-btn" onclick="toggleCinemaMode()">Cinema</button>
                             <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">Invite</button>
-                            <div id="party-ep-nav" class="party-ep-nav" hidden>
-                                <button id="party-prev-btn" type="button" class="party-ep-nav__btn" aria-label="Previous episode" onclick="handlePrevEpisode()">
+                            <div class="party-ep-nav party-ep-nav--embed" hidden>
+                                <button type="button" class="party-ep-nav__btn party-ep-nav__btn--prev" aria-label="Previous episode">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                         <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                 </button>
-                                <span id="party-ep-nav-label" class="party-ep-nav__label" aria-live="polite">Ep 1</span>
-                                <button id="party-next-btn" type="button" class="party-ep-nav__btn" aria-label="Next episode" onclick="handleNextEpisode()">
+                                <span class="party-ep-nav__label" aria-live="polite">Ep 1</span>
+                                <button type="button" class="party-ep-nav__btn party-ep-nav__btn--next" aria-label="Next episode">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                         <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>

@@ -32,7 +32,6 @@ import MobileShell from '../layout/MobileShell.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
 import AnimeFilterPanel, { AnimeFilters } from '@/components/discover/AnimeFilterPanel.vue';
 import { useAniList, AnimeMedia } from '@/composables/useAniList';
-import { resolveAnimeTmdbPosterBatch } from '@/composables/useAnimeTmdbArtwork';
 import { dedupeById } from '../utils/dedupe';
 
 const ANIME_GENRES = [
@@ -57,25 +56,11 @@ const isLoadingMore = ref(false);
 
 const animeGenresList = ANIME_GENRES.map(genre => ({ id: genre, name: genre }));
 const hasMore = computed(() => currentPage.value < totalPages.value);
-const tmdbPosters = ref<Record<number, string>>({});
-
-async function hydrateTmdbPosters(batch: AnimeMedia[]) {
-    if (!batch.length) return;
-    try {
-        const mapped = await resolveAnimeTmdbPosterBatch(batch);
-        if (Object.keys(mapped).length) {
-            tmdbPosters.value = { ...tmdbPosters.value, ...mapped };
-        }
-    } catch (err) {
-        console.warn('Failed to resolve TMDB anime posters:', err);
-    }
-}
-
 const gridItems = computed(() =>
     results.value.map(anime => ({
         id: anime.id,
         title: anime.title.english || anime.title.romaji,
-        posterPath: tmdbPosters.value[anime.id] || anime.coverImage.large,
+        posterPath: anime.coverImage.large,
         rating: anime.averageScore ? anime.averageScore / 10 : 0,
         releaseDate: anime.seasonYear?.toString() || '',
         type: 'anime' as const
@@ -98,7 +83,6 @@ async function load(page = 1, append = false) {
         results.value = dedupeById(append ? [...results.value, ...batch] : batch);
         totalPages.value = response.data.Page.pageInfo.lastPage ?? 1;
         currentPage.value = page;
-        void hydrateTmdbPosters(results.value);
     } finally {
         isLoading.value = false;
         isLoadingMore.value = false;

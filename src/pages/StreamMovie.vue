@@ -228,24 +228,15 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .watch-stage {
-    height: 100vh;
-    height: 100dvh;
-    overflow-y: scroll;
-    scroll-snap-type: y mandatory;
-    scroll-behavior: smooth;
+    min-height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
     background: var(--ink-900);
     color: var(--bone-50);
 
     // Hide scroll car on all watch/stream pages
     & ~ :global(.scroll-car-container) {
         display: none !important;
-    }
-
-    @media (max-width: 1023px) {
-        height: auto;
-        min-height: 100dvh;
-        scroll-snap-type: none;
-        overflow-x: hidden;
     }
 
     // Hide scrollbar visually but keep it functional
@@ -404,11 +395,7 @@ export default defineComponent({
             min-height: 0;
         }
 
-        // Snap slide 1 (desktop): full viewport with sticky chrome overlay
         @media (min-width: 1024px) {
-            scroll-snap-align: start;
-            scroll-snap-stop: always;
-            height: 100dvh;
             padding: 72px var(--s-5) var(--s-2) var(--s-5);
             grid-template-columns: 1fr;
             align-items: stretch;
@@ -570,19 +557,11 @@ export default defineComponent({
         box-sizing: border-box;
 
         @media (max-width: 1023px) {
-            height: auto;
-            min-height: 0;
-            scroll-snap-align: none;
-            align-content: start;
             padding: var(--s-5) var(--s-3) var(--s-4);
         }
 
         @media (min-width: 1024px) {
-            scroll-snap-align: start;
-            scroll-snap-stop: always;
-            height: 100dvh;
-            align-content: center;
-            padding: 72px var(--s-5) var(--s-4) var(--s-5);
+            padding: var(--s-6) var(--s-5) var(--s-8);
         }
 
         @media (min-width: 768px) {
@@ -600,21 +579,12 @@ export default defineComponent({
         padding: var(--s-6) var(--s-4);
 
         @media (max-width: 1023px) {
-            height: auto;
-            min-height: 0;
-            scroll-snap-align: none;
-            align-content: start;
             padding: var(--s-5) var(--s-3) var(--s-4);
             grid-template-columns: 1fr;
         }
 
-        // Snap slide 2 (desktop): full viewport, content centered
         @media (min-width: 1024px) {
-            scroll-snap-align: start;
-            scroll-snap-stop: always;
-            height: 100dvh;
-            align-content: center;
-            padding: 72px var(--s-5) var(--s-4) var(--s-5);
+            padding: var(--s-6) var(--s-5) var(--s-8);
         }
 
         @media (min-width: 768px) and (max-width: 1023px) {

@@ -128,6 +128,14 @@ export const NETFLIX_CDRAMA_EXPLORE_CATEGORY: NetmirrorExploreCategory = {
     filter: { country: 'china', dubbing: 'Hindi' }
 };
 
+/** Header Bollywood tab — same upstream India/Hindi feed as the Hindi category tile. */
+export const BOLLYWOOD_EXPLORE_CATEGORY: NetmirrorExploreCategory = {
+    id: 'bollywood',
+    title: 'Bollywood',
+    mediaType: 'all',
+    filter: { country: 'India', dubbing: 'Hindi', type: '1' }
+};
+
 const HEADER_EXPLORE_CATEGORIES: NetmirrorExploreCategory[] = [
     NETFLIX_KDRAMA_EXPLORE_CATEGORY,
     NETFLIX_CDRAMA_EXPLORE_CATEGORY
@@ -359,6 +367,18 @@ export type ExploreRouteQuery = Record<
 function categoryFromExploreQuery(
     query: ExploreRouteQuery
 ): NetmirrorExploreCategory | undefined {
+    const catalogueId =
+        typeof query.catalogue === 'string' ? query.catalogue.trim() : '';
+    if (catalogueId) {
+        if (catalogueId === 'bollywood') {
+            return BOLLYWOOD_EXPLORE_CATEGORY;
+        }
+        const byId = NETMIRROR_EXPLORE_CATEGORIES.find(
+            (cat) => cat.id === catalogueId
+        );
+        if (byId) return byId;
+    }
+
     const title = typeof query.title === 'string' ? query.title.trim() : '';
     const category =
         typeof query.category === 'string' ? query.category.trim() : '';
@@ -379,6 +399,83 @@ export function exploreMediaTypeFromPath(path: string): NetmirrorExploreMediaTyp
     if (match) return match[1] as NetmirrorExploreMediaType;
     return 'all';
 }
+
+export function getExploreIndustryCategory(
+    industryId: string
+): NetmirrorExploreCategory | undefined {
+    if (industryId === 'bollywood') {
+        return BOLLYWOOD_EXPLORE_CATEGORY;
+    }
+    return NETMIRROR_EXPLORE_CATEGORIES.find((cat) => cat.id === industryId);
+}
+
+/** Header Hollywood / Bollywood chips — paginate upstream country feeds, not client heuristics. */
+export function mergeExploreIndustryFilter(
+    base: NetmirrorExploreFilter,
+    industryId: string,
+    mediaType: NetmirrorExploreMediaType
+): NetmirrorExploreFilter {
+    if (mediaType !== 'movie' && mediaType !== 'tv') return base;
+
+    const cat = getExploreIndustryCategory(industryId);
+    if (!cat || (industryId !== 'hollywood' && industryId !== 'bollywood')) {
+        return base;
+    }
+
+    const merged: NetmirrorExploreFilter = { ...base };
+    const adaptiveType = mediaType === 'tv' ? '2' : '1';
+
+    if (cat.filter.country) merged.country = cat.filter.country;
+    if (industryId === 'bollywood' && cat.filter.dubbing) {
+        merged.dubbing = cat.filter.dubbing;
+    }
+    if (industryId === 'hollywood' && cat.filter.title_not?.length) {
+        merged.title_not = cat.filter.title_not;
+    }
+    merged.type = adaptiveType;
+    delete merged.countryNot;
+    delete merged.countryNot2;
+
+    return merged;
+}
+
+export function exploreFilterUsesIndustryFeed(
+    filter: NetmirrorExploreFilter,
+    industryId: string
+): boolean {
+    const cat = getExploreIndustryCategory(industryId);
+    if (!cat?.filter.country || filter.country !== cat.filter.country) {
+        return false;
+    }
+    if (industryId === 'bollywood' && cat.filter.dubbing) {
+        return filter.dubbing === cat.filter.dubbing;
+    }
+    if (industryId === 'hollywood' && cat.filter.title_not?.length) {
+        return Boolean(filter.title_not?.length);
+    }
+    return true;
+}
+
+const EXPLORE_DEFAULT_PAGE_BATCH = 2;
+const EXPLORE_INDUSTRY_INITIAL_BATCH = 5;
+const EXPLORE_INDUSTRY_MORE_BATCH = 4;
+
+/** Industry feeds (Hollywood/Bollywood) are smaller — fetch deeper per round trip. */
+export function getExplorePageBatch(
+    filter: NetmirrorExploreFilter,
+    industryId: string,
+    phase: 'initial' | 'more'
+): number {
+    if (!exploreFilterUsesIndustryFeed(filter, industryId)) {
+        return EXPLORE_DEFAULT_PAGE_BATCH;
+    }
+    return phase === 'initial'
+        ? EXPLORE_INDUSTRY_INITIAL_BATCH
+        : EXPLORE_INDUSTRY_MORE_BATCH;
+}
+
+/** Cap Supabase artwork/audio upgrades per pass — never block first paint. */
+export const EXPLORE_ARTWORK_UPGRADE_LIMIT = 24;
 
 export function resolveExploreFilterFromRoute(
     mediaType: NetmirrorExploreMediaType,

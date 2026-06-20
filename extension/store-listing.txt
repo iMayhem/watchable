@@ -8,15 +8,13 @@ SUPPORTED BROWSERS
 • Brave, Vivaldi, and other Chromium MV3 browsers (load unpacked)
 • Mozilla Firefox 109+ (about:debugging → Load Temporary Add-on, or Firefox Add-ons)
 
-STORE PACKAGES (upload these ZIPs — manifest.json is at ZIP root)
-• Chrome:  watchable/extension/dist/moovie-chrome.zip
-• Edge:    watchable/extension/dist/moovie-edge.zip
-• Opera:   watchable/extension/dist/moovie-opera.zip
-• Firefox: watchable/extension/dist/moovie-firefox.zip
-• Brave / Vivaldi sideload: moovie-brave.zip or moovie-vivaldi.zip
+STORE PACKAGES (upload this single ZIP — manifest.json is at ZIP root)
+• All browsers (Chrome, Edge, Firefox, Opera, Brave, Vivaldi): extension.zip
 
-Rebuild all packages:
+Rebuild (produces ../extension.zip):
   cd watchable/extension && ./package.sh
+
+Only one ZIP file is required in the Moovie-Extension releases.
 
 INSTALL (UNPACKED / DEVELOPER)
 1. Open browser extension page (chrome://extensions, edge://extensions, about:debugging#/runtime/this-firefox, or opera://extensions)

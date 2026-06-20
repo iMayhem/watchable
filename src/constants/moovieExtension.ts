@@ -24,8 +24,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
         id: 'chrome',
         name: 'Chrome',
-        fileName: 'moovie-chrome.zip',
-        url: `${RELEASE_BASE}/moovie-chrome.zip`,
+        fileName: 'extension.zip',
+        url: `${RELEASE_BASE}/extension.zip`,
         icon: '/icons/browsers/chrome.svg',
         extensionsPage: 'chrome://extensions',
         family: 'chromium'
@@ -33,8 +33,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
         id: 'edge',
         name: 'Edge',
-        fileName: 'moovie-edge.zip',
-        url: `${RELEASE_BASE}/moovie-edge.zip`,
+        fileName: 'extension.zip',
+        url: `${RELEASE_BASE}/extension.zip`,
         icon: '/icons/browsers/edge.svg',
         extensionsPage: 'edge://extensions',
         family: 'chromium'
@@ -42,8 +42,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
         id: 'firefox',
         name: 'Firefox',
-        fileName: 'moovie-firefox.zip',
-        url: `${RELEASE_BASE}/moovie-firefox.zip`,
+        fileName: 'extension.zip',
+        url: `${RELEASE_BASE}/extension.zip`,
         icon: '/icons/browsers/firefox.svg',
         extensionsPage: 'about:debugging#/runtime/this-firefox',
         family: 'firefox'
@@ -51,8 +51,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
         id: 'opera',
         name: 'Opera',
-        fileName: 'moovie-opera.zip',
-        url: `${RELEASE_BASE}/moovie-opera.zip`,
+        fileName: 'extension.zip',
+        url: `${RELEASE_BASE}/extension.zip`,
         icon: '/icons/browsers/opera.svg',
         extensionsPage: 'opera://extensions',
         family: 'chromium'
@@ -60,8 +60,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
         id: 'brave',
         name: 'Brave',
-        fileName: 'moovie-brave.zip',
-        url: `${RELEASE_BASE}/moovie-brave.zip`,
+        fileName: 'extension.zip',
+        url: `${RELEASE_BASE}/extension.zip`,
         icon: '/icons/browsers/brave.svg',
         extensionsPage: 'brave://extensions',
         family: 'chromium'
@@ -69,8 +69,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
         id: 'vivaldi',
         name: 'Vivaldi',
-        fileName: 'moovie-vivaldi.zip',
-        url: `${RELEASE_BASE}/moovie-vivaldi.zip`,
+        fileName: 'extension.zip',
+        url: `${RELEASE_BASE}/extension.zip`,
         icon: '/icons/browsers/vivaldi.svg',
         extensionsPage: 'vivaldi://extensions',
         family: 'chromium'

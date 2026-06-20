@@ -59,39 +59,17 @@
                                 <h1 class="discover__results-title nf-browse-title">
                                     {{ pageHeaderTitle }}
                                 </h1>
-                                
-                                <!-- Industry Selector (Hollywood / Bollywood) -->
-                                <div class="nf-dropdown-container">
-                                    <button 
-                                        type="button" 
-                                        class="nf-dropdown-trigger" 
-                                        :class="{ 'is-open': isIndustryOpen }"
-                                        @click.stop="isIndustryOpen = !isIndustryOpen; isGenreOpen = false"
+                                <div v-if="browseMediaType === 'movie' || browseMediaType === 'tv'" class="nf-industry-filters">
+                                    <button
+                                        v-for="opt in industryOptions"
+                                        :key="opt.id"
+                                        type="button"
+                                        class="nf-industry-chip"
+                                        :class="{ 'is-active': activeCatalogueId === opt.id }"
+                                        @click="selectIndustryFilter(opt.id)"
                                     >
-                                        <span>{{ activeIndustryCatalogue.label }}</span>
-                                        <svg class="nf-dropdown-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-                                            <path d="m6 9 6 6 6-6"/>
-                                        </svg>
+                                        {{ opt.label }}
                                     </button>
-                                    <div v-if="isIndustryOpen" class="nf-dropdown-overlay" @click.stop="isIndustryOpen = false"></div>
-                                    <transition name="fade-slide">
-                                        <div v-if="isIndustryOpen" class="nf-dropdown-menu">
-                                            <button 
-                                                v-for="catOpt in industries" 
-                                                :key="catOpt.id"
-                                                type="button"
-                                                class="nf-dropdown-item"
-                                                :class="{
-                                                    'is-active':
-                                                        normalizeIndustryCatalogueId(catalogueId) ===
-                                                        catOpt.id
-                                                }"
-                                                @click="selectIndustry(catOpt.id)"
-                                            >
-                                                {{ catOpt.label }}
-                                            </button>
-                                        </div>
-                                    </transition>
                                 </div>
 
                                 <!-- Genre/Category Selector -->
@@ -100,7 +78,7 @@
                                         type="button" 
                                         class="nf-dropdown-trigger nf-dropdown-trigger--genre" 
                                         :class="{ 'is-open': isGenreOpen }"
-                                        @click.stop="isGenreOpen = !isGenreOpen; isIndustryOpen = false"
+                                        @click.stop="isGenreOpen = !isGenreOpen"
                                     >
                                         <span>{{ currentGenreLabel }}</span>
                                         <svg class="nf-dropdown-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -255,14 +233,12 @@ import {
 import { loadNetflixAvailabilityIndex } from '../composables/useNetflixProvider';
 import {
     getCatalogueOption,
-    getIndustryCatalogueOption,
-    normalizeIndustryCatalogueId,
     getNetflixCatalogue,
-    NETFLIX_CATALOGUES,
     isNetflixCatalogueId,
     netflixMovieBrowseRow,
     netflixTvBrowseRow,
     normalizeCatalogueId,
+    NETFLIX_CATALOGUES,
     type NetflixCatalogueOption
 } from '../composables/useNetflixCatalogue';
 import {
@@ -350,7 +326,6 @@ export default defineComponent({
         const pinnedGenreHeroId = ref('');
         const animeGenreRailsLocked = ref(false);
 
-        const isIndustryOpen = ref(false);
         const isGenreOpen = ref(false);
 
         const browseMediaType = computed<'movie' | 'tv'>(() => {
@@ -365,7 +340,9 @@ export default defineComponent({
             return browseMediaType.value === 'tv' ? 'TV Shows' : 'Movies';
         });
 
-        const industries = NETFLIX_CATALOGUES;
+        const industryOptions = NETFLIX_CATALOGUES;
+
+        const activeCatalogueId = computed(() => normalizeCatalogueId(catalogueId.value));
 
         const genresList = computed(() => {
             const list = [];
@@ -395,33 +372,35 @@ export default defineComponent({
             return found ? found.label : 'Genres';
         });
 
-        const selectIndustry = (newCatalogueId: string) => {
-            isIndustryOpen.value = false;
-            setNetflixCatalogue(newCatalogueId);
-
-            let targetRow = rowId.value;
-            if (browseMediaType.value === 'tv') {
-                if (rowId.value === 'korean-series' || rowId.value === 'exciting-tv') {
-                    targetRow = netflixTvBrowseRow(newCatalogueId);
-                }
-            } else if (rowId.value === 'korean-movies' || rowId.value === 'blockbuster-movies') {
-                targetRow = netflixMovieBrowseRow(newCatalogueId);
-            }
-
-            const query = typeFilter.value ? { type: typeFilter.value } : undefined;
-            router.push({
-                name: 'NetflixBrowse',
-                params: { catalogue: newCatalogueId, row: targetRow },
-                query
-            });
-        };
-
         const selectGenre = (newRowId: string) => {
             isGenreOpen.value = false;
             router.push({
                 name: 'NetflixBrowse',
                 params: { catalogue: catalogueId.value, row: newRowId },
                 query: { type: browseMediaType.value }
+            });
+        };
+
+        const selectIndustryFilter = (newCatalogueId: string) => {
+            const nextCat = normalizeCatalogueId(newCatalogueId);
+            if (nextCat === activeCatalogueId.value) return;
+            setNetflixCatalogue(nextCat);
+
+            let targetRow = rowId.value;
+            const isTv = browseMediaType.value === 'tv';
+            if (isTv) {
+                if (['korean-series', 'exciting-tv'].includes(rowId.value)) {
+                    targetRow = netflixTvBrowseRow(nextCat);
+                }
+            } else if (['korean-movies', 'blockbuster-movies'].includes(rowId.value)) {
+                targetRow = netflixMovieBrowseRow(nextCat);
+            }
+
+            const query = typeFilter.value ? { type: typeFilter.value } : undefined;
+            router.push({
+                name: 'NetflixBrowse',
+                params: { catalogue: nextCat, row: targetRow },
+                query
             });
         };
 
@@ -451,10 +430,6 @@ export default defineComponent({
 
         const activeCatalogue = computed<NetflixCatalogueOption>(() =>
             getCatalogueOption(catalogueId.value)
-        );
-
-        const activeIndustryCatalogue = computed<NetflixCatalogueOption>(() =>
-            getIndustryCatalogueOption(catalogueId.value)
         );
 
         const validRoute = computed(
@@ -1216,8 +1191,6 @@ export default defineComponent({
             rowMeta,
             activeLang,
             activeCatalogue,
-            activeIndustryCatalogue,
-            normalizeIndustryCatalogueId,
             hasMore,
             scrollSentinel,
             isGenreBrowse,
@@ -1227,15 +1200,15 @@ export default defineComponent({
             genreHeroBackdrop,
             genreHeroStyle,
             genreRails,
-            isIndustryOpen,
             isGenreOpen,
             browseMediaType,
             pageHeaderTitle,
-            industries,
+            industryOptions,
+            activeCatalogueId,
             genresList,
             currentGenreLabel,
-            selectIndustry,
             selectGenre,
+            selectIndustryFilter,
             catalogueId,
             rowId
         };
@@ -1513,6 +1486,39 @@ export default defineComponent({
     align-items: center;
     flex-wrap: wrap;
     gap: var(--s-4);
+}
+
+.nf-industry-filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.nf-industry-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--bone-300);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+
+    &:hover {
+        color: var(--bone-50);
+        border-color: var(--bone-400);
+    }
+
+    &.is-active {
+        border-color: var(--ember);
+        color: var(--bone-50);
+        background: rgba(255, 90, 31, 0.1);
+    }
 }
 
 .nf-browse-title {

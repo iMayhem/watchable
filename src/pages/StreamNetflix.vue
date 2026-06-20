@@ -54,7 +54,9 @@
             @toggle-auto-skip="onToggleAutoSkip"
             :party-href="isPartyEmbed ? '' : partyHref"
             :extension-gate-visible="extensionGateVisible"
+            :extension-gate-compact="extensionGateCompact"
             @extension-recheck="onExtensionRecheck"
+            @extension-stream-slow="onExtensionStreamSlow"
         />
     </div>
 </template>
@@ -135,7 +137,11 @@ export default defineComponent({
         const formatEpisodeLabel = (season: number, episode: number) =>
             `S${season} · E${String(episode).padStart(2, '0')}`;
         const { extensionActive, checkExtension, pingExtension } = useStreamExtension();
+        const slowStreamChosen = ref(false);
         const extensionGateVisible = computed(() => !extensionActive.value);
+        const extensionGateCompact = computed(
+            () => !extensionActive.value && slowStreamChosen.value
+        );
 
         const player = useMooviePlayer({ skin: 'netflix' });
         const {
@@ -169,7 +175,8 @@ export default defineComponent({
         let playbackQueued = false;
         const playbackEntryId = ref(String(route.params.id || ''));
 
-        const canStartPlayback = () => extensionActive.value;
+        const canStartPlayback = () =>
+            extensionActive.value || slowStreamChosen.value;
 
         const waitForExtensionDetection = async (timeoutMs = 2000) => {
             pingExtension();
@@ -1081,7 +1088,15 @@ export default defineComponent({
                 );
                 return;
             }
+            slowStreamChosen.value = false;
             await tryStartPlayback();
+        };
+
+        const onExtensionStreamSlow = async () => {
+            nfDebug('stream:extension-gate:slow-server');
+            slowStreamChosen.value = true;
+            playbackQueued = false;
+            await startPlayback();
         };
 
         onMounted(async () => {
@@ -1173,6 +1188,7 @@ export default defineComponent({
                 const episodeChanged = episode !== prev?.[2];
                 if (!idChanged && !seasonChanged && !episodeChanged) return;
 
+                slowStreamChosen.value = false;
                 playbackEntryId.value = String(id);
                 nfDebug('stream:route-change', { id, season, episode, idChanged, seasonChanged, episodeChanged });
 
@@ -1187,6 +1203,16 @@ export default defineComponent({
 
                 const nextSeason = parseInt(String(season || '1'), 10);
                 const nextEpisode = parseInt(String(episode || '1'), 10);
+
+                if (!canStartPlayback()) {
+                    playbackQueued = true;
+                    resetPlaybackSession();
+                    if (seasonChanged) {
+                        await setPickerSeason(nextSeason);
+                    }
+                    return;
+                }
+
                 const type = playbackTypeForId(String(id), resolved.value?.meta);
 
                 try {
@@ -1269,7 +1295,9 @@ export default defineComponent({
             onToggleAutoSkip: aniskip.toggleAutoSkip,
             partyHref,
             extensionGateVisible,
-            onExtensionRecheck
+            extensionGateCompact,
+            onExtensionRecheck,
+            onExtensionStreamSlow
         };
     }
 });

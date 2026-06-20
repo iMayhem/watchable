@@ -41,6 +41,7 @@ const tvShowArtCache = new Map<
     number,
     { backdrop_path: string | null; poster_path: string | null }
 >();
+const tmdbTvValidityCache = new Map<number, boolean>();
 
 export function episodeRowsNeedStillsUpgrade(rows: NetflixCatalogEpisode[]): boolean {
     return rows.length > 0 && !rows.some((row) => Boolean(row.still_path));
@@ -77,6 +78,26 @@ function seasonRowEpisodeCount(row: Record<string, unknown>): number | null {
     const raw = row.episode_count ?? row.episodes ?? row.count ?? row.ep;
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function seasonsFromCatalogData(season: unknown): NetflixCatalogSeason[] {
+    if (!Array.isArray(season)) return [];
+
+    const rows: NetflixCatalogSeason[] = [];
+    for (const entry of season) {
+        if (!entry || typeof entry !== 'object') continue;
+        const row = entry as Record<string, unknown>;
+        const seasonNum = seasonRowNumber(row);
+        if (seasonNum == null || seasonNum < 1) continue;
+        const episodeCount = seasonRowEpisodeCount(row) ?? undefined;
+        rows.push({
+            season_number: seasonNum,
+            name: `Season ${seasonNum}`,
+            episode_count: episodeCount
+        });
+    }
+
+    return rows.sort((a, b) => a.season_number - b.season_number);
 }
 
 export function inferEpisodeCountFromCatalog(
@@ -146,6 +167,38 @@ function prefetchEpisodeStills(rows: NetflixCatalogEpisode[]) {
     );
 }
 
+async function tmdbTvShowHasSeasons(tmdbId: number): Promise<boolean> {
+    const cached = tmdbTvValidityCache.get(tmdbId);
+    if (cached !== undefined) return cached;
+
+    try {
+        const { data } = await useAxios().get(`tv/${tmdbId}`);
+        const ok = Boolean(
+            data?.id &&
+                Array.isArray(data.seasons) &&
+                data.seasons.some(
+                    (season: { season_number?: number }) =>
+                        Number(season?.season_number) > 0
+                )
+        );
+        tmdbTvValidityCache.set(tmdbId, ok);
+        return ok;
+    } catch {
+        tmdbTvValidityCache.set(tmdbId, false);
+        return false;
+    }
+}
+
+async function acceptTmdbTvId(
+    tmdbId: number | undefined,
+    forceTv: boolean,
+    enrichedMovie: boolean
+): Promise<number | null> {
+    if (!tmdbId || !Number.isFinite(tmdbId)) return null;
+    if (forceTv && enrichedMovie) return null;
+    return (await tmdbTvShowHasSeasons(tmdbId)) ? tmdbId : null;
+}
+
 async function resolveTmdbTvId(
     item: Pick<
         MoovieCatalogItem,
@@ -169,20 +222,27 @@ async function resolveTmdbTvId(
         return null;
     }
 
-    if (hintedTmdbId && Number.isFinite(hintedTmdbId)) {
-        return hintedTmdbId;
-    }
-
     const enrichment = await fetchEnrichmentByCatalogIds([item.id]);
     const row = enrichment.get(String(item.id));
-    const trustedId =
+    const enrichedId =
         row?.tmdb_id && Number.isFinite(row.tmdb_id) ? row.tmdb_id : undefined;
+    const enrichedIsMovie = row?.media_type === 'movie';
 
-    if (trustedId && (forceTv || row?.media_type !== 'movie')) {
-        return trustedId;
-    }
+    const hinted = await acceptTmdbTvId(
+        hintedTmdbId,
+        forceTv,
+        enrichedIsMovie && hintedTmdbId === enrichedId
+    );
+    if (hinted) return hinted;
 
-    if (!forceTv && row?.media_type === 'movie') {
+    const enriched = await acceptTmdbTvId(
+        enrichedId,
+        forceTv,
+        enrichedIsMovie
+    );
+    if (enriched) return enriched;
+
+    if (!forceTv && enrichedIsMovie) {
         return null;
     }
 
@@ -195,15 +255,12 @@ async function resolveTmdbTvId(
         year: parseCatalogYear(item.release_date),
         type: 'tv',
         cacheKey: `nf-episodes:${item.id}`,
-        tmdbId: trustedId
+        tmdbId: enrichedIsMovie ? undefined : enrichedId
     });
 
     if (art.tmdbId && Number.isFinite(art.tmdbId)) {
-        return art.tmdbId;
-    }
-
-    if (trustedId) {
-        return trustedId;
+        const resolved = await acceptTmdbTvId(art.tmdbId, forceTv, false);
+        if (resolved) return resolved;
     }
 
     return null;
@@ -288,16 +345,30 @@ export function useNetflixCatalogEpisodes() {
     let inflightCatalogId: string | null = null;
     let inflightLoad: Promise<void> | null = null;
 
-    function applyEpisodeCountHint(count: number, defaultSeason: number) {
+    function applyEpisodeCountHint(
+        count: number,
+        defaultSeason: number,
+        catalogSeason?: unknown
+    ) {
         const safe = Math.max(2, Math.min(count, PLACEHOLDER_EPISODE_CAP));
-        seasons.value = [
-            {
-                season_number: defaultSeason,
-                name: `Season ${defaultSeason}`,
-                episode_count: safe
-            }
-        ];
-        episodes.value = placeholderEpisodes(safe);
+        const catalogSeasons = seasonsFromCatalogData(catalogSeason);
+        if (catalogSeasons.length) {
+            seasons.value = catalogSeasons;
+        } else {
+            seasons.value = [
+                {
+                    season_number: defaultSeason,
+                    name: `Season ${defaultSeason}`,
+                    episode_count: safe
+                }
+            ];
+        }
+        const seasonCount = inferEpisodeCountFromCatalog(
+            catalogSeason,
+            defaultSeason,
+            safe
+        );
+        episodes.value = placeholderEpisodes(seasonCount);
         updateSupportsEpisodes(supportsEpisodes, episodes.value);
     }
 
@@ -394,7 +465,7 @@ export function useNetflixCatalogEpisodes() {
             );
 
             const seedPlaceholders = () => {
-                applyEpisodeCountHint(fallbackCount, defaultSeason);
+                applyEpisodeCountHint(fallbackCount, defaultSeason, item.season);
             };
 
             try {
@@ -433,6 +504,10 @@ export function useNetflixCatalogEpisodes() {
 
                 const seasonList = await fetchTmdbTvSeasons(tmdbId);
                 if (!seasonList.length) {
+                    nfDebug('nf-episodes:tmdb:no-seasons', {
+                        id: item.id,
+                        tmdbId
+                    });
                     seedPlaceholders();
                     return;
                 }

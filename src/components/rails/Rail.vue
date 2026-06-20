@@ -280,7 +280,7 @@ export default defineComponent({
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 80px;
+            width: 28px;
             z-index: 2;
             pointer-events: none;
             opacity: 0;
@@ -316,7 +316,10 @@ export default defineComponent({
         overflow-clip-margin: 32px;
         scroll-behavior: smooth;
         scroll-snap-type: x mandatory;
-        padding-inline: var(--container-gutter);
+        scroll-padding-left: var(--container-gutter);
+        scroll-padding-right: var(--container-gutter);
+        padding-left: var(--container-gutter);
+        padding-right: var(--container-gutter);
         padding-block: var(--s-2);
 
         > :deep(*) {

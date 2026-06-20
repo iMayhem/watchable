@@ -1,5 +1,20 @@
 <template>
-    <div class="nf-ext-gate" role="dialog" aria-labelledby="nf-ext-gate-title" aria-modal="true">
+    <div
+        class="nf-ext-gate"
+        :class="{ 'nf-ext-gate--compact': compact }"
+        role="dialog"
+        aria-labelledby="nf-ext-gate-title"
+        :aria-modal="!compact"
+    >
+        <button
+            v-if="!compact"
+            type="button"
+            class="nf-ext-gate__slow"
+            @click="$emit('stream-slow')"
+        >
+            Let's stream slow server
+        </button>
+
         <div class="nf-ext-gate__card">
             <header class="nf-ext-gate__head">
                 <span class="nf-ext-gate__icon" aria-hidden="true">
@@ -10,10 +25,17 @@
                     </svg>
                 </span>
 
-                <h2 id="nf-ext-gate-title" class="nf-ext-gate__title">Extension needed</h2>
+                <h2 id="nf-ext-gate-title" class="nf-ext-gate__title">
+                    {{ compact ? 'Faster playback available' : 'Extension needed' }}
+                </h2>
                 <p class="nf-ext-gate__lead">
-                    Install the Moovie extension to play Netflix catalogue streams — faster starts,
-                    fewer playback errors. Install it first, then reload this page.
+                    <template v-if="compact">
+                        Install the Moovie extension for faster starts and fewer playback errors.
+                    </template>
+                    <template v-else>
+                        Install the Moovie extension to play Netflix catalogue streams — faster
+                        starts, fewer playback errors. Install it first, then reload this page.
+                    </template>
                 </p>
             </header>
 
@@ -33,7 +55,7 @@
                     </span>
                 </a>
 
-                <ol class="nf-ext-gate__steps">
+                <ol v-if="!compact" class="nf-ext-gate__steps">
                     <li>Unzip the download and load it in <code>{{ browser.extensionsPage }}</code>.</li>
                     <li>
                         Set site access to <strong>On moovie.fun</strong>, then hard-refresh this page.
@@ -51,7 +73,9 @@
                 </div>
             </div>
 
-            <p class="nf-ext-gate__note">Playback in the player requires the Moovie extension.</p>
+            <p v-if="!compact" class="nf-ext-gate__note">
+                Playback in the player requires the Moovie extension.
+            </p>
         </div>
     </div>
 </template>
@@ -69,7 +93,10 @@ import {
 export default defineComponent({
     name: 'PlayerExtensionGate',
     components: { ExtensionBrowserIcon },
-    emits: ['recheck'],
+    props: {
+        compact: { type: Boolean, default: false }
+    },
+    emits: ['recheck', 'stream-slow'],
     setup() {
         const browser = ref(getExtensionBrowser(detectExtensionBrowser()));
         const extensionVersion = MOOVIE_EXTENSION_VERSION;
@@ -104,6 +131,89 @@ export default defineComponent({
     backdrop-filter: blur(6px);
     pointer-events: auto;
     overflow-y: auto;
+
+    &--compact {
+        align-items: flex-start;
+        justify-content: flex-end;
+        padding:
+            max(0.75rem, env(safe-area-inset-top))
+            max(0.75rem, env(safe-area-inset-right))
+            max(0.75rem, env(safe-area-inset-bottom))
+            0.75rem;
+        background: transparent;
+        backdrop-filter: none;
+        pointer-events: none;
+        overflow: visible;
+
+        .nf-ext-gate__card {
+            width: min(100%, 300px);
+            margin: 0;
+            padding: 0.9rem 0.85rem 0.8rem;
+            gap: 0.7rem;
+            pointer-events: auto;
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+        }
+
+        .nf-ext-gate__head {
+            align-items: flex-start;
+            text-align: left;
+        }
+
+        .nf-ext-gate__icon {
+            width: 40px;
+            height: 40px;
+
+            svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        .nf-ext-gate__title {
+            font-size: 0.92rem;
+        }
+
+        .nf-ext-gate__lead {
+            font-size: 0.76rem;
+            max-width: none;
+        }
+
+        .nf-ext-gate__download {
+            padding: 0.65rem 0.75rem;
+        }
+
+        .nf-ext-gate__btn {
+            padding: 0.55rem 0.75rem;
+            font-size: 0.78rem;
+        }
+    }
+
+    &__slow {
+        position: absolute;
+        right: max(1rem, env(safe-area-inset-right));
+        bottom: max(1rem, env(safe-area-inset-bottom));
+        z-index: 2;
+        margin: 0;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.72);
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.3;
+        cursor: pointer;
+        transition:
+            background 0.15s ease,
+            border-color 0.15s ease,
+            transform 0.15s ease;
+
+        &:hover {
+            background: rgba(24, 24, 24, 0.92);
+            border-color: rgba(255, 255, 255, 0.38);
+            transform: translateY(-1px);
+        }
+    }
 
     &__card {
         width: min(100%, 400px);

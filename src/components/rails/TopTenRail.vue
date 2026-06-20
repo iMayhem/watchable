@@ -119,7 +119,7 @@ export default defineComponent({
     align-items: stretch;
     overflow: visible;
     min-height: 0;
-    padding-inline-start: clamp(3rem, 9vw, 9rem);
+    padding-inline-start: clamp(2.5rem, 7.5vw, 7rem);
 
     &__numeral {
         position: absolute;

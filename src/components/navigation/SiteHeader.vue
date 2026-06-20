@@ -32,70 +32,6 @@
                     >
                         {{ item.label }}
                     </a>
-
-                    <div
-                        class="site-header__nav-group"
-                        :class="{ 'is-active': isMovieSectionActive }"
-                    >
-                        <a
-                            href="#"
-                            class="site-header__link site-header__nav-group-main"
-                            :class="{ 'is-active': isMovieSectionActive }"
-                            @click.prevent="navigateToMovies"
-                        >
-                            Movies
-                        </a>
-                        <div ref="industryContainer" class="site-header__browse">
-                            <button
-                                ref="industryTrigger"
-                                type="button"
-                                class="site-header__link site-header__browse-trigger"
-                                :class="{ 'is-active': isIndustryOpen }"
-                                :aria-expanded="isIndustryOpen"
-                                aria-haspopup="listbox"
-                                @click.stop="toggleIndustryDropdown"
-                            >
-                                {{ activeIndustryLabel }}
-                                <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
-                                    <path fill="currentColor" d="M7 10l5 5 5-5z"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div ref="countryContainer" class="site-header__browse site-header__country">
-                    <button
-                        ref="countryTrigger"
-                        type="button"
-                        class="site-header__link site-header__browse-trigger site-header__country-trigger"
-                        :class="{ 'is-active': isCountryOpen || isCountryNavActive }"
-                        :aria-expanded="isCountryOpen"
-                        aria-haspopup="listbox"
-                        @click.stop="toggleCountryDropdown"
-                    >
-                        {{ activeCountryLabel }}
-                        <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
-                            <path fill="currentColor" d="M7 10l5 5 5-5z"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <div ref="categoryContainer" class="site-header__browse site-header__category">
-                    <button
-                        ref="categoryTrigger"
-                        type="button"
-                        class="site-header__link site-header__browse-trigger site-header__category-trigger"
-                        :class="{ 'is-active': isCategoryOpen || isCategoryNavActive }"
-                        :aria-expanded="isCategoryOpen"
-                        aria-haspopup="listbox"
-                        @click.stop="toggleCategoryDropdown"
-                    >
-                        {{ activeCategoryLabel }}
-                        <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
-                            <path fill="currentColor" d="M7 10l5 5 5-5z"/>
-                        </svg>
-                    </button>
                 </div>
 
                 <div class="site-header__nav-scroll site-header__nav-scroll--tail">
@@ -240,123 +176,7 @@
             </div>
         </div>
 
-        <Teleport to="body">
-            <div
-                v-if="isIndustryOpen"
-                ref="industryMenuRef"
-                class="site-header__browse-menu region-dropdown site-header__floating-menu"
-                :style="industryMenuStyle"
-                @click.stop
-            >
-                <div class="region-dropdown__header eyebrow">Industry</div>
-                <div class="region-dropdown__list" role="listbox">
-                    <button
-                        v-for="cat in netflixCatalogues"
-                        :key="cat.id"
-                        type="button"
-                        class="region-dropdown__item"
-                        :class="{ 'is-active': activeIndustryCatalogueId === cat.id }"
-                        role="option"
-                        @click="selectMovieIndustry(cat.id)"
-                    >
-                        <span class="region-dropdown__name">{{ cat.label }}</span>
-                        <svg
-                            v-if="activeIndustryCatalogueId === cat.id"
-                            class="region-dropdown__check"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                        >
-                            <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div
-                v-if="isCountryOpen"
-                ref="countryMenuRef"
-                class="site-header__browse-menu site-header__country-menu region-dropdown site-header__floating-menu"
-                :style="countryMenuStyle"
-                @click.stop
-            >
-                <div class="region-dropdown__header eyebrow">Country</div>
-                <div class="region-dropdown__list" role="listbox">
-                    <button
-                        type="button"
-                        class="region-dropdown__item"
-                        :class="{ 'is-active': !activeExploreCountry }"
-                        role="option"
-                        @click.stop="clearExploreCountry"
-                    >
-                        <span class="region-dropdown__name">All Countries</span>
-                        <svg
-                            v-if="!activeExploreCountry"
-                            class="region-dropdown__check"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                        >
-                            <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                    </button>
-                    <button
-                        v-for="country in exploreCountries"
-                        :key="country.value"
-                        type="button"
-                        class="region-dropdown__item"
-                        :class="{ 'is-active': activeExploreCountry === country.value }"
-                        role="option"
-                        @click.stop="selectExploreCountry(country)"
-                    >
-                        <span class="region-dropdown__name">{{ country.name }}</span>
-                        <svg
-                            v-if="activeExploreCountry === country.value"
-                            class="region-dropdown__check"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                        >
-                            <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div
-                v-if="isCategoryOpen"
-                ref="categoryMenuRef"
-                class="site-header__browse-menu site-header__category-menu region-dropdown site-header__floating-menu"
-                :style="categoryMenuStyle"
-                @click.stop
-            >
-                <div class="region-dropdown__header eyebrow">Category</div>
-                <div class="region-dropdown__list" role="listbox">
-                    <button
-                        v-for="cat in exploreCategories"
-                        :key="cat.id"
-                        type="button"
-                        class="region-dropdown__item"
-                        :class="{ 'is-active': activeExploreCategory === cat.id }"
-                        role="option"
-                        @click="selectExploreCategory(cat)"
-                    >
-                        <span class="region-dropdown__name">{{ cat.title }}</span>
-                        <svg
-                            v-if="activeExploreCategory === cat.id"
-                            class="region-dropdown__check"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                        >
-                            <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </Teleport>
+
 
         <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Browse' : 'moovie'">
             <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Netflix' : 'Mobile'">
@@ -382,49 +202,6 @@
                         <span class="eyebrow site-header__drawer-num">03</span>
                         <span class="site-header__drawer-label">Movies</span>
                     </a>
-                    <p class="site-header__drawer-section eyebrow">Industry</p>
-                    <button
-                        v-for="cat in netflixCatalogues"
-                        :key="cat.id"
-                        type="button"
-                        class="site-header__drawer-link"
-                        :class="{ 'is-active': activeIndustryCatalogueId === cat.id }"
-                        @click="selectMovieIndustry(cat.id); drawerOpen = false"
-                    >
-                        <span class="site-header__drawer-label">{{ cat.label }}</span>
-                    </button>
-
-                    <p class="site-header__drawer-section eyebrow">Country</p>
-                    <button
-                        type="button"
-                        class="site-header__drawer-link"
-                        :class="{ 'is-active': !activeExploreCountry }"
-                        @click="clearExploreCountry(); drawerOpen = false"
-                    >
-                        <span class="site-header__drawer-label">All Countries</span>
-                    </button>
-                    <button
-                        v-for="country in exploreCountries"
-                        :key="country.value"
-                        type="button"
-                        class="site-header__drawer-link"
-                        :class="{ 'is-active': activeExploreCountry === country.value }"
-                        @click="selectExploreCountry(country); drawerOpen = false"
-                    >
-                        <span class="site-header__drawer-label">{{ country.name }}</span>
-                    </button>
-
-                    <p class="site-header__drawer-section eyebrow">Category</p>
-                    <button
-                        v-for="cat in exploreCategories"
-                        :key="cat.id"
-                        type="button"
-                        class="site-header__drawer-link"
-                        :class="{ 'is-active': activeExploreCategory === cat.id }"
-                        @click="selectExploreCategory(cat); drawerOpen = false"
-                    >
-                        <span class="site-header__drawer-label">{{ cat.title }}</span>
-                    </button>
 
                     <a
                         v-for="(item, index) in netflixNavTrailing"
@@ -509,7 +286,6 @@
 import {
     computed,
     defineComponent,
-    nextTick,
     onBeforeUnmount,
     onMounted,
     ref,
@@ -526,37 +302,22 @@ import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
 import {
-    getIndustryCatalogueOption,
     getNetflixCatalogue,
-    NETFLIX_CATALOGUES,
-    NETFLIX_KDRAMA_CATALOGUE_ID,
-    normalizeIndustryCatalogueId,
-    netflixMovieBrowseRow
+    NETFLIX_KDRAMA_CATALOGUE_ID
 } from '../../composables/useNetflixCatalogue';
 import { netflixBrowsePath, isNetflixGenreBrowsePage } from '../../composables/useNetflixRails';
 import { getNetflixLanguage } from '../../composables/useNetflixLanguage';
 import { prefetchNetflixBrowseRoute } from '../../composables/useNetflixBrowsePrefetch';
 import { nfDebug } from '../../composables/useNetflixDebug';
 import {
-    activeExploreCategoryId,
-    activeExploreCountryId,
-    exploreMediaTypeFromPath,
-    NETMIRROR_EXPLORE_CATEGORIES,
-    NETMIRROR_EXPLORE_COUNTRIES,
-    netflixExploreCountryPath,
     NETFLIX_ANIMATED_EXPLORE_PATH,
     NETFLIX_MOVIE_EXPLORE_PATH,
     NETFLIX_TV_EXPLORE_PATH,
     isCDramaExploreRoute,
     isHeaderDramaExploreRouteActive,
     isKDramaExploreRoute,
-    netflixExplorePath,
     netflixCDramaExplorePath,
-    netflixKDramaExplorePath,
-    resolveExplorePathMediaType,
-    type NetmirrorExploreCategory,
-    type NetmirrorExploreCountry,
-    type NetmirrorExploreMediaType
+    netflixKDramaExplorePath
 } from '../../data/netmirrorExploreCategories';
 
 const PRIMARY_MOVIE_ROW_IDS = new Set(['blockbuster-movies', 'top10-movies', 'korean-movies']);
@@ -591,39 +352,6 @@ function parseNavDestination(path: string) {
         path: path.slice(0, qIndex),
         query: Object.fromEntries(new URLSearchParams(path.slice(qIndex + 1)))
     };
-}
-
-type FloatingMenuStyle = Record<string, string>;
-
-function positionFloatingMenu(trigger: HTMLElement | null, minWidth = 220): FloatingMenuStyle {
-    if (!trigger || typeof window === 'undefined') return {};
-    const rect = trigger.getBoundingClientRect();
-    const gap = 8;
-    const viewportPadding = 8;
-    const menuWidth = minWidth;
-
-    // Align menu under trigger; clamp so it stays on-screen.
-    let left = rect.left;
-    if (left + menuWidth > window.innerWidth - viewportPadding) {
-        left = Math.max(viewportPadding, rect.right - menuWidth);
-    }
-    left = Math.max(viewportPadding, left);
-
-    const top = rect.bottom + gap;
-
-    return {
-        position: 'fixed',
-        top: `${top}px`,
-        left: `${left}px`,
-        right: 'unset',
-        bottom: 'unset',
-        minWidth: `${minWidth}px`,
-        zIndex: '62'
-    };
-}
-
-function containsNode(root: HTMLElement | null | undefined, target: Node) {
-    return Boolean(root && root.contains(target));
 }
 
 const primaryNav: NavItem[] = [
@@ -753,161 +481,6 @@ export default defineComponent({
             }
         };
 
-        const industryContainer = ref<HTMLElement | null>(null);
-        const industryTrigger = ref<HTMLElement | null>(null);
-        const industryMenuRef = ref<HTMLElement | null>(null);
-        const industryMenuStyle = ref<FloatingMenuStyle>({});
-        const isIndustryOpen = ref(false);
-        const countryContainer = ref<HTMLElement | null>(null);
-        const countryTrigger = ref<HTMLElement | null>(null);
-        const countryMenuRef = ref<HTMLElement | null>(null);
-        const countryMenuStyle = ref<FloatingMenuStyle>({});
-        const isCountryOpen = ref(false);
-        const categoryContainer = ref<HTMLElement | null>(null);
-        const categoryTrigger = ref<HTMLElement | null>(null);
-        const categoryMenuRef = ref<HTMLElement | null>(null);
-        const categoryMenuStyle = ref<FloatingMenuStyle>({});
-        const isCategoryOpen = ref(false);
-        const exploreCountries = NETMIRROR_EXPLORE_COUNTRIES;
-        const exploreCategories = NETMIRROR_EXPLORE_CATEGORIES;
-
-        const closeAllBrowseMenus = () => {
-            isIndustryOpen.value = false;
-            isCountryOpen.value = false;
-            isCategoryOpen.value = false;
-        };
-
-        const syncFloatingMenuPosition = async (
-            open: boolean,
-            trigger: HTMLElement | null,
-            styleRef: { value: FloatingMenuStyle },
-            minWidth = 220
-        ) => {
-            if (!open || !trigger) return;
-            await nextTick();
-            styleRef.value = positionFloatingMenu(trigger, minWidth);
-            requestAnimationFrame(() => {
-                styleRef.value = positionFloatingMenu(trigger, minWidth);
-            });
-        };
-
-        const syncOpenFloatingMenus = () => {
-            if (isIndustryOpen.value) {
-                industryMenuStyle.value = positionFloatingMenu(industryTrigger.value, 200);
-            }
-            if (isCountryOpen.value) {
-                countryMenuStyle.value = positionFloatingMenu(countryTrigger.value);
-            }
-            if (isCategoryOpen.value) {
-                categoryMenuStyle.value = positionFloatingMenu(categoryTrigger.value);
-            }
-        };
-
-        const resolveExploreMediaTypeForNav = (): NetmirrorExploreMediaType => {
-            if (route.path.startsWith('/nf/explore')) {
-                return exploreMediaTypeFromPath(route.path);
-            }
-            const { isTvSection, isMovieSection } = netflixBrowseContext.value;
-            if (isTvSection) return 'tv';
-            if (isMovieSection) return 'movie';
-            return 'all';
-        };
-
-        const activeIndustryCatalogueId = computed(() =>
-            normalizeIndustryCatalogueId(netflixCatalogue.value)
-        );
-
-        const activeIndustryLabel = computed(
-            () => getIndustryCatalogueOption(netflixCatalogue.value).label
-        );
-
-        const activeExploreCountry = computed(() => {
-            if (!route.path.startsWith('/nf/explore')) return '';
-            return activeExploreCountryId(
-                route.query as Record<string, string | string[] | null | undefined>
-            );
-        });
-
-        const activeCountryLabel = computed(() => {
-            if (activeExploreCountry.value) {
-                const match = exploreCountries.find(
-                    (row) => row.value === activeExploreCountry.value
-                );
-                return match?.name || activeExploreCountry.value;
-            }
-            return 'Country';
-        });
-
-        const isCountryNavActive = computed(
-            () => route.path.startsWith('/nf/explore') && Boolean(activeExploreCountry.value)
-        );
-
-        const activeExploreCategory = computed(() => {
-            if (!route.path.startsWith('/nf/explore')) return '';
-            return activeExploreCategoryId(
-                route.query as Record<string, string | string[] | null | undefined>
-            );
-        });
-
-        const activeCategoryLabel = computed(() => {
-            if (activeExploreCategory.value) {
-                const match = exploreCategories.find(
-                    (cat) => cat.id === activeExploreCategory.value
-                );
-                return match?.title || 'Category';
-            }
-            return 'Category';
-        });
-
-        const isCategoryNavActive = computed(
-            () => route.path.startsWith('/nf/explore') && Boolean(activeExploreCategory.value)
-        );
-
-        const toggleIndustryDropdown = async (e: Event) => {
-            e.stopPropagation();
-            const opening = !isIndustryOpen.value;
-            const trigger = (e.currentTarget as HTMLElement | null) ?? industryTrigger.value;
-            closeAllBrowseMenus();
-            if (opening) {
-                isIndustryOpen.value = true;
-                await syncFloatingMenuPosition(true, trigger, industryMenuStyle, 200);
-            }
-        };
-
-        const closeIndustryDropdown = () => {
-            isIndustryOpen.value = false;
-        };
-
-        const toggleCountryDropdown = async (e: Event) => {
-            e.stopPropagation();
-            const opening = !isCountryOpen.value;
-            const trigger = (e.currentTarget as HTMLElement | null) ?? countryTrigger.value;
-            closeAllBrowseMenus();
-            if (opening) {
-                isCountryOpen.value = true;
-                await syncFloatingMenuPosition(true, trigger, countryMenuStyle);
-            }
-        };
-
-        const closeCountryDropdown = () => {
-            isCountryOpen.value = false;
-        };
-
-        const toggleCategoryDropdown = async (e: Event) => {
-            e.stopPropagation();
-            const opening = !isCategoryOpen.value;
-            const trigger = (e.currentTarget as HTMLElement | null) ?? categoryTrigger.value;
-            closeAllBrowseMenus();
-            if (opening) {
-                isCategoryOpen.value = true;
-                await syncFloatingMenuPosition(true, trigger, categoryMenuStyle);
-            }
-        };
-
-        const closeCategoryDropdown = () => {
-            isCategoryOpen.value = false;
-        };
-
         const scrollNavToTop = () => {
             if (typeof window !== 'undefined') {
                 window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -947,13 +520,18 @@ export default defineComponent({
         const isMovieSectionActive = computed(() => netflixBrowseContext.value.isMovieSection);
 
         const netflixNavLeading = computed(() => {
-            const { path, isTvSection } = netflixBrowseContext.value;
+            const { path, isTvSection, isMovieSection } = netflixBrowseContext.value;
 
             return [
                 {
                     label: 'Home',
                     path: '/',
                     isActive: () => path === '/'
+                },
+                {
+                    label: 'Movies',
+                    path: NETFLIX_MOVIE_EXPLORE_PATH,
+                    isActive: () => isMovieSection
                 },
                 {
                     label: 'TV Shows',
@@ -993,63 +571,6 @@ export default defineComponent({
         const navigateToMovies = async () => {
             try {
                 await router.push(NETFLIX_MOVIE_EXPLORE_PATH);
-            } catch {
-                // duplicate navigation
-            }
-            scrollNavToTop();
-        };
-
-        const selectMovieIndustry = async (id: string) => {
-            closeIndustryDropdown();
-            setNetflixCatalogue(id);
-            const destination = netflixBrowsePath(id, netflixMovieBrowseRow(id));
-            try {
-                await router.push(destination);
-            } catch {
-                // duplicate navigation
-            }
-            scrollNavToTop();
-        };
-
-        const clearExploreCountry = async () => {
-            closeCountryDropdown();
-            const mediaType = resolveExploreMediaTypeForNav();
-            const destination = `/nf/explore/${mediaType}`;
-            try {
-                await router.push(destination);
-            } catch {
-                // duplicate navigation
-            }
-            scrollNavToTop();
-        };
-
-        const selectExploreCountry = async (country: NetmirrorExploreCountry) => {
-            closeCountryDropdown();
-            const destination = netflixExploreCountryPath(
-                country,
-                resolveExploreMediaTypeForNav()
-            );
-            try {
-                await router.push(destination);
-            } catch {
-                // duplicate navigation
-            }
-            scrollNavToTop();
-        };
-
-        const selectExploreCategory = async (category: NetmirrorExploreCategory) => {
-            closeCategoryDropdown();
-            const routeMediaType = resolveExploreMediaTypeForNav();
-            const mediaType =
-                routeMediaType === 'movie' || routeMediaType === 'tv'
-                    ? resolveExplorePathMediaType(category, routeMediaType)
-                    : undefined;
-            const destination = netflixExplorePath(
-                category,
-                mediaType ? { mediaType } : {}
-            );
-            try {
-                await router.push(destination);
             } catch {
                 // duplicate navigation
             }
@@ -1105,34 +626,6 @@ export default defineComponent({
             if (regionContainer.value && !regionContainer.value.contains(target)) {
                 closeRegionDropdown();
             }
-
-            if (
-                isIndustryOpen.value &&
-                !containsNode(industryContainer.value, target) &&
-                !containsNode(industryMenuRef.value, target)
-            ) {
-                closeIndustryDropdown();
-            }
-
-            if (
-                isCountryOpen.value &&
-                !containsNode(countryContainer.value, target) &&
-                !containsNode(countryMenuRef.value, target)
-            ) {
-                closeCountryDropdown();
-            }
-
-            if (
-                isCategoryOpen.value &&
-                !containsNode(categoryContainer.value, target) &&
-                !containsNode(categoryMenuRef.value, target)
-            ) {
-                closeCategoryDropdown();
-            }
-        };
-
-        const handleViewportResize = () => {
-            syncOpenFloatingMenus();
         };
 
         const showModeSwitch = computed(() => isChosen());
@@ -1153,8 +646,6 @@ export default defineComponent({
         onMounted(() => {
             onScroll();
             window.addEventListener('scroll', onScroll, { passive: true });
-            window.addEventListener('scroll', syncOpenFloatingMenus, { passive: true, capture: true });
-            window.addEventListener('resize', handleViewportResize, { passive: true });
             updateCurrentUser();
             window.addEventListener('movora_auth_change', updateCurrentUser);
             document.addEventListener('click', handleClickOutside);
@@ -1162,11 +653,8 @@ export default defineComponent({
 
         onBeforeUnmount(() => {
             window.removeEventListener('scroll', onScroll);
-            window.removeEventListener('scroll', syncOpenFloatingMenus, true);
-            window.removeEventListener('resize', handleViewportResize);
             window.removeEventListener('movora_auth_change', updateCurrentUser);
             document.removeEventListener('click', handleClickOutside);
-            closeAllBrowseMenus();
         });
 
         return {
@@ -1197,44 +685,10 @@ export default defineComponent({
             toggleContentMode,
 
             isNetflixMode,
-            netflixCatalogues: NETFLIX_CATALOGUES,
-            netflixCatalogue,
-            activeIndustryCatalogueId,
-            activeIndustryLabel,
             netflixNavLeading,
             netflixNavTrailing,
             isMovieSectionActive,
-            industryContainer,
-            industryTrigger,
-            industryMenuRef,
-            isIndustryOpen,
-            industryMenuStyle,
-            toggleIndustryDropdown,
-            countryContainer,
-            countryTrigger,
-            countryMenuRef,
-            isCountryOpen,
-            countryMenuStyle,
-            exploreCountries,
-            activeExploreCountry,
-            activeCountryLabel,
-            isCountryNavActive,
-            toggleCountryDropdown,
-            clearExploreCountry,
-            selectExploreCountry,
-            categoryContainer,
-            categoryTrigger,
-            categoryMenuRef,
-            isCategoryOpen,
-            categoryMenuStyle,
-            exploreCategories,
-            activeExploreCategory,
-            activeCategoryLabel,
-            isCategoryNavActive,
-            toggleCategoryDropdown,
-            selectExploreCategory,
             navigateToMovies,
-            selectMovieIndustry,
             navigateNetflixNav,
             prefetchNetflixNav
         };
@@ -1328,7 +782,7 @@ export default defineComponent({
 
     &__beta {
         margin-left: 0.2em;
-        font-size: 0.58em;
+        font-size: 0.68em;
         font-weight: 500;
         letter-spacing: 0.04em;
         text-transform: lowercase;

@@ -184,6 +184,8 @@ const EDITORIAL_ROWS: NetflixCuratedRowDef[] = [
         priority: 2000,
         pick: 'all',
         homeDedupe: true,
+        minRating: 0,
+        browseAllMediaTypes: true,
         description: (catalogueLabel) => `More ${catalogueLabel} titles you can watch now.`
     }
 ];

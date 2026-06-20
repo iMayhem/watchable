@@ -1,25 +1,24 @@
 #!/usr/bin/env bash
-# Build store-ready ZIPs for each browser.
-# manifest.json must sit at the ZIP root (not inside an "extension/" folder).
+# Build a single universal extension.zip for all supported browsers.
+# Only one ZIP is needed (extension.zip). Manifest is at the ZIP root.
+# Output: ../extension.zip (alongside the watchable/ repo root)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-DIST="${ROOT}/dist"
+OUT_ZIP="${ROOT}/../extension.zip"
 
-python3 - "$ROOT" "$DIST" <<'PY'
-import copy
+python3 - "$ROOT" "$OUT_ZIP" <<'PY'
 import json
 import sys
 import zipfile
 from pathlib import Path
 
 root = Path(sys.argv[1])
-dist = Path(sys.argv[2])
-dist.mkdir(parents=True, exist_ok=True)
+out_zip = Path(sys.argv[2])
 
+# Files to include in the published extension (manifest at ZIP root).
 CORE_FILES = [
     'background.js',
-    'background-fallback.js',
     'content.js',
     'ext-api.js',
     'page-bridge.js',
@@ -30,61 +29,31 @@ CORE_FILES = [
     'icons/icon128.png',
 ]
 
-BROWSERS = [
-    {'slug': 'chrome', 'label': 'Google Chrome Web Store', 'family': 'chromium'},
-    {'slug': 'edge', 'label': 'Microsoft Edge Add-ons', 'family': 'chromium'},
-    {'slug': 'opera', 'label': 'Opera Add-ons', 'family': 'chromium'},
-    {'slug': 'brave', 'label': 'Brave (developer load / self-host)', 'family': 'chromium'},
-    {'slug': 'vivaldi', 'label': 'Vivaldi (developer load / self-host)', 'family': 'chromium'},
-    {'slug': 'firefox', 'label': 'Mozilla Firefox Add-ons (AMO)', 'family': 'firefox'},
-]
-
 base_manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
 
-
-def chromium_manifest():
-    manifest = copy.deepcopy(base_manifest)
-    manifest.pop('browser_specific_settings', None)
-    manifest['minimum_chrome_version'] = '109'
-    manifest['background'] = {'service_worker': 'background.js'}
-    return manifest
-
-
-def firefox_manifest():
-    manifest = copy.deepcopy(base_manifest)
+def build_universal_manifest() -> dict:
+    manifest = dict(base_manifest)  # shallow is fine for our top-level edits
+    # MV3: service_worker only (background.scripts is MV2-only).
     manifest['background'] = {
-        'scripts': ['background-fallback.js'],
         'service_worker': 'background.js',
     }
+    # Ensure gecko settings stay for Firefox (already in source manifest)
+    # Optionally force a minimum for chromium stores
+    if 'minimum_chrome_version' not in manifest:
+        manifest['minimum_chrome_version'] = '109'
     return manifest
 
+manifest = build_universal_manifest()
 
-def build_zip(target: Path, manifest: dict, files: list[str]) -> None:
-    with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr(
-            'manifest.json',
-            json.dumps(manifest, indent=2, ensure_ascii=False) + '\n',
-        )
-        for rel in files:
-            zf.write(root / rel, rel)
+with zipfile.ZipFile(out_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+    zf.writestr(
+        'manifest.json',
+        json.dumps(manifest, indent=2, ensure_ascii=False) + '\n',
+    )
+    for rel in CORE_FILES:
+        zf.write(root / rel, rel)
 
-
-print(f'Output directory: {dist}\n')
-
-for browser in BROWSERS:
-    if browser['family'] == 'firefox':
-        manifest = firefox_manifest()
-        files = CORE_FILES
-    else:
-        manifest = chromium_manifest()
-        files = [f for f in CORE_FILES if f not in {'background-fallback.js'}]
-
-    out = dist / f"moovie-{browser['slug']}.zip"
-    build_zip(out, manifest, files)
-    print(f"✓ {out.name} — {browser['label']}")
-
-print('\nFirefox package includes:')
-print('  background.scripts + background.service_worker')
-print('  gecko.data_collection_permissions.required = ["none"]')
-print('  gecko.strict_min_version = 140.0')
+print(f'✓ Built single universal package: {out_zip}')
+print('  All browsers now use this one extension.zip')
+print('  (manifest.json is at the root of the ZIP)')
 PY

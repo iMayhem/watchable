@@ -8,8 +8,7 @@
                     {{ typeFilter === 'tv' ? 'TV Show ' : typeFilter === 'movie' ? 'Movie ' : '' }}Categories
                 </h1>
                 <p class="nf-categories__desc">
-                    Browse by dub language and genre — use the Country menu in the header
-                    to filter by region.
+                    Browse by dub language and genre.
                 </p>
             </header>
 

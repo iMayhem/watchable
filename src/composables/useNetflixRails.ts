@@ -1187,6 +1187,9 @@ export function pickKoreanCatalogueBrowseItems(
             }
             return takeTopRated(available, used, limit);
         default:
+            if (def.browseAllMediaTypes) {
+                return takeTopRated(available, used, limit);
+            }
             if (def.defaultType === 'tv') {
                 return takeTopRated(available, used, limit, { tv: true });
             }

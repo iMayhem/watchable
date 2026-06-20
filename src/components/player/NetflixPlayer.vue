@@ -10,7 +10,7 @@
             'is-switching-episode': Boolean(switchingEpisodeLabel),
             'is-menu-open': menuOpen,
             'is-episodes-open': episodesOpen,
-            'is-extension-gate': extensionGateVisible
+            'is-extension-gate': extensionGateVisible && !extensionGateCompact
         }"
         @mousemove="revealControls"
         @touchstart.passive="revealControls"
@@ -26,7 +26,7 @@
                 @click.stop="onVideoTap"
             />
             <div
-                v-if="(loading || !artReady) && !extensionGateVisible"
+                v-if="(loading || !artReady) && (!extensionGateVisible || extensionGateCompact)"
                 class="nf-watch__loader"
                 aria-live="polite"
             >
@@ -36,7 +36,9 @@
 
             <PlayerExtensionGate
                 v-if="extensionGateVisible"
+                :compact="extensionGateCompact"
                 @recheck="$emit('extension-recheck')"
+                @stream-slow="$emit('extension-stream-slow')"
             />
 
             <div
@@ -142,12 +144,37 @@
                 aria-valuemin="0"
                 aria-valuemax="100"
                 @click.stop="onProgressClick"
+                @mousemove="onProgressHover"
+                @mouseleave="hidePreview"
             >
                 <div class="nf-watch__progress-buffer" :style="{ width: `${bufferProgress}%` }" />
                 <div class="nf-watch__progress-fill" :style="{ width: `${progress}%` }">
                     <span class="nf-watch__progress-knob" />
                 </div>
+                <div
+                    v-if="showPreview"
+                    class="nf-watch__preview"
+                    :style="{ left: `${previewLeft}%` }"
+                >
+                    <canvas
+                        ref="previewCanvasEl"
+                        class="nf-watch__preview-canvas"
+                        width="160"
+                        height="90"
+                    />
+                    <div class="nf-watch__preview-time">{{ formatPlayerTime(previewTime) }}</div>
+                </div>
             </div>
+
+            <!-- hidden video used only for seeking + frame capture on hover preview -->
+            <video
+                ref="previewVideoEl"
+                class="nf-watch__preview-hidden"
+                muted
+                playsinline
+                preload="metadata"
+                @seeked="onPreviewSeeked"
+            />
 
             <div class="nf-watch__bar">
                 <div class="nf-watch__bar-left">
@@ -164,6 +191,14 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <path d="M3 12a9 9 0 1 0 3-6.7" stroke-linecap="round" />
                             <path d="M3 4v5h5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <span>10</span>
+                    </button>
+
+                    <button type="button" class="nf-watch__icon-btn nf-watch__icon-btn--label" aria-label="Forward 10 seconds" @click.stop="skipForward(10)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M21 12a9 9 0 1 1 -3-6.7" stroke-linecap="round" />
+                            <path d="M21 4v5h-5" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
                         <span>10</span>
                     </button>
@@ -378,6 +413,7 @@ export default defineComponent({
         title: { type: String, default: '' },
         subtitle: { type: String, default: '' },
         extensionGateVisible: { type: Boolean, default: false },
+        extensionGateCompact: { type: Boolean, default: false },
         loading: { type: Boolean, default: false },
         artReady: { type: Boolean, default: false },
         playbackError: { type: String, default: '' },
@@ -427,6 +463,7 @@ export default defineComponent({
         'back',
         'toggle-play',
         'skip-back',
+        'skip-forward',
         'toggle-mute',
         'seek',
         'quality',
@@ -441,6 +478,7 @@ export default defineComponent({
         'up-next-cancel',
         'up-next-complete',
         'extension-recheck',
+        'extension-stream-slow',
         'skip-segment',
         'toggle-auto-skip'
     ],
@@ -545,7 +583,7 @@ export default defineComponent({
 
         const onEpisodeSelect = (episode: number) => {
             lockVideoTap();
-            emit('episode-select', episode);
+            emit('episode-select', props.currentSeason, episode);
         };
 
         const onEpisodePrefetch = (episode: number) => {
@@ -575,6 +613,91 @@ export default defineComponent({
             nfDebug('player-ui:seek', { ratio, target });
             emit('seek', target);
         };
+
+        // Hover preview on seek bar (shows frame at that time)
+        const showPreview = ref(false);
+        const previewTime = ref(0);
+        const previewLeft = ref(0);
+        const previewVideoEl = ref<HTMLVideoElement | null>(null);
+        const previewCanvasEl = ref<HTMLCanvasElement | null>(null);
+        let previewSeekRaf: number | null = null;
+
+        const currentPreviewSrc = computed(() => {
+            const idx = props.selectedStreamIndex ?? 0;
+            const s = props.streams?.[idx];
+            if (!s) return '';
+            return s.proxiedUrl || s.url || '';
+        });
+
+        const onProgressHover = (event: MouseEvent) => {
+            if (!props.duration) return;
+            const bar = (event.currentTarget || event.target) as HTMLElement;
+            if (!bar) return;
+            const rect = bar.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const ratio = Math.max(0, Math.min(1, x / rect.width));
+            const t = ratio * props.duration;
+
+            previewTime.value = t;
+            previewLeft.value = Math.max(6, Math.min(94, ratio * 100));
+            showPreview.value = true;
+
+            if (previewSeekRaf) cancelAnimationFrame(previewSeekRaf);
+            previewSeekRaf = requestAnimationFrame(() => {
+                const pv = previewVideoEl.value;
+                if (pv && currentPreviewSrc.value) {
+                    const doSeek = () => {
+                        // seek; on 'seeked' we will capture to canvas
+                        if (Math.abs((pv.currentTime || 0) - t) > 0.3) {
+                            pv.currentTime = t;
+                        } else {
+                            capturePreviewFrame();
+                        }
+                    };
+                    if (!pv.src || pv.src !== currentPreviewSrc.value) {
+                        pv.src = currentPreviewSrc.value;
+                        pv.load();
+                        // Wait for metadata before seeking to a specific time
+                        pv.addEventListener('loadedmetadata', doSeek, { once: true });
+                    } else {
+                        doSeek();
+                    }
+                }
+            });
+        };
+
+        const hidePreview = () => {
+            showPreview.value = false;
+            if (previewSeekRaf) {
+                cancelAnimationFrame(previewSeekRaf);
+                previewSeekRaf = null;
+            }
+        };
+
+        const capturePreviewFrame = () => {
+            const pv = previewVideoEl.value;
+            const canvas = previewCanvasEl.value;
+            if (!pv || !canvas || !showPreview.value) return;
+            try {
+                pv.pause(); // keep it paused, we only want the frame
+                const w = 160;
+                const h = 90;
+                if (canvas.width !== w) canvas.width = w;
+                if (canvas.height !== h) canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(pv, 0, 0, w, h);
+                }
+            } catch (err) {
+                // canvas may be tainted (CORS on some streams) or not ready; preview may be blank
+            }
+        };
+
+        const onPreviewSeeked = () => {
+            capturePreviewFrame();
+        };
+
+        // Preview video src is set lazily on first hover (to avoid interfering with main playback load)
 
         const selectQuality = (index: number) => {
             qualityOpen.value = false;
@@ -738,6 +861,14 @@ export default defineComponent({
             onVideoTap,
             onShellClick,
             onProgressClick,
+            onProgressHover,
+            hidePreview,
+            showPreview,
+            previewTime,
+            previewLeft,
+            previewVideoEl,
+            previewCanvasEl,
+            onPreviewSeeked,
             selectQuality,
             toggleLanguageMenu,
             selectLanguage,
@@ -745,6 +876,7 @@ export default defineComponent({
             toggleFullscreen,
             togglePlay: () => emit('toggle-play'),
             skipBack: (s: number) => emit('skip-back', s),
+            skipForward: (s: number) => emit('skip-forward', s),
             toggleMute: () => emit('toggle-mute'),
             onWatchTogether
         };
@@ -1068,6 +1200,54 @@ export default defineComponent({
 
     &__progress:hover &__progress-knob {
         transform: translate(50%, -50%) scale(1);
+    }
+
+    &__preview {
+        position: absolute;
+        bottom: calc(100% + 10px);
+        transform: translateX(-50%);
+        width: 160px;
+        height: 90px;
+        background: #000;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+        pointer-events: none;
+        z-index: 50;
+    }
+
+    &__preview-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        background: #111;
+        image-rendering: crisp-edges;
+    }
+
+    &__preview-time {
+        position: absolute;
+        bottom: 2px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        font-family: var(--font-ui);
+        color: #fff;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 0 4px;
+        border-radius: 2px;
+        line-height: 1.1;
+        pointer-events: none;
+    }
+
+    &__preview-hidden {
+        position: absolute;
+        left: -9999px;
+        top: -9999px;
+        width: 160px;
+        height: 90px;
+        opacity: 0;
+        pointer-events: none;
     }
 
     &__bar {

@@ -244,8 +244,8 @@ export default defineComponent({
         );
 
         const tabs = computed<TabDef[]>(() => [
-            { label: 'Movies', value: 'movies', count: movies.value.length },
-            { label: 'Shows', value: 'shows', count: shows.value.length }
+            { label: 'Movies', value: 'movies' },
+            { label: 'Shows', value: 'shows' }
         ]);
 
         const currentCount = computed(() => {

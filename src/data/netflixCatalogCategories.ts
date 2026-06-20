@@ -99,7 +99,7 @@ export function getCatalogueHomeFetchSources(
             { slug: 'drama', pages: 6 }
         ];
     }
-    return [{ slug: langCategory, pages: 16 }];
+    return [{ slug: langCategory, pages: 24 }];
 }
 
 /** First paint — fewer catalogue pages so posters appear sooner. */

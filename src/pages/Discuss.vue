@@ -43,8 +43,8 @@
                                         'discuss-msg--reported': c.isReported 
                                     }"
                                 >
-                                    <div class="discuss-msg__avatar" :style="avatarStyle(c.username)">
-                                        {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
+                                    <div class="discuss-msg__avatar">
+                                        <img :src="getAvatarUrl(c.username)" :alt="c.username" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
                                     </div>
 
                                     <div class="discuss-msg__body">
@@ -155,8 +155,8 @@
                                             'discuss-msg--reported': c.isReported 
                                         }"
                                     >
-                                        <div class="discuss-msg__avatar" :style="avatarStyle(c.username)">
-                                            {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
+                                        <div class="discuss-msg__avatar">
+                                            <img :src="getAvatarUrl(c.username)" :alt="c.username" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
                                         </div>
 
                                         <div class="discuss-msg__body">
@@ -250,8 +250,8 @@
                                         class="discuss-msg discuss-msg--movie-card"
                                         :class="{ 'discuss-msg--reported': c.isReported }"
                                     >
-                                        <div class="discuss-msg__avatar" :style="avatarStyle(c.username)">
-                                            {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
+                                        <div class="discuss-msg__avatar">
+                                            <img :src="getAvatarUrl(c.username)" :alt="c.username" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
                                         </div>
 
                                         <div class="discuss-msg__body" style="width: 100%;">
@@ -645,26 +645,19 @@ export default defineComponent({
             }
             return false;
         };
-
-        const avatarStyle = (name: string) => {
-            const colors = [
-                'linear-gradient(135deg, #ff5a1f 0%, #ff8a00 100%)',
-                'linear-gradient(135deg, #7b2cbf 0%, #9d4edd 100%)',
-                'linear-gradient(135deg, #1a75ff 0%, #00d2ff 100%)',
-                'linear-gradient(135deg, #2ec4b6 0%, #00f5d4 100%)',
-                'linear-gradient(135deg, #ff007f 0%, #ff758c 100%)',
-                'linear-gradient(135deg, #e65c00 0%, #f9d423 100%)'
-            ];
+        const getAvatarUrl = (name: string) => {
+            const cleanName = encodeURIComponent(name.replace(/[^a-zA-Z0-9]/g, ''));
+            // Use premium character styles: adventurer (anime adventurers) and lorelei (anime-style portraits)
+            const styles = ['adventurer', 'lorelei'];
             let hash = 0;
             for (let i = 0; i < name.length; i++) {
                 hash = name.charCodeAt(i) + ((hash << 5) - hash);
             }
-            const colorIndex = Math.abs(hash) % colors.length;
-            return {
-                background: colors[colorIndex],
-                color: '#000000',
-                fontWeight: 'bold'
-            };
+            const styleIndex = Math.abs(hash) % styles.length;
+            const style = styles[styleIndex];
+            
+            // Add subtle colorful gradients/backgrounds to make them look extremely premium
+            return `https://api.dicebear.com/7.x/${style}/svg?seed=${cleanName}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
         };
 
         const getCategoryIcon = (type: string) => {
@@ -962,7 +955,7 @@ export default defineComponent({
             currentUsername,
             showAuthModal,
             chatBox,
-            avatarStyle,
+            getAvatarUrl,
             isSelf,
             formatTimeAgo,
             handleScroll,
@@ -1324,6 +1317,8 @@ export default defineComponent({
         font-size: var(--fs-xs);
         flex-shrink: 0;
         box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        overflow: hidden;
+        background: var(--ink-950);
     }
 
     &__body {

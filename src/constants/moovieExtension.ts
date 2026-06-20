@@ -24,8 +24,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
         id: 'chrome',
         name: 'Chrome',
-        fileName: 'extension.zip',
-        url: `${RELEASE_BASE}/extension.zip`,
+        fileName: 'extension.crx',
+        url: `${RELEASE_BASE}/extension.crx`,
         icon: '/icons/browsers/chrome.svg',
         extensionsPage: 'chrome://extensions',
         family: 'chromium'

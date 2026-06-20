@@ -56,10 +56,18 @@
                 </a>
 
                 <ol v-if="!compact" class="nf-ext-gate__steps">
-                    <li>Unzip the download and load it in <code>{{ browser.extensionsPage }}</code>.</li>
-                    <li>
-                        Set site access to <strong>On moovie.fun</strong>, then hard-refresh this page.
-                    </li>
+                    <template v-if="browser.id === 'chrome'">
+                        <li>Download <code>extension.crx</code>.</li>
+                        <li>Open <code>chrome://extensions</code> and ensure <strong>Developer mode</strong> (top-right) is turned <strong>ON</strong>.</li>
+                        <li>Drag and drop the downloaded <code>extension.crx</code> file from your Files app (Downloads folder) directly onto the middle of the <code>chrome://extensions</code> page.</li>
+                        <li>Confirm the installation prompt and reload this page.</li>
+                    </template>
+                    <template v-else>
+                        <li>Unzip the download and load it in <code>{{ browser.extensionsPage }}</code>.</li>
+                        <li>
+                            Set site access to <strong>On moovie.fun</strong>, then hard-refresh this page.
+                        </li>
+                    </template>
                 </ol>
 
                 <div class="nf-ext-gate__actions">

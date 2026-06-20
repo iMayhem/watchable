@@ -17,7 +17,7 @@
                     </svg>
                     <input
                         ref="inputEl"
-                        type="search"
+                        type="text"
                         class="search-page__input"
                         placeholder="Search movies, shows, and people"
                         :value="searchTerm"

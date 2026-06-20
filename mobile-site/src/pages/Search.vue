@@ -6,7 +6,7 @@
                 <form role="search" @submit.prevent>
                     <input
                         v-model="searchTerm"
-                        type="search"
+                        type="text"
                         class="m-search__input"
                         placeholder="Movies, TV, people…"
                         aria-label="Search"

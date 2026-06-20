@@ -5,7 +5,7 @@
                 <h1 class="m-actors__title">Cast</h1>
                 <input
                     v-model="searchTerm"
-                    type="search"
+                    type="text"
                     class="m-actors__input"
                     placeholder="Search people…"
                     aria-label="Search actors"

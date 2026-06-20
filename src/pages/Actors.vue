@@ -17,7 +17,7 @@
                         <path d="m20 20-3.5-3.5"/>
                     </svg>
                     <input
-                        type="search"
+                        type="text"
                         class="actors__input"
                         placeholder="Search for a person — name, role, anything"
                         :value="searchTerm"

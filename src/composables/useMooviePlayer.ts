@@ -40,13 +40,54 @@ export function streamsLookCorrupt(title: string, streams: MoovieStream[]) {
     return !titleSuggestsAnime(title);
 }
 
-const qualityRank: Record<string, number> = {
-    '360P': 0,
-    '480P': 1,
-    '720P': 2,
-    '1080P': 3,
-    unknown: 4
+/** Prefer mid-quality mp4 for first paint — 1080P URLs expire or 403 more often. */
+const defaultQualityPreference: Record<string, number> = {
+    '720P': 4,
+    '480P': 3,
+    '1080P': 2,
+    '360P': 1,
+    unknown: 0
 };
+
+function streamFormatScore(url: string) {
+    const lower = String(url || '').toLowerCase();
+    if (lower.includes('.mp4')) return 2;
+    if (lower.includes('.mkv')) return 1;
+    return 0;
+}
+
+function detectStreamMediaType(url: string) {
+    const path = String(url || '').split('?')[0].toLowerCase();
+    if (path.endsWith('.mkv')) return 'mkv';
+    if (path.endsWith('.mp4')) return 'mp4';
+    return 'mp4';
+}
+
+function scoreStreamForDefault(stream: MoovieStream) {
+    return (
+        streamFormatScore(stream.url) * 100 +
+        (defaultQualityPreference[stream.quality] ?? 0)
+    );
+}
+
+function findNextFallbackStreamIndex(
+    streams: MoovieStream[],
+    failed: Set<number>,
+    currentIndex: number
+) {
+    const fallbackOrder = ['480P', '360P', '720P', '1080P', 'unknown'];
+    for (const quality of fallbackOrder) {
+        const idx = streams.findIndex(
+            (stream, i) => !failed.has(i) && i !== currentIndex && stream.quality === quality
+        );
+        if (idx >= 0) return idx;
+    }
+
+    for (let i = 0; i < streams.length; i++) {
+        if (!failed.has(i) && i !== currentIndex) return i;
+    }
+    return -1;
+}
 
 function streamUrlAgeSec(rawUrl: string) {
     try {
@@ -227,7 +268,11 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     let artInstance: any = null;
     let prepareToken = 0;
     let resolveToken = 0;
+    let playbackRetryToken = 0;
+    let playbackErrorRetries = 0;
     let refreshInFlight: Promise<MoovieResolve | null> | null = null;
+    let activeResolveUrl = '';
+    const failedStreamIndices = new Set<number>();
 
     class ResolveAborted extends Error {
         override name = 'ResolveAborted';
@@ -277,6 +322,10 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const resetPlaybackSession = () => {
         resolveToken++;
         prepareToken++;
+        playbackRetryToken++;
+        playbackErrorRetries = 0;
+        failedStreamIndices.clear();
+        activeResolveUrl = '';
         playbackError.value = '';
         streamWarning.value = '';
         resolved.value = null;
@@ -474,11 +523,105 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         });
         artInstance.on('video:volumechange', syncTime);
         artInstance.on('error', () => {
-            dbgError('player:error');
-            playbackError.value = 'Playback failed — try another quality or reload.';
+            void handlePlaybackError();
         });
 
         bindVideoClickToggle();
+    };
+
+    const playbackFailureMessage = (streams: MoovieStream[]) => {
+        const hasMkv = streams.some((s) => /\.mkv/i.test(s.url));
+        if (!extensionActive.value && hasMkv) {
+            return 'Playback failed. This title may need the Moovie extension for MKV streams — try another quality or reload.';
+        }
+        return 'Playback failed — try another quality or reload.';
+    };
+
+    const handlePlaybackError = async () => {
+        const retryToken = ++playbackRetryToken;
+        const streams = resolved.value?.streams || [];
+        dbgError('player:error', {
+            index: selectedStreamIndex.value,
+            quality: streams[selectedStreamIndex.value]?.quality,
+            retries: playbackErrorRetries
+        });
+
+        if (!streams.length || !activeResolveUrl) {
+            playbackError.value = playbackFailureMessage(streams);
+            return;
+        }
+
+        failedStreamIndices.add(selectedStreamIndex.value);
+        playbackError.value = '';
+
+        while (failedStreamIndices.size < streams.length) {
+            const fromIndex = selectedStreamIndex.value;
+            const nextIndex = findNextFallbackStreamIndex(
+                streams,
+                failedStreamIndices,
+                fromIndex
+            );
+            if (nextIndex < 0) break;
+
+            playbackErrorRetries++;
+            selectedStreamIndex.value = nextIndex;
+            const stream = streams[nextIndex];
+            dbg('player:error:retry-quality', {
+                from: fromIndex,
+                to: nextIndex,
+                quality: stream.quality
+            });
+
+            try {
+                const ok = artInstance
+                    ? await switchStreamUrl(stream, {
+                          resumeAt: currentTime.value,
+                          resumePlaying: isPlaying.value
+                      })
+                    : await (async () => {
+                          await preparePlayback(stream, activeResolveUrl, {
+                              allowRefresh: false
+                          });
+                          return true;
+                      })();
+                if (retryToken !== playbackRetryToken) return;
+                if (ok) {
+                    playbackErrorRetries = 0;
+                    failedStreamIndices.clear();
+                    return;
+                }
+            } catch (err) {
+                if (retryToken !== playbackRetryToken) return;
+                dbgError('player:error:retry-quality-fail', err);
+            }
+
+            failedStreamIndices.add(nextIndex);
+        }
+
+        if (retryToken !== playbackRetryToken) return;
+        dbg('player:error:refresh-resolve', { url: activeResolveUrl });
+        resolveCache.delete(activeResolveUrl);
+        const fresh = await refreshResolve(activeResolveUrl);
+        if (retryToken !== playbackRetryToken) return;
+        if (fresh?.streams?.length) {
+            failedStreamIndices.clear();
+            selectedStreamIndex.value = pickDefaultStreamIndex(fresh.streams);
+            try {
+                await preparePlayback(
+                    fresh.streams[selectedStreamIndex.value],
+                    activeResolveUrl,
+                    { allowRefresh: false }
+                );
+                if (retryToken !== playbackRetryToken) return;
+                playbackErrorRetries = 0;
+                return;
+            } catch (err) {
+                if (retryToken !== playbackRetryToken) return;
+                dbgError('player:error:refresh-resolve-fail', err);
+            }
+        }
+
+        playbackError.value = playbackFailureMessage(streams);
     };
 
     const buildResolveUrl = buildMoovieResolveUrl;
@@ -487,11 +630,11 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const pickDefaultStreamIndex = (streams: MoovieStream[]) => {
         if (!streams.length) return 0;
         let bestIndex = 0;
-        let bestRank = qualityRank[streams[0].quality] ?? -1;
+        let bestScore = scoreStreamForDefault(streams[0]);
         for (let i = 1; i < streams.length; i++) {
-            const rank = qualityRank[streams[i].quality] ?? -1;
-            if (rank > bestRank) {
-                bestRank = rank;
+            const score = scoreStreamForDefault(streams[i]);
+            if (score > bestScore) {
+                bestScore = score;
                 bestIndex = i;
             }
         }
@@ -579,7 +722,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         artInstance = new ArtplayerCtor({
             container,
             url: playUrl,
-            type: 'mp4',
+            type: detectStreamMediaType(stream.url),
             autoplay: resumePlaying,
             preload: 'auto',
             theme: '#4eb5ff',
@@ -681,6 +824,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     ): Promise<void> => {
         const { allowRefresh = true, resume } = options;
         const token = ++prepareToken;
+        activeResolveUrl = resolveUrl;
         clearArtInstance();
         if (!stream) return;
 
@@ -721,6 +865,8 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             await waitForContainer();
             await mountArtplayer(stream, resume);
             playbackError.value = '';
+            playbackErrorRetries = 0;
+            failedStreamIndices.clear();
         } catch (err: any) {
             if (token !== prepareToken) return;
             dbgError('player:prepare:fail', err);
@@ -773,6 +919,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                 episode: data.resolveEpisode ?? opts.episode ?? 0,
                 server: opts.server
             });
+            activeResolveUrl = url;
 
             resolved.value = data;
             streamWarning.value = data.streamWarning || '';
@@ -834,6 +981,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             episode: data.resolveEpisode ?? opts.episode ?? 0,
             server: opts.server
         });
+        activeResolveUrl = url;
 
         resolved.value = data;
         streamWarning.value = data.streamWarning || '';

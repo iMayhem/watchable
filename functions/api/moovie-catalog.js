@@ -116,6 +116,29 @@ function rewritePlayerHtml(html, server, { proxyStreams = false } = {}) {
 
 const QUALITY_RANK = { '1080P': 0, '720P': 1, '480P': 2, '360P': 3, unknown: 4 };
 
+function isValidStreamUrl(url) {
+  const normalized = String(url || '').trim();
+  if (!normalized || !/^https?:\/\//i.test(normalized)) return false;
+  if (/notfound|placeholder|\/404\b/i.test(normalized)) return false;
+  return /\.(mp4|mkv)(\?|$)/i.test(normalized);
+}
+
+function streamFormatRank(url) {
+  if (/\.mp4/i.test(url)) return 0;
+  if (/\.mkv/i.test(url)) return 1;
+  return 2;
+}
+
+function sortStreams(streams) {
+  streams.sort((a, b) => {
+    const qualityDiff =
+      (QUALITY_RANK[a.quality] ?? 5) - (QUALITY_RANK[b.quality] ?? 5);
+    if (qualityDiff !== 0) return qualityDiff;
+    return streamFormatRank(a.url) - streamFormatRank(b.url);
+  });
+  return streams;
+}
+
 function extractStreams(html) {
   const streams = [];
   const seen = new Set();
@@ -126,27 +149,24 @@ function extractStreams(html) {
   for (const match of qualityBlocks) {
     const quality = match[1];
     const url = match[2];
-    if (!seen.has(url)) {
-      seen.add(url);
-      streams.push({ quality, url, proxiedUrl: buildProxyUrl(url) });
-    }
+    if (!isValidStreamUrl(url) || seen.has(url)) continue;
+    seen.add(url);
+    streams.push({ quality, url, proxiedUrl: buildProxyUrl(url) });
   }
 
   if (!streams.length) {
-    const mp4Matches = html.matchAll(/https?:\/\/[^\s"'<>]+\.mp4[^\s"'<>]*/g);
-    for (const match of mp4Matches) {
+    const mediaMatches = html.matchAll(
+      /https?:\/\/[^\s"'<>]+\.(?:mp4|mkv)[^\s"'<>]*/gi
+    );
+    for (const match of mediaMatches) {
       const url = match[0];
-      if (url.includes('notfound') || seen.has(url)) continue;
+      if (!isValidStreamUrl(url) || seen.has(url)) continue;
       seen.add(url);
       streams.push({ quality: 'unknown', url, proxiedUrl: buildProxyUrl(url) });
     }
   }
 
-  streams.sort(
-    (a, b) => (QUALITY_RANK[a.quality] ?? 5) - (QUALITY_RANK[b.quality] ?? 5)
-  );
-
-  return streams;
+  return sortStreams(streams);
 }
 
 const LANGUAGE_PATTERN = /\[([^\]]+)\]/g;
@@ -330,7 +350,7 @@ async function fetchFilesdlStreams(filesdlUrl) {
   );
   for (const match of hrefMatches) {
     const url = match[1].replace(/&amp;/g, '&');
-    if (seen.has(url) || /notfound/i.test(url)) continue;
+    if (!isValidStreamUrl(url) || seen.has(url)) continue;
     seen.add(url);
 
     let quality = 'unknown';
@@ -345,11 +365,7 @@ async function fetchFilesdlStreams(filesdlUrl) {
     });
   }
 
-  streams.sort(
-    (a, b) => (QUALITY_RANK[a.quality] ?? 5) - (QUALITY_RANK[b.quality] ?? 5)
-  );
-
-  return streams;
+  return sortStreams(streams);
 }
 
 async function resolveEmbedStreams(meta) {

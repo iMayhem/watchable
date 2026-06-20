@@ -95,11 +95,11 @@ export async function onRequest(context) {
     
     const method = context.request.method === 'HEAD' ? 'HEAD' : 'GET';
     const clientRange = context.request.headers.get('Range');
-    const isMp4 = /\.mp4(\?|$)/i.test(targetUrl);
+    const isStreamableVideo = /\.(mp4|mkv)(\?|$)/i.test(targetUrl);
 
     if (clientRange) {
         headers.set('Range', clientRange);
-    } else if (isMoovieStreamCdn && isMp4 && method !== 'HEAD') {
+    } else if (isMoovieStreamCdn && isStreamableVideo && method !== 'HEAD') {
         // hakunaymatata often 403s on full GET; browsers may stall without an initial range
         headers.set('Range', 'bytes=0-1048575');
     }
@@ -111,7 +111,7 @@ export async function onRequest(context) {
     try {
         let resp = await fetchUpstream();
 
-        if (resp.status === 403 && isMoovieStreamCdn && isMp4) {
+        if (resp.status === 403 && isMoovieStreamCdn && isStreamableVideo) {
             for (const range of ['bytes=0-65535', 'bytes=0-1048575', 'bytes=0-']) {
                 headers.set('Range', range);
                 resp = await fetchUpstream();
@@ -134,7 +134,7 @@ export async function onRequest(context) {
             if (hVal) responseHeaders.set(hName, hVal);
         }
 
-        if (isMp4 && !responseHeaders.has('Accept-Ranges')) {
+        if (isStreamableVideo && !responseHeaders.has('Accept-Ranges')) {
             responseHeaders.set('Accept-Ranges', 'bytes');
         }
         

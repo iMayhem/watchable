@@ -24,10 +24,20 @@
                 :aria-label="isPlaying ? 'Pause' : 'Play'"
                 @click.stop="onVideoTap"
             />
-            <div v-if="loading || !artReady" class="nf-watch__loader" aria-live="polite">
+            <div
+                v-if="(loading || !artReady) && !extensionGateVisible"
+                class="nf-watch__loader"
+                aria-live="polite"
+            >
                 <span class="nf-watch__spinner" aria-hidden="true" />
                 <p>{{ loading ? 'Loading your video…' : 'Starting playback…' }}</p>
             </div>
+
+            <PlayerExtensionGate
+                v-if="extensionGateVisible"
+                @recheck="$emit('extension-recheck')"
+                @continue="$emit('extension-continue')"
+            />
 
             <div
                 v-if="switchingAudioLabel"
@@ -352,6 +362,7 @@ import {
 } from '../../composables/useNetflixLanguage';
 import NetflixEpisodePicker from './NetflixEpisodePicker.vue';
 import NetflixUpNext, { type NetflixUpNextEpisode } from './NetflixUpNext.vue';
+import PlayerExtensionGate from './PlayerExtensionGate.vue';
 import type {
     NetflixCatalogEpisode,
     NetflixCatalogSeason
@@ -359,10 +370,11 @@ import type {
 
 export default defineComponent({
     name: 'NetflixPlayer',
-    components: { NetflixEpisodePicker, NetflixUpNext },
+    components: { NetflixEpisodePicker, NetflixUpNext, PlayerExtensionGate },
     props: {
         title: { type: String, default: '' },
         subtitle: { type: String, default: '' },
+        extensionGateVisible: { type: Boolean, default: false },
         loading: { type: Boolean, default: false },
         artReady: { type: Boolean, default: false },
         playbackError: { type: String, default: '' },
@@ -423,6 +435,8 @@ export default defineComponent({
         'up-next-play',
         'up-next-cancel',
         'up-next-complete',
+        'extension-recheck',
+        'extension-continue',
         'skip-segment',
         'toggle-auto-skip'
     ],

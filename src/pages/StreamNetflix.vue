@@ -51,6 +51,9 @@
             @skip-segment="onSkipSegment"
             @toggle-auto-skip="onToggleAutoSkip"
             :party-href="isPartyEmbed ? '' : partyHref"
+            :extension-gate-visible="extensionGateVisible"
+            @extension-recheck="onExtensionRecheck"
+            @extension-continue="onExtensionContinue"
         />
     </div>
 </template>
@@ -67,6 +70,7 @@ import {
     parseCatalogTitle
 } from '../composables/useMoovieCatalog';
 import { useMooviePlayer } from '../composables/useMooviePlayer';
+import { useStreamExtension } from '../composables/useStreamExtension';
 import { useSeo } from '../composables/useSeo';
 import {
     catalogStreamPath,
@@ -117,6 +121,16 @@ export default defineComponent({
 
         const formatEpisodeLabel = (season: number, episode: number) =>
             `S${season} · E${String(episode).padStart(2, '0')}`;
+        const EXT_GATE_KEY = 'moovie-ext-gate-dismissed';
+        const { extensionActive, checkExtension, pingExtension } = useStreamExtension();
+        const extensionGateDismissed = ref(
+            typeof sessionStorage !== 'undefined' &&
+                sessionStorage.getItem(EXT_GATE_KEY) === '1'
+        );
+        const extensionGateVisible = computed(
+            () => !extensionActive.value && !extensionGateDismissed.value
+        );
+
         const player = useMooviePlayer({ skin: 'netflix' });
         const {
             loading,
@@ -146,7 +160,47 @@ export default defineComponent({
         } = player;
 
         let started = false;
+        let playbackQueued = false;
         const playbackEntryId = ref(String(route.params.id || ''));
+
+        const canStartPlayback = () =>
+            extensionActive.value || extensionGateDismissed.value;
+
+        const dismissExtensionGate = () => {
+            extensionGateDismissed.value = true;
+            try {
+                sessionStorage.setItem(EXT_GATE_KEY, '1');
+            } catch {
+                /* ignore */
+            }
+        };
+
+        const waitForExtensionDetection = async (timeoutMs = 2000) => {
+            pingExtension();
+            checkExtension();
+            if (extensionActive.value) return;
+
+            await new Promise<void>((resolve) => {
+                const waitStarted = Date.now();
+                const timer = window.setInterval(() => {
+                    checkExtension();
+                    pingExtension();
+                    if (extensionActive.value || Date.now() - waitStarted >= timeoutMs) {
+                        window.clearInterval(timer);
+                        resolve();
+                    }
+                }, 150);
+            });
+        };
+
+        const tryStartPlayback = async () => {
+            if (!canStartPlayback()) {
+                playbackQueued = true;
+                return;
+            }
+            playbackQueued = false;
+            await startPlayback();
+        };
 
         let skipRoutePlayback = false;
 
@@ -419,7 +473,7 @@ export default defineComponent({
                     playbackEntryId.value = id;
                     skipRoutePlayback = true;
                     await router.replace({ path: targetPath, query: { ...route.query } });
-                    await startPlayback();
+                    await tryStartPlayback();
                     return false;
                 }
             } catch (err) {
@@ -806,6 +860,26 @@ export default defineComponent({
             scheduleTeardown();
         });
 
+        const onExtensionContinue = async () => {
+            nfDebug('stream:extension-gate:continue');
+            dismissExtensionGate();
+            await tryStartPlayback();
+        };
+
+        const onExtensionRecheck = async () => {
+            nfDebug('stream:extension-gate:recheck');
+            pingExtension();
+            checkExtension();
+            if (!extensionActive.value) {
+                addToast(
+                    'Extension not detected yet. Install it, set access to moovie.fun, then hard-refresh.',
+                    'warning'
+                );
+                return;
+            }
+            await tryStartPlayback();
+        };
+
         onMounted(async () => {
             if (isPartyEmbed.value) {
                 document.documentElement.classList.add('nf-party-embed');
@@ -817,11 +891,12 @@ export default defineComponent({
                 canonical: `https://moovie.fun${route.path}`,
                 image: 'https://moovie.fun/og-image.png'
             });
+            await waitForExtensionDetection();
             if (!started) {
                 started = true;
                 const shouldStart = await ensureCanonicalStreamRoute();
                 if (shouldStart) {
-                    await startPlayback();
+                    await tryStartPlayback();
                 }
             }
         });
@@ -862,6 +937,12 @@ export default defineComponent({
             }
         );
 
+        watch(extensionActive, async (active) => {
+            if (!active || !playbackQueued) return;
+            nfDebug('stream:extension-gate:detected');
+            await tryStartPlayback();
+        });
+
         watch(
             () => [route.params.id, route.params.season, route.params.episode],
             async ([id, season, episode], prev) => {
@@ -883,7 +964,7 @@ export default defineComponent({
                 if (idChanged) {
                     resetPlaybackSession();
                     availableLanguages.value = [];
-                    await startPlayback();
+                    await tryStartPlayback();
                     return;
                 }
 
@@ -969,7 +1050,10 @@ export default defineComponent({
             autoSkipEnabled: aniskip.autoSkip,
             onSkipSegment: aniskip.onSkipSegment,
             onToggleAutoSkip: aniskip.toggleAutoSkip,
-            partyHref
+            partyHref,
+            extensionGateVisible,
+            onExtensionRecheck,
+            onExtensionContinue
         };
     }
 });

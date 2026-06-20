@@ -66,7 +66,7 @@
                             <router-link
                                 v-for="ep in paginatedEpisodes"
                                 :key="ep"
-                                :to="paths.streamAnime(tmdbIdRef, ep)"
+                                :to="paths.streamAnime(tmdbIdRef ?? 0, ep)"
                                 class="m-anime-eps__chip"
                             >
                                 Ep {{ ep }}
@@ -114,7 +114,6 @@ import {
     resolveAnimeTmdbMetaByTmdbId,
     getAnilistIdForTmdbId,
     resolveAnimeTmdbMeta,
-    resolveAnimeTmdbEpisodes,
     type AnimeTmdbArtwork
 } from '@/composables/useAnimeTmdbArtwork';
 import { useAppPaths } from '@/composables/useAppPaths';
@@ -158,7 +157,7 @@ const totalEpisodesCount = computed(() =>
     estimateAnimeEpisodeTotal(
         tmdbEpisodes.value,
         tmdbTotalEpisodeCount.value,
-        anime.value?.nextAiringEpisode?.episode ?? 0
+        (anime.value as any)?.nextAiringEpisode?.episode ?? 0
     )
 );
 
@@ -212,7 +211,7 @@ const seasonsList = computed(() => {
         year: anime.value.seasonYear || 0
     }];
 
-    const edges = anime.value.relations?.edges || [];
+    const edges = (anime.value as any)?.relations?.edges || [];
     for (const edge of edges) {
         const node = edge.node;
         if (node.type !== 'ANIME' || (edge.relationType !== 'PREQUEL' && edge.relationType !== 'SEQUEL')) {
@@ -273,7 +272,7 @@ const goToSeason = (id: number) => {
 
 const resolveSeasonsTmdbIds = async () => {
     if (usesTmdbSeasonTabs.value || !anime.value) return;
-    const edges = anime.value.relations?.edges || [];
+    const edges = (anime.value as any)?.relations?.edges || [];
     const idsToResolve = [anime.value.id];
     for (const edge of edges) {
         const node = edge.node;

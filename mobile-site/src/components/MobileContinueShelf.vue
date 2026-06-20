@@ -85,6 +85,8 @@ export default defineComponent({
         const entries = computed<Entry[]>(() => {
             return viewHistory.value.map((item: any) => {
                 const id = String(item.id);
+                const isTv = item.type === 'tv';
+                const isAnime = item.type === 'anime';
                 const state = streamData.value.movieServerMap[id];
                 const animePoster = isAnime
                     ? getCachedAnimeTmdbArtwork(Number(item.id))?.posterPath
@@ -93,8 +95,6 @@ export default defineComponent({
                 const image = imagePath ? useWebImage(imagePath, 'medium') : '';
                 const initial = (item.title?.[0] || '·').toUpperCase();
 
-                const isTv = item.type === 'tv';
-                const isAnime = item.type === 'anime';
                 const season = state?.season && state.season > 0 ? state.season : 1;
                 const episode = state?.episode && state.episode > 0 ? state.episode : 1;
 

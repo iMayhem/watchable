@@ -1168,11 +1168,17 @@ export default defineComponent({
         max-width: 1440px;
         margin: 0 auto;
         padding: 0.75rem var(--s-6);
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        grid-template-areas: 'crumb title actions';
+        display: flex;
         align-items: center;
-        gap: var(--s-3) var(--s-4);
+        justify-content: space-between;
+        gap: var(--s-4);
+
+        @media (max-width: 1023px) {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            grid-template-areas: 'crumb title actions';
+            gap: var(--s-3) var(--s-4);
+        }
 
         @media (max-width: 640px) {
             grid-template-columns: auto 1fr;
@@ -1210,6 +1216,22 @@ export default defineComponent({
         svg {
             width: 20px;
             height: 20px;
+        }
+
+        @media (max-width: 640px) {
+            display: grid;
+            place-items: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--surface-tint);
+            color: var(--bone-100);
+            padding: 0;
+
+            svg {
+                width: 18px;
+                height: 18px;
+            }
         }
     }
 
@@ -1327,7 +1349,8 @@ export default defineComponent({
         }
 
         @media (max-width: 640px) {
-            width: 38px;
+            width: 36px;
+            min-height: 36px;
             padding: 0;
             justify-content: center;
 
@@ -1933,6 +1956,11 @@ export default defineComponent({
     overflow-y: auto;
     padding-right: 4px;
 
+    @media (max-width: 640px) {
+        grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+        gap: var(--s-1.5);
+    }
+
     &::-webkit-scrollbar {
         width: 6px;
     }
@@ -1959,6 +1987,10 @@ export default defineComponent({
     box-sizing: border-box;
     transition: all var(--dur-fast) var(--ease-out);
 
+    @media (max-width: 640px) {
+        border-radius: var(--r-xs);
+    }
+
     &.is-upcoming {
         opacity: 0.45;
         cursor: not-allowed !important;
@@ -1979,6 +2011,10 @@ export default defineComponent({
         font-size: var(--fs-base);
         font-weight: 500;
         color: var(--bone-200);
+
+        @media (max-width: 640px) {
+            font-size: var(--fs-xs);
+        }
     }
 
     &:hover:not(.is-active):not(.is-upcoming):not(:disabled) {

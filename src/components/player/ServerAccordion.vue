@@ -346,11 +346,28 @@ export default defineComponent({
             min-width: 0;
 
             .server-accordion__head {
-                padding-inline: 0.85rem 0.65rem;
+                min-height: 36px;
+                padding: 0.35rem 0.65rem 0.35rem 0.75rem;
             }
 
             .server-accordion__title {
                 display: none;
+            }
+
+            :deep(.lm-pill) {
+                font-size: var(--fs-xs) !important;
+                padding: 0.15rem 0.45rem !important;
+                min-height: 22px !important;
+            }
+
+            .server-accordion__chev {
+                width: 16px;
+                height: 16px;
+
+                svg {
+                    width: 14px;
+                    height: 14px;
+                }
             }
         }
     }

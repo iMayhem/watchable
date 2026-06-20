@@ -174,15 +174,19 @@
 
                             <!-- Movie Comment Composer -->
                             <footer class="discuss-chat__composer">
-                                <div v-if="!isLoggedIn" class="discuss-chat__login-prompt">
-                                    <p class="meta">You must be signed in to post comments in this room.</p>
-                                    <button @click="showAuthModal = true" class="btn btn-primary btn-sm login-prompt-btn">
-                                        Sign In
-                                    </button>
-                                </div>
-
-                                <template v-else>
-                                    <form @submit.prevent="postSelectedMovieComment" class="discuss-composer-form">
+                                <form @submit.prevent="postSelectedMovieComment" class="discuss-composer-form" style="flex-direction: column; align-items: stretch; gap: var(--s-2); width: 100%;">
+                                    <div v-if="!isLoggedIn" class="discuss-composer-guest-row" style="display: flex; gap: var(--s-2); align-items: center;">
+                                        <input 
+                                            type="text" 
+                                            v-model="guestName" 
+                                            placeholder="Your nickname (e.g. Guest123)" 
+                                            required
+                                            class="discuss-chat__message-input"
+                                            style="max-width: 220px;"
+                                        />
+                                        <span class="meta" style="font-size: var(--fs-xs);">or <a href="#" @click.prevent="showAuthModal = true" style="color: var(--ember); text-decoration: underline;">Sign In</a></span>
+                                    </div>
+                                    <div class="discuss-composer-input-row" style="display: flex; gap: var(--s-2); width: 100%;">
                                         <input 
                                             type="text" 
                                             v-model="newSelectedCommentText" 
@@ -201,8 +205,8 @@
                                                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                                             </svg>
                                         </button>
-                                    </form>
-                                </template>
+                                    </div>
+                                </form>
                             </footer>
                         </template>
 
@@ -337,6 +341,7 @@ import { useSeo } from '../composables/useSeo';
 import { useMovies } from '../composables/useMovies';
 import { useTvShows } from '../composables/useTvShows';
 import { useAniList } from '../composables/useAniList';
+import { resolveAnimeTmdbMetaByTmdbId, getAnilistIdForTmdbId } from '../composables/useAnimeTmdbArtwork';
 
 interface Comment {
     id: string;
@@ -385,6 +390,7 @@ export default defineComponent({
         const loadingSelectedMovie = ref(false);
         const submittingSelected = ref(false);
         const newSelectedCommentText = ref('');
+        const guestName = ref('');
         const movieChatBox = ref<HTMLElement | null>(null);
         let selectedMovieRealtimeChannel: any = null;
         let isMovieChatAtBottom = true;
@@ -415,12 +421,46 @@ export default defineComponent({
                         resolvedNames.value[key] = `TV Show #${mediaId}`;
                     }
                 } else if (mediaType === 'anime') {
+                    // Try resolving AniList ID if mediaId is a TMDB ID
+                    try {
+                        const numericId = Number(mediaId);
+                        await resolveAnimeTmdbMetaByTmdbId(numericId);
+                        const anilistId = getAnilistIdForTmdbId(numericId);
+                        if (anilistId) {
+                            const { fetchAnimeById } = useAniList();
+                            const response = await fetchAnimeById(anilistId);
+                            if (response && response.data && response.data.Media && response.data.Media.title) {
+                                resolvedNames.value[key] = response.data.Media.title.english || response.data.Media.title.romaji || `Anime #${mediaId}`;
+                                return resolvedNames.value[key];
+                            }
+                        }
+                    } catch (resolveErr) {
+                        console.warn('Failed to resolve AniList ID mapping for TMDB ID:', mediaId, resolveErr);
+                    }
+
+                    // Fallback to direct AniList query or TMDB TV show query
                     const { fetchAnimeById } = useAniList();
-                    const response = await fetchAnimeById(Number(mediaId));
-                    if (response && response.data && response.data.Media && response.data.Media.title) {
-                        resolvedNames.value[key] = response.data.Media.title.english || response.data.Media.title.romaji || `Anime #${mediaId}`;
-                    } else {
-                        resolvedNames.value[key] = `Anime #${mediaId}`;
+                    try {
+                        const response = await fetchAnimeById(Number(mediaId));
+                        if (response && response.data && response.data.Media && response.data.Media.title) {
+                            resolvedNames.value[key] = response.data.Media.title.english || response.data.Media.title.romaji || `Anime #${mediaId}`;
+                        } else {
+                            const { fetchTvShow } = useTvShows();
+                            const { data } = await fetchTvShow(mediaId);
+                            if (data.value && data.value.name) {
+                                resolvedNames.value[key] = data.value.name;
+                            } else {
+                                resolvedNames.value[key] = `Anime #${mediaId}`;
+                            }
+                        }
+                    } catch (animeErr) {
+                        const { fetchTvShow } = useTvShows();
+                        const { data } = await fetchTvShow(mediaId);
+                        if (data.value && data.value.name) {
+                            resolvedNames.value[key] = data.value.name;
+                        } else {
+                            resolvedNames.value[key] = `Anime #${mediaId}`;
+                        }
                     }
                 }
             } catch (e) {
@@ -530,14 +570,12 @@ export default defineComponent({
         };
 
         const postSelectedMovieComment = async () => {
-            if (!isLoggedIn.value) {
-                showAuthModal.value = true;
-                return;
-            }
             if (!newSelectedCommentText.value.trim() || !selectedMovieId.value) return;
             submittingSelected.value = true;
 
-            const nameToPost = `@${currentUsername.value}`;
+            const nameToPost = isLoggedIn.value 
+                ? `@${currentUsername.value}` 
+                : guestName.value.trim() || 'Anonymous Guest';
 
             try {
                 const supabase = await getSupabaseClient();
@@ -940,6 +978,7 @@ export default defineComponent({
             loadingSelectedMovie,
             submittingSelected,
             newSelectedCommentText,
+            guestName,
             movieChatBox,
             getMediaName,
             handleMovieChatScroll,

@@ -3465,4 +3465,27 @@
             0% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.95); }
             100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
         }
+
+        .player-controls-bar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.75rem !important;
+        }
+
+        .player-controls-bar .controls-left,
+        .player-controls-bar .controls-right {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
+            align-items: center !important;
+            width: 100% !important;
+        }
+
+        .player-controls-bar .controls-left {
+            justify-content: flex-start !important;
+        }
+
+        .player-controls-bar .controls-right {
+            justify-content: space-between !important;
+        }
     

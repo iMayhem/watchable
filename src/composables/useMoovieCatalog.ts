@@ -230,12 +230,13 @@ export interface BrowseCatalogOptions {
     title_not?: string[];
 }
 
+const catalogCache = new Map<string, Promise<MoovieCatalogResponse>>();
+
 export async function browseMoovieCatalog(
     category: string,
     page = 0,
     options?: BrowseCatalogOptions
 ): Promise<MoovieCatalogResponse> {
-    nfDebug('catalog:browse:start', { category, page, options });
     const action = category === 'filter' ? 'filter' : 'browse';
     const params = new URLSearchParams({
         action,
@@ -261,47 +262,75 @@ export async function browseMoovieCatalog(
             params.append('title_not[]', value);
         }
     }
-    try {
-        const resp = await fetch(`${CATALOG_API}?${params}`);
-        const data = await resp.json();
-        if (!resp.ok) {
-            throw new Error(data.error || `Browse failed (${resp.status})`);
-        }
-        nfDebug('catalog:browse:ok', {
-            category,
-            page,
-            count: data.results?.length ?? 0,
-            totalPages: data.pager?.total_pages
-        });
-        return data as MoovieCatalogResponse;
-    } catch (err) {
-        nfDebugError('catalog:browse:fail', { category, page, err });
-        throw err;
+
+    const cacheKey = params.toString();
+    if (catalogCache.has(cacheKey)) {
+        nfDebug('catalog:browse:cache-hit', { category, page });
+        return catalogCache.get(cacheKey)!;
     }
+
+    const fetchPromise = (async () => {
+        nfDebug('catalog:browse:start', { category, page, options });
+        try {
+            const resp = await fetch(`${CATALOG_API}?${params}`);
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(data.error || `Browse failed (${resp.status})`);
+            }
+            nfDebug('catalog:browse:ok', {
+                category,
+                page,
+                count: data.results?.length ?? 0,
+                totalPages: data.pager?.total_pages
+            });
+            return data as MoovieCatalogResponse;
+        } catch (err) {
+            nfDebugError('catalog:browse:fail', { category, page, err });
+            catalogCache.delete(cacheKey);
+            throw err;
+        }
+    })();
+
+    catalogCache.set(cacheKey, fetchPromise);
+    return fetchPromise;
 }
+
+const searchCache = new Map<string, Promise<MoovieCatalogResponse>>();
 
 export async function searchMoovieCatalog(
     query: string,
     page = 0
 ): Promise<MoovieCatalogResponse> {
-    nfDebug('catalog:search:start', { query, page });
     const params = new URLSearchParams({
         action: 'search',
         q: query,
         page: String(page)
     });
-    try {
-        const resp = await fetch(`${CATALOG_API}?${params}`);
-        const data = await resp.json();
-        if (!resp.ok) {
-            throw new Error(data.error || `Search failed (${resp.status})`);
-        }
-        nfDebug('catalog:search:ok', { query, page, count: data.results?.length ?? 0 });
-        return { results: data.results || [], pager: data.pager };
-    } catch (err) {
-        nfDebugError('catalog:search:fail', { query, page, err });
-        throw err;
+    const cacheKey = params.toString();
+    if (searchCache.has(cacheKey)) {
+        nfDebug('catalog:search:cache-hit', { query, page });
+        return searchCache.get(cacheKey)!;
     }
+
+    const fetchPromise = (async () => {
+        nfDebug('catalog:search:start', { query, page });
+        try {
+            const resp = await fetch(`${CATALOG_API}?${params}`);
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(data.error || `Search failed (${resp.status})`);
+            }
+            nfDebug('catalog:search:ok', { query, page, count: data.results?.length ?? 0 });
+            return { results: data.results || [], pager: data.pager };
+        } catch (err) {
+            nfDebugError('catalog:search:fail', { query, page, err });
+            searchCache.delete(cacheKey);
+            throw err;
+        }
+    })();
+
+    searchCache.set(cacheKey, fetchPromise);
+    return fetchPromise;
 }
 
 export async function fetchMoovieCatalogMeta(type: 'movie' | 'tv', id: string) {

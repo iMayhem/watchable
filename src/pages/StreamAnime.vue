@@ -1530,19 +1530,23 @@ export default defineComponent({
     &__party-btn {
         display: inline-flex;
         align-items: center;
-        gap: var(--s-2);
-        padding: 0.5rem 1rem;
+        gap: 6px;
+        background: rgba(255, 90, 31, 0.08);
+        border: 1px solid rgba(255, 90, 31, 0.25);
         border-radius: var(--r-pill);
-        background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
-        color: #000;
+        color: var(--ember);
+        padding: 0.5rem 1.1rem;
+        min-height: 38px;
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
         font-weight: 600;
-        font-size: 0.85rem;
         text-decoration: none;
-        transition: transform var(--dur-fast), box-shadow var(--dur-fast);
+        transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 
         &:hover {
+            background: rgba(255, 90, 31, 0.16);
+            border-color: rgba(255, 90, 31, 0.45);
             transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(255, 90, 31, 0.35);
         }
 
         @media (max-width: 640px) {
@@ -1556,6 +1560,11 @@ export default defineComponent({
                 display: none;
             }
         }
+    }
+
+    &__party-icon {
+        width: 16px;
+        height: 16px;
     }
 
     &__party-icon {

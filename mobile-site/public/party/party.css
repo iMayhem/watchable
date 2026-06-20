@@ -293,6 +293,59 @@
             color: var(--bone-50);
         }
 
+        /* Host episode controls (anime / TV party) */
+        .party-ep-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            flex-shrink: 0;
+        }
+
+        .party-ep-nav__btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border-radius: 50%;
+            background: var(--surface-tint);
+            border: 1px solid var(--rule);
+            color: var(--bone-200);
+            cursor: pointer;
+            transition:
+                background-color var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out);
+        }
+
+        .party-ep-nav__btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .party-ep-nav__btn:hover:not(:disabled) {
+            background: var(--surface-hover);
+            color: var(--bone-50);
+            border-color: var(--rule-strong);
+        }
+
+        .party-ep-nav__btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .party-ep-nav__label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--bone-400);
+            letter-spacing: 0.04em;
+            min-width: 2.4rem;
+            text-align: center;
+            user-select: none;
+        }
+
         /* Container Layout */
         main {
             max-width: 1440px;
@@ -3488,4 +3541,22 @@
         .player-controls-bar .controls-right {
             justify-content: space-between !important;
         }
-    
+
+        .player-controls-bar .party-ep-nav {
+            gap: 0.2rem !important;
+        }
+
+        .player-controls-bar .party-ep-nav__btn {
+            width: 28px !important;
+            height: 28px !important;
+        }
+
+        .player-controls-bar .party-ep-nav__btn svg {
+            width: 12px !important;
+            height: 12px !important;
+        }
+
+        .player-controls-bar .party-ep-nav__label {
+            font-size: 0.6rem !important;
+            min-width: 2rem !important;
+        }

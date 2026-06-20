@@ -1773,23 +1773,36 @@
         }
 
         function handlePrevEpisode() {
-            if (!isHost) {
-                alert('Only the party host can change episodes!');
-                return;
-            }
+            if (!isHost) return;
             if (episode > 1) {
                 changePartyEpisode(episode - 1);
             }
         }
 
         function handleNextEpisode() {
-            if (!isHost) {
-                alert('Only the party host can change episodes!');
-                return;
-            }
+            if (!isHost) return;
             const target = getNextPartyEpisodeTarget();
             if (!target) return;
             changePartyEpisode(target.episode, target.season);
+        }
+
+        function updatePartyEpNavButtons() {
+            const nav = document.getElementById('party-ep-nav');
+            const prevBtn = document.getElementById('party-prev-btn');
+            const nextBtn = document.getElementById('party-next-btn');
+            const label = document.getElementById('party-ep-nav-label');
+            const showNav = isHost && (isAnime || isTv) && !isNetflix;
+
+            if (nav) nav.hidden = !showNav;
+            if (!showNav) return;
+
+            if (prevBtn) prevBtn.disabled = episode <= 1;
+            if (nextBtn) nextBtn.disabled = !getNextPartyEpisodeTarget();
+            if (label) {
+                label.textContent = isTv && season > 1
+                    ? `S${season}·${episode}`
+                    : `Ep ${episode}`;
+            }
         }
 
         function changePartyEpisode(nextEp, nextSeason = null) {
@@ -1801,6 +1814,7 @@
             
             // Update UI Banner Text
             updateBannerText();
+            updatePartyEpNavButtons();
 
             if (isNetflix) {
                 loadNetflixPartyPlayer();
@@ -1877,18 +1891,8 @@
             if (inviteBtn) inviteBtn.hidden = true;
 
             const autoNextBtn = document.getElementById('party-auto-next-btn');
-            const prevBtn = document.getElementById('party-prev-btn');
-            const nextBtn = document.getElementById('party-next-btn');
-
-            if (isAnime || isTv) {
-                if (autoNextBtn) autoNextBtn.style.display = 'flex';
-                if (prevBtn) prevBtn.style.display = 'inline-block';
-                if (nextBtn) nextBtn.style.display = 'inline-block';
-            } else {
-                if (autoNextBtn) autoNextBtn.style.display = 'none';
-                if (prevBtn) prevBtn.style.display = 'none';
-                if (nextBtn) nextBtn.style.display = 'none';
-            }
+            if (autoNextBtn) autoNextBtn.style.display = 'none';
+            updatePartyEpNavButtons();
         }
 
         function updateBannerText() {

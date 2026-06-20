@@ -391,8 +391,19 @@
                             <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">
                                 Invite Friends
                             </button>
-                            <button id="party-prev-btn" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.75rem;" onclick="handlePrevEpisode()">Prev Ep</button>
-                            <button id="party-next-btn" class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size: 0.75rem;" onclick="handleNextEpisode()">Next Ep</button>
+                            <div id="party-ep-nav" class="party-ep-nav" hidden>
+                                <button id="party-prev-btn" type="button" class="party-ep-nav__btn" aria-label="Previous episode" onclick="handlePrevEpisode()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                        <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+                                <span id="party-ep-nav-label" class="party-ep-nav__label" aria-live="polite">Ep 1</span>
+                                <button id="party-next-btn" type="button" class="party-ep-nav__btn" aria-label="Next episode" onclick="handleNextEpisode()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                        <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
 

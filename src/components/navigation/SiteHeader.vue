@@ -73,8 +73,6 @@
                         <circle cx="11" cy="11" r="8" />
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    <span class="site-header__search-label">Search</span>
-                    <kbd class="site-header__search-kbd">{{ modKey }}K</kbd>
                 </router-link>
 
                 <ExtensionPrompt v-if="isNetflixMode" />
@@ -396,7 +394,9 @@ const primaryNav: NavItem[] = [
         match: p => p === '/actors' || p.startsWith('/actor/'),
         num: 5
     },
-    { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 }
+    { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
+    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
+    { label: 'Help', path: '/help', match: p => p === '/help', num: 8 }
 ];
 
 export default defineComponent({

@@ -214,6 +214,24 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/discuss',
+        name: 'Discuss',
+        component: () => import('../pages/Discuss.vue'),
+        meta: {
+            showInHeader: true,
+            title: 'Discuss'
+        }
+    },
+    {
+        path: '/help',
+        name: 'Help',
+        component: () => import('../pages/Help.vue'),
+        meta: {
+            showInHeader: true,
+            title: 'Help'
+        }
+    },
+    {
         'path': '/stream/movie/:id',
         alias: '/watch/movie/:id',
         'name': 'StreamMovie',

@@ -9,10 +9,10 @@
                 </svg>
             </span>
 
-            <h2 id="nf-ext-gate-title" class="nf-ext-gate__title">Install the Moovie extension</h2>
+            <h2 id="nf-ext-gate-title" class="nf-ext-gate__title">Extension needed</h2>
             <p class="nf-ext-gate__lead">
-                Streams play directly from the CDN with the extension — faster starts, fewer playback
-                errors. Install it first, then reload this page.
+                Install the Moovie extension to play Netflix catalogue streams — faster starts,
+                fewer playback errors. Install it first, then reload this page.
             </p>
 
             <a
@@ -46,7 +46,7 @@
                 </button>
             </div>
 
-            <p class="nf-ext-gate__note">Without the extension, playback uses a slower proxy and may fail.</p>
+            <p class="nf-ext-gate__note">We can't run videos without the extension.</p>
         </div>
     </div>
 </template>

@@ -44,14 +44,17 @@
                     <span class="mode-gate__card-head">
                         <span class="mode-gate__card-kicker">Stream</span>
                         <span class="mode-gate__card-title">Netflix catalogue</span>
+                        <span class="mode-gate__card-badge">Extension needed</span>
                     </span>
 
                     <p class="mode-gate__card-lede">
-                        Play films and series in-browser — Hindi, Telugu, Tamil, Kannada,
-                        Bengali, Arabic, Urdu and more.
+                        Play films and series in-browser — install the Moovie extension first
+                        for reliable playback. Hindi, Telugu, Tamil, Kannada, Bengali, Arabic,
+                        Urdu and more.
                     </p>
 
                     <ul class="mode-gate__features">
+                        <li>Moovie extension required for streaming</li>
                         <li>K-drama, Bollywood &amp; Hollywood dubs</li>
                         <li>Episode picker on series &amp; anime</li>
                         <li>In-browser player with audio variants</li>
@@ -405,6 +408,21 @@ export default defineComponent({
         letter-spacing: var(--ls-tight);
         line-height: var(--lh-snug);
         color: var(--bone-50);
+    }
+
+    &__card-badge {
+        justify-self: start;
+        margin-top: 0.15rem;
+        padding: 0.28rem 0.55rem;
+        border-radius: var(--r-pill);
+        border: 1px solid rgba(229, 9, 20, 0.45);
+        background: rgba(229, 9, 20, 0.14);
+        color: #ff8a8a;
+        font-family: var(--font-ui);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
     }
 
     &__card-lede {

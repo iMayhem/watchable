@@ -23,7 +23,7 @@
                 Extension detected · direct CDN streaming enabled
             </div>
             <div v-else class="ext-prompt__status ext-prompt__status--warn">
-                Extension not detected · playback will use the moovie proxy (slower)
+                Extension not detected · we can't run videos without the extension
             </div>
 
             <section class="ext-prompt__downloads" aria-labelledby="ext-download-heading">
@@ -116,7 +116,7 @@
             </section>
 
             <p class="ext-prompt__note">
-                The extension sets CDN headers so streams play directly instead of through our proxy.
+                Netflix catalogue playback requires the extension — videos won't run without it.
             </p>
         </LmDialog>
     </div>

@@ -97,8 +97,8 @@
                             :aria-label="item.title"
                         >
                             <img
-                                v-if="item.image"
-                                :src="useWebImage(item.image, 'medium')"
+                                v-if="posterFor(item)"
+                                :src="useWebImage(posterFor(item)!, 'medium')"
                                 :alt="item.title"
                                 loading="lazy"
                                 decoding="async"
@@ -222,7 +222,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import { useWebImage } from '../utils/useWebImage';
@@ -231,6 +231,10 @@ import {
     WatchlistItem
 } from '../composables/useWatchlist';
 import { useToast } from '../composables/useToast';
+import {
+    getCachedAnimeTmdbArtwork,
+    resolveAnimeTmdbPosterOnly
+} from '../composables/useAnimeTmdbArtwork';
 
 type FilterKey = 'all' | 'movie' | 'tv' | 'watched' | 'unwatched';
 type SortKey = 'recent' | 'title' | 'rating' | 'unwatched';
@@ -251,6 +255,44 @@ export default defineComponent({
         const activeFilter = ref<FilterKey>('all');
         const sortBy = ref<SortKey>('recent');
         const importInput = ref<HTMLInputElement | null>(null);
+        const animeTmdbPosters = ref<Record<string, string>>({});
+
+        const posterFor = (item: WatchlistItem): string | null => {
+            if (item.type === 'anime') {
+                const key = String(item.id);
+                return animeTmdbPosters.value[key] || item.image;
+            }
+            return item.image;
+        };
+
+        const hydrateAnimePosters = async () => {
+            const animeItems = watchlist.value.filter((item) => item.type === 'anime');
+            if (!animeItems.length) return;
+
+            const updates: Record<string, string> = {};
+            await Promise.all(
+                animeItems.map(async (item) => {
+                    const key = String(item.id);
+                    const cached = getCachedAnimeTmdbArtwork(Number(item.id));
+                    if (cached?.posterPath) {
+                        updates[key] = cached.posterPath;
+                        return;
+                    }
+                    const artwork = await resolveAnimeTmdbPosterOnly(Number(item.id), {
+                        title: { english: item.title, romaji: item.title }
+                    }).catch(() => null);
+                    if (artwork?.posterPath) updates[key] = artwork.posterPath;
+                })
+            );
+
+            if (Object.keys(updates).length) {
+                animeTmdbPosters.value = { ...animeTmdbPosters.value, ...updates };
+            }
+        };
+
+        onMounted(() => {
+            void hydrateAnimePosters();
+        });
 
         const totalCount = computed(() => watchlist.value.length);
 
@@ -440,6 +482,7 @@ export default defineComponent({
         return {
             watchlist,
             useWebImage,
+            posterFor,
             activeFilter,
             sortBy,
             filters,

@@ -160,13 +160,13 @@ export function buildCatalogCdnImageUrl(url: string, size: WebImageSize = 'mediu
     return buildCatalogOssImageUrl(url, width, catalogOssQuality(quality));
 }
 
-/** AniList covers via catalog-img proxy when in production. */
-function buildAnilistImageUrl(url: string, size: WebImageSize = 'medium'): string {
+/**
+ * AniList covers are served from s4.anilist.co (public CDN).
+ * The /api/catalog-img hop returns 403 from the edge for these URLs, so use direct links.
+ */
+function buildAnilistImageUrl(url: string, _size: WebImageSize = 'medium'): string {
     if (!url || !ANILIST_CDN_PATTERN.test(url)) return url;
-    if (IS_DEV) return url;
-    const quality = getTmdbImageQuality();
-    const width = posterPixelWidth(size, quality);
-    return `/api/catalog-img?url=${encodeURIComponent(url)}&w=${width}`;
+    return url.startsWith('//') ? `https:${url}` : url;
 }
 
 const proxyUrl = (tmdbPath: string) => buildProxiedImageUrl(tmdbPath);

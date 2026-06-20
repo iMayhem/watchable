@@ -31,7 +31,7 @@
 
             <section v-if="similarItems.length" class="m-detail__section">
                 <MobileSection title="Similar" eyebrow="You may also like">
-                    <MobileMediaGrid :items="similarItems" />
+                    <MobileMediaRail :items="similarItems" />
                 </MobileSection>
             </section>
         </div>
@@ -49,7 +49,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileSection from '../components/MobileSection.vue';
-import MobileMediaGrid from '../components/MobileMediaGrid.vue';
+import MobileMediaRail from '../components/MobileMediaRail.vue';
 import TitleMasthead from '@/components/detail/TitleMasthead.vue';
 import DropCapSynopsis from '@/components/detail/DropCapSynopsis.vue';
 import CastGrid from '@/components/detail/CastGrid.vue';

@@ -77,7 +77,7 @@
                             type="anime"
                             :title="anime.title.english || anime.title.romaji"
                             :original-title="anime.title.native || anime.title.romaji"
-                            :poster-path="anime.coverImage.large"
+                            :poster-path="anime.coverImage?.large || null"
                             :rating="anime.averageScore ? anime.averageScore / 10 : 0"
                             :release-date="anime.seasonYear?.toString() || ''"
                             :genre-ids="[]"
@@ -243,9 +243,22 @@ export default defineComponent({
                     const newResults = response.data.Page.media;
 
                     if (append) {
-                        results.value.push(...newResults);
+                        const combined = [...results.value, ...newResults];
+                        const seen = new Set();
+                        results.value = combined.filter((item) => {
+                            const uid = String(item.id || '');
+                            if (!uid || seen.has(uid)) return false;
+                            seen.add(uid);
+                            return true;
+                        });
                     } else {
-                        results.value = newResults;
+                        const seen = new Set();
+                        results.value = newResults.filter((item) => {
+                            const uid = String(item.id || '');
+                            if (!uid || seen.has(uid)) return false;
+                            seen.add(uid);
+                            return true;
+                        });
                         
                         if (isInitialDefault) {
                             localStorage.setItem(CACHE_KEY, JSON.stringify({

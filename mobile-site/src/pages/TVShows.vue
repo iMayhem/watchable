@@ -35,6 +35,7 @@ import MobileMediaGrid from '../components/MobileMediaGrid.vue';
 import FilterPanel, { DiscoverFilters } from '@/components/discover/FilterPanel.vue';
 import { useTvShows, TVShowType } from '@/composables/useTvShows';
 import { primeGenres, getGenres, Genre } from '@/composables/useGenreLookup';
+import { dedupeById } from '../utils/dedupe';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const yearBounds: [number, number] = [1950, CURRENT_YEAR + 2];
@@ -113,7 +114,7 @@ async function fetchPage(pageNum: number, append: boolean) {
         const fresh = (data.value?.results ?? []) as TVShowType[];
         totalPages.value = data.value?.total_pages ?? 1;
         page.value = pageNum;
-        results.value = append ? [...results.value, ...fresh] : fresh;
+        results.value = dedupeById(append ? [...results.value, ...fresh] : fresh);
     } finally {
         isLoading.value = false;
         isLoadingMore.value = false;

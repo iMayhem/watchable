@@ -5,13 +5,13 @@
         <main id="main" class="anime-detail__main" role="main">
             <section class="anime-detail__snap-slide">
                 <TitleMasthead
-                    :id="anime ? anime.id : ''"
+                    :id="tmdbIdRef || ''"
                     type="anime"
                     :title="anime ? (anime.title.english || anime.title.romaji || anime.title.native) : ''"
                     :tagline="anime ? anime.title.native : ''"
                     :eyebrow="mastheadEyebrow"
                     :backdrop-path="backdropPath"
-                    :poster-path="anime ? anime.coverImage.large : null"
+                    :poster-path="posterPath"
                     :rating="anime && anime.averageScore ? anime.averageScore / 10 : 0"
                     :release-date="anime ? String(anime.seasonYear || '') : ''"
                     :genres="anime ? anime.genres : []"
@@ -23,14 +23,14 @@
                 />
             </section>
 
-            <section v-if="loading || (anime && episodesList.length)" class="anime-detail__section anime-detail__snap-slide container-lm">
+            <section v-if="loading || anime" class="anime-detail__section anime-detail__snap-slide container-lm">
                 <div class="episode-guide">
                     <p class="eyebrow">The Schedule</p>
                     <h3 class="episode-guide__title display">Episode guide</h3>
                     <p class="episode-guide__desc">Every installment, in running order.</p>
 
                     <!-- Premium Custom Season Changer tabs -->
-                    <div v-if="loading" class="anime-detail__seasons-rail" aria-hidden="true">
+                    <div v-if="loading || isLoadingTmdb" class="anime-detail__seasons-rail" aria-hidden="true">
                         <div v-for="i in 3" :key="i" class="season-tab-btn-skeleton" />
                     </div>
                     <div v-else-if="seasonsList.length > 1" class="anime-detail__seasons-rail">
@@ -39,14 +39,14 @@
                             :key="s.id"
                             type="button"
                             class="season-tab-btn"
-                            :class="{ 'is-active': s.id === anime.id }"
+                            :class="{ 'is-active': usesTmdbSeasonTabs ? activeTmdbSeason === s.id : s.id === anime.id }"
                             @click="goToSeason(s.id)"
                         >
                             {{ s.label }}
                         </button>
                     </div>
 
-                    <div v-if="loading" class="episode-guide__grid" aria-hidden="true">
+                    <div v-if="loading || (isLoadingTmdb && totalEpisodesCount <= 1)" class="episode-guide__grid" aria-hidden="true">
                         <div v-for="i in 12" :key="i" class="episode-card-skeleton">
                             <div class="episode-card-skeleton__still episode-card-skeleton__shimmer" />
                             <div class="episode-card-skeleton__meta">
@@ -59,7 +59,7 @@
                         <router-link
                             v-for="ep in paginatedEpisodesList"
                             :key="ep"
-                            :to="`/stream/anime/${anime.id}/episode/${ep}`"
+                            :to="`/stream/anime/${tmdbIdRef}/episode/${ep}`"
                             class="episode-card"
                         >
                             <div class="episode-card__image-container">
@@ -71,13 +71,13 @@
                                 </div>
                             </div>
                             <div class="episode-card__meta">
-                                <h4 class="episode-card__title">Episode {{ ep }} · {{ getEpisodeTitle(ep) }}</h4>
+                                <h4 class="episode-card__title">Episode {{ getEpisodeInSeasonNumber(ep) }} · {{ getEpisodeTitle(ep) }}</h4>
                                 <p class="episode-card__subtitle">{{ truncate(getEpisodeOverview(ep), 90) }}</p>
                             </div>
                         </router-link>
                     </div>
 
-                    <div v-if="!loading" class="episode-guide__pagination">
+                    <div v-if="!loading && !isLoadingTmdb" class="episode-guide__pagination">
                         <button 
                             @click="currentPage > 1 ? currentPage-- : null"
                             :disabled="currentPage === 1"
@@ -90,7 +90,7 @@
                             Prev
                         </button>
                         <span class="pagination-info">
-                            Showing {{ (currentPage - 1) * 20 + 1 }}–{{ Math.min(currentPage * 20, totalEpisodesCount) }} of {{ totalEpisodesCount }} episodes
+                            Showing {{ paginationStart }}–{{ paginationEnd }} of {{ seasonEpisodeTotal }} episodes
                         </span>
                         <button 
                             @click="currentPage < totalPages ? currentPage++ : null"
@@ -150,9 +150,17 @@ import DropCapSynopsis from '../components/detail/DropCapSynopsis.vue';
 import StatsBlock, { StatEntry } from '../components/detail/StatsBlock.vue';
 import { useAniList } from '../composables/useAniList';
 import { addViewedItem } from '../composables/useHistory';
-import useAxios from '../composables/useAxios';
 import { useSeo } from '../composables/useSeo';
-import { buildProxiedImageUrl } from '../utils/useWebImage';
+import { useWebImage } from '../utils/useWebImage';
+import {
+    estimateAnimeEpisodeTotal,
+    getCachedAnimeTmdbArtwork,
+    resolveAnimeTmdbEpisodesByTmdbId,
+    resolveAnimeTmdbMetaByTmdbId,
+    getAnilistIdForTmdbId,
+    resolveAnimeTmdbMeta,
+    type AnimeTmdbArtwork
+} from '../composables/useAnimeTmdbArtwork';
 
 
 export default defineComponent({
@@ -174,10 +182,24 @@ export default defineComponent({
 
         const anime = ref<any | null>(null);
         const loading = ref(true);
+        const tmdbPoster = ref<string | null>(null);
         const tmdbBackdrop = ref<string | null>(null);
+        const tmdbEpisodes = ref<any[]>([]);
+        const tmdbTotalEpisodeCount = ref(0);
+        const usesTmdbSeasonTabs = ref(false);
+        const tmdbSeasonTabs = ref<AnimeTmdbArtwork['seasonTabs']>([]);
+        const activeTmdbSeason = ref(1);
+        const isLoadingTmdb = ref(false);
+        const isLoadingEpisodes = ref(false);
+        const tmdbIdRef = ref<number | null>(null);
+        const seasonsTmdbIds = ref<Record<number, number>>({});
+
+        const posterPath = computed(() => {
+            return tmdbPoster.value || anime.value?.coverImage?.large || null;
+        });
 
         const backdropPath = computed(() => {
-            return tmdbBackdrop.value || anime.value?.coverImage?.large || null;
+            return tmdbBackdrop.value || tmdbPoster.value || anime.value?.bannerImage || anime.value?.coverImage?.large || null;
         });
 
         const cleanDescription = computed(() => {
@@ -217,77 +239,100 @@ export default defineComponent({
         const statsItems = computed<StatEntry[]>(() => {
             if (!anime.value) return [];
             return [
-                { label: 'Episodes', value: anime.value.episodes || '1' },
+                { label: 'Episodes', value: String(totalEpisodesCount.value) },
                 { label: 'Score', value: anime.value.averageScore ? `${anime.value.averageScore}%` : 'N/A' },
                 { label: 'Year', value: String(anime.value.seasonYear || '') }
             ];
         });
 
-        const episodesList = computed(() => {
-            const count = anime.value?.episodes || 1;
-            return Array.from({ length: count }, (_, i) => i + 1);
-        });
-
         const playRoute = computed(() => {
-            return anime.value ? `/stream/anime/${anime.value.id}/episode/1` : '';
+            return tmdbIdRef.value ? `/stream/anime/${tmdbIdRef.value}/episode/1` : '';
         });
 
         const currentPage = ref(1);
         const episodesPerPage = 20;
 
-        const totalEpisodesCount = computed(() => {
-            return anime.value?.episodes || 1;
-        });
+        const totalEpisodesCount = computed(() =>
+            estimateAnimeEpisodeTotal(tmdbEpisodes.value, tmdbTotalEpisodeCount.value)
+        );
 
-        const totalPages = computed(() => {
-            return Math.ceil(totalEpisodesCount.value / episodesPerPage);
-        });
-
-        const paginatedEpisodesList = computed(() => {
-            const startIndex = (currentPage.value - 1) * episodesPerPage;
-            const endIndex = startIndex + episodesPerPage;
-            
-            const list: number[] = [];
-            for (let i = startIndex + 1; i <= Math.min(endIndex, totalEpisodesCount.value); i++) {
-                list.push(i);
+        const seasonEpisodeNumbers = computed(() => {
+            if (!usesTmdbSeasonTabs.value) {
+                const total = totalEpisodesCount.value;
+                const list: number[] = [];
+                for (let i = 1; i <= total; i++) list.push(i);
+                return list;
             }
+
+            const tab = tmdbSeasonTabs.value.find((s) => s.seasonNumber === activeTmdbSeason.value);
+            if (!tab) return [];
+            const list: number[] = [];
+            for (let i = tab.firstEpisode; i <= tab.lastEpisode; i++) list.push(i);
             return list;
         });
 
+        const seasonEpisodeTotal = computed(() => seasonEpisodeNumbers.value.length);
+
+        const totalPages = computed(() =>
+            Math.max(1, Math.ceil(seasonEpisodeTotal.value / episodesPerPage))
+        );
+
+        const paginatedEpisodesList = computed(() => {
+            const startIndex = (currentPage.value - 1) * episodesPerPage;
+            return seasonEpisodeNumbers.value.slice(startIndex, startIndex + episodesPerPage);
+        });
+
+        const paginationStart = computed(() => {
+            if (!seasonEpisodeTotal.value) return 0;
+            return (currentPage.value - 1) * episodesPerPage + 1;
+        });
+
+        const paginationEnd = computed(() =>
+            Math.min(currentPage.value * episodesPerPage, seasonEpisodeTotal.value)
+        );
+
         const seasonsList = computed(() => {
+            if (usesTmdbSeasonTabs.value && tmdbSeasonTabs.value.length) {
+                return tmdbSeasonTabs.value.map((tab) => ({
+                    id: tab.seasonNumber,
+                    label: tab.label
+                }));
+            }
+
             if (!anime.value) return [];
             const list = [];
-            
+
             list.push({
                 id: anime.value.id,
                 title: anime.value.title.english || anime.value.title.romaji || anime.value.title.native,
                 year: anime.value.seasonYear || 0
             });
-            
+
             const edges = anime.value.relations?.edges || [];
             for (const edge of edges) {
                 const node = edge.node;
-                if (node.type === 'ANIME' && (edge.relationType === 'PREQUEL' || edge.relationType === 'SEQUEL')) {
-                    list.push({
-                        id: node.id,
-                        title: node.title.english || node.title.romaji || node.title.native,
-                        year: node.seasonYear || 0
-                    });
+                if (node.type !== 'ANIME' || (edge.relationType !== 'PREQUEL' && edge.relationType !== 'SEQUEL')) {
+                    continue;
                 }
+                if (node.format === 'MOVIE' || node.format === 'SPECIAL' || node.format === 'MUSIC') {
+                    continue;
+                }
+                if (node.episodes != null && node.episodes <= 2) {
+                    continue;
+                }
+                list.push({
+                    id: node.id,
+                    title: node.title.english || node.title.romaji || node.title.native,
+                    year: node.seasonYear || 0
+                });
             }
-            
-            // Deduplicate
-            const unique = list.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-            
-            // Sort chronologically
+
+            const unique = list.filter((v, i, a) => a.findIndex((t) => t.id === v.id) === i);
             unique.sort((a, b) => a.year - b.year);
-            
-            // Generate friendly season labels
+
             return unique.map((item, idx) => {
                 let label = `Season ${idx + 1}`;
-                
-                const name = item.title;
-                const lowerName = name.toLowerCase();
+                const lowerName = item.title.toLowerCase();
                 if (lowerName.includes('entertainment district')) {
                     label = `Season ${idx + 1} (Entertainment District)`;
                 } else if (lowerName.includes('swordsmith village')) {
@@ -297,135 +342,130 @@ export default defineComponent({
                 } else if (lowerName.includes('mugen train')) {
                     label = `Season ${idx + 1} (Mugen Train)`;
                 } else if (lowerName.includes('final season')) {
-                    label = `Final Season`;
+                    label = 'Final Season';
                 }
-                
-                return {
-                    id: item.id,
-                    label: label
-                };
+
+                return { id: item.id, label };
             });
         });
 
         const goToSeason = (id: number) => {
-            router.push(`/anime/${id}`);
+            if (usesTmdbSeasonTabs.value) {
+                activeTmdbSeason.value = id;
+                currentPage.value = 1;
+                return;
+            }
+            const targetTmdbId = seasonsTmdbIds.value[id] || id;
+            if (targetTmdbId !== tmdbIdRef.value) {
+                router.push(`/anime/${targetTmdbId}`);
+            }
         };
 
-        const tmdbEpisodes = ref<any[]>([]);
-
-        const loadTmdbEpisodes = async (anilistMedia: any) => {
-            tmdbEpisodes.value = [];
-            tmdbBackdrop.value = null;
-            if (!anilistMedia) return;
-
-            const englishTitle = anilistMedia.title.english;
-            const romajiTitle = anilistMedia.title.romaji;
-            const isMovie = anilistMedia.format === 'MOVIE';
-            const searchType = isMovie ? 'movie' : 'tv';
-
-            try {
-                let show = null;
-                
-                // Try English Title search (clean title without Season suffixes)
-                if (englishTitle) {
-                    const cleanTitle = englishTitle.replace(/Season \d+|Part \d+/gi, '').trim();
-                    const searchRes = await useAxios().get(
-                        `https://api.themoviedb.org/3/search/${searchType}?query=${encodeURIComponent(cleanTitle)}`
-                    );
-                    show = searchRes?.data?.results?.[0];
+        const applyTmdbSeasonState = (artwork: AnimeTmdbArtwork | null) => {
+            usesTmdbSeasonTabs.value = artwork?.usesTmdbSeasonTabs ?? false;
+            tmdbSeasonTabs.value = artwork?.seasonTabs ?? [];
+            if (usesTmdbSeasonTabs.value && tmdbSeasonTabs.value.length) {
+                const matchedTab = tmdbSeasonTabs.value.find((tab) => tab.anilistId === anime.value?.id);
+                if (matchedTab) {
+                    activeTmdbSeason.value = matchedTab.seasonNumber;
+                } else if (!tmdbSeasonTabs.value.some((tab) => tab.seasonNumber === activeTmdbSeason.value)) {
+                    activeTmdbSeason.value = tmdbSeasonTabs.value[0].seasonNumber;
                 }
-                
-                // Fallback to Romaji Title
-                if (!show && romajiTitle) {
-                    const cleanTitle = romajiTitle.replace(/Season \d+|Part \d+/gi, '').trim();
-                    const searchRes = await useAxios().get(
-                        `https://api.themoviedb.org/3/search/${searchType}?query=${encodeURIComponent(cleanTitle)}`
-                    );
-                    show = searchRes?.data?.results?.[0];
-                }
-                
-                if (show) {
-                    if (show.backdrop_path) {
-                        tmdbBackdrop.value = show.backdrop_path;
-                    }
-                    
-                    if (isMovie) {
-                        const movieRes = await useAxios().get(`https://api.themoviedb.org/3/movie/${show.id}`);
-                        if (movieRes?.data?.backdrop_path) {
-                            tmdbBackdrop.value = movieRes.data.backdrop_path;
-                        }
-                    } else {
-                        // Fetch full TV show details to get list of all seasons
-                        const showRes = await useAxios().get(`https://api.themoviedb.org/3/tv/${show.id}`);
-                        if (showRes?.data?.backdrop_path) {
-                            tmdbBackdrop.value = showRes.data.backdrop_path;
-                        }
-                    const tmdbSeasons = showRes?.data?.seasons || [];
-                    
-                    // Match current AniList media to correct TMDB season
-                    let seasonNumber = 1;
-                    const anilistYear = anilistMedia.seasonYear;
-                    const anilistTitle = (englishTitle || romajiTitle || '').toLowerCase();
-                    
-                    // Keyword matching (Mugen, Entertainment, Swordsmith, etc.)
-                    for (const s of tmdbSeasons) {
-                        const sName = (s.name || '').toLowerCase();
-                        const keywords = ['mugen', 'entertainment', 'swordsmith', 'hashira', 'yuukaku', 'katanakaji'];
-                        for (const kw of keywords) {
-                            if (sName.includes(kw) && anilistTitle.includes(kw)) {
-                                seasonNumber = s.season_number;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    // Year matching
-                    if (seasonNumber === 1 && anilistYear) {
-                        const exactMatch = tmdbSeasons.find((s: any) => {
-                            if (!s.air_date) return false;
-                            return new Date(s.air_date).getFullYear() === anilistYear;
-                        });
-                        if (exactMatch) {
-                            seasonNumber = exactMatch.season_number;
-                        } else {
-                            // Find closest year
-                            let closestSeason = tmdbSeasons[0];
-                            let minDiff = Infinity;
-                            for (const s of tmdbSeasons) {
-                                if (!s.air_date) continue;
-                                const sYear = new Date(s.air_date).getFullYear();
-                                const diff = Math.abs(sYear - anilistYear);
-                                if (diff < minDiff) {
-                                    minDiff = diff;
-                                    closestSeason = s;
-                                }
-                            }
-                            if (closestSeason && minDiff <= 1) {
-                                seasonNumber = closestSeason.season_number;
-                            }
-                        }
-                    }
-                    
-                    // Fetch matched season's episodes
-                    const seasonRes = await useAxios().get(
-                        `https://api.themoviedb.org/3/tv/${show.id}/season/${seasonNumber}`
-                    );
-                    if (seasonRes?.data?.episodes) {
-                        tmdbEpisodes.value = seasonRes.data.episodes;
-                    }
+            } else {
+                activeTmdbSeason.value = 1;
+            }
+        };
+
+        const resolveSeasonsTmdbIds = async () => {
+            if (usesTmdbSeasonTabs.value || !anime.value) return;
+            const edges = anime.value.relations?.edges || [];
+            const idsToResolve = [anime.value.id];
+            for (const edge of edges) {
+                const node = edge.node;
+                if (node.type === 'ANIME' && (edge.relationType === 'PREQUEL' || edge.relationType === 'SEQUEL')) {
+                    if (node.format === 'MOVIE' || node.format === 'SPECIAL' || node.format === 'MUSIC') continue;
+                    if (node.episodes != null && node.episodes <= 2) continue;
+                    idsToResolve.push(node.id);
                 }
             }
-        } catch (err) {
-            console.warn('Failed to load TMDb episode metadata:', err);
-        }
-    };
+
+            for (const aniId of idsToResolve) {
+                if (seasonsTmdbIds.value[aniId]) continue;
+                const cached = getCachedAnimeTmdbArtwork(aniId);
+                if (cached?.tmdbId) {
+                    seasonsTmdbIds.value[aniId] = cached.tmdbId;
+                    continue;
+                }
+                try {
+                    const res = await fetchAnimeById(aniId);
+                    const media = res?.data?.Media;
+                    if (media) {
+                        const meta = await resolveAnimeTmdbMeta(aniId, media);
+                        if (meta?.tmdbId) {
+                            seasonsTmdbIds.value[aniId] = meta.tmdbId;
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`Failed to resolve TMDB ID for season AniList ID ${aniId}:`, err);
+                }
+            }
+        };
+
+        const loadTmdbArtworkByTmdbId = async (tmdbId: number) => {
+            tmdbEpisodes.value = [];
+            tmdbTotalEpisodeCount.value = 0;
+            usesTmdbSeasonTabs.value = false;
+            tmdbSeasonTabs.value = [];
+            activeTmdbSeason.value = 1;
+            tmdbBackdrop.value = null;
+            tmdbPoster.value = null;
+
+            isLoadingTmdb.value = true;
+            let meta: Awaited<ReturnType<typeof resolveAnimeTmdbMetaByTmdbId>> = null;
+            try {
+                meta = await resolveAnimeTmdbMetaByTmdbId(tmdbId);
+                if (meta) {
+                    tmdbPoster.value = meta.posterPath;
+                    tmdbBackdrop.value = meta.backdropPath;
+                    tmdbTotalEpisodeCount.value = meta.totalEpisodeCount;
+                    applyTmdbSeasonState(meta);
+                    if (meta.episodes.length) {
+                        tmdbEpisodes.value = meta.episodes;
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to load TMDb anime meta by TMDB ID:', err);
+            } finally {
+                isLoadingTmdb.value = false;
+            }
+
+            isLoadingEpisodes.value = true;
+            try {
+                const episodes = await resolveAnimeTmdbEpisodesByTmdbId(tmdbId);
+                if (episodes.length) {
+                    tmdbEpisodes.value = episodes;
+                    const matchedCached = getCachedAnimeTmdbArtwork(getAnilistIdForTmdbId(tmdbId) || 0) || meta;
+                    applyTmdbSeasonState(matchedCached);
+                }
+            } catch (err) {
+                console.warn('Failed to load TMDb anime episodes by TMDB ID:', err);
+            } finally {
+                isLoadingEpisodes.value = false;
+            }
+        };
 
         const getEpisodeStill = (epNum: number) => {
             const match = tmdbEpisodes.value.find(e => e.episode_number === epNum);
-            if (match && match.still_path) {
-                return buildProxiedImageUrl(`w780${match.still_path}`);
+            if (match?.still_path) {
+                return useWebImage(match.still_path, 'large');
             }
-            return anime.value?.bannerImage || anime.value?.coverImage?.large;
+            if (tmdbPoster.value) {
+                return useWebImage(tmdbPoster.value, 'medium');
+            }
+            if (tmdbBackdrop.value) {
+                return useWebImage(tmdbBackdrop.value, 'medium');
+            }
+            return anime.value?.bannerImage || anime.value?.coverImage?.large || '';
         };
 
         const getEpisodeTitle = (epNum: number) => {
@@ -436,30 +476,14 @@ export default defineComponent({
             return `Episode ${epNum}`;
         };
 
+        const getEpisodeInSeasonNumber = (epNum: number) => {
+            const match = tmdbEpisodes.value.find(e => e.episode_number === epNum);
+            return match ? match.episode_in_season : epNum;
+        };
+
         const getEpisodeOverview = (epNum: number) => {
             const match = tmdbEpisodes.value.find(e => e.episode_number === epNum);
-            if (match) {
-                if (match.air_date) {
-                    const parts = match.air_date.split('-');
-                    if (parts.length === 3) {
-                        const year = parseInt(parts[0], 10);
-                        const month = parseInt(parts[1], 10) - 1;
-                        const day = parseInt(parts[2], 10);
-                        const airDate = new Date(year, month, day);
-                        
-                        const now = new Date();
-                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                        
-                        if (airDate > today) {
-                            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                            return `📅 Releases: ${months[month]} ${day}, ${year}`;
-                        }
-                    }
-                }
-                if (match.overview) {
-                    return match.overview;
-                }
-            }
+            if (match?.overview) return match.overview;
             return 'Sub/Dub available';
         };
 
@@ -473,10 +497,28 @@ export default defineComponent({
             loading.value = true;
             anime.value = null;
             tmdbBackdrop.value = null;
+            tmdbPoster.value = null;
             currentPage.value = 1;
+            tmdbIdRef.value = id;
 
             try {
-                const response = await fetchAnimeById(id);
+                let meta = await resolveAnimeTmdbMetaByTmdbId(id);
+                let matchedAnilistId = getAnilistIdForTmdbId(id);
+
+                if (!meta || !matchedAnilistId) {
+                    const aniResponse = await fetchAnimeById(id);
+                    const aniMedia = aniResponse?.data?.Media;
+                    if (aniMedia) {
+                        const resolvedMeta = await resolveAnimeTmdbMeta(id, aniMedia);
+                        if (resolvedMeta?.tmdbId) {
+                            router.replace(`/anime/${resolvedMeta.tmdbId}`);
+                            return;
+                        }
+                    }
+                }
+
+                const anilistIdToFetch = matchedAnilistId || id;
+                const response = await fetchAnimeById(anilistIdToFetch);
                 anime.value = response?.data?.Media ?? null;
 
                 if (anime.value) {
@@ -485,15 +527,15 @@ export default defineComponent({
                     updateSeo({
                         title: `${title} — Moovie`,
                         description: cleanDescription.value || `Watch ${title} online on Moovie.`,
-                        image: anime.value.coverImage?.large || 'https://moovie.fun/og-image.png',
-                        canonical: `https://moovie.fun/anime/${anime.value.id}`,
+                        image: posterPath.value || 'https://moovie.fun/og-image.png',
+                        canonical: `https://moovie.fun/anime/${tmdbIdRef.value}`,
                         type: isMovie ? 'video.movie' : 'video.tv_show',
                         jsonLd: {
                             '@context': 'https://schema.org',
                             '@type': isMovie ? 'Movie' : 'TVSeries',
                             'name': title,
                             'description': cleanDescription.value,
-                            'image': anime.value.coverImage?.large || undefined,
+                            'image': posterPath.value || undefined,
                             'dateCreated': anime.value.startDate?.year ? `${anime.value.startDate.year}-${String(anime.value.startDate.month || 1).padStart(2, '0')}-${String(anime.value.startDate.day || 1).padStart(2, '0')}` : undefined,
                             'aggregateRating': anime.value.averageScore ? {
                                 '@type': 'AggregateRating',
@@ -506,9 +548,9 @@ export default defineComponent({
                     });
                     
                     addViewedItem({
-                        id: anime.value.id,
+                        id: tmdbIdRef.value,
                         title: title,
-                        image: anime.value.coverImage.large,
+                        image: posterPath.value || anime.value.coverImage.large,
                         rating: anime.value.averageScore ? anime.value.averageScore / 10 : 0,
                         categories: [],
                         adult: false,
@@ -519,9 +561,10 @@ export default defineComponent({
                 loading.value = false;
 
                 if (anime.value) {
-                    // Trigger TMDb mapping matching in background
-                    loadTmdbEpisodes(anime.value).catch(err => {
-                        console.error('Failed to load TMDB episodes mapping:', err);
+                    loadTmdbArtworkByTmdbId(id).then(() => {
+                        resolveSeasonsTmdbIds();
+                    }).catch(err => {
+                        console.error('Failed to load TMDB anime artwork:', err);
                     });
                 }
             } catch (err) {
@@ -559,23 +602,31 @@ export default defineComponent({
         return {
             anime,
             loading,
+            isLoadingTmdb,
+            usesTmdbSeasonTabs,
+            activeTmdbSeason,
             backdropPath,
+            posterPath,
             cleanDescription,
             mastheadEyebrow,
             metaItems,
             statsItems,
-            episodesList,
             playRoute,
+            totalEpisodesCount,
+            seasonEpisodeTotal,
+            paginationStart,
+            paginationEnd,
             seasonsList,
             goToSeason,
             getEpisodeStill,
             getEpisodeTitle,
             getEpisodeOverview,
+            getEpisodeInSeasonNumber,
             truncate,
             currentPage,
-            totalEpisodesCount,
             totalPages,
-            paginatedEpisodesList
+            paginatedEpisodesList,
+            tmdbIdRef
         };
     }
 });

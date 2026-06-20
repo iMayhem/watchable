@@ -140,7 +140,7 @@ export type CatalogMediaSignals = {
  * Resolve movie vs TV for catalogue browse rows.
  * Season markers win; then explicit API tags; films mis-tagged as tv are demoted.
  */
-export function inferCatalogMediaType(item: CatalogMediaSignals): 'movie' | 'tv' {
+export function inferCatalogMediaType(item: CatalogMediaSignals & { type?: string }): 'movie' | 'tv' {
     const raw = item.title || '';
     const parsed = parseCatalogTitle(raw);
 
@@ -148,7 +148,7 @@ export function inferCatalogMediaType(item: CatalogMediaSignals): 'movie' | 'tv'
         return 'tv';
     }
 
-    const mt = String(item.media_type || '').toLowerCase();
+    const mt = String(item.media_type || item.type || '').toLowerCase();
     if (mt === 'movie') return 'movie';
 
     if (CATALOG_SERIES_PATTERN.test(raw)) {
@@ -158,11 +158,14 @@ export function inferCatalogMediaType(item: CatalogMediaSignals): 'movie' | 'tv'
     if (mt === 'tv') {
         if (isEmbedOnlyCatalogFilm(item)) return 'movie';
         if (CATALOG_FEATURE_FILM_PATTERN.test(raw)) return 'movie';
+        if (hasCatalogSeasonData(item.season) || Boolean(String(item.subjectid || '').trim())) {
+            return 'tv';
+        }
         if (looksLikeFeatureFilm(item)) return 'movie';
         return 'tv';
     }
 
-    if (hasCatalogSeasonData(item.season) || Boolean(String(item.subjectid || '').trim())) {
+    if (hasCatalogSeasonData(item.season)) {
         return 'tv';
     }
 

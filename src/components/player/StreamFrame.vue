@@ -18,10 +18,10 @@
                     :title="title"
                     class="stream-frame__iframe"
                     :class="{ 'is-loading': iframeLoading }"
-                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                    :allow="iframeAllow"
                     allowfullscreen
                     frameborder="0"
-                    :sandbox="sandboxAttribute"
+                    v-bind="iframeExtraAttrs"
                     @load="onLoad"
                     @error="onError"
                 />
@@ -71,6 +71,7 @@ export default defineComponent({
         posterPath: { type: String, default: '' },
         mediaId: { type: [String, Number], default: '' },
         mediaType: { type: String as () => 'movie' | 'tv' | 'anime', default: 'movie' },
+        embedProvider: { type: String as () => 'default' | 'animeplay', default: 'default' },
         season: { type: Number, default: 0 },
         episode: { type: Number, default: 0 }
     },
@@ -133,16 +134,28 @@ export default defineComponent({
             }
         }, { immediate: true });
 
-        const sandboxAttribute = computed(() => {
-            if (!props.embedUrl) return undefined;
-            const url = props.embedUrl.toLowerCase();
-            if (
-                url.includes('cinemaos.tech') ||
-                url.includes('smashystream.com')
-            ) {
-                return 'allow-scripts allow-same-origin allow-forms allow-presentation';
+        const isAnimeplayEmbed = computed(() => {
+            if (props.embedProvider === 'animeplay') return true;
+            const lower = props.embedUrl.toLowerCase();
+            return lower.includes('animeplay.cfd') || lower.includes('megaplay.buzz');
+        });
+
+        const iframeAllow = computed(() =>
+            isAnimeplayEmbed.value
+                ? 'autoplay; fullscreen; picture-in-picture'
+                : 'autoplay; fullscreen; encrypted-media; picture-in-picture'
+        );
+
+        const iframeExtraAttrs = computed(() => {
+            const attrs: Record<string, string> = {};
+            if (isAnimeplayEmbed.value) {
+                attrs.referrerpolicy = 'origin';
             }
-            return undefined;
+            const url = props.embedUrl.toLowerCase();
+            if (url.includes('cinemaos.tech') || url.includes('smashystream.com')) {
+                attrs.sandbox = 'allow-scripts allow-same-origin allow-forms allow-presentation';
+            }
+            return attrs;
         });
 
         const ambientPath = computed(() => props.backdropPath || props.posterPath || null);
@@ -251,7 +264,8 @@ export default defineComponent({
             countdown,
             loadingLabel,
             ambientImage,
-            sandboxAttribute,
+            iframeAllow,
+            iframeExtraAttrs,
             onLoad,
             onError,
             retry,

@@ -28,6 +28,7 @@
     
     <!-- Performance Optimizations: Resource Hints -->
     <link rel="dns-prefetch" href="https://image.tmdb.org" />
+    <link rel="dns-prefetch" href="https://animeplay.cfd" />
     <link rel="dns-prefetch" href="https://api.themoviedb.org" />
     <link rel="preconnect" href="https://image.tmdb.org" crossorigin />
     
@@ -50,6 +51,9 @@
           var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
           var path = location.pathname;
           if (path.indexOf('/api/') === 0 || path.indexOf('/party') === 0 || /\.[a-z0-9]+$/i.test(path)) return;
+          if (/^\/nf(\/|$)/.test(path) || /^\/stream\/nf(\/|$)/.test(path) || /^\/embed\/nf(\/|$)/.test(path)) {
+            path = '/';
+          }
           
           var q = location.search || '';
           if (/\bdesktop=1\b/.test(q) || q.indexOf('desktop') !== -1) return;

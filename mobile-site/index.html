@@ -136,14 +136,21 @@
           var narrow = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
           var tablet = touch && narrow;
           
+          var path = location.pathname;
+          if (/^\/nf(\/|$)/.test(path) || /^\/stream\/nf(\/|$)/.test(path) || /^\/embed\/nf(\/|$)/.test(path)) {
+            path = '/';
+          }
+
           // If NOT mobile/tablet, redirect to the desktop site
           if (desktopQ || (!mobileUa && !tablet)) {
             var targetHost = cleanHost;
             if (cleanHost.indexOf('m.') === 0) {
               targetHost = cleanHost.substring(2);
             }
-            var targetUrl = 'https://' + targetHost + location.pathname + location.search + location.hash;
+            var targetUrl = 'https://' + targetHost + path + location.search + location.hash;
             location.replace(targetUrl);
+          } else if (path !== location.pathname) {
+            location.replace(path + location.search + location.hash);
           }
         } catch (e) {}
       })();

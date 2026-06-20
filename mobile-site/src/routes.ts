@@ -4,8 +4,21 @@ import TVShow from './pages/TVShow.vue';
 import AnimeDetail from './pages/AnimeDetail.vue';
 import Actor from './pages/Actor.vue';
 import { useSeo } from './composables/useSeo';
+import { enforceMobileGlobalMode, isNetflixPath, mobileSafePath } from './utils/mobileGlobalOnly';
 
 const routes: Array<RouteRecordRaw> = [
+    {
+        path: '/nf/:pathMatch(.*)*',
+        redirect: '/'
+    },
+    {
+        path: '/stream/nf/:pathMatch(.*)*',
+        redirect: '/'
+    },
+    {
+        path: '/embed/nf/:pathMatch(.*)*',
+        redirect: '/'
+    },
     {
         path: '/',
         name: 'Home',
@@ -116,6 +129,13 @@ const router = createRouter({
     scrollBehavior(_to, _from, savedPosition) {
         if (savedPosition) return savedPosition;
         return { top: 0, left: 0 };
+    }
+});
+
+router.beforeEach((to) => {
+    enforceMobileGlobalMode();
+    if (isNetflixPath(to.path)) {
+        return mobileSafePath(to.path);
     }
 });
 

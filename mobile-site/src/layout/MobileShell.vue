@@ -32,7 +32,9 @@
                 class="m-app__tab"
                 :class="{ 'is-active': isTabActive(tab) }"
             >
-                <span class="m-app__tab-icon" aria-hidden="true">{{ tab.icon }}</span>
+                <span class="m-app__tab-icon" aria-hidden="true">
+                    <component :is="tab.icon" />
+                </span>
                 <span class="m-app__tab-label">{{ tab.label }}</span>
             </router-link>
         </nav>
@@ -40,19 +42,56 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, defineComponent, h } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAppPaths } from '@/composables/useAppPaths';
 
 const { home, movies, tvShows, animeList, actors, search, watchlist } = useAppPaths();
 const route = useRoute();
 
+const iconHome = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('path', { d: 'M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z', 'stroke-linejoin': 'round' })
+    ])
+});
+
+const iconMovies = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('rect', { x: '3', y: '5', width: '18', height: '14', rx: '2' }),
+        h('path', { d: 'M7 5v14M17 5v14M3 10h4M3 14h4M17 10h4M17 14h4' })
+    ])
+});
+
+const iconTv = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('rect', { x: '3', y: '6', width: '18', height: '13', rx: '2' }),
+        h('path', { d: 'M8 3h8' })
+    ])
+});
+
+const iconAnime = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('path', { d: 'M12 3 4 7v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V7z' }),
+        h('circle', { cx: '9', cy: '11', r: '1', fill: 'currentColor', stroke: 'none' }),
+        h('circle', { cx: '15', cy: '11', r: '1', fill: 'currentColor', stroke: 'none' })
+    ])
+});
+
+const iconCast = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('circle', { cx: '9', cy: '8', r: '3.5' }),
+        h('path', { d: 'M3.5 20c.6-3 2.8-5 5.5-5s4.9 2 5.5 5' }),
+        h('circle', { cx: '17.5', cy: '9', r: '2.5' }),
+        h('path', { d: 'M15 20c.4-2 1.6-3.5 3.5-3.5' })
+    ])
+});
+
 const tabs = computed(() => [
-    { to: home.value, label: 'Home', icon: '⌂', match: (p: string) => p === '/' },
-    { to: movies.value, label: 'Movies', icon: '▶', match: (p: string) => p.startsWith('/movies') || p.startsWith('/movie/') },
-    { to: tvShows.value, label: 'TV', icon: '▦', match: (p: string) => p.startsWith('/tv') },
-    { to: animeList.value, label: 'Anime', icon: '✦', match: (p: string) => p.startsWith('/anime') },
-    { to: actors.value, label: 'Cast', icon: '◎', match: (p: string) => p.startsWith('/actor') || p.startsWith('/actors') }
+    { to: home.value, label: 'Home', icon: iconHome, match: (p: string) => p === '/' },
+    { to: movies.value, label: 'Movies', icon: iconMovies, match: (p: string) => p.startsWith('/movies') || p.startsWith('/movie/') },
+    { to: tvShows.value, label: 'TV', icon: iconTv, match: (p: string) => p.startsWith('/tv') },
+    { to: animeList.value, label: 'Anime', icon: iconAnime, match: (p: string) => p.startsWith('/anime') },
+    { to: actors.value, label: 'Cast', icon: iconCast, match: (p: string) => p.startsWith('/actor') || p.startsWith('/actors') }
 ]);
 
 function isTabActive(tab: { match: (p: string) => boolean }) {
@@ -67,7 +106,7 @@ function isTabActive(tab: { match: (p: string) => boolean }) {
     flex-direction: column;
     background: var(--ink-900);
     color: var(--bone-50);
-    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 
     &__header {
         position: sticky;
@@ -138,12 +177,13 @@ function isTabActive(tab: { match: (p: string) => boolean }) {
     }
 
     &__tab {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 0.15rem;
-        min-height: 3rem;
+        gap: 0.2rem;
+        min-height: 3.1rem;
         padding: 0.25rem;
         color: var(--bone-400);
         text-decoration: none;
@@ -157,12 +197,32 @@ function isTabActive(tab: { match: (p: string) => boolean }) {
 
         &.is-active {
             color: var(--ember);
+
+            &::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 50%;
+                width: 1.25rem;
+                height: 2px;
+                border-radius: var(--r-pill);
+                background: var(--ember);
+                transform: translateX(-50%);
+                box-shadow: 0 0 10px var(--ember-glow);
+            }
         }
     }
 
     &__tab-icon {
-        font-size: 1rem;
-        line-height: 1;
+        display: grid;
+        place-items: center;
+        width: 1.35rem;
+        height: 1.35rem;
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
     }
 }
 </style>

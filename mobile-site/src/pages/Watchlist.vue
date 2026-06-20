@@ -16,27 +16,60 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
 import { useWatchlist } from '@/composables/useWatchlist';
 import { useAppPaths } from '@/composables/useAppPaths';
+import {
+    getCachedAnimeTmdbArtwork,
+    resolveAnimeTmdbPosterOnly
+} from '@/composables/useAnimeTmdbArtwork';
 
 const { movies } = useAppPaths();
 const { watchlist } = useWatchlist();
+const animeTmdbPosters = ref<Record<string, string>>({});
 
 const gridItems = computed(() =>
     watchlist.value.map((item: any) => ({
         id: item.id,
         title: item.title,
-        posterPath: item.image,
+        posterPath: item.type === 'anime'
+            ? (animeTmdbPosters.value[String(item.id)] || item.image)
+            : item.image,
         rating: item.rating ?? 0,
         type: (item.type === 'anime' ? 'anime' : item.type === 'tv' ? 'tv' : 'movie') as 'movie' | 'tv' | 'anime'
     }))
 );
 
+async function hydrateAnimePosters() {
+    const animeItems = watchlist.value.filter((item: any) => item.type === 'anime');
+    if (!animeItems.length) return;
+
+    const updates: Record<string, string> = {};
+    await Promise.all(
+        animeItems.map(async (item: any) => {
+            const key = String(item.id);
+            const cached = getCachedAnimeTmdbArtwork(Number(item.id));
+            if (cached?.posterPath) {
+                updates[key] = cached.posterPath;
+                return;
+            }
+            const artwork = await resolveAnimeTmdbPosterOnly(Number(item.id), {
+                title: { english: item.title, romaji: item.title }
+            }).catch(() => null);
+            if (artwork?.posterPath) updates[key] = artwork.posterPath;
+        })
+    );
+
+    if (Object.keys(updates).length) {
+        animeTmdbPosters.value = { ...animeTmdbPosters.value, ...updates };
+    }
+}
+
 onMounted(() => {
     document.title = 'Watchlist — Moovie';
+    void hydrateAnimePosters();
 });
 </script>
 

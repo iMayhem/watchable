@@ -15,6 +15,12 @@
                     <p class="eyebrow m-home__hero-eyebrow">Featured</p>
                     <h1 class="m-home__hero-title">{{ hero.title }}</h1>
                     <p v-if="hero.overview" class="m-home__hero-desc">{{ heroOverview }}</p>
+                    <span class="m-home__hero-cta" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        Watch now
+                    </span>
                 </div>
             </router-link>
         </section>
@@ -26,7 +32,7 @@
             eyebrow="Trending"
             :more-to="movies"
         >
-            <MobileMediaGrid :items="topTenItems" />
+            <MobileMediaRail :items="topTenItems" card-size="md" />
         </MobileSection>
 
         <MobileSection
@@ -34,7 +40,7 @@
             eyebrow="New"
             :more-to="movies"
         >
-            <MobileMediaGrid :items="nowPlayingItems" />
+            <MobileMediaRail :items="nowPlayingItems" />
         </MobileSection>
 
         <MobileSection
@@ -42,7 +48,7 @@
             eyebrow="TV"
             :more-to="tvShows"
         >
-            <MobileMediaGrid :items="seriesItems" />
+            <MobileMediaRail :items="seriesItems" />
         </MobileSection>
     </MobileShell>
 </template>
@@ -51,7 +57,7 @@
 import { computed, onMounted } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileSection from '../components/MobileSection.vue';
-import MobileMediaGrid from '../components/MobileMediaGrid.vue';
+import MobileMediaRail from '../components/MobileMediaRail.vue';
 import MobileContinueShelf from '../components/MobileContinueShelf.vue';
 import { useHighlights, highLightOptions } from '@/composables/useHighlights';
 import { useTvShows, newShows } from '@/composables/useTvShows';
@@ -120,9 +126,10 @@ onMounted(async () => {
 <style lang="scss" scoped>
 .m-home {
     &__hero {
-        margin: 0 var(--s-4) var(--s-4);
+        margin: var(--s-3) var(--s-4) var(--s-4);
         border-radius: var(--r-md);
         overflow: hidden;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
     }
 
     &__hero-skeleton {
@@ -194,9 +201,24 @@ onMounted(async () => {
         font-size: var(--fs-sm);
         color: var(--bone-300);
         display: -webkit-box;
-        -webkit-line-clamp: 3;
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+
+    &__hero-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-top: var(--s-3);
+        padding: 0.45rem 0.85rem;
+        border-radius: var(--r-pill);
+        background: var(--ember);
+        color: var(--ink-900);
+        font-family: var(--font-ui);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
     }
 
     &__continue {

@@ -117,6 +117,8 @@ const sampleImage = (img: HTMLImageElement, opts: ExtractOptions): string => {
 
 export const extractAmbientColor = (path: string | null | undefined): Promise<string> => {
     if (!path) return Promise.resolve(FALLBACK);
+    // AniList CDN does not send CORS headers — skip to avoid console noise.
+    if (/anilist\.co/i.test(path)) return Promise.resolve(FALLBACK);
 
     const cached = memoryCache.get(path);
     if (cached) return Promise.resolve(cached);

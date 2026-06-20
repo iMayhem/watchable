@@ -60,6 +60,7 @@ import { viewHistory } from '../../composables/useHistory';
 import { streamData } from '../../composables/useStream';
 import { getProgressPercent } from '../../composables/useProgress';
 import { useWebImage } from '../../utils/useWebImage';
+import { getCachedAnimeTmdbArtwork } from '../../composables/useAnimeTmdbArtwork';
 
 interface Entry {
     id: number | string;
@@ -86,7 +87,11 @@ export default defineComponent({
             return viewHistory.value.map(item => {
                 const id = String(item.id);
                 const state = streamData.value.movieServerMap[id];
-                const image = item.image ? useWebImage(item.image, 'medium') : '';
+                const animePoster = item.type === 'anime'
+                    ? getCachedAnimeTmdbArtwork(Number(item.id))?.posterPath
+                    : null;
+                const imagePath = animePoster || item.image;
+                const image = imagePath ? useWebImage(imagePath, 'medium') : '';
                 const initial = (item.title?.[0] || '·').toUpperCase();
 
                 const isTv = item.type === 'tv';

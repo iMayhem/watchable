@@ -16,7 +16,7 @@
                         allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                         allowfullscreen
                         frameborder="0"
-                        :sandbox="sandboxAttribute"
+                        v-bind="iframeExtraAttrs"
                     />
                     <div class="mini-player__veil" aria-hidden="true" />
                 </div>
@@ -71,16 +71,17 @@ export default defineComponent({
         const isMobile = ref(false);
         let mediaQuery: MediaQueryList | null = null;
 
-        const sandboxAttribute = computed(() => {
-            if (!state.value?.embedUrl) return undefined;
-            const url = state.value.embedUrl.toLowerCase();
-            if (
-                url.includes('cinemaos.tech') ||
-                url.includes('smashystream.com')
-            ) {
-                return 'allow-scripts allow-same-origin allow-forms';
+        const iframeExtraAttrs = computed(() => {
+            const attrs: Record<string, string> = {};
+            const url = state.value?.embedUrl?.toLowerCase() ?? '';
+            if (url.includes('animeplay.cfd')) {
+                attrs.referrerpolicy = 'origin';
+                attrs.allow = 'autoplay; fullscreen; picture-in-picture';
             }
-            return undefined;
+            if (url.includes('cinemaos.tech') || url.includes('smashystream.com')) {
+                attrs.sandbox = 'allow-scripts allow-same-origin allow-forms';
+            }
+            return attrs;
         });
 
         const updateMobile = (e: MediaQueryListEvent | MediaQueryList) => {
@@ -141,7 +142,7 @@ export default defineComponent({
             subtitle,
             resume,
             dismiss,
-            sandboxAttribute
+            iframeExtraAttrs
         };
     }
 });

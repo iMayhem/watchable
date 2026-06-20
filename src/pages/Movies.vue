@@ -254,7 +254,14 @@ export default defineComponent({
                 totalPages.value = data.value?.total_pages ?? 0;
                 totalResults.value = data.value?.total_results ?? 0;
                 page.value = pageNum;
-                results.value = append ? [...results.value, ...fresh] : fresh;
+                const combined = append ? [...results.value, ...fresh] : fresh;
+                const seen = new Set();
+                results.value = combined.filter((item) => {
+                    const uid = String(item.id || '');
+                    if (!uid || seen.has(uid)) return false;
+                    seen.add(uid);
+                    return true;
+                });
             } finally {
                 isLoading.value = false;
                 isLoadingMore.value = false;

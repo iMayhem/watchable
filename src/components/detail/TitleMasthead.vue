@@ -258,7 +258,7 @@ export default defineComponent({
                 return;
             }
 
-            if (props.type === 'movie' || props.type === 'tv' || props.type === 'anime') {
+            if (props.type === 'movie' || props.type === 'tv') {
                 prefetchStream(
                     props.id,
                     props.type,

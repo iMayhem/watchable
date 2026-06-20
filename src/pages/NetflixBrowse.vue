@@ -867,10 +867,16 @@ export default defineComponent({
                 const cached = await applyAnimeCatalogCacheBatch(fast.media);
                 if (isStale()) return;
 
-                results.value = cached.items;
+                const seen = new Set();
+                results.value = cached.items.filter((item) => {
+                    const uid = String(item.id || item.anilistId || '');
+                    if (!uid || seen.has(uid)) return false;
+                    seen.add(uid);
+                    return true;
+                });
                 animePage.value = fast.pageInfo.currentPage;
                 animeHasMore.value = fast.pageInfo.hasNextPage;
-                genreRails.value = buildAnimeGenreRails(cached.items);
+                genreRails.value = buildAnimeGenreRails(results.value as NetflixAnimeBrowseItem[]);
                 animeGenreRailsLocked.value = genreRails.value.length > 0;
 
                 const meta = getNetflixRowMeta(row as NetflixBrowseRowId, cat, lang);
@@ -947,7 +953,11 @@ export default defineComponent({
                 const nextPage = animePage.value + 1;
                 const fast = await fetchAnimeBrowseBatchFast(nextPage);
                 const cached = await applyAnimeCatalogCacheBatch(fast.media);
-                results.value = [...results.value, ...cached.items];
+                results.value = [...results.value, ...cached.items].filter((item, index, self) => {
+                    const uid = String(item.id || item.anilistId || '');
+                    if (!uid) return true;
+                    return self.findIndex(t => String(t.id || t.anilistId || '') === uid) === index;
+                });
                 animePage.value = fast.pageInfo.currentPage;
                 animeHasMore.value = fast.pageInfo.hasNextPage;
                 if (!animeGenreRailsLocked.value) {

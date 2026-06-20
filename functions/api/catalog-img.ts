@@ -9,12 +9,15 @@ const CATALOG_HOST_PATTERN =
 
 function upstreamHeaders(target: string): Record<string, string> {
   const headers: Record<string, string> = {
-    'User-Agent': 'Mozilla/5.0 (compatible; Moovie/1.0)',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     Accept: 'image/webp,image/avif,image/*,*/*;q=0.8',
   };
   if (/aoneroom\.com/i.test(target)) {
     headers.Referer = 'https://h5.aoneroom.com/';
     headers.Origin = 'https://h5.aoneroom.com';
+  } else if (/anilist\.co/i.test(target)) {
+    headers.Referer = 'https://anilist.co/';
+    headers.Origin = 'https://anilist.co';
   }
   return headers;
 }
@@ -28,7 +31,6 @@ export async function onRequest(context: { request: Request }) {
 
   const url = new URL(request.url);
   const target = url.searchParams.get('url') || '';
-  const width = Math.min(Math.max(parseInt(url.searchParams.get('w') || '342', 10) || 342, 64), 1280);
 
   if (!target || !CATALOG_HOST_PATTERN.test(target)) {
     return new Response('Invalid catalog image url', { status: 400 });
@@ -40,12 +42,6 @@ export async function onRequest(context: { request: Request }) {
       cf: {
         cacheTtl: 604800,
         cacheEverything: true,
-        image: {
-          width,
-          fit: 'scale-down',
-          format: 'webp',
-          quality: 80,
-        },
       },
     } as RequestInit);
 

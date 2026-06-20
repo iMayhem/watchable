@@ -1621,13 +1621,21 @@
                 newIframe.className = oldIframe.className;
                 newIframe.style.display = 'block';
                 newIframe.allowFullscreen = true;
-                newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
 
                 const lowerUrl = embedUrl.toLowerCase();
+                const isAnimeplay = lowerUrl.includes('animeplay.cfd') || lowerUrl.includes('megaplay.buzz');
+                newIframe.setAttribute(
+                    'allow',
+                    isAnimeplay
+                        ? 'autoplay; fullscreen; picture-in-picture'
+                        : 'autoplay; fullscreen; encrypted-media; picture-in-picture'
+                );
+                if (isAnimeplay) {
+                    newIframe.referrerPolicy = 'origin';
+                }
                 if (
                     lowerUrl.includes('cinemaos.tech') ||
-                    lowerUrl.includes('smashystream.com') ||
-                    lowerUrl.includes('animeplay.cfd')
+                    lowerUrl.includes('smashystream.com')
                 ) {
                     newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
                 }
@@ -1669,22 +1677,22 @@
             }
         }
 
-        function getEmbedUrlForServer(srv, tmdbId, isTvShow, s, e) {
+        function getEmbedUrlForServer(srv, mediaIdForEmbed, isTvShow, s, e) {
             if (isAnime) {
+                const anilistId = mediaIdForEmbed;
                 if (activeProvider === 'videasy') {
-                    // Check if anime is movie or series in rooms record
                     const isAnimeMovie = !activeRoom?.embed_sources?.includes('_ep');
                     return isAnimeMovie
-                        ? `https://player.videasy.net/anime/${tmdbId}?color=E05A47&autoplayNextEpisode=true&overlay=true`
-                        : `https://player.videasy.net/anime/${tmdbId}/${e}?color=E05A47&autoplayNextEpisode=true&overlay=true`;
+                        ? `https://player.videasy.net/anime/${anilistId}?color=E05A47&autoplayNextEpisode=true&overlay=true`
+                        : `https://player.videasy.net/anime/${anilistId}/${e}?color=E05A47&autoplayNextEpisode=true&overlay=true`;
                 }
                 const lang = (activeProvider === 'animeplay_dub' || activeProvider === 'megaplay_dub') ? 'dub' : 'sub';
                 const domain = (activeProvider === 'megaplay_sub' || activeProvider === 'megaplay_dub') ? 'https://megaplay.buzz' : 'https://animeplay.cfd';
-                return `${domain}/stream/ani/${tmdbId}/${e}/${lang}`;
+                return `${domain}/stream/ani/${anilistId}/${e}/${lang}`;
             }
             let template = isTvShow ? srv.tv : srv.movie;
             return template
-                .replaceAll('{tmdbId}', tmdbId)
+                .replaceAll('{tmdbId}', mediaIdForEmbed)
                 .replaceAll('{season}', s)
                 .replaceAll('{episode}', e);
         }

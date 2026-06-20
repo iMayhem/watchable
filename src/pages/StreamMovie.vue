@@ -64,10 +64,6 @@
             <section v-if="movie" class="watch-stage__rack">
                 <CommentsSection :media-id="movie.id" media-type="movie" />
             </section>
-
-            <p class="watch-stage__disclaimer meta">
-                Streams are mirrored from third-party providers. moovie does not host video files.
-            </p>
         </main>
     </div>
 </template>
@@ -730,21 +726,7 @@ export default defineComponent({
         max-width: 60ch;
     }
 
-    &__disclaimer {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 0 var(--s-4);
-        text-align: center;
-        color: var(--bone-500);
 
-        @media (max-width: 1023px) {
-            padding: 0 var(--s-3) calc(var(--s-8) + env(safe-area-inset-bottom, 0px));
-        }
-
-        @media (min-width: 768px) {
-            padding: 0 var(--s-5);
-        }
-    }
 
     &__party-btn {
         display: inline-flex;

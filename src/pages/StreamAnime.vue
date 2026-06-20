@@ -1168,13 +1168,24 @@ export default defineComponent({
         max-width: 1440px;
         margin: 0 auto;
         padding: 0.75rem var(--s-6);
-        display: flex;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas: 'crumb title actions';
         align-items: center;
-        justify-content: space-between;
-        gap: var(--s-4);
+        gap: var(--s-3) var(--s-4);
+
+        @media (max-width: 640px) {
+            grid-template-columns: auto 1fr;
+            grid-template-areas:
+                'crumb actions'
+                'title title';
+            padding: var(--s-2) var(--s-3);
+            gap: var(--s-2);
+        }
     }
 
     &__crumb {
+        grid-area: crumb;
         display: flex;
         align-items: center;
         gap: var(--s-3);
@@ -1203,6 +1214,7 @@ export default defineComponent({
     }
 
     &__title-block {
+        grid-area: title;
         text-align: center;
     }
 
@@ -1212,6 +1224,16 @@ export default defineComponent({
         font-size: 1.15rem;
         margin: 0;
         color: var(--bone-50);
+
+        @media (max-width: 640px) {
+            display: none !important;
+        }
+    }
+
+    &__title-skeleton {
+        @media (max-width: 640px) {
+            display: none !important;
+        }
     }
 
     &__code {
@@ -1261,6 +1283,7 @@ export default defineComponent({
     }
 
     &__actions {
+        grid-area: actions;
         display: flex;
         align-items: center;
         justify-content: flex-end;
@@ -1398,6 +1421,18 @@ export default defineComponent({
         &:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 15px rgba(255, 90, 31, 0.35);
+        }
+
+        @media (max-width: 640px) {
+            width: 36px;
+            min-height: 36px;
+            padding: 0;
+            display: inline-grid;
+            place-items: center;
+
+            .button-text {
+                display: none;
+            }
         }
     }
 

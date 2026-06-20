@@ -748,11 +748,6 @@ export default defineComponent({
         gap: 0.15rem;
         text-align: center;
         min-width: 0;
-
-        @media (max-width: 640px) {
-            text-align: left;
-            padding-inline: var(--s-1);
-        }
     }
 
     &__title {
@@ -769,6 +764,10 @@ export default defineComponent({
         @media (min-width: 768px) {
             font-size: var(--fs-xl);
         }
+
+        @media (max-width: 640px) {
+            display: none !important;
+        }
     }
 
     &__title-skeleton {
@@ -778,6 +777,10 @@ export default defineComponent({
         margin: 0 auto;
         background: var(--surface-tint);
         border-radius: var(--r-pill);
+
+        @media (max-width: 640px) {
+            display: none !important;
+        }
     }
 
     &__code {

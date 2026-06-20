@@ -323,6 +323,12 @@ export default defineComponent({
             background: rgba(19, 17, 14, 0.98);
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
             backdrop-filter: blur(16px);
+
+            @media (max-width: 640px) {
+                right: var(--s-3);
+                width: calc(100vw - var(--s-6));
+                max-width: 340px;
+            }
         }
 
         .server-accordion__grid {
@@ -336,6 +342,7 @@ export default defineComponent({
         }
 
         @media (max-width: 640px) {
+            position: static;
             min-width: 0;
 
             .server-accordion__head {

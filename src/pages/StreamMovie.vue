@@ -279,12 +279,10 @@ export default defineComponent({
             padding: var(--s-4) var(--s-5);
         }
 
-        // ── Mobile: stack title beneath the controls row ────────────────
+        // ── Mobile: controls row only, title removed ────────────────
         @media (max-width: 640px) {
             grid-template-columns: auto 1fr;
-            grid-template-areas:
-                'crumb actions'
-                'title title';
+            grid-template-areas: 'crumb actions';
             padding: var(--s-2) var(--s-3);
             gap: var(--s-2);
         }
@@ -358,8 +356,7 @@ export default defineComponent({
         }
 
         @media (max-width: 640px) {
-            text-align: left;
-            padding-inline: var(--s-1);
+            display: none !important;
         }
     }
 
@@ -371,6 +368,10 @@ export default defineComponent({
         margin: 0 auto;
         background: var(--surface-tint);
         border-radius: var(--r-pill);
+
+        @media (max-width: 640px) {
+            display: none !important;
+        }
     }
 
     &__actions {

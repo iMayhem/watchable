@@ -85,7 +85,7 @@
                     <div class="ep-row__still">
                         <img
                             v-if="ep.still_path"
-                            :src="webImage(ep.still_path)"
+                            :src="ep.still_path"
                             :alt="`Episode ${ep.episode_number}: ${ep.name}`"
                             loading="lazy"
                         />

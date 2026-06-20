@@ -395,8 +395,7 @@ const primaryNav: NavItem[] = [
         num: 5
     },
     { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
-    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
-    { label: 'Help', path: '/help', match: p => p === '/help', num: 8 }
+    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 }
 ];
 
 export default defineComponent({

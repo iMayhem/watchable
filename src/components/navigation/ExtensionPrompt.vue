@@ -73,14 +73,14 @@
 
                 <ol class="ext-prompt__steps">
                     <li>
-                        Click your browser above — your browser will download the ZIP file.
+                        Click your browser above — your browser will download the <code>{{ installGuide.fileName }}</code> file.
                     </li>
                     <li>
                         <template v-if="installGuide.family === 'firefox'">
                             Open <code>about:debugging#/runtime/this-firefox</code> in Firefox.
                         </template>
                         <template v-else>
-                            Unzip the download, then open <code>{{ installGuide.extensionsPage }}</code>.
+                            Open <code>{{ installGuide.extensionsPage }}</code> in your browser.
                         </template>
                     </li>
                     <li>
@@ -89,9 +89,11 @@
                             <code>{{ installGuide.fileName }}</code> (or the unzipped <code>manifest.json</code>).
                         </template>
                         <template v-else>
-                            Turn on <strong>Developer mode</strong>, then click
-                            <strong>Load unpacked</strong> and select the unzipped folder.
+                            Turn on <strong>Developer mode</strong> (top-right toggle).
                         </template>
+                    </li>
+                    <li v-if="installGuide.family !== 'firefox'">
+                        Drag and drop the downloaded <code>{{ installGuide.fileName }}</code> file from your file manager directly onto the middle of the extensions page.
                     </li>
                     <li>
                         In extension details, set site access to <strong>On moovie.fun</strong>

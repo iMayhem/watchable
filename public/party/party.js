@@ -1872,7 +1872,7 @@
             const nextBtn = document.getElementById('party-next-btn');
 
             if (isAnime || isTv) {
-                if (autoNextBtn) autoNextBtn.style.display = 'flex';
+                if (autoNextBtn) autoNextBtn.style.display = 'none';
                 if (prevBtn) prevBtn.style.display = 'inline-block';
                 if (nextBtn) nextBtn.style.display = 'inline-block';
             } else {

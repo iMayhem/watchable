@@ -74,18 +74,7 @@
                     {{ modeLabel }}
                 </button>
 
-                <button
-                    class="site-header__search site-header__search--compact"
-                    type="button"
-                    :aria-label="isNetflixMode ? 'Open search' : `Open search (${modKey}K)`"
-                    :title="isNetflixMode ? 'Search' : `Search (${modKey}K)`"
-                    @click="openPalette"
-                >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="m21 21-4.3-4.3" />
-                    </svg>
-                </button>
+
 
                 <a
                     v-if="!isNetflixMode"

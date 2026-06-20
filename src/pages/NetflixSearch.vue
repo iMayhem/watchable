@@ -110,21 +110,17 @@
                         </div>
                         <h3 class="search-page__empty-title display">Not in this catalogue.</h3>
                         <p class="search-page__empty-desc">
-                            No {{ emptyLabel }} matched "{{ searchTerm }}". Try another spelling
-                            or load more pages below.
+                            No {{ emptyLabel }} matched "{{ searchTerm }}". Try another spelling.
                         </p>
                     </div>
 
-                    <div v-if="hasMore && currentCount" class="search-page__more">
-                        <button
-                            type="button"
-                            class="search-page__more-btn"
-                            :disabled="isLoadingMore"
-                            @click="loadMore"
-                        >
-                            <span v-if="isLoadingMore">Loading…</span>
-                            <span v-else>Load more · page {{ loadedPage + 1 }}/{{ totalPages }}</span>
-                        </button>
+                    <div
+                        v-if="isLoading && currentCount"
+                        class="search-page__loading search-page__loading--inline"
+                        role="status"
+                    >
+                        <div class="search-page__spinner" aria-hidden="true" />
+                        <span class="meta">Loading more results…</span>
                     </div>
                 </section>
             </template>
@@ -220,13 +216,12 @@ export default defineComponent({
                 : 'movies'
         );
         const isLoading = ref(false);
-        const isLoadingMore = ref(false);
         const movies = ref<CuratedItem[]>([]);
         const shows = ref<CuratedItem[]>([]);
-        const loadedPage = ref(-1);
-        const totalPages = ref(1);
         const searchVariantPool = ref<MoovieCatalogItem[]>([]);
         const searchGeneration = ref(0);
+
+        const SEARCH_PAGE_BATCH = 4;
 
         const popularSearches = [
             'Stranger Things', 'Wednesday', 'RRR', 'Sacred Games',
@@ -254,14 +249,19 @@ export default defineComponent({
             activeTab.value === 'movies' ? 'films' : 'series'
         );
 
-        const hasMore = computed(() => loadedPage.value >= 0 && loadedPage.value + 1 < totalPages.value);
-
         const clearResults = () => {
             movies.value = [];
             shows.value = [];
             searchVariantPool.value = [];
-            loadedPage.value = -1;
-            totalPages.value = 1;
+        };
+
+        const appendToSearchPool = (items: MoovieCatalogItem[]) => {
+            const seen = new Set(searchVariantPool.value.map((item) => item.id));
+            for (const item of items) {
+                if (seen.has(item.id)) continue;
+                seen.add(item.id);
+                searchVariantPool.value.push(item);
+            }
         };
 
         const chooseDefaultTab = () => {
@@ -336,47 +336,68 @@ export default defineComponent({
             })();
         };
 
-        const performSearch = async (query: string, page = 0) => {
+        const performSearch = async (query: string) => {
             const q = query.trim();
             if (!q) return;
 
-            if (page === 0) isLoading.value = true;
-            else isLoadingMore.value = true;
+            const generation = searchGeneration.value + 1;
+            searchGeneration.value = generation;
+            isLoading.value = true;
+            searchVariantPool.value = [];
 
             try {
-                nfDebug('search:page', {
+                nfDebug('search:start', {
                     query: q,
-                    page,
                     language: activeLang.value.category
                 });
 
-                const data = await searchMoovieCatalog(q, page);
-                totalPages.value = Math.max(1, data.pager?.total_pages ?? 1);
-                loadedPage.value = page;
+                const first = await searchMoovieCatalog(q, 0);
+                if (generation !== searchGeneration.value) return;
 
-                const rawResults = data.results || [];
-                if (page === 0) {
-                    searchVariantPool.value = rawResults;
-                } else {
-                    const seen = new Set(searchVariantPool.value.map((item) => item.id));
-                    for (const item of rawResults) {
-                        if (seen.has(item.id)) continue;
-                        seen.add(item.id);
-                        searchVariantPool.value.push(item);
+                const totalPages = Math.max(1, first.pager?.total_pages ?? 1);
+                appendToSearchPool(first.results || []);
+
+                let prepared = prepareSearchResults(searchVariantPool.value);
+                applySearchResults(prepared.deduped, prepared.languageMap, generation);
+                chooseDefaultTab();
+
+                if (totalPages > 1) {
+                    const remainingPages = Array.from(
+                        { length: totalPages - 1 },
+                        (_, index) => index + 1
+                    );
+
+                    for (let offset = 0; offset < remainingPages.length; offset += SEARCH_PAGE_BATCH) {
+                        if (generation !== searchGeneration.value) return;
+
+                        const batch = remainingPages.slice(offset, offset + SEARCH_PAGE_BATCH);
+                        const pages = await Promise.all(
+                            batch.map((page) => searchMoovieCatalog(q, page))
+                        );
+                        if (generation !== searchGeneration.value) return;
+
+                        for (const data of pages) {
+                            appendToSearchPool(data.results || []);
+                        }
+
+                        prepared = prepareSearchResults(searchVariantPool.value);
+                        applySearchResults(prepared.deduped, prepared.languageMap, generation);
                     }
                 }
 
-                const { deduped, languageMap } = prepareSearchResults(searchVariantPool.value);
-                const generation = searchGeneration.value + 1;
-                searchGeneration.value = generation;
-                applySearchResults(deduped, languageMap, generation);
-                if (page === 0) chooseDefaultTab();
+                nfDebug('search:complete', {
+                    query: q,
+                    rawCount: searchVariantPool.value.length,
+                    shownCount: prepared.deduped.length,
+                    totalPages
+                });
             } catch (err) {
-                nfDebugError('search:fail', { query: q, page, err });
-                if (page === 0) clearResults();
+                nfDebugError('search:fail', { query: q, err });
+                if (generation === searchGeneration.value) clearResults();
             } finally {
-                isLoading.value = false;
-                isLoadingMore.value = false;
+                if (generation === searchGeneration.value) {
+                    isLoading.value = false;
+                }
             }
         };
 
@@ -446,11 +467,6 @@ export default defineComponent({
             }
         };
 
-        const loadMore = async () => {
-            if (!hasMore.value || !searchTerm.value) return;
-            await performSearch(searchTerm.value, loadedPage.value + 1);
-        };
-
         const reloadForLanguagePreference = () => {
             if (!searchVariantPool.value.length) return;
             const { deduped, languageMap } = prepareSearchResults(searchVariantPool.value);
@@ -494,7 +510,6 @@ export default defineComponent({
             searchTerm,
             activeTab,
             isLoading,
-            isLoadingMore,
             movies,
             shows,
             recentSearches,
@@ -502,15 +517,11 @@ export default defineComponent({
             tabs,
             currentCount,
             emptyLabel,
-            hasMore,
-            loadedPage,
-            totalPages,
             activeLang,
             activeCatalogue,
             onSearchInput,
             handleClearSearch,
-            runSearch,
-            loadMore
+            runSearch
         };
     }
 });
@@ -619,6 +630,10 @@ export default defineComponent({
         gap: var(--s-3);
         padding: var(--s-9) 0;
         color: var(--bone-300);
+
+        &--inline {
+            padding: var(--s-5) 0 var(--s-2);
+        }
     }
 
     &__spinner {
@@ -673,39 +688,6 @@ export default defineComponent({
         color: var(--bone-300);
         margin: 0;
         line-height: 1.55;
-    }
-
-    &__more {
-        display: flex;
-        justify-content: center;
-        padding: var(--s-7) 0 var(--s-4);
-    }
-
-    &__more-btn {
-        font-family: var(--font-mono);
-        font-size: var(--fs-xs);
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: var(--bone-100);
-        padding: 0.8rem 1.8rem;
-        border: 1px solid var(--rule-strong);
-        border-radius: var(--r-pill);
-        background: var(--surface-tint);
-        transition:
-            color var(--dur-fast) var(--ease-out),
-            border-color var(--dur-fast) var(--ease-out),
-            background-color var(--dur-fast) var(--ease-out);
-
-        &:hover:not(:disabled), &:focus-visible:not(:disabled) {
-            color: var(--ember);
-            border-color: var(--ember);
-            background: rgba(255, 90, 31, 0.08);
-        }
-
-        &:disabled {
-            opacity: 0.5;
-            cursor: wait;
-        }
     }
 
     &__idle {

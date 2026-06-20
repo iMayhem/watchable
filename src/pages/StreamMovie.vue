@@ -228,15 +228,21 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .watch-stage {
-    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
-    overflow-x: hidden;
     background: var(--ink-900);
     color: var(--bone-50);
 
     // Hide scroll car on all watch/stream pages
     & ~ :global(.scroll-car-container) {
         display: none !important;
+    }
+
+    @media (max-width: 1023px) {
+        height: auto;
+        min-height: 100dvh;
+        overflow-x: hidden;
     }
 
     // Hide scrollbar visually but keep it functional
@@ -396,6 +402,7 @@ export default defineComponent({
         }
 
         @media (min-width: 1024px) {
+            height: 100dvh;
             padding: 72px var(--s-5) var(--s-2) var(--s-5);
             grid-template-columns: 1fr;
             align-items: stretch;
@@ -557,11 +564,16 @@ export default defineComponent({
         box-sizing: border-box;
 
         @media (max-width: 1023px) {
+            height: auto;
+            min-height: 0;
+            align-content: start;
             padding: var(--s-5) var(--s-3) var(--s-4);
         }
 
         @media (min-width: 1024px) {
-            padding: var(--s-6) var(--s-5) var(--s-8);
+            height: 100dvh;
+            align-content: center;
+            padding: 72px var(--s-5) var(--s-4) var(--s-5);
         }
 
         @media (min-width: 768px) {
@@ -579,12 +591,17 @@ export default defineComponent({
         padding: var(--s-6) var(--s-4);
 
         @media (max-width: 1023px) {
+            height: auto;
+            min-height: 0;
+            align-content: start;
             padding: var(--s-5) var(--s-3) var(--s-4);
             grid-template-columns: 1fr;
         }
 
         @media (min-width: 1024px) {
-            padding: var(--s-6) var(--s-5) var(--s-8);
+            height: 100dvh;
+            align-content: center;
+            padding: 72px var(--s-5) var(--s-4) var(--s-5);
         }
 
         @media (min-width: 768px) and (max-width: 1023px) {

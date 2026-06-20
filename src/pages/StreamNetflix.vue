@@ -178,7 +178,7 @@ export default defineComponent({
         const canStartPlayback = () =>
             extensionActive.value || slowStreamChosen.value;
 
-        const waitForExtensionDetection = async (timeoutMs = 2000) => {
+        const waitForExtensionDetection = async (timeoutMs = 600) => {
             pingExtension();
             checkExtension();
             if (extensionActive.value) return;
@@ -192,7 +192,7 @@ export default defineComponent({
                         window.clearInterval(timer);
                         resolve();
                     }
-                }, 150);
+                }, 100);
             });
         };
 

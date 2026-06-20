@@ -136,7 +136,7 @@ function bindGlobalListeners() {
         if (extensionActive.value || bootstrapAttempts >= 20) {
             stopBootstrapPoll();
         }
-    }, 250);
+    }, 150);
 
     intervalId = window.setInterval(() => {
         if (!extensionActive.value) pingExtension();

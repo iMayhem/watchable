@@ -1211,6 +1211,12 @@ export default defineComponent({
         position: sticky;
         top: 0;
         z-index: 10;
+
+        @media (min-width: 1024px) {
+            position: fixed;
+            left: 0;
+            right: 0;
+        }
     }
 
     &__chrome-inner {

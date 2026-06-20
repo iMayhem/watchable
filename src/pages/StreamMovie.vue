@@ -260,6 +260,13 @@ export default defineComponent({
             rgba(11, 10, 8, 0)
         );
         backdrop-filter: blur(14px);
+
+        // Overlay the player slide — avoids double gap once scroll-snap is off.
+        @media (min-width: 1024px) {
+            position: fixed;
+            left: 0;
+            right: 0;
+        }
     }
 
     &__chrome-inner {

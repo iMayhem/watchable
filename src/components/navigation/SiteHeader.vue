@@ -67,6 +67,7 @@
                     :to="isNetflixMode ? '/nf/search' : '/search'"
                     class="site-header__search"
                     aria-label="Search"
+                    @click.prevent="openPalette"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                         <circle cx="11" cy="11" r="8" />

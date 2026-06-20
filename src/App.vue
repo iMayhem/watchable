@@ -23,6 +23,8 @@
 
         <ContentModeGate v-if="!isPartyEmbed" />
 
+        <CommandPalette v-if="!isPartyEmbed" />
+
         <Toast v-if="!isPartyEmbed" />
     </div>
 </template>
@@ -84,16 +86,19 @@ const getRouteKey = (route: any) => {
 };
 
 const Toast = defineAsyncComponent(() => import('./components/feedback/Toast.vue'));
+const CommandPalette = defineAsyncComponent(() => import('./components/navigation/CommandPalette.vue'));
 
 
 // Lazy refs to cleanup functions — populated after dynamic import resolves
 let _stopReveal: (() => void) | null = null;
 
 const initIdle = async () => {
-    const [{ startReveal, stopReveal }] = await Promise.all([
+    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }] = await Promise.all([
+        import('./composables/useCommandPalette'),
         import('./composables/useReveal')
     ]);
 
+    bindCommandPaletteHotkey();
     startReveal();
 
     _stopReveal = stopReveal;

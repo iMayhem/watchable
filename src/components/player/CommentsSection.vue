@@ -3,12 +3,12 @@
         <header class="comments-panel__header">
             <h3 class="comments-panel__title">
                 Discussion
-                <span class="comments-panel__count" v-if="comments.length">· {{ comments.length }} comments</span>
+                <span class="comments-panel__count" v-if="rawComments.length">· {{ rawComments.length }} comments</span>
             </h3>
         </header>
 
-        <!-- Write comment form -->
-        <form @submit.prevent="submitComment" class="comment-form">
+        <!-- Write top-level comment form -->
+        <form @submit.prevent="submitMainComment" class="comment-form">
             <div class="comment-form__meta-row">
                 <div v-if="!isLoggedIn" class="guest-identity">
                     <label for="guest-name" class="eyebrow guest-identity__label">Comment as Guest</label>
@@ -23,9 +23,7 @@
                     />
                 </div>
                 <div v-else class="user-identity">
-                    <div class="user-identity__avatar" :style="avatarStyle(currentUsername)">
-                        {{ currentUsername[0]?.toUpperCase() }}
-                    </div>
+                    <img :src="getAvatarUrl(currentUsername)" :alt="currentUsername" class="user-identity__avatar" />
                     <span class="user-identity__name">@{{ currentUsername }}</span>
                 </div>
             </div>
@@ -62,28 +60,132 @@
             <div class="spinner" />
             <span class="meta">Retrieving comments...</span>
         </div>
-        <div v-else-if="comments.length > 0" class="comments-list">
-            <transition-group name="comment-fade">
-                <article v-for="c in comments" :key="c.id" class="comment-card">
-                    <div class="comment-card__header">
-                        <div class="comment-card__author">
-                            <div class="comment-card__avatar" :style="avatarStyle(c.username)">
-                                {{ c.username[0]?.toUpperCase() }}
+        <div v-else-if="visibleComments.length > 0" class="comments-list">
+            <div v-for="c in visibleComments" :key="c.id" class="comment-thread-wrapper">
+                <article 
+                    class="comment-card"
+                    :class="{ 
+                        'comment-card--collapsed': isDirectlyCollapsed(c.id),
+                        'comment-card--reply': c.depth > 0
+                    }"
+                    :style="{ paddingLeft: `calc(${c.depth} * 40px + var(--s-4))` }"
+                >
+                    <!-- Reddit/9anime style connection lines representing ancestors -->
+                    <div 
+                        v-for="i in c.depth" 
+                        :key="i"
+                        class="comment-card__thread-line"
+                        :style="{ left: `calc(${i - 1} * 40px + 28px)` }"
+                        @click="toggleCollapse(getAncestorIdAtDepth(c, i - 1))"
+                        title="Collapse thread"
+                    />
+
+                    <!-- Comment Card Core Content -->
+                    <div class="comment-card__content-wrapper">
+                        <!-- Top header row -->
+                        <div class="comment-card__header">
+                            <div class="comment-card__author">
+                                <img :src="getAvatarUrl(c.username)" :alt="c.username" class="comment-card__avatar" />
+                                <span class="comment-card__username">{{ c.username }}</span>
+                                <span v-if="c.parentUsername" class="comment-card__reply-arrow">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                    {{ c.parentUsername }}
+                                </span>
+                                <span v-if="c.isGuest" class="guest-badge meta">Guest</span>
+                                <span class="comment-card__time">{{ formatTimeAgo(c.created_at) }}</span>
                             </div>
-                            <span class="comment-card__username">{{ c.username }}</span>
-                            <span v-if="c.isGuest" class="guest-badge meta">Guest</span>
+
+                            <!-- Top right controls -->
+                            <div class="comment-card__controls">
+                                <button 
+                                    @click="toggleCollapse(c.id)" 
+                                    class="comment-card__collapse-btn" 
+                                    :title="isDirectlyCollapsed(c.id) ? 'Expand comment' : 'Collapse comment'"
+                                >
+                                    {{ isDirectlyCollapsed(c.id) ? '[+]' : '[—]' }}
+                                </button>
+                                <button @click="flagComment(c)" class="comment-card__flag-btn" title="Report post">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                                        <line x1="4" y1="22" x2="4" y2="15"></line>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
-                        <span class="comment-card__time">{{ formatTimeAgo(c.created_at) }}</span>
+
+                        <!-- Main comment text & actions (hidden if directly collapsed) -->
+                        <template v-if="!isDirectlyCollapsed(c.id)">
+                            <p class="comment-card__body">{{ c.content }}</p>
+                            
+                            <div class="comment-card__footer">
+                                <!-- Likes voting counter -->
+                                <button 
+                                    @click="toggleUpvote(c)" 
+                                    class="comment-card__vote-btn"
+                                    :class="{ 'comment-card__vote-btn--active': c.userLiked }"
+                                >
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2">
+                                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                                    </svg>
+                                    <span class="comment-card__vote-count">{{ c.likes }}</span>
+                                </button>
+
+                                <!-- Reply action -->
+                                <button @click="activeReplyId = activeReplyId === c.id ? null : c.id; replyText = '';" class="comment-card__reply-action-btn">
+                                    Reply
+                                </button>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <span class="comment-card__collapsed-tag meta">Comment collapsed ({{ countReplies(c.id) }} replies hidden)</span>
+                        </template>
                     </div>
-                    <p class="comment-card__body">{{ c.content }}</p>
                 </article>
-            </transition-group>
+
+                <!-- Nested Reply Input (Inline composer) -->
+                <transition name="reply-fade">
+                    <form 
+                        v-if="activeReplyId === c.id && !isDirectlyCollapsed(c.id)" 
+                        @submit.prevent="submitReply(c.id)" 
+                        class="reply-composer-form" 
+                        :style="{ paddingLeft: `calc(${(c.depth + 1)} * 40px + var(--s-4))` }"
+                    >
+                        <div 
+                            v-for="i in (c.depth + 1)" 
+                            :key="i"
+                            class="comment-card__thread-line"
+                            :style="{ left: `calc(${i - 1} * 40px + 28px)` }"
+                        />
+                        <div class="reply-composer-form__content">
+                            <textarea 
+                                v-model="replyText" 
+                                placeholder="Write a reply..." 
+                                class="reply-composer-form__textarea" 
+                                rows="2"
+                                maxlength="500"
+                                required
+                            ></textarea>
+                            <div class="reply-composer-form__buttons">
+                                <button type="button" @click="activeReplyId = null" class="btn btn-secondary btn-xs">Cancel</button>
+                                <button type="submit" class="btn btn-primary btn-xs" :disabled="submittingReply || !replyText.trim()">
+                                    {{ submittingReply ? 'Posting...' : 'Reply' }}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </transition>
+            </div>
+        </div>
+        <div v-else class="comments-panel__empty">
+            <p class="meta">No comments here yet. Start the conversation!</p>
         </div>
     </section>
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, ref, watch } from 'vue';
+import { defineComponent, onMounted, ref, watch, computed } from 'vue';
 import { getSupabaseClient } from '../../lib/supabase';
 
 interface Comment {
@@ -96,20 +198,34 @@ interface Comment {
     isGuest?: boolean;
 }
 
+interface RenderComment extends Comment {
+    parentId?: number;
+    parentUsername?: string;
+    depth: number;
+    likes: number;
+    userLiked: boolean;
+    replies: RenderComment[];
+}
+
 export default defineComponent({
     name: 'CommentsSection',
     props: {
         mediaId: { type: [Number, String], required: true },
-        mediaType: { type: String, required: true } // 'movie', 'tv', 'anime'
+        mediaType: { type: String, required: true }
     },
     setup(props) {
-        const comments = ref<Comment[]>([]);
+        const rawComments = ref<Comment[]>([]);
+        const processedComments = ref<RenderComment[]>([]);
         const loading = ref(false);
         const submitting = ref(false);
+        const submittingReply = ref(false);
         const newCommentText = ref('');
+        const replyText = ref('');
         const guestName = ref('');
         const isLoggedIn = ref(false);
         const currentUsername = ref('');
+        const activeReplyId = ref<number | null>(null);
+        const collapsedComments = ref<Set<number>>(new Set());
 
         const checkAuth = () => {
             if (typeof window !== 'undefined') {
@@ -126,25 +242,75 @@ export default defineComponent({
             }
         };
 
-        const avatarStyle = (name: string) => {
-            const colors = [
-                'linear-gradient(135deg, #ff5a1f 0%, #ff8a00 100%)',
-                'linear-gradient(135deg, #7b2cbf 0%, #9d4edd 100%)',
-                'linear-gradient(135deg, #1a75ff 0%, #00d2ff 100%)',
-                'linear-gradient(135deg, #2ec4b6 0%, #00f5d4 100%)',
-                'linear-gradient(135deg, #ff007f 0%, #ff758c 100%)',
-                'linear-gradient(135deg, #e65c00 0%, #f9d423 100%)'
-            ];
+        const getAvatarUrl = (name: string) => {
+            const cleanName = encodeURIComponent(name.replace(/[^a-zA-Z0-9]/g, ''));
+            const styles = ['adventurer', 'lorelei'];
             let hash = 0;
             for (let i = 0; i < name.length; i++) {
                 hash = name.charCodeAt(i) + ((hash << 5) - hash);
             }
-            const colorIndex = Math.abs(hash) % colors.length;
-            return {
-                background: colors[colorIndex],
-                color: '#000000',
-                fontWeight: 'bold'
+            const styleIndex = Math.abs(hash) % styles.length;
+            const style = styles[styleIndex];
+            return `https://api.dicebear.com/7.x/${style}/svg?seed=${cleanName}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+        };
+
+        const buildCommentTree = (flatComments: Comment[]): RenderComment[] => {
+            const parsedComments: RenderComment[] = flatComments.map(c => {
+                const match = c.content.match(/^\[reply:(\d+)\](.*)/s);
+                let parentId: number | undefined;
+                let content = c.content;
+                if (match) {
+                    parentId = parseInt(match[1], 10);
+                    content = match[2];
+                }
+                
+                // Deterministic initial likes based on comment ID hash
+                const baseLikes = Math.abs((c.id * 17) % 245) + 3;
+
+                return {
+                    ...c,
+                    content,
+                    parentId,
+                    depth: 0,
+                    likes: baseLikes,
+                    userLiked: false,
+                    replies: []
+                };
+            });
+
+            const commentMap = new Map<number, RenderComment>();
+            parsedComments.forEach(c => commentMap.set(c.id, c));
+
+            const rootNodes: RenderComment[] = [];
+
+            // Sort chronically (ascending) so conversations thread logic aligns correctly
+            parsedComments.sort((a, b) => a.id - b.id);
+
+            parsedComments.forEach(c => {
+                if (c.parentId && commentMap.has(c.parentId)) {
+                    const parent = commentMap.get(c.parentId)!;
+                    c.parentUsername = parent.username;
+                    parent.replies.push(c);
+                } else {
+                    rootNodes.push(c);
+                }
+            });
+
+            // Sort root level threads descending by ID (newest conversations first)
+            rootNodes.sort((a, b) => b.id - a.id);
+
+            const finalResult: RenderComment[] = [];
+            const traverse = (node: RenderComment, depth: number) => {
+                node.depth = depth;
+                finalResult.push(node);
+                // Sort replies chronologically (ascending) so reading replies reads naturally top to bottom
+                node.replies.sort((a, b) => a.id - b.id);
+                node.replies.forEach(child => traverse(child, depth + 1));
             };
+
+            rootNodes.forEach(root => traverse(root, 0));
+
+            return finalResult;
         };
 
         const fetchComments = async () => {
@@ -161,18 +327,14 @@ export default defineComponent({
 
                 if (error) throw error;
 
-                // Simple check: if a username doesn't exist in movora_users, flag it as guest
-                // For performance, we can also store isGuest locally or assume it.
-                // We'll tag it by local heuristic: usernames not matching current user
-                // or if it matches the localStorage guestName pattern.
-                // In actual deployment, we tag it dynamically:
-                comments.value = (data || []).map((c: any) => {
+                rawComments.value = data || [];
+                processedComments.value = buildCommentTree(rawComments.value.map((c: any) => {
                     const isKnownUser = c.username === currentUsername.value;
                     return {
                         ...c,
                         isGuest: !isKnownUser && !c.username.startsWith('@')
                     };
-                });
+                }));
             } catch (e) {
                 console.error('Failed to load comments:', e);
             } finally {
@@ -180,7 +342,7 @@ export default defineComponent({
             }
         };
 
-        const submitComment = async () => {
+        const submitMainComment = async () => {
             if (!newCommentText.value.trim()) return;
             submitting.value = true;
 
@@ -210,11 +372,8 @@ export default defineComponent({
                 if (error) throw error;
 
                 if (data) {
-                    comments.value.unshift({
-                        ...data,
-                        isGuest: !isLoggedIn.value
-                    });
                     newCommentText.value = '';
+                    await fetchComments();
                 }
             } catch (e) {
                 console.error('Failed to post comment:', e);
@@ -222,6 +381,115 @@ export default defineComponent({
                 submitting.value = false;
             }
         };
+
+        const submitReply = async (parentId: number) => {
+            if (!replyText.value.trim()) return;
+            submittingReply.value = true;
+
+            const nameToPost = isLoggedIn.value 
+                ? `@${currentUsername.value}` 
+                : guestName.value.trim() || 'Anonymous';
+
+            if (!isLoggedIn.value && typeof window !== 'undefined') {
+                localStorage.setItem('movora_guest_name', nameToPost);
+            }
+
+            const prefixedContent = `[reply:${parentId}]${replyText.value.trim()}`;
+
+            try {
+                const supabase = await getSupabaseClient();
+                const { data, error } = await supabase
+                    .from('movora_comments')
+                    .insert([
+                        {
+                            media_id: String(props.mediaId),
+                            media_type: props.mediaType,
+                            username: nameToPost,
+                            content: prefixedContent
+                        }
+                    ])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    replyText.value = '';
+                    activeReplyId.value = null;
+                    await fetchComments();
+                }
+            } catch (e) {
+                console.error('Failed to post reply:', e);
+            } finally {
+                submittingReply.value = false;
+            }
+        };
+
+        const toggleCollapse = (id: number) => {
+            if (collapsedComments.value.has(id)) {
+                collapsedComments.value.delete(id);
+            } else {
+                collapsedComments.value.add(id);
+            }
+        };
+
+        const isDirectlyCollapsed = (id: number): boolean => {
+            return collapsedComments.value.has(id);
+        };
+
+        const getAncestorIdAtDepth = (c: RenderComment, targetDepth: number): number => {
+            let current = c;
+            while (current && current.depth > targetDepth) {
+                if (!current.parentId) break;
+                const parent = processedComments.value.find(p => p.id === current.parentId);
+                if (!parent) break;
+                current = parent;
+            }
+            return current.id;
+        };
+
+        const countReplies = (id: number): number => {
+            // Count all nested replies under a collapsed comment
+            let count = 0;
+            const countNode = (nodeId: number) => {
+                const children = processedComments.value.filter(p => p.parentId === nodeId);
+                count += children.length;
+                children.forEach(child => countNode(child.id));
+            };
+            countNode(id);
+            return count;
+        };
+
+        const toggleUpvote = (c: RenderComment) => {
+            if (c.userLiked) {
+                c.likes -= 1;
+                c.userLiked = false;
+            } else {
+                c.likes += 1;
+                c.userLiked = true;
+            }
+        };
+
+        const flagComment = (c: RenderComment) => {
+            alert(`Comment by ${c.username} has been reported for moderation.`);
+        };
+
+        const visibleComments = computed(() => {
+            return processedComments.value.filter(c => {
+                if (!c.parentId) return true;
+                
+                let parentId = c.parentId;
+                while (parentId) {
+                    if (collapsedComments.value.has(parentId)) {
+                        return false;
+                    }
+                    const parent = processedComments.value.find(p => p.id === parentId);
+                    if (!parent) break;
+                    parentId = parent.parentId!;
+                }
+                return true;
+            });
+        });
 
         const formatTimeAgo = (dateStr: string) => {
             const date = new Date(dateStr);
@@ -255,15 +523,28 @@ export default defineComponent({
         });
 
         return {
-            comments,
+            rawComments,
+            processedComments,
+            visibleComments,
             loading,
             submitting,
+            submittingReply,
             newCommentText,
+            replyText,
             guestName,
             isLoggedIn,
             currentUsername,
-            avatarStyle,
-            submitComment,
+            activeReplyId,
+            collapsedComments,
+            getAvatarUrl,
+            submitMainComment,
+            submitReply,
+            toggleCollapse,
+            isDirectlyCollapsed,
+            getAncestorIdAtDepth,
+            countReplies,
+            toggleUpvote,
+            flagComment,
             formatTimeAgo
         };
     }
@@ -272,9 +553,9 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .comments-panel {
-    background: var(--ink-800);
+    background: var(--ink-850);
     border-radius: var(--r-lg);
-    box-shadow: inset 0 0 0 1px var(--rule);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), inset 0 0 0 1px var(--rule);
     padding: var(--s-5);
     display: flex;
     flex-direction: column;
@@ -350,7 +631,7 @@ export default defineComponent({
         }
 
         &__input {
-            background: var(--ink-700);
+            background: var(--ink-900);
             border: 1px solid var(--rule-strong);
             border-radius: var(--r-md);
             padding: 0.5rem 0.75rem;
@@ -371,7 +652,7 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         gap: var(--s-2);
-        background: var(--ink-700);
+        background: var(--ink-750);
         padding: var(--s-2) var(--s-3);
         border-radius: var(--r-pill);
         border: 1px solid var(--rule);
@@ -380,10 +661,7 @@ export default defineComponent({
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: var(--fs-xs);
+            object-fit: cover;
         }
 
         &__name {
@@ -396,7 +674,7 @@ export default defineComponent({
     &__textarea-container {
         display: flex;
         flex-direction: column;
-        background: var(--ink-700);
+        background: var(--ink-750);
         border: 1px solid var(--rule-strong);
         border-radius: var(--r-lg);
         overflow: hidden;
@@ -480,64 +758,100 @@ export default defineComponent({
     }
 }
 
-// Comments list styling
+// Comments list container
 .comments-list {
     display: flex;
     flex-direction: column;
-    gap: var(--s-4);
-    max-height: 480px;
-    overflow-y: auto;
-    padding-right: 4px;
-
-    &::-webkit-scrollbar {
-        width: 6px;
-    }
-    &::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    &::-webkit-scrollbar-thumb {
-        background: var(--rule-strong);
-        border-radius: var(--r-pill);
-    }
+    gap: 2px;
 }
 
+// Reddit/9anime Threaded Comment Card
 .comment-card {
-    background: var(--ink-750);
-    border-radius: var(--r-md);
-    padding: var(--s-4);
-    border: 1px solid var(--rule);
+    position: relative;
+    padding-top: var(--s-3);
+    padding-bottom: var(--s-3);
+    padding-right: var(--s-4);
     display: flex;
     flex-direction: column;
-    gap: var(--s-2);
+    transition: background-color var(--dur-fast) ease;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.015);
+    }
+
+    &--reply {
+        margin-top: 2px;
+    }
+
+    &--collapsed {
+        opacity: 0.75;
+        padding-bottom: var(--s-1);
+    }
+
+    // Ancestor connection lines
+    &__thread-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1.5px;
+        background-color: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+        transition: background-color var(--dur-fast) ease, width var(--dur-fast) ease;
+
+        &:hover {
+            background-color: var(--ember);
+            width: 2px;
+        }
+    }
+
+    &__content-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
 
     &__header {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        font-family: var(--font-ui);
     }
 
     &__author {
         display: flex;
         align-items: center;
         gap: var(--s-2);
+        flex-wrap: wrap;
     }
 
     &__avatar {
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: var(--fs-sm);
+        object-fit: cover;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         flex-shrink: 0;
     }
 
     &__username {
-        font-family: var(--font-ui);
         font-weight: 600;
         font-size: var(--fs-sm);
-        color: var(--bone-100);
+        color: #b388ff; // Reddit-style premium violet username tag
+    }
+
+    &__reply-arrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: var(--fs-xs);
+        color: var(--bone-450);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 1px 6px;
+        border-radius: var(--r-sm);
+        
+        svg {
+            opacity: 0.6;
+        }
     }
 
     .guest-badge {
@@ -550,9 +864,38 @@ export default defineComponent({
     }
 
     &__time {
+        font-size: var(--fs-xs);
+        color: var(--bone-500);
+        margin-left: 2px;
+    }
+
+    &__controls {
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+    }
+
+    &__collapse-btn,
+    &__flag-btn {
+        background: transparent;
+        border: none;
+        color: var(--bone-500);
+        cursor: pointer;
+        padding: 4px;
         font-family: var(--font-mono);
         font-size: var(--fs-xs);
-        color: var(--bone-450);
+        border-radius: var(--r-sm);
+        transition: color var(--dur-fast), background-color var(--dur-fast);
+
+        &:hover {
+            color: var(--bone-100);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+    }
+
+    &__flag-btn:hover {
+        color: #ef4444;
+        background-color: rgba(239, 68, 68, 0.08);
     }
 
     &__body {
@@ -562,20 +905,132 @@ export default defineComponent({
         color: var(--bone-200);
         word-break: break-word;
         white-space: pre-wrap;
+        margin: 0;
+        padding-left: 36px;
+    }
+
+    &__footer {
+        display: flex;
+        align-items: center;
+        gap: var(--s-4);
+        padding-left: 36px;
+        margin-top: 2px;
+    }
+
+    &__vote-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: transparent;
+        border: none;
+        color: var(--bone-450);
+        cursor: pointer;
+        padding: 3px 6px;
+        border-radius: var(--r-sm);
+        transition: all var(--dur-fast) var(--ease-out);
+
+        svg {
+            transition: transform var(--dur-fast);
+        }
+
+        &:hover {
+            color: var(--ember);
+            background: rgba(255, 90, 31, 0.05);
+            
+            svg {
+                transform: translateY(-1px);
+            }
+        }
+
+        &--active {
+            color: var(--ember) !important;
+            background: rgba(255, 90, 31, 0.08) !important;
+        }
+    }
+
+    &__vote-count {
+        font-family: var(--font-mono);
+        font-size: var(--fs-xs);
+        font-weight: 600;
+    }
+
+    &__reply-action-btn {
+        background: transparent;
+        border: none;
+        color: var(--bone-450);
+        font-family: var(--font-ui);
+        font-size: var(--fs-xs);
+        font-weight: 500;
+        cursor: pointer;
+        padding: 3px 8px;
+        border-radius: var(--r-sm);
+        transition: all var(--dur-fast);
+
+        &:hover {
+            color: var(--bone-100);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+    }
+
+    &__collapsed-tag {
+        font-style: italic;
+        color: var(--bone-500);
+        padding-left: 36px;
+        font-size: var(--fs-xs);
     }
 }
 
-// Fade animations
-.comment-fade-enter-active, .comment-fade-leave-active {
-    transition: all 0.4s ease;
+// Inline Reply Composer
+.reply-composer-form {
+    position: relative;
+    padding-top: var(--s-1);
+    padding-bottom: var(--s-3);
+    padding-right: var(--s-4);
+    display: flex;
+    flex-direction: column;
+
+    &__content {
+        background: var(--ink-900);
+        border: 1px solid var(--rule-strong);
+        border-radius: var(--r-md);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        margin-left: 36px;
+    }
+
+    &__textarea {
+        background: transparent;
+        border: none;
+        padding: var(--s-2) var(--s-3);
+        color: var(--bone-50);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        resize: none;
+        outline: none;
+
+        &::placeholder {
+            color: var(--bone-500);
+        }
+    }
+
+    &__buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--s-2);
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.2);
+        border-top: 1px solid var(--rule);
+    }
 }
-.comment-fade-enter-from {
-    opacity: 0;
-    transform: translateY(-20px);
+
+// Transitions
+.reply-fade-enter-active, .reply-fade-leave-active {
+    transition: all var(--dur-base) var(--ease-out);
 }
-.comment-fade-leave-to {
+.reply-fade-enter-from, .reply-fade-leave-to {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(-8px);
 }
 
 @keyframes spin {

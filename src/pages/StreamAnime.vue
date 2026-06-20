@@ -1184,21 +1184,11 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .watch-stage {
-    height: 100vh;
-    height: 100dvh;
-    overflow-y: auto;
+    min-height: 100dvh;
+    height: auto;
+    overflow-x: hidden;
     background-color: var(--ink-950);
     color: var(--bone-50);
-
-    @media (max-width: 1023px) {
-        height: auto;
-        min-height: 100dvh;
-        overflow-x: hidden;
-    }
-
-    // Hide scrollbar visually but keep it functional
-    scrollbar-width: none;
-    &::-webkit-scrollbar { display: none; }
 
     &__chrome {
         background: rgba(10, 10, 12, 0.85);
@@ -1594,7 +1584,7 @@ export default defineComponent({
         }
 
         @media (min-width: 1024px) {
-            height: 100dvh;
+            min-height: 100dvh;
             padding: 72px var(--s-5) var(--s-2) var(--s-5);
             grid-template-columns: 1fr;
             align-items: stretch;
@@ -1735,24 +1725,15 @@ export default defineComponent({
         max-width: 1280px;
         width: 100%;
         margin: 0 auto;
-        padding: 0 var(--s-4);
+        padding: var(--s-5) var(--s-4) calc(var(--s-7) + env(safe-area-inset-bottom, 0px));
         box-sizing: border-box;
 
-        @media (max-width: 1023px) {
-            height: auto;
-            min-height: 0;
-            align-content: start;
-            padding: var(--s-5) var(--s-3) var(--s-4);
-        }
-
-        @media (min-width: 1024px) {
-            height: 100dvh;
-            align-content: center;
-            padding: 72px var(--s-5) var(--s-4) var(--s-5);
-        }
-
         @media (min-width: 768px) {
-            padding: 0 var(--s-5);
+            padding: var(--s-6) var(--s-5) calc(var(--s-7) + env(safe-area-inset-bottom, 0px));
+        }
+
+        &:last-of-type {
+            padding-bottom: calc(var(--s-9) + env(safe-area-inset-bottom, 0px));
         }
     }
 
@@ -1774,9 +1755,7 @@ export default defineComponent({
         }
 
         @media (min-width: 1024px) {
-            height: 100dvh;
-            align-content: center;
-            padding: 72px var(--s-5) var(--s-4) var(--s-5);
+            padding: var(--s-6) var(--s-5);
             grid-template-columns: 280px 1fr;
             align-items: center;
         }

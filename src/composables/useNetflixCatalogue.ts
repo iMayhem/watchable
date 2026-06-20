@@ -8,25 +8,71 @@ export interface NetflixCatalogueOption {
     eyebrow: string;
 }
 
-/** Header tabs — languages live in the video player. */
+/** Header industry tabs — K-Drama is a dedicated nav link, not an industry tab. */
 export const NETFLIX_CATALOGUES: NetflixCatalogueOption[] = [
     { id: 'hollywood', label: 'Hollywood', eyebrow: 'Blockbusters' },
-    { id: 'bollywood', label: 'Bollywood', eyebrow: 'Indian cinema' },
-    { id: 'korean', label: 'Korean', eyebrow: 'K-Cinema' }
+    { id: 'bollywood', label: 'Bollywood', eyebrow: 'Indian cinema' }
 ];
+
+export const NETFLIX_KDRAMA_CATALOGUE_ID = 'korean';
+
+const VALID_CATALOGUE_IDS = new Set([
+    ...NETFLIX_CATALOGUES.map((c) => c.id),
+    NETFLIX_KDRAMA_CATALOGUE_ID
+]);
+
+export function isNetflixCatalogueId(id: string): boolean {
+    return VALID_CATALOGUE_IDS.has(id);
+}
+
+export function normalizeCatalogueId(id: string): string {
+    return isNetflixCatalogueId(id) ? id : 'hollywood';
+}
 
 const selectedCatalogue = useStorage<string>('movora_netflix_catalogue', 'hollywood');
 
-export function getCatalogueOption(id: string): NetflixCatalogueOption {
-    return NETFLIX_CATALOGUES.find((c) => c.id === id) || NETFLIX_CATALOGUES[0];
+if (selectedCatalogue.value !== normalizeCatalogueId(selectedCatalogue.value)) {
+    selectedCatalogue.value = normalizeCatalogueId(selectedCatalogue.value);
 }
 
-/** Primary movie browse row for Hollywood / Bollywood / Korean. */
+export function getCatalogueOption(id: string): NetflixCatalogueOption {
+    const normalized = normalizeCatalogueId(id);
+    if (normalized === NETFLIX_KDRAMA_CATALOGUE_ID) {
+        return {
+            id: NETFLIX_KDRAMA_CATALOGUE_ID,
+            label: 'K-Drama',
+            eyebrow: 'Korean series'
+        };
+    }
+    return (
+        NETFLIX_CATALOGUES.find((c) => c.id === normalized) ||
+        NETFLIX_CATALOGUES[0]
+    );
+}
+
+/** Movies industry tab — Hollywood / Bollywood only (K-Drama is a header link). */
+export function normalizeIndustryCatalogueId(id: string): string {
+    const industryId = netflixAnimeCatalogueId(normalizeCatalogueId(id));
+    return (
+        NETFLIX_CATALOGUES.find((c) => c.id === industryId)?.id ||
+        NETFLIX_CATALOGUES[0].id
+    );
+}
+
+export function getIndustryCatalogueOption(id: string): NetflixCatalogueOption {
+    const industryId = normalizeIndustryCatalogueId(id);
+    return (
+        NETFLIX_CATALOGUES.find((c) => c.id === industryId) ||
+        NETFLIX_CATALOGUES[0]
+    );
+}
+
+/** Primary movie browse row for Hollywood / Bollywood / K-Drama. */
 export function netflixMovieBrowseRow(catalogueId: string): string {
     return catalogueId === 'korean' ? 'korean-movies' : 'blockbuster-movies';
 }
 
-/** Primary TV browse row for Hollywood / Bollywood / Korean. */
+/** Primary TV browse row for Hollywood / Bollywood / K-Drama. */
 export function netflixTvBrowseRow(catalogueId: string): string {
     return catalogueId === 'korean' ? 'korean-series' : 'exciting-tv';
 }
@@ -44,7 +90,7 @@ export function getNetflixCatalogue() {
             label: catalogue.label,
             previous: selectedCatalogue.value
         });
-        selectedCatalogue.value = catalogue.id;
+        selectedCatalogue.value = normalizeCatalogueId(catalogue.id);
         window.dispatchEvent(
             new CustomEvent('movora_netflix_catalogue_change', {
                 detail: { id: catalogue.id }

@@ -148,6 +148,7 @@
                 </button>
 
                 <a
+                    v-if="!isNetflixMode"
                     href="/party/"
                     class="site-header__party-btn"
                     aria-label="Watch Together"
@@ -250,13 +251,13 @@
                         :key="cat.id"
                         type="button"
                         class="region-dropdown__item"
-                        :class="{ 'is-active': netflixCatalogue === cat.id }"
+                        :class="{ 'is-active': activeIndustryCatalogueId === cat.id }"
                         role="option"
                         @click="selectMovieIndustry(cat.id)"
                     >
                         <span class="region-dropdown__name">{{ cat.label }}</span>
                         <svg
-                            v-if="netflixCatalogue === cat.id"
+                            v-if="activeIndustryCatalogueId === cat.id"
                             class="region-dropdown__check"
                             viewBox="0 0 24 24"
                             fill="none"
@@ -383,7 +384,7 @@
                         :key="cat.id"
                         type="button"
                         class="site-header__drawer-link"
-                        :class="{ 'is-active': netflixCatalogue === cat.id }"
+                        :class="{ 'is-active': activeIndustryCatalogueId === cat.id }"
                         @click="selectMovieIndustry(cat.id); drawerOpen = false"
                     >
                         <span class="site-header__drawer-label">{{ cat.label }}</span>
@@ -440,11 +441,6 @@
                     >
                         <span class="site-header__drawer-label">{{ modeLabel }}</span>
                     </button>
-
-                    <a href="/party/" class="site-header__drawer-link" @click="drawerOpen = false">
-                        <span class="eyebrow site-header__drawer-num">✦</span>
-                        <span class="site-header__drawer-label">Watch Together</span>
-                    </a>
                 </template>
 
                 <template v-else>
@@ -512,7 +508,8 @@ import {
     nextTick,
     onBeforeUnmount,
     onMounted,
-    ref
+    ref,
+    watch
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LmDrawer from '../primitives/Drawer.vue';
@@ -525,9 +522,11 @@ import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
 import {
-    getCatalogueOption,
+    getIndustryCatalogueOption,
     getNetflixCatalogue,
     NETFLIX_CATALOGUES,
+    NETFLIX_KDRAMA_CATALOGUE_ID,
+    normalizeIndustryCatalogueId,
     netflixMovieBrowseRow
 } from '../../composables/useNetflixCatalogue';
 import { netflixBrowsePath, isNetflixGenreBrowsePage } from '../../composables/useNetflixRails';
@@ -544,7 +543,12 @@ import {
     NETFLIX_ANIMATED_EXPLORE_PATH,
     NETFLIX_MOVIE_EXPLORE_PATH,
     NETFLIX_TV_EXPLORE_PATH,
+    isCDramaExploreRoute,
+    isHeaderDramaExploreRouteActive,
+    isKDramaExploreRoute,
     netflixExplorePath,
+    netflixCDramaExplorePath,
+    netflixKDramaExplorePath,
     resolveExplorePathMediaType,
     type NetmirrorExploreCategory,
     type NetmirrorExploreCountry,
@@ -805,8 +809,12 @@ export default defineComponent({
             return 'all';
         };
 
+        const activeIndustryCatalogueId = computed(() =>
+            normalizeIndustryCatalogueId(netflixCatalogue.value)
+        );
+
         const activeIndustryLabel = computed(
-            () => getCatalogueOption(netflixCatalogue.value).label
+            () => getIndustryCatalogueOption(netflixCatalogue.value).label
         );
 
         const activeExploreCountry = computed(() => {
@@ -906,14 +914,20 @@ export default defineComponent({
             const path = route.path;
             const browseMatch = path.match(/^\/nf\/browse\/([^/]+)\/([^/?#]+)/);
             const browseRow = browseMatch?.[2] || '';
+            const exploreQuery = route.query as Record<
+                string,
+                string | string[] | null | undefined
+            >;
+            const isDramaExploreSection = isHeaderDramaExploreRouteActive(path, exploreQuery);
 
             const isTvSection =
-                path.startsWith('/nf/explore/tv') ||
+                !isDramaExploreSection &&
+                (path.startsWith('/nf/explore/tv') ||
                 (browseMatch && PRIMARY_TV_ROW_IDS.has(browseRow)) ||
                 path.startsWith('/nf/tv/') ||
                 path.includes('/stream/nf/tv/') ||
                 (path === '/nf/categories' && route.query.type === 'tv') ||
-                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'tv');
+                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'tv'));
 
             const isMovieSection =
                 path.startsWith('/nf/explore/movie') ||
@@ -923,7 +937,7 @@ export default defineComponent({
                 (path === '/nf/categories' && route.query.type === 'movie') ||
                 (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'movie');
 
-            return { path, isTvSection, isMovieSection };
+            return { path, isTvSection, isMovieSection, isDramaExploreSection };
         });
 
         const isMovieSectionActive = computed(() => netflixBrowseContext.value.isMovieSection);
@@ -948,8 +962,22 @@ export default defineComponent({
         const netflixNavTrailing = computed(() => {
             const cat = netflixCatalogue.value;
             const { path } = netflixBrowseContext.value;
+            const exploreQuery = route.query as Record<
+                string,
+                string | string[] | null | undefined
+            >;
 
             return [
+                {
+                    label: 'K-Drama',
+                    path: netflixKDramaExplorePath(),
+                    isActive: () => isKDramaExploreRoute(path, exploreQuery)
+                },
+                {
+                    label: 'C-Drama',
+                    path: netflixCDramaExplorePath(),
+                    isActive: () => isCDramaExploreRoute(path, exploreQuery)
+                },
                 {
                     label: 'Animated',
                     path: NETFLIX_ANIMATED_EXPLORE_PATH,
@@ -1024,8 +1052,33 @@ export default defineComponent({
             scrollNavToTop();
         };
 
+        const clearKoreanIndustryCatalogue = () => {
+            if (netflixCatalogue.value !== NETFLIX_KDRAMA_CATALOGUE_ID) return;
+            setNetflixCatalogue('hollywood');
+        };
+
+        watch(
+            () => route.fullPath,
+            () => {
+                const exploreQuery = route.query as Record<
+                    string,
+                    string | string[] | null | undefined
+                >;
+                if (isHeaderDramaExploreRouteActive(route.path, exploreQuery)) {
+                    clearKoreanIndustryCatalogue();
+                }
+            },
+            { immediate: true }
+        );
+
         const navigateNetflixNav = async (item: NetflixNavItem) => {
             const destination = parseNavDestination(item.path);
+            if (
+                item.path === netflixKDramaExplorePath() ||
+                item.path === netflixCDramaExplorePath()
+            ) {
+                clearKoreanIndustryCatalogue();
+            }
             try {
                 await router.push(destination);
             } catch {
@@ -1142,6 +1195,7 @@ export default defineComponent({
             isNetflixMode,
             netflixCatalogues: NETFLIX_CATALOGUES,
             netflixCatalogue,
+            activeIndustryCatalogueId,
             activeIndustryLabel,
             netflixNavLeading,
             netflixNavTrailing,
@@ -1308,7 +1362,7 @@ export default defineComponent({
         }
 
         &--tail {
-            margin-left: auto;
+            flex-shrink: 0;
         }
     }
 

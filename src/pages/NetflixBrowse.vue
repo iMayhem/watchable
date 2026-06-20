@@ -68,7 +68,7 @@
                                     {{ pageHeaderTitle }}
                                 </h1>
                                 
-                                <!-- Industry Selector (Hollywood / Bollywood / Korean) -->
+                                <!-- Industry Selector (Hollywood / Bollywood) -->
                                 <div class="nf-dropdown-container">
                                     <button 
                                         type="button" 
@@ -76,7 +76,7 @@
                                         :class="{ 'is-open': isIndustryOpen }"
                                         @click.stop="isIndustryOpen = !isIndustryOpen; isGenreOpen = false"
                                     >
-                                        <span>{{ activeCatalogue.label }}</span>
+                                        <span>{{ activeIndustryCatalogue.label }}</span>
                                         <svg class="nf-dropdown-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
                                             <path d="m6 9 6 6 6-6"/>
                                         </svg>
@@ -89,7 +89,11 @@
                                                 :key="catOpt.id"
                                                 type="button"
                                                 class="nf-dropdown-item"
-                                                :class="{ 'is-active': catalogueId === catOpt.id }"
+                                                :class="{
+                                                    'is-active':
+                                                        normalizeIndustryCatalogueId(catalogueId) ===
+                                                        catOpt.id
+                                                }"
                                                 @click="selectIndustry(catOpt.id)"
                                             >
                                                 {{ catOpt.label }}
@@ -259,10 +263,14 @@ import {
 import { loadNetflixAvailabilityIndex } from '../composables/useNetflixProvider';
 import {
     getCatalogueOption,
+    getIndustryCatalogueOption,
+    normalizeIndustryCatalogueId,
     getNetflixCatalogue,
     NETFLIX_CATALOGUES,
+    isNetflixCatalogueId,
     netflixMovieBrowseRow,
     netflixTvBrowseRow,
+    normalizeCatalogueId,
     type NetflixCatalogueOption
 } from '../composables/useNetflixCatalogue';
 import {
@@ -348,6 +356,8 @@ export default defineComponent({
         const lastLoadKey = ref('');
         const genreRailPlans = ref<GenreBrowseRailPlan[]>([]);
         const genreRails = ref<GenreRailDisplay[]>([]);
+        const pinnedGenreHeroId = ref('');
+        const animeGenreRailsLocked = ref(false);
 
         const isIndustryOpen = ref(false);
         const isGenreOpen = ref(false);
@@ -452,9 +462,13 @@ export default defineComponent({
             getCatalogueOption(catalogueId.value)
         );
 
+        const activeIndustryCatalogue = computed<NetflixCatalogueOption>(() =>
+            getIndustryCatalogueOption(catalogueId.value)
+        );
+
         const validRoute = computed(
             () =>
-                NETFLIX_CATALOGUES.some((c) => c.id === catalogueId.value) &&
+                isNetflixCatalogueId(catalogueId.value) &&
                 isValidNetflixBrowseRow(rowId.value)
         );
 
@@ -518,11 +532,28 @@ export default defineComponent({
             catalogueId.value === 'korean' ? 40 : BROWSE_FAST_GRID_BATCH
         );
 
+        const pinGenreHeroIfNeeded = () => {
+            if (!isGenreBrowse.value || pinnedGenreHeroId.value) return;
+            const featured =
+                results.value.find((item) => item.backdropPath) || results.value[0];
+            if (featured) {
+                pinnedGenreHeroId.value = String(featured.id);
+            }
+        };
+
         const genreHeroFeatured = computed(() => {
             if (!isGenreBrowse.value) return null;
-            return (
-                results.value.find((item) => item.backdropPath) || null
-            );
+            if (pinnedGenreHeroId.value) {
+                return (
+                    results.value.find(
+                        (item) => String(item.id) === pinnedGenreHeroId.value
+                    ) ||
+                    results.value.find((item) => item.backdropPath) ||
+                    results.value[0] ||
+                    null
+                );
+            }
+            return results.value.find((item) => item.backdropPath) || null;
         });
 
         const genreHeroBackdrop = computed(() => {
@@ -570,7 +601,7 @@ export default defineComponent({
         const genreHeroStyle = computed(() => {
             const path = genreHeroBackdrop.value;
             if (!path) return undefined;
-            const url = useWebImage(path, 'hero');
+            const url = useWebImage(path, 'large');
             return url ? { backgroundImage: `url(${url})` } : undefined;
         });
 
@@ -778,6 +809,7 @@ export default defineComponent({
             results.value =
                 displayedCount.value === 0 ? fast : [...results.value, ...fast];
             displayedCount.value += batch.length;
+            pinGenreHeroIfNeeded();
 
             isLoading.value = false;
             isRefreshing.value = false;
@@ -811,6 +843,9 @@ export default defineComponent({
             languageMap.value = new Map(snapshot.languageMapEntries);
             variantSnapshot.value = [...snapshot.variantSnapshot];
             lastLoadKey.value = snapshot.loadKey;
+            pinnedGenreHeroId.value = '';
+            animeGenreRailsLocked.value = genreRails.value.length > 0;
+            pinGenreHeroIfNeeded();
             isLoading.value = false;
             isRefreshing.value = false;
             isLoadingMore.value = false;
@@ -864,6 +899,7 @@ export default defineComponent({
             animePage.value = 1;
             animeHasMore.value = true;
             genreRails.value = [];
+            animeGenreRailsLocked.value = false;
 
             try {
                 const [fast] = await Promise.all([
@@ -879,6 +915,7 @@ export default defineComponent({
                 animePage.value = fast.pageInfo.currentPage;
                 animeHasMore.value = fast.pageInfo.hasNextPage;
                 genreRails.value = buildAnimeGenreRails(cached.items);
+                animeGenreRailsLocked.value = genreRails.value.length > 0;
 
                 const meta = getNetflixRowMeta(row as NetflixBrowseRowId, cat, lang);
                 updateSeo({
@@ -932,9 +969,12 @@ export default defineComponent({
                 results.value = results.value.map(
                     (item) => resolvedById.get(item.anilistId || 0) || item
                 );
-                genreRails.value = buildAnimeGenreRails(
-                    results.value as NetflixAnimeBrowseItem[]
-                );
+                if (!animeGenreRailsLocked.value) {
+                    genreRails.value = buildAnimeGenreRails(
+                        results.value as NetflixAnimeBrowseItem[]
+                    );
+                    animeGenreRailsLocked.value = genreRails.value.length > 0;
+                }
             } catch (err) {
                 nfDebugError('browse:anime:enrich:fail', { err });
             }
@@ -954,9 +994,12 @@ export default defineComponent({
                 results.value = [...results.value, ...cached.items];
                 animePage.value = fast.pageInfo.currentPage;
                 animeHasMore.value = fast.pageInfo.hasNextPage;
-                genreRails.value = buildAnimeGenreRails(
-                    results.value as NetflixAnimeBrowseItem[]
-                );
+                if (!animeGenreRailsLocked.value) {
+                    genreRails.value = buildAnimeGenreRails(
+                        results.value as NetflixAnimeBrowseItem[]
+                    );
+                    animeGenreRailsLocked.value = genreRails.value.length > 0;
+                }
 
                 void enrichAnimeBrowseResults(
                     animeMediaNeedingLiveResolve(cached),
@@ -974,13 +1017,22 @@ export default defineComponent({
 
         const syncCatalogueFromRoute = () => {
             const id = catalogueId.value;
-            if (NETFLIX_CATALOGUES.some((row) => row.id === id)) {
+            if (isNetflixCatalogueId(id)) {
                 setNetflixCatalogue(id);
             }
         };
 
         const loadBrowse = async () => {
             if (!isBrowseRouteActive()) return;
+
+            const normalizedCatalogue = normalizeCatalogueId(catalogueId.value);
+            if (catalogueId.value !== normalizedCatalogue) {
+                router.replace(
+                    netflixBrowsePath(normalizedCatalogue, rowId.value)
+                );
+                return;
+            }
+
             syncCatalogueFromRoute();
             if (restoreBrowseCache()) return;
             if (!validRoute.value) {
@@ -1017,6 +1069,8 @@ export default defineComponent({
             displayedCount.value = 0;
             isLoading.value = true;
             isRefreshing.value = false;
+            pinnedGenreHeroId.value = '';
+            animeGenreRailsLocked.value = false;
 
             poolState.value = createBrowsePoolState(
                 row as NetflixBrowseRowId,
@@ -1126,6 +1180,8 @@ export default defineComponent({
             displayedCount.value = 0;
             genreRailPlans.value = [];
             genreRails.value = [];
+            pinnedGenreHeroId.value = '';
+            animeGenreRailsLocked.value = false;
             variantSnapshot.value = [];
             languageMap.value = new Map();
             animePage.value = 1;
@@ -1179,6 +1235,8 @@ export default defineComponent({
             rowMeta,
             activeLang,
             activeCatalogue,
+            activeIndustryCatalogue,
+            normalizeIndustryCatalogueId,
             hasMore,
             scrollSentinel,
             isGenreBrowse,

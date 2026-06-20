@@ -7,6 +7,7 @@ import { peekCatalogAudioCache } from './useCatalogAudioCache';
 import {
     browseMoovieCatalog,
     catalogHasEpisodeGuide,
+    catalogSearchTitle,
     inferCatalogMediaType,
     parseCatalogTitle,
     searchMoovieCatalog,
@@ -26,6 +27,18 @@ function normalizeCatalogTitle(value: string): string {
         .trim();
 }
 
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function hasWholeCatalogPhrase(name: string, phrase: string): boolean {
+    if (!phrase || phrase.length < 4) return false;
+    const pattern = new RegExp(
+        `\\b${escapeRegExp(phrase).replace(/\s+/g, '\\s+')}\\b`
+    );
+    return pattern.test(name);
+}
+
 export const ANIME_CATALOG_MIN_MATCH_SCORE = 92;
 
 export function titleMatchScore(query: string, candidate: string): number {
@@ -34,7 +47,9 @@ export function titleMatchScore(query: string, candidate: string): number {
     if (!q || !c) return 0;
     if (q === c) return 100;
     if (c.startsWith(`${q} `) || c.startsWith(`${q}:`)) return 92;
-    if (c.includes(q) || q.includes(c)) return 72;
+    if (q.startsWith(`${c} `) || q.startsWith(`${c}:`)) return 88;
+    // Whole-word only — NetMirror never fuzzy-merges titles like Obsess ↔ Obsession.
+    if (hasWholeCatalogPhrase(c, q) || hasWholeCatalogPhrase(q, c)) return 72;
     return 0;
 }
 
@@ -308,6 +323,21 @@ export function catalogStreamTarget(
     };
 }
 
+const VARIANT_SEARCH_CACHE_TTL_MS = 10 * 60 * 1000;
+const variantSearchCache = new Map<
+    string,
+    { at: number; items: MoovieCatalogItem[] }
+>();
+
+function variantSearchCacheKey(
+    displayTitle: string,
+    anchor?: MoovieCatalogItem | { title?: string; media_type?: string }
+): string {
+    const needle = normalizeCatalogTitle(displayTitle);
+    const family = anchor ? catalogVariantFamilyKey(anchor) : '*';
+    return `${needle}:${family}`;
+}
+
 export async function findCatalogueLanguageVariants(
     displayTitle: string,
     opts: {
@@ -315,9 +345,17 @@ export async function findCatalogueLanguageVariants(
         anchor?: MoovieCatalogItem | { title?: string; media_type?: string };
     } = {}
 ): Promise<MoovieCatalogItem[]> {
-    const maxPages = opts.maxPages ?? 12;
-    const needle = normalizeCatalogTitle(displayTitle);
+    const maxPages = opts.maxPages ?? 4;
+    const needle = normalizeCatalogTitle(
+        catalogSearchTitle(displayTitle) || displayTitle
+    );
     if (!needle) return [];
+
+    const cacheKey = variantSearchCacheKey(displayTitle, opts.anchor);
+    const cached = variantSearchCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < VARIANT_SEARCH_CACHE_TTL_MS) {
+        return cached.items;
+    }
 
     const seen = new Set<string>();
     const matches: MoovieCatalogItem[] = [];
@@ -325,8 +363,12 @@ export async function findCatalogueLanguageVariants(
     for (let page = 0; page < maxPages; page++) {
         const data = await searchMoovieCatalog(displayTitle, page);
         for (const item of data.results || []) {
-            const parsed = parseCatalogTitle(item.title || '');
-            if (normalizeCatalogTitle(parsed.displayTitle) !== needle) continue;
+            if (
+                normalizeCatalogTitle(catalogSearchTitle(item.title || '')) !==
+                needle
+            ) {
+                continue;
+            }
             if (opts.anchor && !isSameCatalogueVariantFamily(item, opts.anchor)) continue;
             if (seen.has(item.id)) continue;
             seen.add(item.id);
@@ -337,7 +379,29 @@ export async function findCatalogueLanguageVariants(
         if (page + 1 >= totalPages) break;
     }
 
+    variantSearchCache.set(cacheKey, { at: Date.now(), items: matches });
     return matches;
+}
+
+/** Map Netflix language category (e.g. hindi) → catalogue row for that dub. */
+export function catalogVariantsByLanguage(
+    items: MoovieCatalogItem[],
+    anchor?: MoovieCatalogItem | { title?: string; media_type?: string }
+): Map<string, MoovieCatalogItem> {
+    const scoped = anchor
+        ? items.filter((item) => isSameCatalogueVariantFamily(item, anchor))
+        : items;
+    const out = new Map<string, MoovieCatalogItem>();
+
+    for (const item of scoped) {
+        for (const label of explicitLanguageLabels(item)) {
+            const lang = NETFLIX_LANGUAGES.find((row) => row.label === label);
+            if (!lang || out.has(lang.category)) continue;
+            out.set(lang.category, item);
+        }
+    }
+
+    return out;
 }
 
 function cleanRawCatalogTitle(raw: string): string {
@@ -346,8 +410,7 @@ function cleanRawCatalogTitle(raw: string): string {
 
 function variantDisplayTitle(item: { title?: string; media_type?: string }): string {
     const raw = cleanRawCatalogTitle(item.title || '');
-    const parsed = parseCatalogTitle(raw);
-    return normalizeCatalogTitle(parsed.displayTitle || raw);
+    return normalizeCatalogTitle(catalogSearchTitle(raw) || raw);
 }
 
 /** Groups dub variants — same clean title + media type (season markers ignored for TV). */
@@ -441,12 +504,21 @@ export async function findCatalogueVariantForLanguage(
         excludeId?: string;
         mediaType?: 'movie' | 'tv';
         anchorTitle?: string;
+        maxPages?: number;
+        knownVariants?: MoovieCatalogItem[];
     } = {}
 ): Promise<MoovieCatalogItem | null> {
     const anchor = opts.anchorTitle
         ? { title: opts.anchorTitle, media_type: opts.mediaType }
         : undefined;
-    const variants = await findCatalogueLanguageVariants(displayTitle, { anchor });
+
+    const variants =
+        opts.knownVariants?.length
+            ? opts.knownVariants
+            : await findCatalogueLanguageVariants(displayTitle, {
+                  anchor,
+                  maxPages: opts.maxPages ?? 4
+              });
 
     for (const item of variants) {
         if (opts.excludeId && item.id === opts.excludeId) continue;

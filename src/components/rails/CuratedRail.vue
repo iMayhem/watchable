@@ -20,7 +20,7 @@
             :genre-ids="item.genreIds ?? []"
             :adult="item.adult ?? false"
             :loading="item.isMock || loading"
-            :priority-load="!loading && !item.isMock && index < 8"
+            :priority-load="!loading && !item.isMock && index < 12"
             :query="item.query || {}"
             :catalog="catalog"
             :language-tags="item.languageTags || []"

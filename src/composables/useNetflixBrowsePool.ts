@@ -5,8 +5,6 @@ import {
     inferCatalogMediaType
 } from './useMoovieCatalog';
 import {
-    browseRowNeedsTmdbForPick,
-    enrichCatalogPoolWithTmdb,
     filterCataloguePool,
     filterItemsForBrowseRow,
     pickKoreanCatalogueBrowseItems,
@@ -39,10 +37,6 @@ export const BROWSE_INITIAL_PAGES = 8;
 export const BROWSE_PAGE_BATCH = 8;
 export const BROWSE_MAX_PAGES = 81;
 export const BROWSE_PICK_LIMIT = 600;
-export const BROWSE_TMDB_CHUNK = 120;
-export const BROWSE_TMDB_CONCURRENCY = 14;
-export const BROWSE_ENRICH_PASSES = 24;
-
 export interface SlugBrowseCursor {
     source: CatalogBrowseSource;
     pageCursor: number;
@@ -120,23 +114,6 @@ function refreshNativeFetchAvailability(state: BrowsePoolState) {
 function refreshLanguageFetchAvailability(state: BrowsePoolState) {
     state.canFetchMoreApi =
         state.apiPageCursor < state.apiTotalPages && state.apiPageCursor < BROWSE_MAX_PAGES;
-}
-
-async function syncTmdbChunk(state: BrowsePoolState, items: MoovieCatalogItem[]) {
-    const pending = items.filter((item) => !state.tmdbById.has(String(item.id)));
-    if (!pending.length) return;
-
-    const fresh = await enrichCatalogPoolWithTmdb(
-        pending.slice(0, BROWSE_TMDB_CHUNK).map((item) => ({
-            id: String(item.id),
-            title: item.title,
-            release_date: item.release_date,
-            media_type: item.media_type,
-            tmdbId: state.enrichmentById.get(String(item.id))?.tmdb_id
-        })),
-        BROWSE_TMDB_CONCURRENCY
-    );
-    fresh.forEach((meta, id) => state.tmdbById.set(id, meta));
 }
 
 function seedTmdbFromEnrichment(state: BrowsePoolState) {
@@ -217,35 +194,28 @@ export function rebuildBrowsePicks(
         picks = picks.filter((item) => inferCatalogMediaType(item) === 'movie');
     }
 
-    state.pickedItems = sortCatalogByBrowseRank(
+    const ranked = sortCatalogByBrowseRank(
         dedupeCatalogItemsByVariantFamily(filterItemsForBrowseRow(picks, rowId), {
             preferredLang: lang,
             tmdbById: state.tmdbById
         }),
         { tmdbById: state.tmdbById }
     );
-}
 
-export async function enrichBrowsePoolForPicking(
-    state: BrowsePoolState,
-    rowId: NetflixBrowseRowId,
-    catalogue: { label: string; id: string },
-    lang: NetflixLanguageOption,
-    targetCount: number,
-    typeFilter?: 'tv' | 'movie'
-) {
-    if (!browseRowNeedsTmdbForPick(rowId, state.enrichmentLoaded)) return;
-
-    for (let pass = 0; pass < BROWSE_ENRICH_PASSES; pass += 1) {
-        if (state.pickedItems.length >= targetCount) break;
-
-        const pool = filterCataloguePool(state.browsePool, catalogue.id, lang);
-        const pending = pool.filter((item) => !state.tmdbById.has(String(item.id)));
-        if (!pending.length) break;
-
-        await syncTmdbChunk(state, pending);
-        rebuildBrowsePicks(state, rowId, catalogue, lang, typeFilter);
+    if (!state.pickedItems.length) {
+        state.pickedItems = ranked;
+        return;
     }
+
+    const rankedById = new Map(ranked.map((item) => [item.id, item]));
+    const poolById = new Map(state.browsePool.map((item) => [item.id, item]));
+    const preserved = state.pickedItems.map(
+        (item) => rankedById.get(item.id) || poolById.get(item.id) || item
+    );
+    const preservedIds = new Set(preserved.map((item) => item.id));
+    const appended = ranked.filter((item) => !preservedIds.has(item.id));
+
+    state.pickedItems = [...preserved, ...appended];
 }
 
 async function fetchNativeCategoryPages(

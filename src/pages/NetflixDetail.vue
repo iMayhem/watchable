@@ -19,7 +19,7 @@
                     :genre-ids="[]"
                     :play-route="playRoute"
                     :show-trailer="false"
-                    strict-backdrop
+
                     :loading="mastheadLoading"
                 />
             </section>
@@ -69,6 +69,8 @@ import {
     fetchMoovieCatalogMetaResolved,
     catalogRating,
     inferCatalogMediaType,
+    catalogDisplayTitle,
+    catalogSearchTitle,
     parseCatalogTitle,
     type MoovieCatalogItem
 } from '../composables/useMoovieCatalog';
@@ -162,11 +164,9 @@ export default defineComponent({
             return route.params.type === 'tv' ? 'tv' : 'movie';
         });
 
-        const parsed = computed(() =>
-            parseCatalogTitle(meta.value?.title || '')
+        const displayTitle = computed(() =>
+            catalogDisplayTitle(meta.value?.title || '')
         );
-
-        const displayTitle = computed(() => parsed.value.displayTitle || meta.value?.title || '');
         const verifiedLanguageTags = ref<string[]>([]);
         const languageTags = computed(() => verifiedLanguageTags.value);
         const languageLine = computed(() => languageTags.value.join(' · '));
@@ -236,11 +236,15 @@ export default defineComponent({
             item: MoovieCatalogItem,
             artworkUrls?: Awaited<ReturnType<typeof fetchCatalogArtworkUrlsByIds>>
         ) => {
-            const instant = resolveInstantCatalogArtwork(item, undefined, artworkUrls);
+            const instant = resolveInstantCatalogArtwork(item, artworkUrls);
             artwork.value = instant;
             artworkReady.value = Boolean(instant.backdropPath || instant.posterPath);
             if (instant.backdropPath) {
-                prefetchArtworkImages([instant.backdropPath], 'hero', 1);
+                prefetchArtworkImages(
+                    [instant.posterPath || instant.backdropPath],
+                    'large',
+                    1
+                );
             }
             return artworkReady.value;
         };
@@ -253,13 +257,13 @@ export default defineComponent({
                 return;
             }
 
-            const parsedTitle = parseCatalogTitle(item.title || '');
-            if (!parsedTitle.displayTitle) {
+            const searchTitle = catalogSearchTitle(item.title || '');
+            if (!searchTitle) {
                 verifiedLanguageTags.value = [];
                 return;
             }
 
-            const variants = await findCatalogueLanguageVariants(parsedTitle.displayTitle, {
+            const variants = await findCatalogueLanguageVariants(searchTitle, {
                 anchor: item
             });
             verifiedLanguageTags.value = resolveVerifiedLanguageTags(item, variants);

@@ -29,10 +29,7 @@ import {
     TMDB_TV,
     type TmdbGenreSpec
 } from './netflixTmdbGenres';
-import {
-    enrichCatalogPoolWithTmdb,
-    type CatalogTmdbMeta
-} from './useTmdbArtwork';
+import type { CatalogTmdbMeta } from './useTmdbArtwork';
 
 import type { CatalogEnrichmentRow } from './useCatalogEnrichmentCache';
 import {
@@ -41,7 +38,7 @@ import {
     type CatalogBrowseRankContext
 } from './useNetflixBrowseRank';
 
-export { enrichCatalogPoolWithTmdb, type CatalogTmdbMeta };
+export type { CatalogTmdbMeta };
 export { sortCatalogByBrowseRank, catalogBrowseRankScore } from './useNetflixBrowseRank';
 
 export {

@@ -85,11 +85,13 @@ function koreanCatalogueFetchPlan(rowId: NetflixBrowseRowId): CatalogBrowseFetch
     };
 }
 
+export type CatalogueHomeFetchSource = { slug: string; pages: number };
+
 /** Home pool sources — Korean needs deeper language scans plus native K-slugs. */
 export function getCatalogueHomeFetchSources(
     catalogueId: string,
     langCategory: string
-): Array<{ slug: string; pages: number }> {
+): CatalogueHomeFetchSource[] {
     if (catalogueId === 'korean') {
         return [
             { slug: langCategory, pages: 48 },
@@ -98,6 +100,15 @@ export function getCatalogueHomeFetchSources(
         ];
     }
     return [{ slug: langCategory, pages: 16 }];
+}
+
+/** First paint — fewer catalogue pages so posters appear sooner. */
+export function getCatalogueHomeInitialPageCount(
+    catalogueId: string,
+    fullPages: number
+): number {
+    const cap = catalogueId === 'korean' ? 8 : 6;
+    return Math.min(fullPages, cap);
 }
 
 export function getBrowseInitialPageCount(

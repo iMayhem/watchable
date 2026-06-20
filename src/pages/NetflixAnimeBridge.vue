@@ -21,7 +21,7 @@
                     :play-route="playRoute"
                     play-label="Play"
                     :show-trailer="false"
-                    strict-backdrop
+
                     :loading="mastheadLoading"
                 />
             </section>
@@ -176,7 +176,6 @@ export default defineComponent({
                         vote_average: catalogItem.vote_average ?? 0,
                         backdrop_path: catalogItem.backdrop_path || null
                     },
-                    undefined,
                     artworkUrls
                 );
 
@@ -192,7 +191,11 @@ export default defineComponent({
                 artwork.value.backdropPath || artwork.value.posterPath
             );
             if (artwork.value.backdropPath) {
-                prefetchArtworkImages([artwork.value.backdropPath], 'hero', 1);
+                prefetchArtworkImages(
+                    [artwork.value.posterPath || artwork.value.backdropPath],
+                    'large',
+                    1
+                );
             }
         };
 

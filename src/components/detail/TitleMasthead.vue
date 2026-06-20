@@ -193,7 +193,7 @@ import {
     warmMooviePlayerAssets
 } from '../../composables/useMooviePlayer';
 import { useDetailBackNavigation } from '../../composables/useDetailBackNavigation';
-import { useWebImage } from '../../utils/useWebImage';
+import { catalogDisplayImageSize, useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
 
 export default defineComponent({
@@ -283,7 +283,11 @@ export default defineComponent({
         const backdropUrl = computed(() => {
             const path = heroArtPath.value;
             if (!path) return '';
-            return useWebImage(path, props.backdropPath ? 'hero' : 'large');
+            const size = catalogDisplayImageSize(
+                path,
+                props.backdropPath ? 'hero' : 'large'
+            );
+            return useWebImage(path, size);
         });
 
         const isVerticalBackdrop = computed(() => {

@@ -14,6 +14,20 @@ const ANILIST_CDN_PATTERN = /(?:^https?:\/\/)(?:[\w-]+\.)?anilist\.co\//i;
 const CATALOG_CDN_PATTERN =
     /(?:^https?:\/\/)(?:[\w-]+\.)?(?:aoneroom\.com|hakunaymatata\.com|watch2[12]\.shop)\//i;
 
+export function isCatalogCdnImage(url: string): boolean {
+    return Boolean(url && CATALOG_CDN_PATTERN.test(url));
+}
+
+/** Catalogue rows use poster key art — never full-width backdrop sizes (NetMirror w_250–520). */
+export function catalogDisplayImageSize(
+    url: string,
+    preferred: WebImageSize = 'large'
+): WebImageSize {
+    if (!isCatalogCdnImage(url)) return preferred;
+    if (preferred === 'hero' || preferred === 'xlarge') return 'large';
+    return preferred;
+}
+
 export type WebImageSize = 'small' | 'medium' | 'large' | 'xlarge' | 'hero';
 export type TmdbImageQuality = 'low' | 'medium' | 'high';
 

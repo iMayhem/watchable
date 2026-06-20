@@ -332,6 +332,37 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         destroyArt();
     };
 
+    /** Single resolve round-trip — used when the player is already mounted (episode/audio switch). */
+    const fetchResolveQuick = async (
+        opts: {
+            type: 'movie' | 'tv';
+            id: string;
+            season?: number;
+            episode?: number;
+            server?: number;
+        },
+        token: number
+    ) => {
+        const url = buildResolveUrl({
+            type: opts.type,
+            id: opts.id,
+            season: opts.type === 'tv' ? opts.season ?? 1 : 0,
+            episode: opts.type === 'tv' ? opts.episode ?? 1 : 0,
+            server: opts.server
+        });
+        const data = await fetchResolve(url);
+        if (!isResolveActive(token)) throw new ResolveAborted();
+        if (!data.streams?.length) {
+            return fetchResolveForPlayback(opts, token);
+        }
+        const title = data.meta?.title || '';
+        if (streamsLookCorrupt(title, data.streams)) {
+            dbg('player:resolve:quick-corrupt-fallback', { title });
+            return fetchResolveForPlayback(opts, token);
+        }
+        return data;
+    };
+
     const fetchResolveForPlayback = async (
         opts: {
             type: 'movie' | 'tv';
@@ -444,36 +475,88 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             resumePlaying
         });
 
+        const SWITCH_URL_TIMEOUT_MS = 12000;
+        const seekSwitch = resumeAt > 0;
+
         return new Promise<boolean>((resolve) => {
             let settled = false;
+            const detachReadyListeners = () => {
+                artInstance.off('video:canplay', onCanPlay);
+                artInstance.off('video:loadeddata', onLoadedData);
+                artInstance.off('video:loadedmetadata', onLoadedMetadata);
+            };
             const finish = (ok: boolean) => {
                 if (settled) return;
                 settled = true;
-                artInstance.off('video:canplay', onReady);
+                window.clearTimeout(switchTimer);
+                detachReadyListeners();
                 resolve(ok);
             };
 
-            const onReady = () => {
+            const switchTimer = window.setTimeout(() => {
+                dbgError('player:switch-url:timeout', {
+                    quality: stream.quality,
+                    seekSwitch
+                });
+                finish(false);
+            }, SWITCH_URL_TIMEOUT_MS);
+
+            const startPlayback = () => {
+                if (resumePlaying) {
+                    void artInstance.play()?.catch(() => artInstance.play());
+                } else {
+                    artInstance.pause();
+                }
+                playbackError.value = '';
+                playbackEnded.value = false;
+                finish(true);
+            };
+
+            const onCanPlay = () => {
                 try {
                     if (resumeAt > 0) {
                         artInstance.seek = resumeAt;
                         currentTime.value = resumeAt;
                     }
-                    if (resumePlaying) {
-                        void artInstance.play()?.catch(() => artInstance.play());
-                    } else {
-                        artInstance.pause();
-                    }
-                    playbackError.value = '';
-                    playbackEnded.value = false;
-                    finish(true);
+                    startPlayback();
                 } catch (err) {
                     dbgError('player:switch-url:resume-fail', err);
                     finish(false);
                 }
             };
 
-            artInstance.on('video:canplay', onReady);
+            const onLoadedMetadata = () => {
+                if (!seekSwitch) return;
+                try {
+                    if (resumeAt > 0) {
+                        artInstance.seek = resumeAt;
+                        currentTime.value = resumeAt;
+                    }
+                    startPlayback();
+                } catch (err) {
+                    dbgError('player:switch-url:metadata-seek-fail', err);
+                    finish(false);
+                }
+            };
+
+            const onLoadedData = () => {
+                if (seekSwitch) return;
+                try {
+                    startPlayback();
+                } catch (err) {
+                    dbgError('player:switch-url:loadeddata-fail', err);
+                    finish(false);
+                }
+            };
+
+            if (seekSwitch) {
+                artInstance.on('video:loadedmetadata', onLoadedMetadata);
+                artInstance.on('video:canplay', onCanPlay);
+            } else {
+                artInstance.on('video:loadeddata', onLoadedData);
+                artInstance.on('video:canplay', onCanPlay);
+            }
+
             void artInstance.switchUrl(playUrl).catch((err: unknown) => {
                 dbgError('player:switch-url:fail', err);
                 finish(false);
@@ -971,7 +1054,9 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
         const preferredQuality =
             resolved.value?.streams?.[selectedStreamIndex.value]?.quality;
-        const data = await fetchResolveForPlayback(opts, token);
+        const data = artInstance
+            ? await fetchResolveQuick(opts, token)
+            : await fetchResolveForPlayback(opts, token);
         if (!isResolveActive(token)) throw new ResolveAborted();
 
         const url = buildResolveUrl({

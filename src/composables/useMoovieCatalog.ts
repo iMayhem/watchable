@@ -60,6 +60,21 @@ export function parseCatalogTitle(raw: string): ParsedCatalogTitle {
     return { displayTitle, languages, season, mediaTypeHint };
 }
 
+/** UI label — clean title only (no `[Hindi]` tags, no `S1` season markers). */
+export function catalogDisplayTitle(raw: string): string {
+    const cleaned = String(raw || '')
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    if (!cleaned) return '';
+    return parseCatalogTitle(cleaned).displayTitle || cleaned;
+}
+
+/** Normalized title for search, SEO, and variant matching. */
+export function catalogSearchTitle(raw: string): string {
+    return catalogDisplayTitle(raw);
+}
+
 export function catalogRating(value: string | number | undefined): number {
     const n = typeof value === 'string' ? parseFloat(value) : Number(value);
     return Number.isFinite(n) ? n : 0;

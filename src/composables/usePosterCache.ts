@@ -29,7 +29,8 @@ export async function fetchCatalogArtworkUrlsByIds(
         const backdrop = memoryBackdrops.get(id);
         if (poster) posters.set(id, poster);
         if (backdrop) backdrops.set(id, backdrop);
-        if (!poster || !backdrop) missing.push(id);
+        if (poster && backdrop) continue;
+        missing.push(id);
     }
 
     if (!missing.length) return { posters, backdrops };

@@ -35,7 +35,9 @@
             @seek="seekTo"
             @quality="onQuality"
             @language="onLanguage"
+            @language-prefetch="onLanguagePrefetch"
             @episode-select="onEpisodeSelect"
+            @episode-prefetch="onEpisodePrefetch"
             @episode-season-change="onEpisodeSeasonChange"
             @episode-previous="onEpisodePrevious"
             @episode-next="onEpisodeNext"
@@ -53,7 +55,6 @@
             :party-href="isPartyEmbed ? '' : partyHref"
             :extension-gate-visible="extensionGateVisible"
             @extension-recheck="onExtensionRecheck"
-            @extension-continue="onExtensionContinue"
         />
     </div>
 </template>
@@ -64,12 +65,13 @@ import type { NetflixUpNextEpisode } from '../components/player/NetflixUpNext.vu
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import NetflixPlayer from '../components/player/NetflixPlayer.vue';
 import {
+    catalogDisplayTitle,
     catalogHasEpisodeGuide,
     fetchMoovieCatalogMetaResolved,
     inferCatalogMediaType,
     parseCatalogTitle
 } from '../composables/useMoovieCatalog';
-import { useMooviePlayer } from '../composables/useMooviePlayer';
+import { prefetchMoovieResolve, useMooviePlayer } from '../composables/useMooviePlayer';
 import { useStreamExtension } from '../composables/useStreamExtension';
 import { useSeo } from '../composables/useSeo';
 import {
@@ -77,6 +79,7 @@ import {
     catalogStreamTarget,
     explicitLanguageLabels,
     findCatalogueLanguageVariants,
+    catalogVariantsByLanguage,
     findCatalogueVariantForLanguage,
     languagesForCatalogueItems,
     playbackLanguageCategoryForItem
@@ -113,6 +116,12 @@ export default defineComponent({
         const { addToast } = useToast();
         const availableLanguages = ref<NetflixLanguageOption[]>([]);
         const languagesLoading = ref(false);
+        const languageVariantPool = ref<import('../composables/useMoovieCatalog').MoovieCatalogItem[]>(
+            []
+        );
+        const languageVariantsByCategory = ref(
+            new Map<string, import('../composables/useMoovieCatalog').MoovieCatalogItem>()
+        );
         const playingLanguageCategory = ref<string | null>(null);
         const switchingAudioLabel = ref('');
         const switchingEpisodeLabel = ref('');
@@ -121,15 +130,8 @@ export default defineComponent({
 
         const formatEpisodeLabel = (season: number, episode: number) =>
             `S${season} · E${String(episode).padStart(2, '0')}`;
-        const EXT_GATE_KEY = 'moovie-ext-gate-dismissed';
         const { extensionActive, checkExtension, pingExtension } = useStreamExtension();
-        const extensionGateDismissed = ref(
-            typeof sessionStorage !== 'undefined' &&
-                sessionStorage.getItem(EXT_GATE_KEY) === '1'
-        );
-        const extensionGateVisible = computed(
-            () => !extensionActive.value && !extensionGateDismissed.value
-        );
+        const extensionGateVisible = computed(() => !extensionActive.value);
 
         const player = useMooviePlayer({ skin: 'netflix' });
         const {
@@ -163,17 +165,7 @@ export default defineComponent({
         let playbackQueued = false;
         const playbackEntryId = ref(String(route.params.id || ''));
 
-        const canStartPlayback = () =>
-            extensionActive.value || extensionGateDismissed.value;
-
-        const dismissExtensionGate = () => {
-            extensionGateDismissed.value = true;
-            try {
-                sessionStorage.setItem(EXT_GATE_KEY, '1');
-            } catch {
-                /* ignore */
-            }
-        };
+        const canStartPlayback = () => extensionActive.value;
 
         const waitForExtensionDetection = async (timeoutMs = 2000) => {
             pingExtension();
@@ -270,7 +262,9 @@ export default defineComponent({
             return parseCatalogTitle(raw);
         });
 
-        const title = computed(() => parsedMeta.value.displayTitle || 'Now playing');
+        const title = computed(
+            () => catalogDisplayTitle(resolved.value?.meta?.title || '') || 'Now playing'
+        );
 
         const subtitle = computed(() => {
             const parts: string[] = [];
@@ -282,7 +276,7 @@ export default defineComponent({
                 const episode = parseInt(String(route.params.episode || '1'), 10);
                 parts.push(`S${season} · E${episode}`);
             }
-            return parts.join('  ·  ');
+            return parts.join(' · ');
         });
 
         const partyHref = computed(() => {
@@ -397,6 +391,41 @@ export default defineComponent({
             }
         };
 
+        const syncLanguageVariantPool = (
+            variants: import('../composables/useMoovieCatalog').MoovieCatalogItem[],
+            anchorTitle?: string
+        ) => {
+            languageVariantPool.value = variants;
+            const anchor = anchorTitle
+                ? { title: anchorTitle, media_type: mediaType.value }
+                : undefined;
+            languageVariantsByCategory.value = catalogVariantsByLanguage(variants, anchor);
+            prefetchLanguageResolves(languageVariantsByCategory.value);
+        };
+
+        const prefetchLanguageResolves = (
+            variantMap: Map<string, import('../composables/useMoovieCatalog').MoovieCatalogItem>
+        ) => {
+            if (!variantMap.size) return;
+            const season = currentSeason.value;
+            const episode = currentEpisode.value;
+            const supportsEpisodes = showEpisodePicker.value;
+
+            for (const item of variantMap.values()) {
+                const target = catalogStreamTarget(item, {
+                    supportsEpisodes,
+                    season,
+                    episode
+                });
+                prefetchMoovieResolve({
+                    type: target.mediaType,
+                    id: String(item.id),
+                    season: target.season,
+                    episode: target.episode
+                });
+            }
+        };
+
         const loadAvailableLanguages = async (
             displayTitle: string,
             anchorTitle?: string,
@@ -409,7 +438,6 @@ export default defineComponent({
                     const seeded = languageOptionsFromLabels(cached);
                     if (seeded.length) {
                         availableLanguages.value = seeded;
-                        return;
                     }
                 }
             }
@@ -421,6 +449,9 @@ export default defineComponent({
                 anchor,
                 maxPages: 3
             });
+            if (variants.length) {
+                syncLanguageVariantPool(variants, anchorTitle);
+            }
             const anchorItem = anchor
                 ? ({ title: anchorTitle, media_type: mediaType.value } as const)
                 : undefined;
@@ -663,9 +694,43 @@ export default defineComponent({
             switchQuality(index, resolveUrl.value);
         };
 
+        const prefetchEpisodeResolve = (season: number, episode: number) => {
+            const id = playbackEntryId.value;
+            if (!id || !showEpisodePicker.value || episode < 1) return;
+            prefetchMoovieResolve({
+                type: playbackTypeForId(id, resolved.value?.meta),
+                id,
+                season,
+                episode
+            });
+        };
+
+        const prefetchAdjacentEpisodes = () => {
+            if (!showEpisodePicker.value) return;
+
+            const season = currentSeason.value;
+            const episode = currentEpisode.value;
+            if (episode > 1) {
+                prefetchEpisodeResolve(season, episode - 1);
+            }
+            prefetchEpisodeResolve(season, episode + 1);
+
+            const max = episodeList.value.length
+                ? Math.max(...episodeList.value.map((ep) => ep.episode_number))
+                : 0;
+            if (max && episode >= max && nextSeasonNumber.value) {
+                prefetchEpisodeResolve(nextSeasonNumber.value, 1);
+            }
+        };
+
+        const onEpisodePrefetch = (episode: number) => {
+            prefetchEpisodeResolve(pickerSeason.value, episode);
+        };
+
         const switchEpisode = async (season: number, episode: number) => {
             const id = playbackEntryId.value;
             if (!id || !showEpisodePicker.value || switchingEpisodeLabel.value) return;
+            if (season === currentSeason.value && episode === currentEpisode.value) return;
 
             nfDebug('stream:episode:switch', { id, season, episode });
             dismissUpNext();
@@ -685,7 +750,11 @@ export default defineComponent({
                 const path = streamPathForEmbed(catalogStreamPath(id, season, episode));
                 skipRoutePlayback = true;
                 syncBrowserUrl(path);
-                await router.replace({ path, query: { ...route.query } });
+                void router.replace({ path, query: { ...route.query } });
+                if (pickerSeason.value !== season) {
+                    void setPickerSeason(season);
+                }
+                prefetchAdjacentEpisodes();
             } catch (err: any) {
                 if (err?.name === 'ResolveAborted') return;
                 nfDebug('stream:episode:fail', { id, season, episode, err });
@@ -780,6 +849,42 @@ export default defineComponent({
             switchEpisode(target.season, target.episode);
         };
 
+        const resolveLanguageVariant = async (
+            category: string,
+            displayTitle: string,
+            currentTitle: string
+        ) => {
+            const cached = languageVariantsByCategory.value.get(category);
+            if (cached) return cached;
+
+            const lang = getLanguageOption(category);
+            return findCatalogueVariantForLanguage(displayTitle, lang, {
+                excludeId: String(route.params.id || ''),
+                mediaType: mediaType.value,
+                anchorTitle: currentTitle,
+                maxPages: 2,
+                knownVariants: languageVariantPool.value
+            });
+        };
+
+        const onLanguagePrefetch = (category: string) => {
+            if (category === selectedPlaybackLanguage.value) return;
+            const variant = languageVariantsByCategory.value.get(category);
+            if (!variant) return;
+
+            const target = catalogStreamTarget(variant, {
+                supportsEpisodes: showEpisodePicker.value,
+                season: currentSeason.value,
+                episode: currentEpisode.value
+            });
+            prefetchMoovieResolve({
+                type: target.mediaType,
+                id: String(variant.id),
+                season: target.season,
+                episode: target.episode
+            });
+        };
+
         const onLanguage = async (category: string) => {
             if (
                 category === selectedPlaybackLanguage.value ||
@@ -801,11 +906,11 @@ export default defineComponent({
             nfDebug('stream:language', { category, displayTitle, resumeAt, resumePlaying });
 
             try {
-                const variant = await findCatalogueVariantForLanguage(displayTitle, lang, {
-                    excludeId: String(route.params.id || ''),
-                    mediaType: mediaType.value,
-                    anchorTitle: currentTitle
-                });
+                const variant = await resolveLanguageVariant(
+                    category,
+                    displayTitle,
+                    currentTitle
+                );
 
                 if (!variant) {
                     addToast(
@@ -815,7 +920,11 @@ export default defineComponent({
                     return;
                 }
 
-                const target = catalogStreamTarget(variant);
+                const target = catalogStreamTarget(variant, {
+                    supportsEpisodes: showEpisodePicker.value,
+                    season: currentSeason.value,
+                    episode: currentEpisode.value
+                });
                 playbackEntryId.value = String(variant.id);
                 await switchResolveEntry(
                     {
@@ -832,16 +941,11 @@ export default defineComponent({
                 syncBrowserUrl(target.path);
 
                 if (parsed.displayTitle) {
-                    languagesLoading.value = true;
-                    try {
-                        await loadAvailableLanguages(
-                            parsed.displayTitle,
-                            resolved.value?.meta?.title || currentTitle,
-                            playbackEntryId.value
-                        );
-                    } finally {
-                        languagesLoading.value = false;
-                    }
+                    void loadAvailableLanguages(
+                        parsed.displayTitle,
+                        resolved.value?.meta?.title || currentTitle,
+                        playbackEntryId.value
+                    );
                 }
             } catch (err: any) {
                 playbackEntryId.value = String(route.params.id || playbackEntryId.value);
@@ -859,12 +963,6 @@ export default defineComponent({
             if (isPartyEmbed.value && to.meta?.partyEmbed) return;
             scheduleTeardown();
         });
-
-        const onExtensionContinue = async () => {
-            nfDebug('stream:extension-gate:continue');
-            dismissExtensionGate();
-            await tryStartPlayback();
-        };
 
         const onExtensionRecheck = async () => {
             nfDebug('stream:extension-gate:recheck');
@@ -914,6 +1012,13 @@ export default defineComponent({
             }
         );
 
+        watch(
+            () => artReady.value && Boolean(resolved.value?.streams?.length),
+            (ready) => {
+                if (ready) prefetchAdjacentEpisodes();
+            }
+        );
+
         watch(playbackEnded, (ended) => {
             if (
                 !ended ||
@@ -949,6 +1054,10 @@ export default defineComponent({
                 if (skipRoutePlayback) {
                     skipRoutePlayback = false;
                     nfDebug('stream:route-change:skip', { id, season, episode });
+                    const skippedSeason = parseInt(String(season || '1'), 10);
+                    if (skippedSeason !== pickerSeason.value) {
+                        void setPickerSeason(skippedSeason);
+                    }
                     return;
                 }
                 if (!id) return;
@@ -1021,6 +1130,7 @@ export default defineComponent({
             toggleMute,
             onQuality,
             onLanguage,
+            onLanguagePrefetch,
             availableLanguages,
             languagesLoading,
             selectedPlaybackLanguage,
@@ -1037,6 +1147,7 @@ export default defineComponent({
             currentEpisode,
             episodesLoading,
             onEpisodeSelect,
+            onEpisodePrefetch,
             onEpisodeSeasonChange,
             onEpisodePrevious,
             onEpisodeNext,
@@ -1052,8 +1163,7 @@ export default defineComponent({
             onToggleAutoSkip: aniskip.toggleAutoSkip,
             partyHref,
             extensionGateVisible,
-            onExtensionRecheck,
-            onExtensionContinue
+            onExtensionRecheck
         };
     }
 });

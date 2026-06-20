@@ -54,6 +54,8 @@
                 role="option"
                 :aria-selected="ep.episode_number === currentEpisode"
                 @click.stop="emit('select', ep.episode_number)"
+                @mouseenter="emit('prefetch', ep.episode_number)"
+                @focus="emit('prefetch', ep.episode_number)"
             >
                 <div class="nf-episodes__thumb">
                     <img
@@ -106,7 +108,7 @@ export default defineComponent({
         compact: { type: Boolean, default: false },
         panel: { type: Boolean, default: false }
     },
-    emits: ['season-change', 'select', 'previous', 'next'],
+    emits: ['season-change', 'select', 'previous', 'next', 'prefetch'],
     setup(props, { emit }) {
         const seasonSelectId = `nf-ep-season-${++seasonSelectCounter}`;
 

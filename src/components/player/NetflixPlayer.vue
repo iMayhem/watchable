@@ -9,7 +9,8 @@
             'is-switching-audio': Boolean(switchingAudioLabel),
             'is-switching-episode': Boolean(switchingEpisodeLabel),
             'is-menu-open': menuOpen,
-            'is-episodes-open': episodesOpen
+            'is-episodes-open': episodesOpen,
+            'is-extension-gate': extensionGateVisible
         }"
         @mousemove="revealControls"
         @touchstart.passive="revealControls"
@@ -36,7 +37,6 @@
             <PlayerExtensionGate
                 v-if="extensionGateVisible"
                 @recheck="$emit('extension-recheck')"
-                @continue="$emit('extension-continue')"
             />
 
             <div
@@ -235,6 +235,8 @@
                                     class="nf-watch__quality-item"
                                     :class="{ 'is-active': selectedLanguage === lang.category }"
                                     @click.stop="selectLanguage(lang.category)"
+                                    @mouseenter="prefetchLanguage(lang.category)"
+                                    @focus="prefetchLanguage(lang.category)"
                                 >
                                     {{ lang.label }}
                                 </button>
@@ -330,6 +332,7 @@
                     :loading="episodesLoading"
                     @season-change="onEpisodeSeasonChange"
                     @select="onEpisodeSelect"
+                    @prefetch="onEpisodePrefetch"
                     @previous="onEpisodePrevious"
                     @next="onEpisodeNext"
                 />
@@ -428,7 +431,9 @@ export default defineComponent({
         'seek',
         'quality',
         'language',
+        'language-prefetch',
         'episode-select',
+        'episode-prefetch',
         'episode-season-change',
         'episode-previous',
         'episode-next',
@@ -436,7 +441,6 @@ export default defineComponent({
         'up-next-cancel',
         'up-next-complete',
         'extension-recheck',
-        'extension-continue',
         'skip-segment',
         'toggle-auto-skip'
     ],
@@ -544,6 +548,10 @@ export default defineComponent({
             emit('episode-select', episode);
         };
 
+        const onEpisodePrefetch = (episode: number) => {
+            emit('episode-prefetch', episode);
+        };
+
         const onEpisodePrevious = () => {
             lockVideoTap();
             emit('episode-previous');
@@ -589,6 +597,10 @@ export default defineComponent({
             languageOpen.value = false;
             nfDebug('player-ui:language-select', { category });
             emit('language', category);
+        };
+
+        const prefetchLanguage = (category: string) => {
+            emit('language-prefetch', category);
         };
 
         const toggleFullscreen = async () => {
@@ -712,6 +724,7 @@ export default defineComponent({
             toggleEpisodesPanel,
             onEpisodeSeasonChange,
             onEpisodeSelect,
+            onEpisodePrefetch,
             onEpisodePrevious,
             onEpisodeNext,
             emit,
@@ -728,6 +741,7 @@ export default defineComponent({
             selectQuality,
             toggleLanguageMenu,
             selectLanguage,
+            prefetchLanguage,
             toggleFullscreen,
             togglePlay: () => emit('toggle-play'),
             skipBack: (s: number) => emit('skip-back', s),
@@ -1235,6 +1249,18 @@ export default defineComponent({
 
     &.is-idle {
         cursor: none;
+    }
+
+    &.is-extension-gate {
+        cursor: default;
+
+        .nf-watch__top,
+        .nf-watch__controls,
+        .nf-watch__shade {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
     }
 
     &__autoskip-btn {

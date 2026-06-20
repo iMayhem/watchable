@@ -23,8 +23,7 @@
                 </h1>
 
                 <p id="mode-gate-desc" class="mode-gate__lede">
-                    Moovie runs two catalogues side by side — a dubbed streaming library and a
-                    full discovery house. Choose one to start; swap anytime from the header.
+                    Pick a catalogue to start. Swap anytime from the header.
                 </p>
 
                 <p class="meta mode-gate__stamp">
@@ -43,21 +42,20 @@
 
                     <span class="mode-gate__card-head">
                         <span class="mode-gate__card-kicker">Stream</span>
-                        <span class="mode-gate__card-title">Netflix catalogue</span>
-                        <span class="mode-gate__card-badge">Extension needed</span>
+                        <span class="mode-gate__card-title-row">
+                            <span class="mode-gate__card-title">Netflix catalogue</span>
+                            <span class="mode-gate__card-badge">Extension needed</span>
+                        </span>
                     </span>
 
                     <p class="mode-gate__card-lede">
-                        Play films and series in-browser — install the Moovie extension first
-                        for reliable playback. Hindi, Telugu, Tamil, Kannada, Bengali, Arabic,
-                        Urdu and more.
+                        Dubbed films &amp; series in-browser. Install the Moovie extension first.
                     </p>
 
                     <ul class="mode-gate__features">
-                        <li>Moovie extension required for streaming</li>
+                        <li>Extension required for streaming</li>
                         <li>K-drama, Bollywood &amp; Hollywood dubs</li>
-                        <li>Episode picker on series &amp; anime</li>
-                        <li>In-browser player with audio variants</li>
+                        <li>Episode picker &amp; audio variants</li>
                     </ul>
 
                     <span class="mode-gate__enter">
@@ -88,14 +86,13 @@
                     </span>
 
                     <p class="mode-gate__card-lede">
-                        The full moovie periodical — TMDB-powered films, TV, anime, actors,
-                        and regional shelves.
+                        TMDB-powered films, TV, anime, actors, and regional shelves.
                     </p>
 
                     <ul class="mode-gate__features">
                         <li>Movies, series &amp; anime detail pages</li>
-                        <li>Watchlist, search &amp; actor filmography</li>
-                        <li>Editorial rails &amp; critic-style browsing</li>
+                        <li>Watchlist, search &amp; filmography</li>
+                        <li>Editorial rails &amp; critic-style browse</li>
                     </ul>
 
                     <span class="mode-gate__enter">
@@ -166,16 +163,17 @@ export default defineComponent({
     inset: 0;
     z-index: 20000;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: var(--s-5) var(--s-4);
+    padding: max(var(--s-4), env(safe-area-inset-top)) var(--s-4) max(var(--s-4), env(safe-area-inset-bottom));
     background: var(--ink-900);
     color: var(--bone-50);
     isolation: isolate;
-    overflow: hidden auto;
+    overflow-y: auto;
+    overflow-x: hidden;
 
     @media (min-width: 768px) {
-        padding: var(--s-8) var(--s-6);
+        padding-inline: var(--s-6);
     }
 
     &__bloom {
@@ -200,43 +198,29 @@ export default defineComponent({
     }
 
     &__layout {
-        width: 100%;
+        width: min(100%, 56rem);
+        margin: auto;
         display: grid;
-        gap: var(--s-7);
+        gap: clamp(var(--s-4), 3vh, var(--s-6));
         animation: modeGateFade var(--dur-slow) var(--ease-out);
-
-        @media (min-width: 960px) {
-            grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-            align-items: center;
-            gap: var(--s-8);
-        }
     }
 
     &__intro {
         display: grid;
-        gap: var(--s-4);
+        gap: clamp(var(--s-2), 2vh, var(--s-3));
         text-align: center;
-
-        @media (min-width: 960px) {
-            text-align: left;
-            padding-right: var(--s-4);
-        }
     }
 
     &__brand {
         justify-self: center;
         text-decoration: none;
         color: inherit;
-
-        @media (min-width: 960px) {
-            justify-self: start;
-        }
     }
 
     &__wordmark {
         font-family: var(--font-display);
         font-weight: 800;
-        font-size: clamp(2.4rem, 7vw, 3.4rem);
+        font-size: clamp(1.9rem, 6vw, 2.75rem);
         letter-spacing: -0.07em;
         line-height: 0.9;
         text-transform: lowercase;
@@ -249,15 +233,11 @@ export default defineComponent({
     &__eyebrow {
         color: var(--ember);
         justify-self: center;
-
-        @media (min-width: 960px) {
-            justify-self: start;
-        }
     }
 
     &__title {
         margin: 0;
-        font-size: clamp(2.2rem, 6vw, 3.6rem);
+        font-size: clamp(1.65rem, 5vw, 2.5rem);
         line-height: var(--lh-tight);
         letter-spacing: var(--ls-tight);
         color: var(--bone-50);
@@ -269,33 +249,25 @@ export default defineComponent({
     }
 
     &__lede {
-        margin: 0;
-        max-width: 42ch;
+        margin: 0 auto;
+        max-width: 38ch;
         color: var(--bone-200);
-        font-size: var(--fs-base);
+        font-size: var(--fs-sm);
         line-height: var(--lh-base);
         justify-self: center;
-
-        @media (min-width: 960px) {
-            justify-self: start;
-        }
     }
 
     &__stamp {
-        margin: var(--s-2) 0 0;
+        margin: 0;
         color: var(--bone-400);
         font-family: var(--font-mono);
-        font-size: var(--fs-xs);
+        font-size: 0.68rem;
         letter-spacing: var(--ls-micro);
         text-transform: uppercase;
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
         justify-self: center;
-
-        @media (min-width: 960px) {
-            justify-self: start;
-        }
 
         > span {
             color: var(--ember);
@@ -305,18 +277,22 @@ export default defineComponent({
 
     &__choices {
         display: grid;
-        gap: var(--s-4);
+        gap: var(--s-3);
+        align-items: stretch;
 
-        @media (min-width: 640px) and (max-width: 959px) {
+        @media (min-width: 560px) {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
     &__card {
         position: relative;
-        display: grid;
-        gap: var(--s-3);
-        padding: var(--s-5);
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-2);
+        min-width: 0;
+        min-height: 0;
+        padding: clamp(0.85rem, 2.5vw, 1.15rem);
         border-radius: var(--r-lg);
         border: 1px solid var(--rule);
         background:
@@ -390,12 +366,19 @@ export default defineComponent({
 
     &__card-head {
         display: grid;
-        gap: var(--s-1);
+        gap: 0.2rem;
+    }
+
+    &__card-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45rem;
     }
 
     &__card-kicker {
         font-family: var(--font-mono);
-        font-size: var(--fs-xs);
+        font-size: 0.65rem;
         letter-spacing: var(--ls-micro);
         text-transform: uppercase;
         color: var(--bone-400);
@@ -403,7 +386,7 @@ export default defineComponent({
 
     &__card-title {
         font-family: var(--font-display);
-        font-size: clamp(1.35rem, 2.8vw, 1.85rem);
+        font-size: clamp(1.05rem, 2.4vw, 1.35rem);
         font-weight: 500;
         letter-spacing: var(--ls-tight);
         line-height: var(--lh-snug);
@@ -411,25 +394,25 @@ export default defineComponent({
     }
 
     &__card-badge {
-        justify-self: start;
-        margin-top: 0.15rem;
-        padding: 0.28rem 0.55rem;
+        flex-shrink: 0;
+        padding: 0.2rem 0.45rem;
         border-radius: var(--r-pill);
         border: 1px solid rgba(229, 9, 20, 0.45);
         background: rgba(229, 9, 20, 0.14);
         color: #ff8a8a;
         font-family: var(--font-ui);
-        font-size: 0.68rem;
+        font-size: 0.58rem;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+        white-space: nowrap;
     }
 
     &__card-lede {
         margin: 0;
         color: var(--bone-300);
-        font-size: var(--fs-sm);
-        line-height: var(--lh-base);
+        font-size: 0.8rem;
+        line-height: 1.45;
     }
 
     &__features {
@@ -437,14 +420,15 @@ export default defineComponent({
         padding: 0;
         list-style: none;
         display: grid;
-        gap: var(--s-2);
+        gap: 0.3rem;
+        flex: 1;
 
         li {
             position: relative;
-            padding-left: 1.1rem;
+            padding-left: 0.95rem;
             color: var(--bone-200);
-            font-size: var(--fs-sm);
-            line-height: var(--lh-snug);
+            font-size: 0.78rem;
+            line-height: 1.35;
 
             &::before {
                 content: '';
@@ -471,9 +455,10 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
-        margin-top: var(--s-1);
+        margin-top: auto;
+        padding-top: 0.15rem;
         font-family: var(--font-ui);
-        font-size: var(--fs-sm);
+        font-size: 0.8rem;
         font-weight: 600;
         color: var(--bone-100);
         transition: color var(--dur-fast) var(--ease-out);

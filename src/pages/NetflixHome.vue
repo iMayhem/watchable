@@ -17,7 +17,6 @@
                 :genre-ids="[]"
                 :eyebrow="`Featured · ${activeCatalogue.label}`"
                 :loading="isLoading && !hero"
-                strict-backdrop
                 :play-to="heroPlayRoute"
                 :detail-to="heroDetailRoute"
             />
@@ -96,7 +95,11 @@ import {
     NETFLIX_TV_EXPLORE_PATH
 } from '../data/netmirrorExploreCategories';
 import { browseMoovieCatalog } from '../composables/useMoovieCatalog';
-import { getCatalogueHomeFetchSources } from '../data/netflixCatalogCategories';
+import {
+    getCatalogueHomeFetchSources,
+    getCatalogueHomeInitialPageCount,
+    type CatalogueHomeFetchSource
+} from '../data/netflixCatalogCategories';
 import { netflixCatalogDetailPath } from '../composables/useNetflixCatalogLookup';
 import {
     getNetflixCatalogue,
@@ -122,7 +125,11 @@ import { useSeo } from '../composables/useSeo';
 import {
     toCuratedItemFast
 } from '../composables/useNetflixArtwork';
-import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
+import {
+    emptyCatalogArtworkUrlMaps,
+    fetchCatalogArtworkUrlsByIds,
+    type CatalogArtworkUrlMaps
+} from '../composables/usePosterCache';
 import { prefetchArtworkImages } from '../utils/useWebImage';
 import { fetchCatalogAudioCacheByIds } from '../composables/useCatalogAudioCache';
 import {
@@ -135,6 +142,83 @@ import {
     fetchCatalogVariantSnapshot
 } from '../composables/useNetflixCatalogLookup';
 import { nfDebug, nfDebugError } from '../composables/useNetflixDebug';
+import type { MoovieCatalogItem } from '../composables/useMoovieCatalog';
+
+function dedupeCataloguePool(
+    pages: Array<{ results?: MoovieCatalogItem[] }>,
+    lang: NetflixLanguageOption
+) {
+    const seenPoolIds = new Set<string>();
+    return pages
+        .flatMap((page) => page.results || [])
+        .filter((item) => {
+            if (!itemMatchesLanguage(item, lang) || seenPoolIds.has(item.id)) {
+                return false;
+            }
+            seenPoolIds.add(item.id);
+            return true;
+        });
+}
+
+async function fetchCataloguePages(sources: CatalogueHomeFetchSource[]) {
+    return Promise.all(
+        sources.flatMap((source) =>
+            Array.from({ length: source.pages }, (_, page) =>
+                browseMoovieCatalog(source.slug, page)
+            )
+        )
+    );
+}
+
+type HomeHeroSnapshot = {
+    id: string | number;
+    type: 'movie' | 'tv' | 'anime';
+    title: string;
+    catalogTitle: string;
+    overview: string;
+    backdropPath: string | null;
+    posterPath: string | null;
+    rating: number;
+    releaseDate: string;
+};
+
+function heroSnapshotFromItem(item: CuratedItem): HomeHeroSnapshot {
+    return {
+        id: item.id,
+        type: (item.anilistId ? 'anime' : (item.type || 'movie')) as 'movie' | 'tv' | 'anime',
+        title: item.title,
+        catalogTitle: item.catalogTitle || item.title,
+        overview: '',
+        backdropPath: item.backdropPath ?? null,
+        posterPath: item.posterPath ?? null,
+        rating: item.rating || 0,
+        releaseDate: item.releaseDate || ''
+    };
+}
+
+function mergeCuratedItems(
+    existing: CuratedItem[],
+    byId: Map<string, CuratedItem>
+): CuratedItem[] {
+    return existing.map((item) => byId.get(String(item.id)) || item);
+}
+
+function prefetchVisibleHomePosters(
+    trending: CuratedItem[],
+    topMovies: CuratedItem[],
+    topTv: CuratedItem[],
+    rails: NetflixRailSection[]
+) {
+    const paths = [
+        ...trending,
+        ...topMovies,
+        ...topTv,
+        ...rails.slice(0, 2).flatMap((rail) => rail.items)
+    ]
+        .map((item) => item.posterPath || item.backdropPath)
+        .filter(Boolean) as string[];
+    prefetchArtworkImages(paths, 'large', 56);
+}
 
 export default defineComponent({
     name: 'NetflixHome',
@@ -157,28 +241,12 @@ export default defineComponent({
         const top10Tv = ref<CuratedItem[]>([]);
         const catalogueRails = ref<NetflixRailSection[]>([]);
         const lastLoadKey = ref('');
+        const pinnedHero = ref<HomeHeroSnapshot | null>(null);
 
         const activeLang = computed<NetflixLanguageOption>(() => activeLanguage());
         const activeCatalogue = computed<NetflixCatalogueOption>(() => resolveCatalogue());
 
-        const hero = computed(() => {
-            const first =
-                trendingItems.value[0] ||
-                catalogueRails.value[0]?.items[0] ||
-                null;
-            if (!first) return null;
-            return {
-                id: first.id,
-                type: (first.anilistId ? 'anime' : (first.type || 'movie')) as 'movie' | 'tv' | 'anime',
-                title: first.title,
-                catalogTitle: first.catalogTitle || first.title,
-                overview: '',
-                backdropPath: first.backdropPath,
-                posterPath: first.posterPath,
-                rating: first.rating || 0,
-                releaseDate: first.releaseDate || ''
-            };
-        });
+        const hero = computed(() => pinnedHero.value);
 
         const heroPlayRoute = computed(() => {
             if (!hero.value) return undefined;
@@ -240,6 +308,9 @@ export default defineComponent({
 
         const restoreHomeCache = () => {
             if (!hasCatalogue() || lastLoadKey.value !== currentLoadKey()) return false;
+            if (!pinnedHero.value && trendingItems.value[0]) {
+                pinnedHero.value = heroSnapshotFromItem(trendingItems.value[0]);
+            }
             isLoading.value = false;
             nfDebug('home:restore-cache', { key: lastLoadKey.value });
             return true;
@@ -261,88 +332,174 @@ export default defineComponent({
             top10Movies.value = [];
             top10Tv.value = [];
             catalogueRails.value = [];
+            pinnedHero.value = null;
 
-            try {
-                void loadNetflixAvailabilityIndex();
-                const fetchSources = getCatalogueHomeFetchSources(cat.id, lang.category);
-                const [pages, variantSnapshot] = await Promise.all([
-                    Promise.all(
-                        fetchSources.flatMap((source) =>
-                            Array.from({ length: source.pages }, (_, page) =>
-                                browseMoovieCatalog(source.slug, page)
-                            )
-                        )
-                    ),
-                    fetchCatalogVariantSnapshot()
-                ]);
+            const applyHomeSections = (
+                browsePool: MoovieCatalogItem[],
+                byId: Map<string, CuratedItem>,
+                tmdbById: Map<string, import('../composables/useTmdbArtwork').CatalogTmdbMeta>
+            ) => {
+                const pool = filterCataloguePool(browsePool, cat.id, lang);
+                trendingItems.value = buildTrendingItems(pool, byId);
+                const home = buildNetflixHomeSections(
+                    browsePool,
+                    cat.id,
+                    cat.label,
+                    lang,
+                    byId,
+                    tmdbById
+                );
+                top10Movies.value = home.top10Movies;
+                top10Tv.value = home.top10Tv;
+                catalogueRails.value = home.rails;
+                if (trendingItems.value[0]) {
+                    pinnedHero.value = heroSnapshotFromItem(trendingItems.value[0]);
+                }
+            };
 
-                const seenPoolIds = new Set<string>();
-                const browsePool = pages
-                    .flatMap((page) => page.results || [])
-                    .filter((item) => {
-                        if (!itemMatchesLanguage(item, lang) || seenPoolIds.has(item.id)) {
-                            return false;
-                        }
-                        seenPoolIds.add(item.id);
-                        return true;
-                    });
+            const upgradeHomeSectionsInPlace = (byId: Map<string, CuratedItem>) => {
+                trendingItems.value = mergeCuratedItems(trendingItems.value, byId);
+                top10Movies.value = mergeCuratedItems(top10Movies.value, byId);
+                top10Tv.value = mergeCuratedItems(top10Tv.value, byId);
+                catalogueRails.value = catalogueRails.value.map((rail) => ({
+                    ...rail,
+                    items: mergeCuratedItems(rail.items, byId)
+                }));
+                if (pinnedHero.value) {
+                    const upgraded = byId.get(String(pinnedHero.value.id));
+                    if (upgraded) {
+                        pinnedHero.value = heroSnapshotFromItem(upgraded);
+                    }
+                }
+            };
 
-                const languageMap = buildCatalogLanguageMap([
-                    ...browsePool,
-                    ...variantSnapshot
-                ]);
-                const artworkIds = collectArtworkIdsForCurated(
+            const buildCuratedById = (
+                browsePool: MoovieCatalogItem[],
+                languageMap: Map<string, string[]>,
+                audioCache: Map<string, string[]>,
+                artworkUrls: CatalogArtworkUrlMaps
+            ) => {
+                const artworkTargets = collectArtworkIdsForCurated(
                     browsePool,
                     cat.id,
                     lang,
                     cat.label,
                     new Map()
                 );
-                const [audioCache, artworkUrls] = await Promise.all([
-                    fetchCatalogAudioCacheByIds(browsePool.map((item) => item.id)),
-                    fetchCatalogArtworkUrlsByIds(artworkIds.map((item) => item.id))
-                ]);
-
-                const pool = filterCataloguePool(browsePool, cat.id, lang);
-                const artworkTargets = artworkIds;
-
-                const applyHomeSections = (
-                    byId: Map<string, CuratedItem>,
-                    tmdbById: Map<string, import('../composables/useTmdbArtwork').CatalogTmdbMeta>
-                ) => {
-                    trendingItems.value = buildTrendingItems(pool, byId);
-                    const home = buildNetflixHomeSections(
-                        browsePool,
-                        cat.id,
-                        cat.label,
-                        lang,
-                        byId,
-                        tmdbById
-                    );
-                    top10Movies.value = home.top10Movies;
-                    top10Tv.value = home.top10Tv;
-                    catalogueRails.value = home.rails;
-                };
-
                 const fastCurated = artworkTargets.map((item) =>
-                    toCuratedItemFast(item, [], languageMap, audioCache, undefined, artworkUrls)
+                    toCuratedItemFast(
+                        item,
+                        [],
+                        languageMap,
+                        audioCache,
+                        undefined,
+                        artworkUrls
+                    )
                 );
-                const fastById = new Map(fastCurated.map((item) => [String(item.id), item]));
-                applyHomeSections(fastById, new Map());
+                return {
+                    artworkTargets,
+                    byId: new Map(fastCurated.map((item) => [String(item.id), item]))
+                };
+            };
+
+            try {
+                void loadNetflixAvailabilityIndex();
+                const fetchSources = getCatalogueHomeFetchSources(cat.id, lang.category);
+                const initialSources = fetchSources.map((source) => ({
+                    slug: source.slug,
+                    pages: getCatalogueHomeInitialPageCount(cat.id, source.pages)
+                }));
+                const initialPages = await fetchCataloguePages(initialSources);
+                let browsePool = dedupeCataloguePool(initialPages, lang);
+                let languageMap = buildCatalogLanguageMap(browsePool);
+
+                const { byId: fastById } = buildCuratedById(
+                    browsePool,
+                    languageMap,
+                    new Map(),
+                    emptyCatalogArtworkUrlMaps
+                );
+                applyHomeSections(browsePool, fastById, new Map());
+
                 const heroItem = trendingItems.value[0];
                 if (heroItem?.backdropPath) {
-                    prefetchArtworkImages([heroItem.backdropPath], 'hero', 1);
+                    prefetchArtworkImages([heroItem.posterPath || heroItem.backdropPath], 'large', 1);
                 }
-                prefetchArtworkImages(
-                    trendingItems.value.map((item) => item.posterPath || item.backdropPath),
-                    'medium',
-                    20
+                prefetchVisibleHomePosters(
+                    trendingItems.value,
+                    top10Movies.value,
+                    top10Tv.value,
+                    catalogueRails.value
                 );
                 lastLoadKey.value = loadKey;
                 isLoading.value = false;
 
+                const remainingSources: CatalogueHomeFetchSource[] = [];
+                for (const source of fetchSources) {
+                    const initial = getCatalogueHomeInitialPageCount(cat.id, source.pages);
+                    if (source.pages > initial) {
+                        remainingSources.push({
+                            slug: source.slug,
+                            pages: source.pages - initial
+                        });
+                    }
+                }
+
                 void (async () => {
                     try {
+                        const remainingPageTasks = remainingSources.flatMap((source) => {
+                            const start = initialSources.find((row) => row.slug === source.slug)
+                                ?.pages ?? 0;
+                            return Array.from({ length: source.pages }, (_, offset) =>
+                                browseMoovieCatalog(source.slug, start + offset)
+                            );
+                        });
+
+                        const artworkTargetIds = collectArtworkIdsForCurated(
+                            browsePool,
+                            cat.id,
+                            lang,
+                            cat.label,
+                            new Map()
+                        ).map((item) => item.id);
+
+                        const [remainingPages, variantSnapshot, artworkUrls, audioCache] =
+                            await Promise.all([
+                                remainingPageTasks.length
+                                    ? Promise.all(remainingPageTasks)
+                                    : Promise.resolve([]),
+                                fetchCatalogVariantSnapshot(),
+                                fetchCatalogArtworkUrlsByIds(artworkTargetIds),
+                                fetchCatalogAudioCacheByIds(artworkTargetIds)
+                            ]);
+
+                        if (currentLoadKey() !== loadKey) return;
+
+                        if (remainingPages.length) {
+                            browsePool = dedupeCataloguePool(
+                                [...initialPages, ...remainingPages],
+                                lang
+                            );
+                        }
+                        languageMap = buildCatalogLanguageMap([
+                            ...browsePool,
+                            ...variantSnapshot
+                        ]);
+
+                        const { artworkTargets, byId: upgradedById } = buildCuratedById(
+                            browsePool,
+                            languageMap,
+                            audioCache,
+                            artworkUrls
+                        );
+                        upgradeHomeSectionsInPlace(upgradedById);
+                        prefetchVisibleHomePosters(
+                            trendingItems.value,
+                            top10Movies.value,
+                            top10Tv.value,
+                            catalogueRails.value
+                        );
+
                         const enrichmentMap = await fetchEnrichmentByCatalogIds(
                             artworkTargets.map((item) => item.id)
                         );
@@ -357,16 +514,16 @@ export default defineComponent({
                                 tmdbById.set(id, enrichmentRowToTmdbMeta(row));
                             }
                         });
-                        applyHomeSections(fastById, tmdbById);
+                        upgradeHomeSectionsInPlace(upgradedById);
                     } catch (err) {
-                        nfDebugError('home:enrichment-rebuild:fail', { err });
+                        nfDebugError('home:upgrade:fail', { err });
                     }
                 })();
 
                 nfDebug('home:load:ok', {
                     catalogue: cat.id,
                     language: lang.category,
-                    pool: pool.length,
+                    pool: browsePool.length,
                     trending: trendingItems.value.length,
                     rails: catalogueRails.value.length,
                     railTitles: catalogueRails.value.slice(0, 12).map((r) => r.title)

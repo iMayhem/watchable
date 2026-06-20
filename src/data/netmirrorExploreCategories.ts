@@ -113,6 +113,26 @@ export interface NetmirrorExploreCategory {
     filter: NetmirrorExploreFilter;
 }
 
+/** Header-only drama tabs — same feeds as the old Category chips, not in Category dropdown. */
+export const NETFLIX_KDRAMA_EXPLORE_CATEGORY: NetmirrorExploreCategory = {
+    id: 'k-drama',
+    title: 'K-Drama',
+    mediaType: 'tv',
+    filter: { country: 'Korea', dubbing: 'Hindi' }
+};
+
+export const NETFLIX_CDRAMA_EXPLORE_CATEGORY: NetmirrorExploreCategory = {
+    id: 'c-drama',
+    title: 'C-Drama',
+    mediaType: 'tv',
+    filter: { country: 'china', dubbing: 'Hindi' }
+};
+
+const HEADER_EXPLORE_CATEGORIES: NetmirrorExploreCategory[] = [
+    NETFLIX_KDRAMA_EXPLORE_CATEGORY,
+    NETFLIX_CDRAMA_EXPLORE_CATEGORY
+];
+
 export const NETMIRROR_EXPLORE_CATEGORIES: NetmirrorExploreCategory[] = [
     {
         id: 'hindi',
@@ -136,12 +156,6 @@ export const NETMIRROR_EXPLORE_CATEGORIES: NetmirrorExploreCategory[] = [
         filter: { country: 'India', dubbing: 'Telugu', type: '1' }
     },
     {
-        id: 'k-drama',
-        title: 'K-Drama',
-        mediaType: 'tv',
-        filter: { country: 'Korea', dubbing: 'Hindi' }
-    },
-    {
         id: 'tamil',
         title: 'Tamil',
         mediaType: 'all',
@@ -152,12 +166,6 @@ export const NETMIRROR_EXPLORE_CATEGORIES: NetmirrorExploreCategory[] = [
         title: 'Malayalam',
         mediaType: 'all',
         filter: { country: 'India', dubbing: 'Malayalam', type: '1' }
-    },
-    {
-        id: 'c-drama',
-        title: 'C-Drama',
-        mediaType: 'tv',
-        filter: { country: 'china', dubbing: 'Hindi' }
     },
     {
         id: 'punjabi',
@@ -198,7 +206,71 @@ export const NETMIRROR_EXPLORE_CATEGORIES: NetmirrorExploreCategory[] = [
 ];
 
 export function getNetmirrorExploreCategory(id: string): NetmirrorExploreCategory | undefined {
+    const header = HEADER_EXPLORE_CATEGORIES.find((cat) => cat.id === id);
+    if (header) return header;
     return NETMIRROR_EXPLORE_CATEGORIES.find((cat) => cat.id === id);
+}
+
+export function netflixKDramaExplorePath(): string {
+    return netflixExplorePath(NETFLIX_KDRAMA_EXPLORE_CATEGORY);
+}
+
+export function netflixCDramaExplorePath(): string {
+    return netflixExplorePath(NETFLIX_CDRAMA_EXPLORE_CATEGORY);
+}
+
+function isHeaderDramaExploreRoute(
+    path: string,
+    query: ExploreRouteQuery,
+    category: NetmirrorExploreCategory,
+    countryMatch: string,
+    titleMatch: string
+): boolean {
+    if (!path.startsWith('/nf/explore')) return false;
+    const matched = categoryFromExploreQuery(query);
+    if (matched?.id === category.id) return true;
+
+    const country = typeof query.country === 'string' ? query.country.trim() : '';
+    const dubbing = typeof query.dubbing === 'string' ? query.dubbing.trim() : '';
+    const title = typeof query.title === 'string' ? query.title.trim() : '';
+    return (
+        country.toLowerCase() === countryMatch &&
+        dubbing === 'Hindi' &&
+        (title.toLowerCase() === titleMatch || exploreMediaTypeFromPath(path) === 'tv')
+    );
+}
+
+export function isKDramaExploreRoute(
+    path: string,
+    query: ExploreRouteQuery
+): boolean {
+    return isHeaderDramaExploreRoute(
+        path,
+        query,
+        NETFLIX_KDRAMA_EXPLORE_CATEGORY,
+        'korea',
+        'k-drama'
+    );
+}
+
+export function isCDramaExploreRoute(
+    path: string,
+    query: ExploreRouteQuery
+): boolean {
+    return isHeaderDramaExploreRoute(
+        path,
+        query,
+        NETFLIX_CDRAMA_EXPLORE_CATEGORY,
+        'china',
+        'c-drama'
+    );
+}
+
+export function isHeaderDramaExploreRouteActive(
+    path: string,
+    query: ExploreRouteQuery
+): boolean {
+    return isKDramaExploreRoute(path, query) || isCDramaExploreRoute(path, query);
 }
 
 export function netflixExploreCountryPath(
@@ -215,10 +287,8 @@ const ADAPTIVE_EXPLORE_CATEGORY_IDS = new Set([
     'hindi',
     'hollywood',
     'telugu',
-    'k-drama',
     'tamil',
     'malayalam',
-    'c-drama',
     'punjabi',
     'kannada',
     'marathi',
@@ -294,6 +364,10 @@ function categoryFromExploreQuery(
         typeof query.category === 'string' ? query.category.trim() : '';
     const key = title || category;
     if (!key) return undefined;
+    const headerMatch = HEADER_EXPLORE_CATEGORIES.find(
+        (cat) => cat.title.toLowerCase() === key.toLowerCase()
+    );
+    if (headerMatch) return headerMatch;
     return NETMIRROR_EXPLORE_CATEGORIES.find(
         (cat) => cat.title.toLowerCase() === key.toLowerCase()
     );

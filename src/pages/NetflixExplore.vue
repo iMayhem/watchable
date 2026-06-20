@@ -395,8 +395,21 @@ export default defineComponent({
                 const previousCount = results.value.length;
                 const appended = appendExploreResults(previousCount);
                 if (!appended) {
-                    results.value = syncResultsFromPool();
-                    void upgradeExploreGrid(seq);
+                    const existingIds = new Set(
+                        results.value.map((item) => String(item.id))
+                    );
+                    const ranked = rankExplorePool();
+                    const newOnly = ranked.filter(
+                        (item) => !existingIds.has(String(item.id))
+                    );
+                    if (!newOnly.length) return;
+
+                    const languageMap = buildCatalogLanguageMap(variantPool.value);
+                    results.value = [
+                        ...results.value,
+                        ...mapDedupedPool(newOnly, languageMap)
+                    ];
+                    void upgradeExploreGrid(seq, newOnly);
                     return;
                 }
 

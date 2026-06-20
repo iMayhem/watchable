@@ -1,5 +1,14 @@
 <template>
-    <section ref="rootRef" class="billboard" :class="{ 'trailer-playing': trailerLive, 'is-loading': loading }" aria-label="Featured title">
+    <section
+        ref="rootRef"
+        class="billboard"
+        :class="{
+            'trailer-playing': trailerLive,
+            'is-loading': loading,
+            'billboard--poster-art': isPosterKeyArt
+        }"
+        aria-label="Featured title"
+    >
         <!-- Skeleton Loading state -->
         <div v-if="loading" class="billboard__skeleton-wrapper">
             <div class="billboard__stage billboard__skeleton-shimmer" />
@@ -19,15 +28,35 @@
         <!-- Normal Content -->
         <template v-else>
             <div class="billboard__stage">
-                <img
-                    v-if="backdropUrl"
-                    class="billboard__backdrop"
-                    :src="backdropUrl"
-                    :alt="title"
-                    loading="eager"
-                    fetchpriority="high"
-                    decoding="async"
-                />
+                <template v-if="backdropUrl">
+                    <div v-if="isPosterKeyArt" class="billboard__art-fallback">
+                        <img
+                            class="billboard__art--blurred"
+                            :src="backdropUrl"
+                            alt=""
+                            fetchpriority="low"
+                            decoding="async"
+                            loading="eager"
+                        />
+                        <img
+                            class="billboard__art--contained"
+                            :src="backdropUrl"
+                            :alt="title"
+                            fetchpriority="high"
+                            decoding="async"
+                            loading="eager"
+                        />
+                    </div>
+                    <img
+                        v-else
+                        class="billboard__backdrop"
+                        :src="backdropUrl"
+                        :alt="title"
+                        loading="eager"
+                        fetchpriority="high"
+                        decoding="async"
+                    />
+                </template>
                 <div v-else class="billboard__backdrop billboard__backdrop--placeholder" aria-hidden="true" />
 
                 <TrailerIframe
@@ -126,6 +155,10 @@
 <script lang="ts">
 import { computed, defineComponent, onMounted, PropType, ref, toRef } from 'vue';
 import LmButton from '../primitives/Button.vue';
+import {
+    catalogDisplayImageSize,
+    isCatalogCdnImage
+} from '../../utils/useWebImage';
 import TrailerControls from './TrailerControls.vue';
 import TrailerIframe from './TrailerIframe.vue';
 import { genreName, primeGenres } from '../../composables/useGenreLookup';
@@ -161,17 +194,31 @@ export default defineComponent({
     },
     setup(props) {
         const rootRef = ref<HTMLElement | null>(null);
-        const ambientPath = computed(() =>
-            props.strictBackdrop ? props.backdropPath : props.backdropPath || props.posterPath
-        );
-        useAmbientColor(ambientPath, rootRef);
-
-        const backdropUrl = computed(() => {
-            const path = props.strictBackdrop
+        const artPath = computed(() => {
+            if (props.partySource === 'netflix') {
+                return props.posterPath || props.backdropPath;
+            }
+            return props.strictBackdrop
                 ? props.backdropPath
                 : props.backdropPath || props.posterPath;
+        });
+
+        const isPosterKeyArt = computed(() => {
+            const path = artPath.value;
+            if (!path) return false;
+            if (props.partySource === 'netflix') return true;
+            if (props.backdropPath && props.backdropPath === props.posterPath) return true;
+            return isCatalogCdnImage(path);
+        });
+
+        useAmbientColor(artPath, rootRef);
+
+        const backdropUrl = computed(() => {
+            const path = artPath.value;
             if (!path) return '';
-            return useWebImage(path, props.backdropPath ? 'hero' : 'large');
+            const preferHero = Boolean(props.backdropPath) && !isPosterKeyArt.value;
+            const size = catalogDisplayImageSize(path, preferHero ? 'hero' : 'large');
+            return useWebImage(path, size);
         });
 
         const year = computed(() =>
@@ -250,6 +297,7 @@ export default defineComponent({
             rootRef,
             setIframe,
             backdropUrl,
+            isPosterKeyArt,
             year,
             ratingLabel,
             genreNames,
@@ -300,7 +348,60 @@ export default defineComponent({
         }
     }
 
-    &.trailer-playing &__backdrop { opacity: 0; }
+    &.trailer-playing &__backdrop,
+    &.trailer-playing &__art-fallback { opacity: 0; }
+
+    &--poster-art {
+        min-height: clamp(420px, 62vh, 640px);
+    }
+
+    &--poster-art &__scrim {
+        background:
+            linear-gradient(180deg, rgba(11,10,8,0.6) 0%, rgba(11,10,8,0) 25%, rgba(11,10,8,0) 55%, rgba(11,10,8,0.8) 88%, var(--ink-900) 100%),
+            radial-gradient(120% 90% at 0% 100%, rgba(11,10,8,0.7), rgba(11,10,8,0) 55%);
+    }
+
+    &__art-fallback {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: var(--ink-950);
+        transition: opacity var(--dur-slow) var(--ease-out);
+    }
+
+    &__art--blurred {
+        position: absolute;
+        inset: -40px;
+        width: calc(100% + 80px);
+        height: calc(100% + 80px);
+        object-fit: cover;
+        filter: blur(30px) brightness(0.2) saturate(1.2);
+        opacity: 0.9;
+        z-index: 1;
+    }
+
+    &__art--contained {
+        position: relative;
+        z-index: 2;
+        max-width: min(38vw, 280px);
+        max-height: 68%;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        object-position: center;
+        border-radius: var(--r-md, 8px);
+        box-shadow: 0 12px 60px rgba(0, 0, 0, 0.95);
+    }
+
+    @media (max-width: 720px) {
+        &__art--contained {
+            max-width: min(56vw, 220px);
+            max-height: 58%;
+        }
+    }
 
     &__scrim {
         position: absolute;

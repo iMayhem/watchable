@@ -1,5 +1,9 @@
 import useAxios from './useAxios';
-import { inferCatalogMediaType, parseCatalogTitle } from './useMoovieCatalog';
+import {
+    catalogSearchTitle,
+    inferCatalogMediaType,
+    parseCatalogTitle
+} from './useMoovieCatalog';
 import { nfDebugError } from './useNetflixDebug';
 
 export interface TmdbArtwork {
@@ -138,7 +142,10 @@ function titleScore(query: string, candidate: TmdbSearchResult): number {
             continue;
         }
 
-        if (q.startsWith(name)) {
+        if (
+            (q.startsWith(`${name} `) || q.startsWith(`${name}:`)) &&
+            name.length >= 4
+        ) {
             best = Math.max(best, 72);
             continue;
         }
@@ -361,7 +368,10 @@ export async function resolveArtworkForCatalogItem(item: {
     tmdbId?: number;
 }): Promise<TmdbArtwork> {
     const parsed = parseCatalogTitle(item.title || '');
-    const displayTitle = parsed.displayTitle || item.title;
+    const displayTitle =
+        parseCatalogTitle(catalogSearchTitle(item.title || '')).displayTitle ||
+        parsed.displayTitle ||
+        item.title;
     const mediaType = inferCatalogMediaType(item);
     const cacheKey = catalogArtworkCacheKey(item);
     const resolved = await resolveTmdbArtwork({

@@ -908,7 +908,7 @@ export default defineComponent({
         color: var(--bone-300);
         font-family: var(--font-ui);
         font-size: var(--fs-sm);
-        min-width: 220px;
+        min-width: 120px;
         transition:
             background-color var(--dur-fast),
             border-color var(--dur-fast),

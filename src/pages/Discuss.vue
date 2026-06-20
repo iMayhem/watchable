@@ -125,9 +125,20 @@
 
                             <!-- Scrollable Movie Chat Messages -->
                             <div ref="movieChatBox" class="discuss-chat__messages" @scroll="handleMovieChatScroll">
-                                <div v-if="loadingSelectedMovie" class="discuss-chat__loading" role="status">
-                                    <div class="discuss-chat__spinner" aria-hidden="true" />
-                                    <span class="meta">Loading comments…</span>
+                                <div v-if="loadingSelectedMovie" class="discuss-chat__shimmer-list" role="status" aria-label="Loading comments...">
+                                    <div v-for="i in 5" :key="i" class="discuss-msg discuss-msg--shimmer">
+                                        <div class="discuss-msg__avatar discuss-msg__avatar--shimmer"></div>
+                                        <div class="discuss-msg__body" style="width: 100%;">
+                                            <div class="discuss-msg__meta">
+                                                <div class="shimmer-bar shimmer-bar--username"></div>
+                                                <div class="shimmer-bar shimmer-bar--time"></div>
+                                            </div>
+                                            <div class="discuss-msg__bubble discuss-msg__bubble--shimmer">
+                                                <div class="shimmer-bar shimmer-bar--line1"></div>
+                                                <div class="shimmer-bar shimmer-bar--line2"></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div v-else-if="!selectedMovieComments.length" class="discuss-chat__empty">
@@ -506,8 +517,9 @@ export default defineComponent({
                 selectedMovieRealtimeChannel = null;
             }
 
-            await fetchSelectedMovieComments();
-            await setupSelectedMovieRealtime();
+            // Trigger fetches in the background so the panel opens instantly and snappily!
+            fetchSelectedMovieComments();
+            setupSelectedMovieRealtime();
             scrollMovieChatToBottom();
         };
 
@@ -1533,5 +1545,85 @@ export default defineComponent({
     0% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.15); opacity: 0.6; }
     100% { transform: scale(1); opacity: 1; }
+}
+
+/* Shimmering skeletons */
+.discuss-msg--shimmer {
+    opacity: 0.8;
+    margin-bottom: var(--s-4);
+}
+
+.discuss-msg__avatar--shimmer {
+    background: var(--surface-tint-hover) !important;
+    position: relative;
+    overflow: hidden;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-pill);
+    
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+}
+
+.discuss-msg__bubble--shimmer {
+    background: var(--surface-tint-hover) !important;
+    border-color: var(--rule) !important;
+    width: 250px;
+    height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 0.5rem 0.85rem;
+}
+
+.shimmer-bar {
+    background: var(--rule-strong);
+    border-radius: var(--r-sm);
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+
+    &--username {
+        width: 80px;
+        height: 12px;
+        margin-bottom: 4px;
+    }
+
+    &--time {
+        width: 50px;
+        height: 8px;
+        margin-bottom: 4px;
+    }
+
+    &--line1 {
+        width: 100%;
+        height: 10px;
+    }
+
+    &--line2 {
+        width: 60%;
+        height: 10px;
+    }
+}
+
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
 }
 </style>

@@ -9,22 +9,6 @@
 
         <div class="stream-frame__stage">
             <div class="stream-frame__player">
-                <button
-                    v-if="embedUrl && shouldLoad && !hasError"
-                    type="button"
-                    class="stream-frame__fullscreen"
-                    :class="{ 'is-active': isFullscreen }"
-                    :aria-label="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'"
-                    :title="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'"
-                    @click="toggleFullscreen"
-                >
-                    <svg v-if="!isFullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 9H4V4M15 9h5V4M9 15H4v5M15 15h5v5" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </button>
                 <!-- Standard iframe embed -->
                 <iframe
                     v-if="embedUrl && shouldLoad && !hasError"
@@ -99,7 +83,6 @@ export default defineComponent({
         const shouldLoad = ref(false);
         const showOverlay = ref(false);
         const countdown = ref(10);
-        const isFullscreen = ref(false);
 
         let overlayTimer: number | null = null;
         let intervalTimer: number | null = null;
@@ -212,25 +195,6 @@ export default defineComponent({
             }
         };
 
-        const syncFullscreenState = () => {
-            isFullscreen.value = !!document.fullscreenElement;
-        };
-
-        const toggleFullscreen = async () => {
-            const target = rootRef.value;
-            if (!target) return;
-
-            try {
-                if (document.fullscreenElement) {
-                    await document.exitFullscreen();
-                } else if (target.requestFullscreen) {
-                    await target.requestFullscreen();
-                }
-            } catch (err) {
-                console.error('[StreamFrame] fullscreen toggle failed:', err);
-            }
-        };
-
         watch(
             () => props.embedUrl,
             (next, prev) => {
@@ -259,7 +223,6 @@ export default defineComponent({
             startTrackingIfNeeded();
             window.addEventListener('beforeunload', handleUnload);
             window.addEventListener('pagehide', handleUnload);
-            document.addEventListener('fullscreenchange', syncFullscreenState);
             startMessages();
             // Delay rendering the heavy iframe to let the page transition and paint skeleton cleanly
             window.setTimeout(() => {
@@ -270,7 +233,6 @@ export default defineComponent({
         onUnmounted(() => {
             window.removeEventListener('beforeunload', handleUnload);
             window.removeEventListener('pagehide', handleUnload);
-            document.removeEventListener('fullscreenchange', syncFullscreenState);
             stopMessages();
             if (stopTracking) {
                 stopTracking();
@@ -289,13 +251,11 @@ export default defineComponent({
             countdown,
             loadingLabel,
             ambientImage,
-            isFullscreen,
             sandboxAttribute,
             onLoad,
             onError,
             retry,
-            shouldLoad,
-            toggleFullscreen
+            shouldLoad
         };
     }
 });
@@ -357,38 +317,6 @@ export default defineComponent({
             0 0 60px rgba(var(--ambient), 0.18),
             0 0 0 1px var(--rule);
         transition: box-shadow var(--dur-slow) var(--ease-out);
-    }
-
-    &__fullscreen {
-        position: absolute;
-        top: var(--s-3);
-        right: var(--s-3);
-        z-index: 6;
-        width: 40px;
-        height: 40px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(11, 10, 8, 0.72);
-        color: var(--bone-50);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-        backdrop-filter: blur(10px);
-
-        svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        &:hover {
-            background: rgba(11, 10, 8, 0.9);
-        }
-
-        &.is-active {
-            background: rgba(255, 90, 31, 0.16);
-            border-color: rgba(255, 90, 31, 0.3);
-        }
     }
 
     &__iframe {

@@ -561,7 +561,10 @@ export default defineComponent({
 
         const partyHref = computed(() => {
             const titleStr = `${animeTitle.value} - Episode ${currentEpisode.value}`;
-            return `/party/?room=anime_${animeId.value}_ep${currentEpisode.value}&title=${encodeURIComponent(titleStr)}`;
+            // The party player (party.js) uses the room's media ID directly as the AniList ID
+            // to build the embed URL. We must use the AniList ID here, NOT the TMDB ID.
+            const anilistId = getAnilistIdForTmdbId(animeId.value) || anime.value?.id || animeId.value;
+            return `/party/?room=anime_${anilistId}_ep${currentEpisode.value}&title=${encodeURIComponent(titleStr)}`;
         });
 
         const seasonsList = computed(() => {

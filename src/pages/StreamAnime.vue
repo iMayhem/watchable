@@ -1195,6 +1195,12 @@ export default defineComponent({
         display: flex;
         align-items: center;
         gap: var(--s-3);
+
+        @media (max-width: 1023px) {
+            .eyebrow {
+                display: none !important;
+            }
+        }
     }
 
     &__back {

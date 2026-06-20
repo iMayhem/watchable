@@ -295,11 +295,11 @@ export default defineComponent({
         gap: var(--s-3);
         min-width: 0;
 
-        @media (max-width: 640px) {
+        @media (max-width: 1023px) {
             gap: var(--s-2);
 
             .eyebrow {
-                display: none;
+                display: none !important;
             }
         }
     }

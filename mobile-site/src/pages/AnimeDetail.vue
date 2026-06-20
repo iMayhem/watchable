@@ -38,7 +38,17 @@
                 </MobileSection>
             </template>
             <template v-else>
-                <p v-if="description" class="m-anime-hero__desc" v-html="description" />
+                <div v-if="description" class="m-anime-hero__desc">
+                    <span v-html="isDescriptionExpanded || description.length <= 180 ? description : description.slice(0, 180) + '...'" />
+                    <button
+                        v-if="description.length > 180"
+                        type="button"
+                        class="m-anime-hero__see-more"
+                        @click="isDescriptionExpanded = !isDescriptionExpanded"
+                    >
+                        {{ isDescriptionExpanded ? ' See less' : ' See more' }}
+                    </button>
+                </div>
 
                 <MobileSection
                     v-if="totalEpisodesCount > 0"
@@ -152,6 +162,7 @@ const bannerUrl = computed(() => {
 });
 
 const description = computed(() => anime.value?.description?.replace(/<[^>]+>/g, '') ?? '');
+const isDescriptionExpanded = ref(false);
 
 const totalEpisodesCount = computed(() =>
     estimateAnimeEpisodeTotal(
@@ -419,7 +430,10 @@ onMounted(() => {
 watch(
     () => route.params.id,
     (newId) => {
-        if (newId) loadAnime(Number(newId));
+        if (newId) {
+            isDescriptionExpanded.value = false;
+            loadAnime(Number(newId));
+        }
     }
 );
 </script>
@@ -476,6 +490,21 @@ watch(
         color: var(--bone-300);
         font-size: var(--fs-sm);
         line-height: var(--lh-base);
+    }
+
+    &__see-more {
+        all: unset;
+        display: inline;
+        color: var(--ember);
+        font-weight: 600;
+        cursor: pointer;
+        margin-left: 6px;
+        font-family: var(--font-ui);
+        transition: color var(--dur-fast);
+
+        &:hover {
+            color: var(--bone-50);
+        }
     }
 
     &__skeleton-img {

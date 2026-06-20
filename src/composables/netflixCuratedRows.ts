@@ -39,9 +39,7 @@ export const MAX_NETFLIX_HOME_RAILS = 12;
 export const MAX_NETFLIX_HOME_PER_RAIL = 20;
 
 const NETFLIX_HOME_EDITORIAL_IDS = [
-    'new-on-netflix',
-    'blockbuster-movies',
-    'exciting-tv'
+    'new-on-netflix'
 ] as const;
 
 const NETFLIX_HOME_GENRE_IDS: Record<string, string[]> = {
@@ -68,8 +66,7 @@ export function homeRowIdsForCatalogue(catalogueId: string): string[] {
             ? [
                   'new-on-netflix',
                   'korean-movies',
-                  'korean-series',
-                  'exciting-tv'
+                  'korean-series'
               ]
             : [...NETFLIX_HOME_EDITORIAL_IDS];
     return [...editorial, ...genres, ...NETFLIX_HOME_TAIL_IDS];

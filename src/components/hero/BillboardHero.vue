@@ -353,7 +353,7 @@ export default defineComponent({
     &.trailer-playing &__art-fallback { opacity: 0; }
 
     &--poster-art {
-        min-height: clamp(420px, 62vh, 640px);
+        min-height: clamp(560px, 78vh, 820px);
     }
 
     &--poster-art &__scrim {
@@ -373,6 +373,11 @@ export default defineComponent({
         transition: opacity var(--dur-slow) var(--ease-out);
     }
 
+    &--poster-art &__art-fallback {
+        justify-content: flex-end;
+        padding-right: 6%;
+    }
+
     &__art--blurred {
         position: absolute;
         inset: -40px;
@@ -387,8 +392,8 @@ export default defineComponent({
     &__art--contained {
         position: relative;
         z-index: 2;
-        max-width: min(38vw, 280px);
-        max-height: 68%;
+        max-width: min(55vw, 460px);
+        max-height: 86%;
         width: auto;
         height: auto;
         object-fit: contain;
@@ -399,8 +404,8 @@ export default defineComponent({
 
     @media (max-width: 720px) {
         &__art--contained {
-            max-width: min(56vw, 220px);
-            max-height: 58%;
+            max-width: min(72vw, 300px);
+            max-height: 76%;
         }
     }
 

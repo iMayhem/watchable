@@ -162,6 +162,10 @@ export function inferCatalogMediaType(item: CatalogMediaSignals): 'movie' | 'tv'
         return 'tv';
     }
 
+    if (hasCatalogSeasonData(item.season) || Boolean(String(item.subjectid || '').trim())) {
+        return 'tv';
+    }
+
     return 'movie';
 }
 

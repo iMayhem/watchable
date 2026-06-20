@@ -380,7 +380,9 @@ export function useNetflixCatalogEpisodes() {
             const defaultSeason = opts.season ?? parsed.season ?? 1;
             currentSeason.value = defaultSeason;
 
-            const isTvPlayback = opts.routeType === 'tv';
+            const hasGuideSignal = catalogHasEpisodeGuide(item);
+            // Treat as TV if explicit tv route OR has episode signals (unless caller explicitly says 'movie')
+            const isTvPlayback = opts.routeType === 'tv' || (hasGuideSignal && opts.routeType !== 'movie');
             const hasGuide = catalogHasEpisodeGuide(item, opts.routeType);
             const fallbackCount = Math.max(
                 opts.episodeCountHint || 0,
@@ -417,7 +419,7 @@ export function useNetflixCatalogEpisodes() {
 
                 const tmdbId = await resolveTmdbTvId(
                     item,
-                    opts.routeType,
+                    isTvPlayback ? 'tv' : opts.routeType,
                     opts.tmdbId
                 );
                 if (!tmdbId) {

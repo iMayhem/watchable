@@ -240,7 +240,7 @@ export default defineComponent({
                     release_date: item.release_date,
                     media_type: item.media_type
                 },
-                { season: 1, episodeCountHint: episodeHint }
+                { season: 1, episodeCountHint: episodeHint, routeType: 'movie' }
             );
         };
 

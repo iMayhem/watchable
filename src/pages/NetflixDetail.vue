@@ -71,6 +71,7 @@ import {
     inferCatalogMediaType,
     catalogDisplayTitle,
     catalogSearchTitle,
+    catalogHasEpisodeGuide,
     parseCatalogTitle,
     type MoovieCatalogItem
 } from '../composables/useMoovieCatalog';
@@ -161,7 +162,12 @@ export default defineComponent({
 
         const mediaType = computed((): 'movie' | 'tv' => {
             if (meta.value) {
-                return inferCatalogMediaType(catalogSignals(meta.value));
+                const sig = catalogSignals(meta.value);
+                let mt = inferCatalogMediaType(sig);
+                if (mt === 'movie' && catalogHasEpisodeGuide(sig)) {
+                    mt = 'tv';
+                }
+                return mt;
             }
             return route.params.type === 'tv' ? 'tv' : 'movie';
         });
@@ -366,7 +372,7 @@ export default defineComponent({
                 },
                 {
                     season: selectedSeason.value,
-                    routeType: mediaType.value
+                    routeType: catalogHasEpisodeGuide(item) ? 'tv' : mediaType.value
                 }
             );
         };

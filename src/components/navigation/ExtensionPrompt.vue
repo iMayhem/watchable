@@ -95,6 +95,17 @@
                     <li v-if="installGuide.family !== 'firefox'">
                         Drag and drop the downloaded <code>{{ installGuide.fileName }}</code> file from your file manager directly onto the middle of the extensions page.
                     </li>
+                    <li v-if="installGuide.family !== 'firefox'" style="margin-top: 0.5rem; list-style-type: none;">
+                        <details style="font-size: 0.76rem; opacity: 0.85; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.35rem;">
+                            <summary style="cursor: pointer; color: var(--ember); font-weight: 600;">Alternative: Install via ZIP (Load Unpacked)</summary>
+                            <ol style="padding-left: 1.1rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.25rem; list-style-type: decimal;">
+                                <li>Download the <a :href="installGuide.url.replace('.crx', '.zip')" download="extension.zip" style="color: #fff; text-decoration: underline;">extension.zip</a> package.</li>
+                                <li>Unzip the downloaded folder.</li>
+                                <li>On the extensions page, click <strong>Load unpacked</strong> in the top-left.</li>
+                                <li>Select the unzipped folder containing <code>manifest.json</code>.</li>
+                            </ol>
+                        </details>
+                    </li>
                     <li>
                         In extension details, set site access to <strong>On moovie.fun</strong>
                         (or <strong>On all sites</strong>).

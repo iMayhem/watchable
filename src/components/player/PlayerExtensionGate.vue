@@ -61,6 +61,17 @@
                         <li>Open <code>chrome://extensions</code> and ensure <strong>Developer mode</strong> (top-right) is turned <strong>ON</strong>.</li>
                         <li>Drag and drop the downloaded <code>extension.crx</code> file from your Files app (Downloads folder) directly onto the middle of the <code>chrome://extensions</code> page.</li>
                         <li>Confirm the installation prompt and reload this page.</li>
+                        <li style="margin-top: 0.75rem; list-style-type: none;">
+                            <details style="font-size: 0.74rem; opacity: 0.85; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 0.5rem;">
+                                <summary style="cursor: pointer; color: var(--ember); font-weight: 600;">Alternative: Install via ZIP (Load Unpacked)</summary>
+                                <ol style="padding-left: 1.1rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.25rem;">
+                                    <li>Download the <a :href="browser.url.replace('.crx', '.zip')" download="extension.zip" style="color: #fff; text-decoration: underline;">extension.zip</a> package.</li>
+                                    <li>Unzip the downloaded folder.</li>
+                                    <li>On <code>chrome://extensions</code>, click <strong>Load unpacked</strong> in the top-left.</li>
+                                    <li>Select the unzipped folder containing <code>manifest.json</code>.</li>
+                                </ol>
+                            </details>
+                        </li>
                     </template>
                     <template v-else>
                         <li>Unzip the download and load it in <code>{{ browser.extensionsPage }}</code>.</li>

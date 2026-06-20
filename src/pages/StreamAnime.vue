@@ -1958,7 +1958,7 @@ export default defineComponent({
 
     @media (max-width: 640px) {
         grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
-        gap: var(--s-1.5);
+        gap: 6px;
     }
 
     &::-webkit-scrollbar {

@@ -3,161 +3,190 @@
         <SiteHeader />
 
         <main id="main" class="discuss-page__main" role="main">
-            <section class="discuss-page__masthead container-lm">
-                <p class="eyebrow discuss-page__eyebrow">The Lounge · Live Feed</p>
-                <h1 class="discuss-page__title display" data-reveal>Global discussions.</h1>
-                <p class="discuss-page__subtitle">
-                    Talk about movies, TV series, anime, or read what others have posted. Tag your posts, save them permanently, and report spam or abuse.
-                </p>
-            </section>
 
-            <div class="discuss-page__content container-lm">
-                <!-- Write discussion post form -->
-                <section class="discuss-page__composer">
-                    <h2 class="discuss-page__section-title">Share your thoughts</h2>
-                    <form @submit.prevent="handlePostComment" class="discuss-form">
-                        <div class="discuss-form__row" v-if="!isLoggedIn">
-                            <label class="discuss-form__label">
-                                <span class="eyebrow">Display Name</span>
-                                <input 
-                                    type="text" 
-                                    v-model="guestName" 
-                                    placeholder="Your nickname (e.g., MovieFanatic)" 
-                                    required
-                                    class="discuss-form__input"
-                                />
-                            </label>
-                        </div>
-                        <div class="discuss-form__row v-else" v-else>
-                            <span class="meta">Posting as <strong>@{{ currentUsername }}</strong></span>
-                        </div>
 
-                        <div class="discuss-form__row">
-                            <label class="discuss-form__label">
-                                <span class="eyebrow">Discussing Title (Optional)</span>
-                                <div class="discuss-form__tagger">
-                                    <select v-model="taggedType" class="discuss-form__select">
-                                        <option value="general">General Chat</option>
-                                        <option value="movie">Movie</option>
-                                        <option value="tv">TV Show</option>
-                                        <option value="anime">Anime</option>
-                                    </select>
-                                    <input 
-                                        v-if="taggedType !== 'general'"
-                                        type="text" 
-                                        v-model="taggedTitle" 
-                                        placeholder="Title name or ID"
-                                        class="discuss-form__input discuss-form__input--title"
-                                    />
-                                </div>
-                            </label>
-                        </div>
+            <!-- Split Layout Container -->
+            <div class="discuss-page__content">
+                <div class="discuss-layout">
+                    
+                    <!-- Left Side: Discussion -->
+                    <div class="discuss-chat">
+                        <header class="discuss-chat__header">
+                            <div class="discuss-chat__header-info">
+                                <span class="discuss-chat__status-dot"></span>
+                                <span class="discuss-chat__panel-title">💬 Discussion</span>
+                            </div>
+                            <div class="discuss-chat__user-badge">
+                                <span v-if="isLoggedIn">Logged in as <strong>@{{ currentUsername }}</strong></span>
+                                <span v-else>Viewing as guest</span>
+                            </div>
+                        </header>
 
-                        <div class="discuss-form__row">
-                            <label class="discuss-form__label">
-                                <span class="eyebrow">Your message</span>
-                                <textarea 
-                                    v-model="newCommentText" 
-                                    placeholder="Write your review, question, or recommendation here..." 
-                                    required
-                                    rows="4"
-                                    class="discuss-form__textarea"
-                                ></textarea>
-                            </label>
-                        </div>
+                        <!-- Scrollable General Chat Feed -->
+                        <div ref="chatBox" class="discuss-chat__messages" @scroll="handleScroll">
+                            <div v-if="loading" class="discuss-chat__loading" role="status">
+                                <div class="discuss-chat__spinner" aria-hidden="true" />
+                                <span class="meta">Loading lounge feed…</span>
+                            </div>
 
-                        <button 
-                            type="submit" 
-                            class="btn btn-primary discuss-form__submit"
-                            :disabled="submitting || !newCommentText.trim()"
-                        >
-                            {{ submitting ? 'Posting...' : 'Post Message' }}
-                        </button>
-                    </form>
-                </section>
+                            <div v-else-if="!comments.length" class="discuss-chat__empty">
+                                <p class="meta">No messages here yet. Type something below to kick off the chat!</p>
+                            </div>
 
-                <!-- Comments/posts feed -->
-                <section class="discuss-page__feed">
-                    <div class="discuss-page__feed-header">
-                        <h2 class="discuss-page__section-title">Recent Activity</h2>
-                        <button @click="fetchComments" class="discuss-page__refresh-btn" aria-label="Refresh feed">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l.73-.73" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            Refresh
-                        </button>
-                    </div>
-
-                    <div v-if="loading" class="discuss-page__loading" role="status">
-                        <div class="discuss-page__spinner" aria-hidden="true" />
-                        <span class="meta">Loading conversations…</span>
-                    </div>
-
-                    <div v-else-if="!comments.length" class="discuss-page__empty">
-                        <p class="meta">The lounge is quiet. Be the first to start a conversation!</p>
-                    </div>
-
-                    <div v-else class="discuss-feed-list">
-                        <article 
-                            v-for="c in comments" 
-                            :key="c.id" 
-                            class="discuss-card"
-                            :class="{ 'discuss-card--reported': c.isReported }"
-                        >
-                            <div class="discuss-card__header">
+                            <div v-else class="discuss-chat__message-list">
                                 <div 
-                                    class="discuss-card__avatar" 
-                                    :style="avatarStyle(c.username)"
+                                    v-for="c in comments" 
+                                    :key="c.id" 
+                                    class="discuss-msg"
+                                    :class="{ 
+                                        'discuss-msg--self': isSelf(c.username),
+                                        'discuss-msg--reported': c.isReported 
+                                    }"
                                 >
-                                    {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
-                                </div>
-                                <div class="discuss-card__meta">
-                                    <span class="discuss-card__username">{{ c.username }}</span>
-                                    <span v-if="c.username.startsWith('@')" class="discuss-card__badge">Member</span>
-                                    <span v-else class="discuss-card__badge discuss-card__badge--guest">Guest</span>
-                                    <span class="discuss-card__time meta">{{ formatTimeAgo(c.created_at) }}</span>
-                                </div>
+                                    <div class="discuss-msg__avatar" :style="avatarStyle(c.username)">
+                                        {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
+                                    </div>
 
-                                <div class="discuss-card__tags">
-                                    <span 
-                                        v-if="c.media_type && c.media_type !== 'general'" 
-                                        class="discuss-card__tag"
-                                    >
-                                        {{ c.media_type.toUpperCase() }}
-                                        <span v-if="c.media_id">#{{ c.media_id }}</span>
-                                    </span>
+                                    <div class="discuss-msg__body">
+                                        <div class="discuss-msg__meta">
+                                            <span class="discuss-msg__username">{{ c.username }}</span>
+                                            <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
+                                            <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
+                                        </div>
+                                        <div class="discuss-msg__bubble">
+                                            <p class="discuss-msg__text">{{ c.content }}</p>
+                                        </div>
+                                        <div class="discuss-msg__actions">
+                                            <button 
+                                                v-if="!c.isReported"
+                                                @click="openReportModal(c)" 
+                                                class="discuss-msg__report-btn"
+                                            >
+                                                Report
+                                            </button>
+                                            <span v-else class="discuss-msg__reported-tag">⚠️ Reported</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="discuss-card__body">
-                                <p class="discuss-card__text">{{ c.content }}</p>
-                            </div>
-
-                            <div class="discuss-card__footer">
-                                <button 
-                                    v-if="!c.isReported"
-                                    @click="openReportModal(c)" 
-                                    class="discuss-card__report-btn"
-                                >
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" stroke-linecap="round"/>
-                                    </svg>
-                                    Report
+                        <!-- Chat Composer Bar -->
+                        <footer class="discuss-chat__composer">
+                            <div v-if="!isLoggedIn" class="discuss-chat__login-prompt">
+                                <p class="meta">You must be signed in to post comments in the live lounge.</p>
+                                <button @click="showAuthModal = true" class="btn btn-primary btn-sm login-prompt-btn">
+                                    Sign In
                                 </button>
-                                <span v-else class="discuss-card__reported-tag">⚠️ Flagged for review</span>
                             </div>
-                        </article>
+
+                            <template v-else>
+                                <form @submit.prevent="handlePostComment" class="discuss-composer-form">
+                                    <input 
+                                        type="text" 
+                                        v-model="newCommentText" 
+                                        placeholder="Say something in the general lounge..." 
+                                        required
+                                        class="discuss-chat__message-input"
+                                        :disabled="submitting"
+                                    />
+                                    <button 
+                                        type="submit" 
+                                        class="btn btn-primary discuss-chat__send-btn"
+                                        :disabled="submitting || !newCommentText.trim()"
+                                    >
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </template>
+                        </footer>
                     </div>
-                </section>
+
+                    <!-- Right Side: Movie Reviews Feed (Newest first, clickable redirects) -->
+                    <div class="discuss-chat">
+                        <header class="discuss-chat__header">
+                            <div class="discuss-chat__header-info">
+                                <span class="discuss-chat__status-dot" style="background: var(--ember); box-shadow: 0 0 6px var(--ember);"></span>
+                                <span class="discuss-chat__panel-title">🎬 Movie & Series Activity</span>
+                            </div>
+                            <div class="discuss-chat__user-badge">
+                                <span class="meta">Click to watch/discuss</span>
+                            </div>
+                        </header>
+
+                        <!-- Scrollable Movies Feed -->
+                        <div class="discuss-chat__messages">
+                            <div v-if="loadingMovie" class="discuss-chat__loading" role="status">
+                                <div class="discuss-chat__spinner" aria-hidden="true" />
+                                <span class="meta">Retrieving latest reviews…</span>
+                            </div>
+
+                            <div v-else-if="!movieComments.length" class="discuss-chat__empty">
+                                <p class="meta">No movie or TV comments exist yet. Start writing reviews on film pages!</p>
+                            </div>
+
+                            <div v-else class="discuss-chat__message-list">
+                                <div 
+                                    v-for="c in movieComments" 
+                                    :key="c.id" 
+                                    class="discuss-msg discuss-msg--movie-card"
+                                    :class="{ 'discuss-msg--reported': c.isReported }"
+                                >
+                                    <div class="discuss-msg__avatar" :style="avatarStyle(c.username)">
+                                        {{ (c.username.replace('@', '') || 'A')[0].toUpperCase() }}
+                                    </div>
+
+                                    <div class="discuss-msg__body" style="width: 100%;">
+                                        <div class="discuss-msg__meta">
+                                            <span class="discuss-msg__username">{{ c.username }}</span>
+                                            <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
+                                            
+                                            <!-- Category tag displaying target movie name/ID -->
+                                            <span class="discuss-msg__topic-badge">
+                                                {{ getCategoryIcon(c.media_type) }} {{ c.media_type.toUpperCase() }} #{{ c.media_id }}
+                                            </span>
+                                        </div>
+
+                                        <div class="discuss-msg__bubble discuss-msg__bubble--movie">
+                                            <p class="discuss-msg__text">{{ c.content }}</p>
+                                        </div>
+
+                                        <div class="discuss-msg__movie-footer">
+                                            <router-link :to="getMovieLink(c.media_type, c.media_id)" class="discuss-msg__redirect-link btn btn-secondary btn-xs">
+                                                Go to Discussion Page →
+                                            </router-link>
+
+                                            <button 
+                                                v-if="!c.isReported"
+                                                @click="openReportModal(c)" 
+                                                class="discuss-msg__report-btn"
+                                            >
+                                                Report
+                                            </button>
+                                            <span v-else class="discuss-msg__reported-tag">⚠️ Reported</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </main>
 
-        <!-- Report Modal -->
+        <!-- Auth Modal Dialog -->
+        <AuthModal :isOpen="showAuthModal" @close="showAuthModal = false; checkAuth()" />
+
+        <!-- Report Modal Dialog -->
         <div v-if="showReportModal" class="report-modal" role="dialog" aria-modal="true">
             <div class="report-modal__backdrop" @click="closeReportModal"></div>
             <div class="report-modal__content">
                 <h3 class="report-modal__title">Report Post</h3>
-                <p class="report-modal__desc meta">Help us keep the community healthy. Why are you reporting this post?</p>
+                <p class="report-modal__desc meta">Why are you flag-reporting this post? It will be saved for moderation.</p>
                 
                 <div class="report-modal__post-preview">
                     <strong class="meta">{{ reportingComment?.username }}:</strong>
@@ -168,19 +197,19 @@
                     <div class="report-form__group">
                         <label class="report-form__label eyebrow">Reason</label>
                         <select v-model="reportReason" class="report-form__select" required>
-                            <option value="spam">Spam / Advertising</option>
+                            <option value="spam">Spam / Ad links</option>
                             <option value="abuse">Harassment or Abuse</option>
-                            <option value="spoiler">Unmarked Spoilers</option>
-                            <option value="inappropriate">Inappropriate Content</option>
-                            <option value="other">Other Reason</option>
+                            <option value="spoiler">Spoilers without warning</option>
+                            <option value="inappropriate">Inappropriate text</option>
+                            <option value="other">Other reason</option>
                         </select>
                     </div>
 
                     <div class="report-form__group">
-                        <label class="report-form__label eyebrow">Additional Details</label>
+                        <label class="report-form__label eyebrow">Explanation</label>
                         <textarea 
                             v-model="reportDetails" 
-                            placeholder="Provide any context (optional)..."
+                            placeholder="Add details (optional)..."
                             rows="3"
                             class="report-form__textarea"
                         ></textarea>
@@ -189,21 +218,19 @@
                     <div class="report-modal__buttons">
                         <button type="button" @click="closeReportModal" class="btn btn-secondary">Cancel</button>
                         <button type="submit" class="btn btn-primary" :disabled="submittingReport">
-                            {{ submittingReport ? 'Submitting...' : 'Submit Report' }}
+                            {{ submittingReport ? 'Flagging...' : 'Submit Report' }}
                         </button>
                     </div>
                 </form>
             </div>
         </div>
-
-        <SiteFooter />
     </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, ref } from 'vue';
+import { defineComponent, onMounted, onBeforeUnmount, ref, nextTick } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
-import SiteFooter from '../components/navigation/SiteFooter.vue';
+import AuthModal from '../components/navigation/AuthModal.vue';
 import { getSupabaseClient } from '../lib/supabase';
 import { useSeo } from '../composables/useSeo';
 
@@ -219,21 +246,26 @@ interface Comment {
 
 export default defineComponent({
     name: 'Discuss',
-    components: { SiteHeader, SiteFooter },
+    components: { SiteHeader, AuthModal },
     setup() {
         const { updateSeo } = useSeo();
         
+        // Message lists and load states
         const comments = ref<Comment[]>([]);
+        const movieComments = ref<Comment[]>([]);
         const loading = ref(false);
+        const loadingMovie = ref(false);
         const submitting = ref(false);
+        const submittingMovie = ref(false);
         const newCommentText = ref('');
-        const guestName = ref('');
+        const newMovieCommentText = ref('');
+        
         const isLoggedIn = ref(false);
         const currentUsername = ref('');
-
-        // Tagged details
-        const taggedType = ref('general');
-        const taggedTitle = ref('');
+        const showAuthModal = ref(false);
+        
+        // Element references
+        const chatBox = ref<HTMLElement | null>(null);
 
         // Reporting State
         const showReportModal = ref(false);
@@ -242,19 +274,30 @@ export default defineComponent({
         const reportDetails = ref('');
         const submittingReport = ref(false);
 
+        // Realtime Subscription references
+        let realtimeChannel: any = null;
+        let movieRealtimeChannel: any = null;
+        let isAtBottom = true;
+
         const checkAuth = () => {
             if (typeof window !== 'undefined') {
                 const user = localStorage.getItem('movora_current_user');
                 if (user) {
                     isLoggedIn.value = true;
                     currentUsername.value = user;
+                    showAuthModal.value = false;
                 } else {
                     isLoggedIn.value = false;
                     currentUsername.value = '';
-                    const savedGuest = localStorage.getItem('movora_guest_name');
-                    guestName.value = savedGuest || '';
                 }
             }
+        };
+
+        const isSelf = (username: string) => {
+            if (isLoggedIn.value) {
+                return username === `@${currentUsername.value}`;
+            }
+            return false;
         };
 
         const avatarStyle = (name: string) => {
@@ -278,17 +321,54 @@ export default defineComponent({
             };
         };
 
+        const getCategoryIcon = (type: string) => {
+            switch (type) {
+                case 'tv': return '📺';
+                case 'anime': return '🌟';
+                default: return '🎬';
+            }
+        };
+
+        const getMovieLink = (type: string, id: string) => {
+            if (type === 'tv') {
+                return `/tv-show/${id}`;
+            } else if (type === 'anime') {
+                return `/anime/${id}`;
+            } else {
+                return `/movie/${id}`;
+            }
+        };
+
+        const scrollToBottom = () => {
+            nextTick(() => {
+                if (chatBox.value) {
+                    chatBox.value.scrollTop = chatBox.value.scrollHeight;
+                }
+            });
+        };
+
+        const handleScroll = () => {
+            if (chatBox.value) {
+                const threshold = 60;
+                const position = chatBox.value.scrollHeight - chatBox.value.clientHeight - chatBox.value.scrollTop;
+                isAtBottom = position < threshold;
+            }
+        };
+
+        // Comments Loader (General Lounge)
         const fetchComments = async () => {
             loading.value = true;
             try {
                 const supabase = await getSupabaseClient();
                 const { data, error } = await supabase
-                    .from('movora_comments')
+                    .from('movora_chat')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .order('created_at', { ascending: true })
+                    .limit(100);
 
                 if (error) throw error;
                 comments.value = data || [];
+                scrollToBottom();
             } catch (e) {
                 console.error('Failed to load global discussions:', e);
             } finally {
@@ -296,26 +376,108 @@ export default defineComponent({
             }
         };
 
-        const handlePostComment = async () => {
-            if (!newCommentText.value.trim()) return;
-            submitting.value = true;
-
-            const nameToPost = isLoggedIn.value 
-                ? `@${currentUsername.value}` 
-                : guestName.value.trim() || 'Anonymous';
-
-            if (!isLoggedIn.value && typeof window !== 'undefined') {
-                localStorage.setItem('movora_guest_name', nameToPost);
-            }
-
+        // Comments Loader (Movies & Shows - Newest first)
+        const fetchMovieComments = async () => {
+            loadingMovie.value = true;
             try {
                 const supabase = await getSupabaseClient();
                 const { data, error } = await supabase
                     .from('movora_comments')
+                    .select('*')
+                    .in('media_type', ['movie', 'tv', 'anime'])
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+
+                if (error) throw error;
+                movieComments.value = (data || []).filter((c: any) => c.media_id !== 'lounge');
+            } catch (e) {
+                console.error('Failed to load movie reviews:', e);
+            } finally {
+                loadingMovie.value = false;
+            }
+        };
+
+        const setupRealtimeChannel = async () => {
+            if (realtimeChannel) {
+                const supabase = await getSupabaseClient();
+                supabase.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+            }
+
+            try {
+                const supabase = await getSupabaseClient();
+                realtimeChannel = supabase
+                    .channel('public:movora_chat')
+                    .on(
+                        'postgres_changes',
+                        { event: 'INSERT', schema: 'public', table: 'movora_chat' },
+                        (payload: any) => {
+                            const newMsg = payload.new as Comment;
+                            if (!comments.value.some(c => c.id === newMsg.id)) {
+                                comments.value.push(newMsg);
+                                if (comments.value.length > 150) {
+                                    comments.value.shift();
+                                }
+                                if (isAtBottom) {
+                                    scrollToBottom();
+                                }
+                            }
+                        }
+                    )
+                    .subscribe();
+            } catch (e) {
+                console.error('Failed to bind realtime comments channel:', e);
+            }
+        };
+
+        const setupMovieRealtimeChannel = async () => {
+            if (movieRealtimeChannel) {
+                const supabase = await getSupabaseClient();
+                supabase.removeChannel(movieRealtimeChannel);
+                movieRealtimeChannel = null;
+            }
+
+            try {
+                const supabase = await getSupabaseClient();
+                movieRealtimeChannel = supabase
+                    .channel('public:movora_movie_comments')
+                    .on(
+                        'postgres_changes',
+                        { event: 'INSERT', schema: 'public', table: 'movora_comments' },
+                        (payload: any) => {
+                            const newMsg = payload.new as Comment;
+                            if (['movie', 'tv', 'anime'].includes(newMsg.media_type) && newMsg.media_id !== 'lounge') {
+                                if (!movieComments.value.some(c => c.id === newMsg.id)) {
+                                    movieComments.value.unshift(newMsg);
+                                    if (movieComments.value.length > 150) {
+                                        movieComments.value.pop();
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    .subscribe();
+            } catch (e) {
+                console.error('Failed to bind movies realtime channel:', e);
+            }
+        };
+
+        const handlePostComment = async () => {
+            if (!isLoggedIn.value) {
+                showAuthModal.value = true;
+                return;
+            }
+            if (!newCommentText.value.trim()) return;
+            submitting.value = true;
+
+            const nameToPost = `@${currentUsername.value}`;
+
+            try {
+                const supabase = await getSupabaseClient();
+                const { data, error } = await supabase
+                    .from('movora_chat')
                     .insert([
                         {
-                            media_id: taggedType.value === 'general' ? 'general' : taggedTitle.value.trim() || 'tagged',
-                            media_type: taggedType.value,
                             username: nameToPost,
                             content: newCommentText.value.trim()
                         }
@@ -326,13 +488,14 @@ export default defineComponent({
                 if (error) throw error;
 
                 if (data) {
-                    comments.value.unshift(data);
                     newCommentText.value = '';
-                    taggedTitle.value = '';
-                    taggedType.value = 'general';
+                    if (!comments.value.some(c => c.id === data.id)) {
+                        comments.value.push(data);
+                        scrollToBottom();
+                    }
                 }
             } catch (e) {
-                console.error('Failed to post discussion comment:', e);
+                console.error('Failed to post comment:', e);
             } finally {
                 submitting.value = false;
             }
@@ -359,9 +522,7 @@ export default defineComponent({
 
             try {
                 const supabase = await getSupabaseClient();
-                
-                // Write report directly to movora_reports table in Supabase
-                const { error } = await supabase
+                await supabase
                     .from('movora_reports')
                     .insert([
                         {
@@ -375,16 +536,11 @@ export default defineComponent({
                         }
                     ]);
 
-                if (error) {
-                    // Fallback in case table doesn't support writing yet, append in console or mock success
-                    console.warn('Supabase movora_reports table write failed. Falling back to local flag:', error);
-                }
-
-                // Update UI state for reported comment
+                // Update UI states
                 const target = comments.value.find(c => c.id === reportingComment.value!.id);
-                if (target) {
-                    target.isReported = true;
-                }
+                if (target) target.isReported = true;
+                const mTarget = movieComments.value.find(c => c.id === reportingComment.value!.id);
+                if (mTarget) mTarget.isReported = true;
 
                 alert('Thank you. The post has been flagged and reported.');
                 closeReportModal();
@@ -409,38 +565,63 @@ export default defineComponent({
             if (days === 1) return 'Yesterday';
             if (days < 7) return `${days}d ago`;
             
-            return date.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-            });
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         };
 
-        onMounted(() => {
+        onMounted(async () => {
             updateSeo({
-                title: 'Lounge · Discussions — Moovie',
-                description: 'Join watch lounge conversations, read reviews and talk about films and shows on Moovie.',
+                title: 'Live Chat Lounge — Moovie',
+                description: 'Join watch lounge conversations in real-time, discuss reviews and talk about movies on Moovie.',
                 canonical: 'https://moovie.fun/discuss'
             });
             checkAuth();
-            fetchComments();
+            
+            // Load and bind default general lounge
+            await fetchComments();
+            await setupRealtimeChannel();
+
+            // Load and bind movies feed
+            await fetchMovieComments();
+            await setupMovieRealtimeChannel();
+            
             window.addEventListener('movora_auth_change', checkAuth);
+        });
+
+        onBeforeUnmount(async () => {
+            window.removeEventListener('movora_auth_change', checkAuth);
+            if (realtimeChannel) {
+                const supabase = await getSupabaseClient();
+                supabase.removeChannel(realtimeChannel);
+            }
+            if (movieRealtimeChannel) {
+                const supabase = await getSupabaseClient();
+                supabase.removeChannel(movieRealtimeChannel);
+            }
         });
 
         return {
             comments,
+            movieComments,
             loading,
+            loadingMovie,
             submitting,
             newCommentText,
-            guestName,
+            newMovieCommentText,
+            submittingMovie,
             isLoggedIn,
             currentUsername,
-            taggedType,
-            taggedTitle,
+            showAuthModal,
+            chatBox,
             avatarStyle,
-            fetchComments,
-            handlePostComment,
+            isSelf,
             formatTimeAgo,
+            handleScroll,
+            getCategoryIcon,
+            getMovieLink,
+            checkAuth,
+            
+            // Composer Actions
+            handlePostComment,
 
             // Reporting
             showReportModal,
@@ -459,94 +640,165 @@ export default defineComponent({
 <style lang="scss" scoped>
 .discuss-page {
     position: relative;
-    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     background: var(--ink-900);
     color: var(--bone-50);
 
     &__main {
-        padding-block: clamp(var(--s-6), 6vw, var(--s-8));
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding-top: var(--s-3);
+        padding-bottom: var(--s-3);
+        overflow: hidden;
     }
 
     &__masthead {
-        padding-block: clamp(var(--s-5), 5vw, var(--s-7));
-        border-bottom: 1px solid var(--rule);
-        margin-bottom: clamp(var(--s-5), 5vw, var(--s-7));
+        padding-inline: clamp(var(--s-2), 2vw, var(--s-5));
+        margin-bottom: var(--s-3);
+        flex-shrink: 0;
+    }
+
+    &__masthead-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--s-4);
+        flex-wrap: wrap;
     }
 
     &__eyebrow {
         color: var(--ember);
-        margin: 0 0 var(--s-2);
+        margin: 0 0 2px;
     }
 
     &__title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(2.4rem, 6vw, 4.5rem);
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
         line-height: 1;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.01em;
         color: var(--bone-50);
         margin: 0;
         font-variation-settings: 'opsz' 144, 'SOFT' 30;
     }
 
-    &__subtitle {
-        margin: var(--s-4) 0 0;
-        color: var(--bone-300);
-        font-family: var(--font-ui);
-        line-height: 1.55;
-        max-width: 58ch;
-    }
-
     &__content {
-        display: grid;
-        gap: var(--s-8);
-        grid-template-columns: 1fr;
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        width: 100%;
+        max-width: 100%;
+        padding-inline: clamp(var(--s-2), 2vw, var(--s-5));
+        margin: 0 auto;
+    }
+}
 
-        @media (min-width: 900px) {
-            grid-template-columns: 380px 1fr;
+.discuss-layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+
+    @media (max-width: 900px) {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+    }
+}
+
+/* Chat Lounge Panel style */
+.discuss-chat {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-tint);
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+
+    &:first-child {
+        border-right: 1px solid var(--rule);
+
+        @media (max-width: 900px) {
+            border-right: none;
+            border-bottom: 1px solid var(--rule);
         }
     }
 
-    &__section-title {
-        font-family: var(--font-display);
-        font-size: var(--fs-lg);
-        color: var(--bone-50);
-        margin-bottom: var(--s-4);
-        letter-spacing: -0.01em;
-    }
-
-    &__composer {
-        background: var(--surface-tint);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-md);
-        padding: var(--s-5);
-        height: fit-content;
-    }
-
-    &__feed-header {
+    &__header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: var(--s-4);
+        padding: var(--s-3) var(--s-4);
+        background: rgba(255, 255, 255, 0.01);
+        border-bottom: 1px solid var(--rule);
+        height: 52px;
+        flex-shrink: 0;
     }
 
-    &__refresh-btn {
+    &__header-info {
         display: flex;
         align-items: center;
         gap: var(--s-2);
-        font-family: var(--font-mono);
-        font-size: var(--fs-xs);
-        text-transform: uppercase;
-        color: var(--bone-300);
-        padding: var(--s-2) var(--s-3);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-pill);
-        background: transparent;
-        transition: all var(--dur-fast) var(--ease-out);
+        min-width: 0;
+    }
 
-        &:hover {
-            color: var(--ember);
-            border-color: var(--ember);
+    &__status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--ember);
+        box-shadow: 0 0 6px var(--ember);
+        display: inline-block;
+        animation: pulse 2s infinite;
+        flex-shrink: 0;
+    }
+
+    &__panel-title {
+        font-family: var(--font-display);
+        font-weight: 500;
+        font-size: var(--fs-sm);
+        color: var(--bone-50);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__user-badge {
+        font-size: var(--fs-xs);
+        color: var(--bone-300);
+        font-family: var(--font-ui);
+        flex-shrink: 0;
+    }
+
+    &__messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--s-4);
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-4);
+        background: rgba(4, 6, 10, 0.2);
+        position: relative;
+
+        &::-webkit-scrollbar {
+            width: 6px;
+        }
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        &::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
         }
     }
 
@@ -555,7 +807,7 @@ export default defineComponent({
         align-items: center;
         justify-content: center;
         gap: var(--s-3);
-        padding: var(--s-9) 0;
+        margin: auto;
         color: var(--bone-300);
     }
 
@@ -570,38 +822,38 @@ export default defineComponent({
 
     &__empty {
         text-align: center;
-        padding: var(--s-9) 0;
+        margin: auto;
+        color: var(--bone-400);
+        padding: var(--s-6);
+        font-family: var(--font-ui);
     }
-}
 
-/* Discussion Form styling */
-.discuss-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-4);
-
-    &__row {
+    &__message-list {
         display: flex;
         flex-direction: column;
+        gap: var(--s-4);
     }
 
-    &__label {
+    /* Composer area */
+    &__composer {
+        background: rgba(255, 255, 255, 0.01);
+        border-top: 1px solid var(--rule);
+        padding: var(--s-3);
         display: flex;
         flex-direction: column;
-        gap: var(--s-2);
+        gap: var(--s-3);
+        flex-shrink: 0;
     }
 
-    &__input,
-    &__textarea,
-    &__select {
+    &__message-input {
+        flex: 1;
         background: var(--ink-950);
         border: 1px solid var(--rule);
+        border-radius: var(--r-pill);
         color: var(--bone-50);
         font-family: var(--font-ui);
         font-size: var(--fs-sm);
-        padding: var(--s-3);
-        border-radius: var(--r-sm);
-        width: 100%;
+        padding: 0.65rem var(--s-4);
         transition: border-color var(--dur-fast) var(--ease-out);
 
         &:focus {
@@ -610,51 +862,90 @@ export default defineComponent({
         }
     }
 
-    &__tagger {
-        display: flex;
-        gap: var(--s-2);
-    }
-
-    &__select {
-        max-width: 120px;
-    }
-
-    &__textarea {
-        resize: vertical;
-    }
-
-    &__submit {
-        align-self: flex-start;
-        margin-top: var(--s-2);
-    }
-}
-
-/* Discussion Feed styling */
-.discuss-feed-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-4);
-}
-
-.discuss-card {
-    background: var(--surface-tint);
-    border: 1px solid var(--rule);
-    border-radius: var(--r-md);
-    padding: var(--s-5);
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-3);
-    transition: all var(--dur-fast) var(--ease-out);
-
-    &--reported {
-        border-color: rgba(255, 0, 0, 0.2);
-        background: rgba(255, 0, 0, 0.02);
-    }
-
-    &__header {
+    &__send-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
-        gap: var(--s-3);
+        justify-content: center;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    /* Login prompt styling */
+    &__login-prompt {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--s-2) var(--s-3);
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: var(--r-md);
+        border: 1px solid var(--rule);
+        gap: var(--s-4);
+        width: 100%;
+
+        p {
+            margin: 0;
+            color: var(--bone-300);
+            font-size: var(--fs-xs);
+        }
+
+        .login-prompt-btn {
+            white-space: nowrap;
+        }
+    }
+}
+
+.discuss-composer-form {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    width: 100%;
+}
+
+/* Chat bubble styling */
+.discuss-msg {
+    display: flex;
+    gap: var(--s-3);
+    align-items: flex-start;
+    max-width: 85%;
+
+    &--self {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+        max-width: 85%;
+
+        .discuss-msg__body {
+            align-items: flex-end;
+        }
+
+        .discuss-msg__bubble {
+            background: linear-gradient(135deg, rgba(255, 90, 31, 0.15) 0%, rgba(255, 90, 31, 0.05) 100%);
+            border-color: rgba(255, 90, 31, 0.25);
+            border-radius: 12px 1px 12px 12px;
+        }
+
+        .discuss-msg__meta {
+            flex-direction: row-reverse;
+        }
+
+        .discuss-msg__actions {
+            justify-content: flex-end;
+        }
+    }
+
+    &--movie-card {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    &--reported {
+        opacity: 0.6;
+        .discuss-msg__bubble {
+            background: rgba(239, 68, 68, 0.03) !important;
+            border-color: rgba(239, 68, 68, 0.2) !important;
+        }
     }
 
     &__avatar {
@@ -665,76 +956,104 @@ export default defineComponent({
         align-items: center;
         justify-content: center;
         font-family: var(--font-ui);
-        font-size: var(--fs-sm);
+        font-size: var(--fs-xs);
+        flex-shrink: 0;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    &__body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-1);
     }
 
     &__meta {
         display: flex;
-        align-items: baseline;
-        flex-wrap: wrap;
+        align-items: center;
         gap: var(--s-2);
+        flex-wrap: wrap;
     }
 
     &__username {
         font-family: var(--font-ui);
         font-weight: 600;
-        font-size: var(--fs-sm);
-        color: var(--bone-50);
+        font-size: var(--fs-xs);
+        color: var(--bone-100);
     }
 
     &__badge {
         font-family: var(--font-mono);
-        font-size: 0.65rem;
-        letter-spacing: 0.05em;
+        font-size: 0.55rem;
+        letter-spacing: 0.03em;
         text-transform: uppercase;
         color: var(--ember);
-        background: rgba(255, 90, 31, 0.1);
-        padding: 1px var(--s-2);
+        background: rgba(255, 90, 31, 0.06);
+        padding: 0px 4px;
         border-radius: var(--r-pill);
-        border: 1px solid rgba(255, 90, 31, 0.25);
+        border: 1px solid rgba(255, 90, 31, 0.15);
+    }
 
-        &--guest {
-            color: var(--bone-400);
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.1);
-        }
+    &__topic-badge {
+        font-family: var(--font-mono);
+        font-size: 0.62rem;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--ember);
+        padding: 1px 8px;
+        border-radius: var(--r-pill);
+        border: 1px solid var(--rule);
     }
 
     &__time {
-        font-size: var(--fs-xs);
+        font-size: 0.65rem;
+        color: var(--bone-400);
     }
 
-    &__tags {
-        margin-left: auto;
-    }
+    &__bubble {
+        background: var(--surface-tint-hover);
+        border: 1px solid var(--rule-strong);
+        border-radius: 1px 12px 12px 12px;
+        padding: 0.5rem 0.85rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        word-break: break-word;
 
-    &__tag {
-        font-family: var(--font-mono);
-        font-size: 0.7rem;
-        background: var(--ink-950);
-        border: 1px solid var(--rule);
-        padding: var(--s-1) var(--s-2);
-        border-radius: var(--r-sm);
-        color: var(--bone-300);
-    }
-
-    &__body {
-        font-family: var(--font-ui);
-        line-height: 1.5;
-        color: var(--bone-200);
-        white-space: pre-wrap;
+        &--movie {
+            border-radius: 4px var(--r-md) var(--r-md) var(--r-md);
+        }
     }
 
     &__text {
         margin: 0;
+        font-family: var(--font-ui);
         font-size: var(--fs-sm);
+        line-height: 1.4;
+        color: var(--bone-100);
     }
 
-    &__footer {
+    &__movie-footer {
         display: flex;
-        justify-content: flex-end;
-        padding-top: var(--s-2);
-        border-top: 1px solid rgba(255, 255, 255, 0.03);
+        justify-content: space-between;
+        align-items: center;
+        margin-top: var(--s-1);
+        width: 100%;
+    }
+
+    &__redirect-link {
+        font-size: 0.62rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: var(--r-pill);
+        text-decoration: none;
+        color: var(--bone-100);
+
+        &:hover {
+            color: var(--ember);
+            background: rgba(255, 90, 31, 0.05);
+        }
+    }
+
+    &__actions {
+        display: flex;
+        width: 100%;
+        margin-top: 2px;
     }
 
     &__report-btn {
@@ -742,24 +1061,24 @@ export default defineComponent({
         align-items: center;
         gap: var(--s-1);
         font-family: var(--font-ui);
-        font-size: var(--fs-xs);
+        font-size: 0.65rem;
         color: var(--bone-400);
         background: transparent;
         border: 0;
         cursor: pointer;
-        padding: var(--s-1) var(--s-2);
+        padding: 2px 4px;
         border-radius: var(--r-sm);
         transition: all var(--dur-fast) var(--ease-out);
 
         &:hover {
             color: #ef4444;
-            background: rgba(239, 68, 68, 0.08);
+            background: rgba(239, 68, 68, 0.06);
         }
     }
 
     &__reported-tag {
         font-family: var(--font-ui);
-        font-size: var(--fs-xs);
+        font-size: 0.65rem;
         color: #ef4444;
         font-weight: 500;
     }
@@ -769,7 +1088,7 @@ export default defineComponent({
 .report-modal {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: 1100;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -778,8 +1097,8 @@ export default defineComponent({
     &__backdrop {
         position: absolute;
         inset: 0;
-        background: rgba(4, 6, 10, 0.8);
-        backdrop-filter: blur(8px);
+        background: rgba(4, 6, 10, 0.85);
+        backdrop-filter: blur(10px);
     }
 
     &__content {
@@ -788,9 +1107,9 @@ export default defineComponent({
         border: 1px solid var(--rule-strong);
         border-radius: var(--r-md);
         padding: var(--s-6);
-        max-width: 480px;
+        max-width: 460px;
         width: 100%;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        box-shadow: 0 30px 80px rgba(0,0,0,0.6);
     }
 
     &__title {
@@ -855,5 +1174,11 @@ export default defineComponent({
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.6; }
+    100% { transform: scale(1); opacity: 1; }
 }
 </style>

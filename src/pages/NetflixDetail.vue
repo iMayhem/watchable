@@ -372,7 +372,7 @@ export default defineComponent({
                 },
                 {
                     season: selectedSeason.value,
-                    routeType: catalogHasEpisodeGuide(item) ? 'tv' : mediaType.value
+                    routeType: mediaType.value
                 }
             );
         };

@@ -372,13 +372,14 @@ export function catalogStreamTarget(
         supportsEpisodes?: boolean;
         season?: number;
         episode?: number;
+        routeType?: 'movie' | 'tv';
     } = {}
 ): CatalogStreamTarget {
     const parsed = parseCatalogTitle(item.title || '');
     const season = opts.season ?? parsed.season ?? 1;
     const episode = opts.episode ?? 1;
 
-    const hasEpisodeGuide = catalogHasEpisodeGuide(item);
+    const hasEpisodeGuide = catalogHasEpisodeGuide(item, opts.routeType);
 
     if (opts.supportsEpisodes && hasEpisodeGuide) {
         return {

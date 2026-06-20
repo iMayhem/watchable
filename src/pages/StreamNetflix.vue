@@ -266,7 +266,10 @@ export default defineComponent({
                 embed_en?: string | null;
                 season?: unknown;
             } | null
-        ) => Boolean(meta?.title && catalogHasEpisodeGuide(meta));
+        ) =>
+            Boolean(
+                meta?.title && catalogHasEpisodeGuide(meta, routeMediaType.value)
+            );
 
         const showEpisodePicker = computed(() => {
             if (isTvRoute.value) return true;
@@ -520,7 +523,9 @@ export default defineComponent({
                     {
                         season,
                         episode,
-                        supportsEpisodes: catalogHasEpisodeGuide(meta) || isTvRoute.value
+                        supportsEpisodes:
+                            catalogHasEpisodeGuide(meta, routeMediaType.value) ||
+                            isTvRoute.value
                     }
                 );
 
@@ -559,7 +564,7 @@ export default defineComponent({
         ): 'movie' | 'tv' => {
             if (isTvRoute.value) return 'tv';
             if (meta?.title) {
-                if (!catalogHasEpisodeGuide(meta)) {
+                if (!catalogHasEpisodeGuide(meta, routeMediaType.value)) {
                     return 'movie';
                 }
                 return inferCatalogMediaType(meta);
@@ -588,7 +593,7 @@ export default defineComponent({
             return (
                 playbackType === 'tv' ||
                 isTvRoute.value ||
-                catalogHasEpisodeGuide(meta)
+                catalogHasEpisodeGuide(meta, routeMediaType.value)
             );
         };
 
@@ -641,7 +646,12 @@ export default defineComponent({
                     embed_en: meta.embed_en,
                     season: meta.season
                 },
-                { season: playbackSeason, routeType: 'tv', tmdbId }
+                {
+                    season: playbackSeason,
+                    routeType:
+                        playbackType === 'tv' || isTvRoute.value ? 'tv' : 'movie',
+                    tmdbId
+                }
             );
         };
 
@@ -726,7 +736,10 @@ export default defineComponent({
                           season: routeSeason,
                           episode: routeEpisode,
                           supportsEpisodes:
-                              catalogHasEpisodeGuide(catalogMeta) || isTvRoute.value
+                              catalogHasEpisodeGuide(
+                                  catalogMeta,
+                                  routeMediaType.value
+                              ) || isTvRoute.value
                       }
                   )
                 : null;

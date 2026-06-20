@@ -255,6 +255,11 @@ function inferCatalogMediaType(item) {
   if (mt === 'tv') {
     if (isEmbedOnlyCatalogFilm(item)) return 'movie';
     if (CATALOG_FEATURE_FILM_PATTERN.test(raw)) return 'movie';
+    if (hasCatalogSeasonData(item?.season)) return 'tv';
+    if (/\bS\d{1,2}(?:-S\d+)?\b/i.test(raw) || CATALOG_SERIES_PATTERN.test(raw)) {
+      return 'tv';
+    }
+    if (Boolean(String(item?.subjectid || '').trim())) return 'movie';
     if (looksLikeFeatureFilm(item)) return 'movie';
     return 'tv';
   }

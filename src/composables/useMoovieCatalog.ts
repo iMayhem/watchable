@@ -158,9 +158,12 @@ export function inferCatalogMediaType(item: CatalogMediaSignals & { type?: strin
     if (mt === 'tv') {
         if (isEmbedOnlyCatalogFilm(item)) return 'movie';
         if (CATALOG_FEATURE_FILM_PATTERN.test(raw)) return 'movie';
-        if (hasCatalogSeasonData(item.season) || Boolean(String(item.subjectid || '').trim())) {
+        if (hasCatalogSeasonData(item.season)) return 'tv';
+        if (/\bS\d{1,2}(?:-S\d+)?\b/i.test(raw) || CATALOG_SERIES_PATTERN.test(raw)) {
             return 'tv';
         }
+        // subjectid powers watchbox for standalone films mis-tagged as tv.
+        if (Boolean(String(item.subjectid || '').trim())) return 'movie';
         if (looksLikeFeatureFilm(item)) return 'movie';
         return 'tv';
     }
@@ -209,8 +212,8 @@ export function catalogHasEpisodeGuide(
         return true;
     }
 
-    // Watchbox-capable series carry subjectid even when the title omits S1.
-    return Boolean(String(item.subjectid || '').trim());
+    // subjectid alone also covers single-title watchbox films — need season rows for episode UI.
+    return false;
 }
 
 const CATALOG_API = '/api/moovie-catalog';

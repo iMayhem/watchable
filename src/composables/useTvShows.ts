@@ -147,6 +147,14 @@ export interface TVShowSeasonDetails {
 }
 
 export const newShows = ref<TVShowType[]>([])
+const discoverShowsCache = new Map<string, Promise<any>>();
+const tvShowDetailsCache = new Map<string, Promise<any>>();
+const tvShowCreditsCache = new Map<string, Promise<any>>();
+const tvShowImagesCache = new Map<string, Promise<any>>();
+const similarTvShowsCache = new Map<string, Promise<any>>();
+const tvShowSeasonDetailsCache = new Map<string, Promise<any>>();
+const tvShowVideosCache = new Map<string, Promise<any>>();
+
 export const useTvShows = () => {
     const fetchNewShows = async () => {
         let loading = ref(false)
@@ -182,13 +190,16 @@ export const useTvShows = () => {
         let data = ref<TVShowResponse>()
         try {
             loading.value = true
-            const req = useAxios().get(url)
-            const res = (await req).data
+            if (!discoverShowsCache.has(url)) {
+                discoverShowsCache.set(url, useAxios().get(url).then(r => r.data));
+            }
+            const res = await discoverShowsCache.get(url)!;
             if (res.results) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            discoverShowsCache.delete(url);
         } finally {
             loading.value = false
         }
@@ -204,13 +215,16 @@ export const useTvShows = () => {
         let data = ref<TVShowDetails>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/tv/${id}`)
-            const res = (await req).data
+            if (!tvShowDetailsCache.has(id)) {
+                tvShowDetailsCache.set(id, useAxios().get(`https://api.themoviedb.org/3/tv/${id}`).then(r => r.data));
+            }
+            const res = await tvShowDetailsCache.get(id)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            tvShowDetailsCache.delete(id);
         } finally {
             loading.value = false
         }
@@ -226,13 +240,16 @@ export const useTvShows = () => {
         let data = ref<MovieCredit>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/tv/${id}/credits`)
-            const res = (await req).data
+            if (!tvShowCreditsCache.has(id)) {
+                tvShowCreditsCache.set(id, useAxios().get(`https://api.themoviedb.org/3/tv/${id}/credits`).then(r => r.data));
+            }
+            const res = await tvShowCreditsCache.get(id)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            tvShowCreditsCache.delete(id);
         } finally {
             loading.value = false
         }
@@ -248,13 +265,18 @@ export const useTvShows = () => {
         let data = ref<MovieImages>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/tv/${id}/images?include_image_language=en`)
-            const res = (await req).data
+            const url = `https://api.themoviedb.org/3/tv/${id}/images?include_image_language=en`;
+            if (!tvShowImagesCache.has(url)) {
+                tvShowImagesCache.set(url, useAxios().get(url).then(r => r.data));
+            }
+            const res = await tvShowImagesCache.get(url)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            const url = `https://api.themoviedb.org/3/tv/${id}/images?include_image_language=en`;
+            tvShowImagesCache.delete(url);
         } finally {
             loading.value = false
         }
@@ -270,13 +292,18 @@ export const useTvShows = () => {
         let data = ref<TVShowResponse>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/tv/${id}/similar?language=en-US&page=1`)
-            const res = (await req).data
+            const url = `https://api.themoviedb.org/3/tv/${id}/similar?language=en-US&page=1`;
+            if (!similarTvShowsCache.has(url)) {
+                similarTvShowsCache.set(url, useAxios().get(url).then(r => r.data));
+            }
+            const res = await similarTvShowsCache.get(url)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            const url = `https://api.themoviedb.org/3/tv/${id}/similar?language=en-US&page=1`;
+            similarTvShowsCache.delete(url);
         } finally {
             loading.value = false
         }
@@ -292,13 +319,18 @@ export const useTvShows = () => {
         let data = ref<TVShowSeasonDetails>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/tv/${id}/season/${season}`)
-            const res = (await req).data
+            const url = `https://api.themoviedb.org/3/tv/${id}/season/${season}`;
+            if (!tvShowSeasonDetailsCache.has(url)) {
+                tvShowSeasonDetailsCache.set(url, useAxios().get(url).then(r => r.data));
+            }
+            const res = await tvShowSeasonDetailsCache.get(url)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            const url = `https://api.themoviedb.org/3/tv/${id}/season/${season}`;
+            tvShowSeasonDetailsCache.delete(url);
         } finally {
             loading.value = false
         }
@@ -318,16 +350,18 @@ export const useTvShows = () => {
         }>()
         try {
             loading.value = true
-            const req = useAxios().get(`https://api.themoviedb.org/3/tv/${id}/videos?language=en-US`)
-            const res = (await req).data as {
-                id: string,
-                results: MovieVideo[]
+            const url = `https://api.themoviedb.org/3/tv/${id}/videos?language=en-US`;
+            if (!tvShowVideosCache.has(url)) {
+                tvShowVideosCache.set(url, useAxios().get(url).then(r => r.data));
             }
+            const res = await tvShowVideosCache.get(url)!;
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
+            const url = `https://api.themoviedb.org/3/tv/${id}/videos?language=en-US`;
+            tvShowVideosCache.delete(url);
         } finally {
             loading.value = false
         }

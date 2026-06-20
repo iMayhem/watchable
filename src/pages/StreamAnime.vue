@@ -106,6 +106,29 @@
                         </div>
                     </details>
 
+                    <!-- Mobile and Tablet direct sub/dub toggle button -->
+                    <div
+                        v-if="availableServers[activeServerIndex]?.name !== 'Videasy'"
+                        class="watch-stage__lang-toggle"
+                    >
+                        <button
+                            type="button"
+                            class="watch-stage__lang-btn"
+                            :class="{ 'is-active': activeLanguage === 'sub' }"
+                            @click="activeLanguage = 'sub'"
+                        >
+                            SUB
+                        </button>
+                        <button
+                            type="button"
+                            class="watch-stage__lang-btn"
+                            :class="{ 'is-active': activeLanguage === 'dub' }"
+                            @click="activeLanguage = 'dub'"
+                        >
+                            DUB
+                        </button>
+                    </div>
+
                     <ServerAccordion
                         variant="dropdown"
                         :servers="availableServers"
@@ -209,6 +232,32 @@
                             </div>
                         </div>
                     </header>
+
+                    <!-- mobile season switcher -->
+                    <div v-if="seasonsList.length > 1" class="mobile-season-selector">
+                        <label class="eyebrow" for="mobile-season-select">Season / Arc</label>
+                        <div class="mobile-season-select-wrapper">
+                            <select
+                                id="mobile-season-select"
+                                :value="activeSeasonSelectValue"
+                                class="mobile-season-select"
+                                @change="goToSeason(Number(($event.target as HTMLSelectElement).value))"
+                            >
+                                <option
+                                    v-for="s in seasonsList"
+                                    :key="s.id"
+                                    :value="s.id"
+                                >
+                                    {{ s.label }}
+                                </option>
+                            </select>
+                            <span class="mobile-season-select-arrow" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width: 14px; height: 14px;">
+                                    <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
 
                     <!-- paginated grid of episodes matching reference design -->
                     <div class="episode-grid-container">
@@ -1326,6 +1375,47 @@ export default defineComponent({
         &[open] .watch-stage__options-trigger svg {
             transform: rotate(180deg);
         }
+
+        @media (max-width: 1023px) {
+            display: none !important;
+        }
+    }
+
+    &__lang-toggle {
+        display: none;
+
+        @media (max-width: 1023px) {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--rule-strong);
+            border-radius: var(--r-pill);
+            padding: 3px;
+            height: 36px;
+            box-sizing: border-box;
+            gap: 2px;
+        }
+    }
+
+    &__lang-btn {
+        all: unset;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 0.65rem;
+        height: 100%;
+        font-family: var(--font-ui);
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--bone-400);
+        border-radius: var(--r-pill);
+        cursor: pointer;
+        transition: all var(--dur-fast);
+
+        &.is-active {
+            background: var(--ember);
+            color: var(--ink-950);
+        }
     }
 
     &__options-trigger {
@@ -2064,6 +2154,52 @@ export default defineComponent({
     text-align: center;
     padding: var(--s-5);
     color: var(--bone-400);
+}
+
+.mobile-season-selector {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: var(--s-4);
+    margin-bottom: var(--s-3);
+
+    .mobile-season-select-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 240px;
+    }
+
+    .mobile-season-select {
+        width: 100%;
+        padding: 0.55rem 2.25rem 0.55rem 0.85rem;
+        background: var(--ink-700);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-md);
+        color: var(--bone-50);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        cursor: pointer;
+        appearance: none;
+        outline: none;
+        transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+
+        &:hover, &:focus {
+            border-color: var(--ember);
+        }
+    }
+
+    .mobile-season-select-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: var(--bone-400);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 }
 
 .season-switcher {

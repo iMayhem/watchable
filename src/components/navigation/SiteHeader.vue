@@ -814,6 +814,7 @@ export default defineComponent({
             align-items: center;
             gap: var(--s-1);
             overflow: visible;
+            max-width: calc(100% - 320px);
 
             .site-header__link {
                 flex-shrink: 0;

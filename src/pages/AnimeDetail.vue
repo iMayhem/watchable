@@ -6,6 +6,7 @@
             <section class="anime-detail__snap-slide">
                 <TitleMasthead
                     :id="tmdbIdRef || ''"
+                    :party-id="anime?.id"
                     type="anime"
                     :title="anime ? (anime.title.english || anime.title.romaji || anime.title.native) : ''"
                     :tagline="anime ? anime.title.native : ''"

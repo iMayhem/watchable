@@ -1548,6 +1548,68 @@
             document.getElementById('create-view').classList.add('active');
         }
 
+        async function resolvePartyAnilistId(rawId) {
+            const numeric = Number.parseInt(String(rawId), 10);
+            if (!Number.isFinite(numeric) || numeric <= 0) return String(rawId);
+
+            try {
+                const res = await fetch('https://graphql.anilist.co', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: 'query ($id: Int) { Media(id: $id, type: ANIME) { id } }',
+                        variables: { id: numeric }
+                    })
+                });
+                const json = await res.json();
+                const anilistId = json?.data?.Media?.id;
+                if (anilistId) return String(anilistId);
+            } catch (err) {
+                console.warn('party:anilist:lookup:fail', err);
+            }
+
+            try {
+                const tmdbRes = await fetch(
+                    `/api/tmdb/3/tv/${numeric}?api_key=${PARTY_TMDB_API_KEY}&language=en-US`
+                );
+                if (!tmdbRes.ok) return String(rawId);
+                const show = await tmdbRes.json();
+                const searchTitle = show?.name || show?.original_name;
+                if (!searchTitle) return String(rawId);
+
+                const searchRes = await fetch('https://graphql.anilist.co', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: `query ($search: String) {
+                          Page(page: 1, perPage: 5) {
+                            media(search: $search, type: ANIME, format_in: [TV, ONA, SPECIAL, MOVIE]) {
+                              id
+                              title { romaji english native }
+                            }
+                          }
+                        }`,
+                        variables: { search: searchTitle }
+                    })
+                });
+                const searchJson = await searchRes.json();
+                const results = searchJson?.data?.Page?.media || [];
+                const normalized = searchTitle.toLowerCase();
+                const exact = results.find((row) => {
+                    const titles = [row.title?.english, row.title?.romaji, row.title?.native]
+                        .filter(Boolean)
+                        .map((v) => v.toLowerCase());
+                    return titles.includes(normalized);
+                });
+                const match = exact || results[0];
+                if (match?.id) return String(match.id);
+            } catch (err) {
+                console.warn('party:anilist:resolve:tmdb:fail', err);
+            }
+
+            return String(rawId);
+        }
+
         async function showRoomView(room) {
             if (lobbyChannels && lobbyChannels.length) {
                 lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
@@ -1559,6 +1621,13 @@
             
             // Resolve media params and URLs first
             parseMediaParams(room.embed_sources);
+
+            if (isAnime && !isNetflix) {
+                const resolvedAnilistId = await resolvePartyAnilistId(mediaId);
+                if (resolvedAnilistId && resolvedAnilistId !== String(mediaId)) {
+                    mediaId = resolvedAnilistId;
+                }
+            }
 
             document.body.classList.add('cinema-mode');
 

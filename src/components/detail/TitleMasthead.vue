@@ -333,15 +333,17 @@ export default defineComponent({
             iframeRef.value = el;
         };
 
-        const partyHref = computed(() =>
-            buildPartyHref({
+        const partyHref = computed(() => {
+            // Global anime parties must use AniList ids — route/detail ids are TMDB.
+            if (props.type === 'anime' && props.partyId == null) return '';
+            return buildPartyHref({
                 id: props.id,
                 partyId: props.partyId ?? undefined,
                 title: props.title,
                 type: props.type,
                 source: props.partySource
-            })
-        );
+            });
+        });
 
         return {
             goBackToIssue,

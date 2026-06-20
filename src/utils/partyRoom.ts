@@ -13,7 +13,12 @@ export interface PartyRoomInput {
 }
 
 function resolvePartyMediaId(input: PartyRoomInput): string {
+    const type = input.type || 'movie';
     const partyId = input.partyId != null ? String(input.partyId).trim() : '';
+    if (type === 'anime') {
+        // Global anime embeds require AniList ids — never fall back to TMDB route ids.
+        return partyId || String(input.id || '').trim();
+    }
     if (partyId) return partyId;
     return String(input.id || '').trim();
 }

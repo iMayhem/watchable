@@ -137,7 +137,7 @@
                     />
 
                     <a
-                        v-if="anime"
+                        v-if="anime && partyHref"
                         :href="partyHref"
                         class="watch-stage__party-btn"
                         title="Watch Together with friends!"
@@ -348,6 +348,7 @@ import {
     type AnimeTmdbEpisode
 } from '../composables/useAnimeTmdbArtwork';
 import { useWebImage } from '../utils/useWebImage';
+import { buildStreamPartyHref } from '../utils/partyRoom';
 
 export default defineComponent({
     name: 'StreamAnime',
@@ -555,12 +556,21 @@ export default defineComponent({
             );
         });
 
+        const resolvedAnilistId = computed(() => {
+            if (anime.value?.id) return anime.value.id;
+            return getAnilistIdForTmdbId(animeId.value) ?? null;
+        });
+
         const partyHref = computed(() => {
-            const titleStr = `${animeTitle.value} - Episode ${currentEpisode.value}`;
-            // The party player (party.js) uses the room's media ID directly as the AniList ID
-            // to build the embed URL. We must use the AniList ID here, NOT the TMDB ID.
-            const anilistId = getAnilistIdForTmdbId(animeId.value) || anime.value?.id || animeId.value;
-            return `/party/?room=anime_${anilistId}_ep${currentEpisode.value}&title=${encodeURIComponent(titleStr)}`;
+            const anilistId = resolvedAnilistId.value;
+            if (!anilistId) return '';
+            return buildStreamPartyHref({
+                id: anilistId,
+                partyId: anilistId,
+                title: `${animeTitle.value} - Episode ${currentEpisode.value}`,
+                type: 'anime',
+                episode: currentEpisode.value
+            });
         });
 
         const seasonsList = computed(() => {

@@ -11,8 +11,7 @@ export interface StreamExtensionInfo {
 const extensionActive = ref(false);
 const extensionInfo = ref<StreamExtensionInfo | null>(null);
 let subscriberCount = 0;
-let intervalId: number | null = null;
-let bootstrapIntervalId: number | null = null;
+
 let domObserver: MutationObserver | null = null;
 let listenersBound = false;
 
@@ -22,10 +21,6 @@ const applyDetection = (info: StreamExtensionInfo | null, source: string) => {
         nfDebug('extension:detected', { active, source, version: info?.version, mode: info?.mode });
         extensionActive.value = active;
         extensionInfo.value = info;
-        if (active && intervalId !== null) {
-            window.clearInterval(intervalId);
-            intervalId = null;
-        }
     } else if (active && info) {
         extensionInfo.value = info;
     }
@@ -98,13 +93,6 @@ const pingExtension = () => {
     }
 };
 
-function stopBootstrapPoll() {
-    if (bootstrapIntervalId !== null) {
-        window.clearInterval(bootstrapIntervalId);
-        bootstrapIntervalId = null;
-    }
-}
-
 function bindDomObserver() {
     if (domObserver || typeof MutationObserver === 'undefined') return;
 
@@ -128,30 +116,14 @@ function bindGlobalListeners() {
     window.addEventListener('moovie-stream-ext-ready', onExtensionReady);
     window.addEventListener('moovie-stream-ext-pong', onExtensionPong);
     bindDomObserver();
-
-    let bootstrapAttempts = 0;
-    bootstrapIntervalId = window.setInterval(() => {
-        bootstrapAttempts += 1;
-        pingExtension();
-        if (extensionActive.value || bootstrapAttempts >= 20) {
-            stopBootstrapPoll();
-        }
-    }, 150);
-
-    intervalId = window.setInterval(() => {
-        if (!extensionActive.value) pingExtension();
-    }, 5000);
+    // Single immediate check — no polling
+    pingExtension();
 }
 
 function unbindGlobalListeners() {
     if (subscriberCount > 0 || !listenersBound) return;
     window.removeEventListener('moovie-stream-ext-ready', onExtensionReady);
     window.removeEventListener('moovie-stream-ext-pong', onExtensionPong);
-    stopBootstrapPoll();
-    if (intervalId !== null) {
-        window.clearInterval(intervalId);
-        intervalId = null;
-    }
     domObserver?.disconnect();
     domObserver = null;
     listenersBound = false;

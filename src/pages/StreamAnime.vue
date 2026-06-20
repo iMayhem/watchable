@@ -1225,13 +1225,13 @@ export default defineComponent({
         margin: 0;
         color: var(--bone-50);
 
-        @media (max-width: 640px) {
+        @media (max-width: 1023px) {
             display: none !important;
         }
     }
 
     &__title-skeleton {
-        @media (max-width: 640px) {
+        @media (max-width: 1023px) {
             display: none !important;
         }
     }

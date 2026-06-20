@@ -355,7 +355,7 @@ export default defineComponent({
             font-size: var(--fs-xl);
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 1023px) {
             display: none !important;
         }
     }
@@ -369,7 +369,7 @@ export default defineComponent({
         background: var(--surface-tint);
         border-radius: var(--r-pill);
 
-        @media (max-width: 640px) {
+        @media (max-width: 1023px) {
             display: none !important;
         }
     }

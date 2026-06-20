@@ -60,7 +60,7 @@ import { viewHistory } from '../../composables/useHistory';
 import { streamData } from '../../composables/useStream';
 import { getProgressPercent } from '../../composables/useProgress';
 import { useWebImage } from '../../utils/useWebImage';
-import { getCachedAnimeTmdbArtwork } from '../../composables/useAnimeTmdbArtwork';
+import { getCachedAnimeTmdbArtwork, resolveAnimeTmdbMetaByTmdbId } from '../../composables/useAnimeTmdbArtwork';
 
 interface Entry {
     id: number | string;
@@ -87,15 +87,19 @@ export default defineComponent({
             return viewHistory.value.map(item => {
                 const id = String(item.id);
                 const state = streamData.value.movieServerMap[id];
-                const animePoster = item.type === 'anime'
+                const isTv = item.type === 'tv';
+                const isAnime = item.type === 'anime';
+
+                if (isAnime && !getCachedAnimeTmdbArtwork(Number(item.id))) {
+                    void resolveAnimeTmdbMetaByTmdbId(Number(item.id));
+                }
+
+                const animePoster = isAnime
                     ? getCachedAnimeTmdbArtwork(Number(item.id))?.posterPath
                     : null;
                 const imagePath = animePoster || item.image;
                 const image = imagePath ? useWebImage(imagePath, 'medium') : '';
                 const initial = (item.title?.[0] || '·').toUpperCase();
-
-                const isTv = item.type === 'tv';
-                const isAnime = item.type === 'anime';
                 const season = state?.season && state.season > 0 ? state.season : 1;
                 const episode = state?.episode && state.episode > 0 ? state.episode : 1;
 

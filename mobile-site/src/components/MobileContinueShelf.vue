@@ -57,7 +57,7 @@ import { streamData } from '@/composables/useStream';
 import { getProgressPercent } from '@/composables/useProgress';
 import { useWebImage } from '@/utils/useWebImage';
 import { useAppPaths } from '@/composables/useAppPaths';
-import { getCachedAnimeTmdbArtwork } from '@/composables/useAnimeTmdbArtwork';
+import { getCachedAnimeTmdbArtwork, resolveAnimeTmdbMetaByTmdbId } from '@/composables/useAnimeTmdbArtwork';
 
 interface Entry {
     id: number | string;
@@ -88,6 +88,9 @@ export default defineComponent({
                 const isTv = item.type === 'tv';
                 const isAnime = item.type === 'anime';
                 const state = streamData.value.movieServerMap[id];
+                if (isAnime && !getCachedAnimeTmdbArtwork(Number(item.id))) {
+                    void resolveAnimeTmdbMetaByTmdbId(Number(item.id));
+                }
                 const animePoster = isAnime
                     ? getCachedAnimeTmdbArtwork(Number(item.id))?.posterPath
                     : null;

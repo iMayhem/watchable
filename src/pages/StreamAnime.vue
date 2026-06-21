@@ -802,20 +802,17 @@ export default defineComponent({
         const mapBrowsableToEpisodes = (
             eps: EpisodeLike[],
             seasonNumber: number,
-            fallbackImg: string,
+            fallbackStillPath: string,
             fallbackDesc: string
         ): Episode[] => {
             return eps.map((ep) => {
                 const tmdbEp = ep as AnimeTmdbEpisode;
-                const stillPath = tmdbEp.still_path
-                    ? useWebImage(tmdbEp.still_path, 'medium')
-                    : fallbackImg;
                 return {
                     ...ep,
                     id: ep.episode_number,
                     name: ep.name || `Episode ${ep.episode_number}`,
                     overview: tmdbEp.overview || fallbackDesc,
-                    still_path: stillPath,
+                    still_path: tmdbEp.still_path || fallbackStillPath || '',
                     air_date: ep.air_date || '',
                     episode_number: ep.episode_number,
                     season_number: tmdbEp.season_number ?? seasonNumber,
@@ -889,12 +886,13 @@ export default defineComponent({
 
             isLoadingEpisodes.value = true;
             try {
-                const fallbackImg = tmdbPosterPath.value;
+                const fallbackStillPath =
+                    tmdbArtwork.value?.posterPath || tmdbArtwork.value?.backdropPath || '';
                 const desc = tmdbShow.value?.overview || '';
                 const current = buildSeasonEpisodeList(
                     raw,
                     navigatorSeason.value,
-                    fallbackImg,
+                    fallbackStillPath,
                     desc
                 );
                 seasonEpisodes.value = current.list;
@@ -906,7 +904,7 @@ export default defineComponent({
                         const next = buildSeasonEpisodeList(
                             nextRaw,
                             nextSeasonNumber.value,
-                            tmdbPosterPath.value || nextSeasonCoverImage.value,
+                            fallbackStillPath,
                             ''
                         );
                         nextSeasonEpisodes.value = next.list;

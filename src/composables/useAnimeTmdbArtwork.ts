@@ -27,6 +27,22 @@ type TmdbSeasonMeta = {
     episode_count?: number;
 };
 
+export type TmdbAnimeShowDetails = {
+    id: number;
+    name: string;
+    original_name?: string;
+    overview?: string;
+    poster_path?: string | null;
+    backdrop_path?: string | null;
+    first_air_date?: string;
+    vote_average?: number;
+    status?: string;
+    number_of_episodes?: number;
+    genres?: Array<{ id: number; name: string }>;
+    networks?: Array<{ name: string }>;
+    seasons?: TmdbSeasonMeta[];
+};
+
 export interface AnimeTmdbArtwork {
     tmdbId: number | null;
     mediaType: 'movie' | 'tv';
@@ -67,6 +83,9 @@ type AnilistMediaFields = {
 const artworkCache = new Map<number, AnimeTmdbArtwork | null>();
 /** TMDB-keyed cache when AniList id mapping is not yet available. */
 const tmdbOnlyCache = new Map<number, AnimeTmdbArtwork>();
+const tmdbShowDetailsCache = new Map<number, TmdbAnimeShowDetails>();
+const animePrefetchInFlight = new Set<number>();
+const TMDB_SEARCH_CONFIDENCE = 88;
 /** TMDB id → AniList id for video embeds only. */
 const tmdbToAnilistPlaybackId = new Map<number, number>();
 const ANIMATION_GENRE_ID = 16;
@@ -210,6 +229,44 @@ function scoreTmdbCandidate(
     return score;
 }
 
+async function searchTmdbTitleVariant(
+    title: string,
+    searchType: 'movie' | 'tv',
+    year: number | undefined,
+    isMovie: boolean,
+    media: AnilistMediaFields,
+    axios: ReturnType<typeof useAxios>
+): Promise<{ hit: TmdbSearchHit; score: number } | null> {
+    const attempts: Record<string, string | number>[] = [{ query: title }];
+    if (year && isMovie) {
+        attempts.push({ query: title, year });
+    }
+
+    let best: TmdbSearchHit | null = null;
+    let bestScore = -1;
+
+    for (const params of attempts) {
+        const res = await axios.get(`search/${searchType}`, { params });
+        const results = (res?.data?.results || []) as TmdbSearchHit[];
+        if (!results.length) continue;
+
+        const animated = results.filter((row) =>
+            row.genre_ids?.includes(ANIMATION_GENRE_ID)
+        );
+        const pool = animated.length ? animated : results;
+
+        for (const hit of pool) {
+            const score = scoreTmdbCandidate(hit, media, title);
+            if (score > bestScore) {
+                bestScore = score;
+                best = hit;
+            }
+        }
+    }
+
+    return best?.id ? { hit: best, score: bestScore } : null;
+}
+
 async function findAnimatedTmdbShow(
     media: AnilistMediaFields
 ): Promise<{ id: number; poster_path?: string | null; backdrop_path?: string | null } | null> {
@@ -217,34 +274,29 @@ async function findAnimatedTmdbShow(
     const searchType = isMovie ? 'movie' : 'tv';
     const year = media.seasonYear || media.startDate?.year || undefined;
     const axios = useAxios();
+    const titles = searchTitles(media);
 
     let best: TmdbSearchHit | null = null;
     let bestScore = -1;
+    const chunkSize = 3;
 
-    for (const title of searchTitles(media)) {
-        const attempts: Record<string, string | number>[] = [{ query: title }];
-        if (year && isMovie) {
-            attempts.push({ query: title, year });
-        }
+    for (let i = 0; i < titles.length; i += chunkSize) {
+        const chunk = titles.slice(i, i + chunkSize);
+        const rows = await Promise.all(
+            chunk.map((title) =>
+                searchTmdbTitleVariant(title, searchType, year, isMovie, media, axios)
+            )
+        );
 
-        for (const params of attempts) {
-            const res = await axios.get(`search/${searchType}`, { params });
-            const results = (res?.data?.results || []) as TmdbSearchHit[];
-            if (!results.length) continue;
-
-            const animated = results.filter((row) =>
-                row.genre_ids?.includes(ANIMATION_GENRE_ID)
-            );
-            const pool = animated.length ? animated : results;
-
-            for (const hit of pool) {
-                const score = scoreTmdbCandidate(hit, media, title);
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = hit;
-                }
+        for (const row of rows) {
+            if (!row) continue;
+            if (row.score > bestScore) {
+                bestScore = row.score;
+                best = row.hit;
             }
         }
+
+        if (bestScore >= TMDB_SEARCH_CONFIDENCE) break;
     }
 
     return best?.id ? best : null;
@@ -608,10 +660,14 @@ async function resolveTmdbShowDetails(
         backdropPath = movieRes?.data?.backdrop_path ?? backdropPath;
     } else {
         const showRes = await axios.get(`tv/${show.id}`);
-        posterPath = showRes?.data?.poster_path ?? posterPath;
-        backdropPath = showRes?.data?.backdrop_path ?? backdropPath;
-        tmdbSeasons = showRes?.data?.seasons || [];
-        tmdbTotalEpisodes = showRes?.data?.number_of_episodes ?? 0;
+        const data = showRes?.data;
+        if (data) {
+            cacheTmdbShowDetails(data);
+            posterPath = data.poster_path ?? posterPath;
+            backdropPath = data.backdrop_path ?? backdropPath;
+            tmdbSeasons = data.seasons || [];
+            tmdbTotalEpisodes = data.number_of_episodes ?? 0;
+        }
     }
 
     return {
@@ -701,10 +757,15 @@ function buildArtworkResult(
     };
 }
 
+type ResolveAnimeTmdbMetaOptions = {
+    deferFranchise?: boolean;
+};
+
 /** Fast path: poster, backdrop, and episode count only (one TMDB show lookup). */
 export async function resolveAnimeTmdbMeta(
     anilistId: number,
-    media: AnilistMediaFields
+    media: AnilistMediaFields,
+    options: ResolveAnimeTmdbMetaOptions = {}
 ): Promise<AnimeTmdbArtwork | null> {
     const cached = artworkCache.get(anilistId);
     if (cached?.posterPath && (cached.totalEpisodeCount ?? 0) > 0) {
@@ -726,13 +787,35 @@ export async function resolveAnimeTmdbMeta(
             cached?.episodes ?? [],
             cached?.episodesLoaded ?? false
         );
-        await populateSeasonTabsAnilistIds(anilistId, media, result);
+        if (options.deferFranchise) {
+            void populateSeasonTabsAnilistIds(anilistId, media, result);
+        } else {
+            await populateSeasonTabsAnilistIds(anilistId, media, result);
+        }
         artworkCache.set(anilistId, result);
         return result;
     } catch (err) {
         console.warn('Failed to load TMDB anime meta:', err);
         return null;
     }
+}
+
+/** Warm TMDB mapping + artwork on browse hover (best-effort). */
+export function prefetchAnimeTmdbArtwork(
+    anilistId: number,
+    media: AnilistMediaFields
+): void {
+    if (!anilistId || animePrefetchInFlight.has(anilistId)) return;
+
+    const cached = artworkCache.get(anilistId);
+    if (cached?.tmdbId && cached.posterPath) return;
+
+    animePrefetchInFlight.add(anilistId);
+    void resolveAnimeTmdbMeta(anilistId, media, { deferFranchise: true })
+        .catch(() => null)
+        .finally(() => {
+            animePrefetchInFlight.delete(anilistId);
+        });
 }
 
 /** Loads full per-episode TMDB data; safe to call in the background. */
@@ -849,8 +932,12 @@ export async function resolveAnimeTmdbMetaByTmdbId(
 
     const axios = useAxios();
     try {
-        const showRes = await axios.get(`tv/${tmdbId}`);
-        const show = showRes?.data;
+        let show = tmdbShowDetailsCache.get(tmdbId) ?? null;
+        if (!show) {
+            const showRes = await axios.get(`tv/${tmdbId}`);
+            show = showRes?.data ?? null;
+            if (show) cacheTmdbShowDetails(show);
+        }
         if (!show) return null;
 
         const details = {
@@ -941,28 +1028,23 @@ export async function resolveAnimeTmdbMetaByTmdbId(
     }
 }
 
-export type TmdbAnimeShowDetails = {
-    id: number;
-    name: string;
-    original_name?: string;
-    overview?: string;
-    poster_path?: string | null;
-    backdrop_path?: string | null;
-    first_air_date?: string;
-    vote_average?: number;
-    status?: string;
-    number_of_episodes?: number;
-    genres?: Array<{ id: number; name: string }>;
-    networks?: Array<{ name: string }>;
-};
+function cacheTmdbShowDetails(show: TmdbAnimeShowDetails): void {
+    if (!show?.id) return;
+    tmdbShowDetailsCache.set(show.id, show);
+}
 
 export async function fetchTmdbAnimeShowDetails(
     tmdbId: number
 ): Promise<TmdbAnimeShowDetails | null> {
+    const cached = tmdbShowDetailsCache.get(tmdbId);
+    if (cached) return cached;
+
     const axios = useAxios();
     try {
         const res = await axios.get(`tv/${tmdbId}`);
-        return res?.data ?? null;
+        const data = res?.data ?? null;
+        if (data) cacheTmdbShowDetails(data);
+        return data;
     } catch (err) {
         console.warn('Failed to fetch TMDB anime show details:', tmdbId, err);
         return null;
@@ -981,7 +1063,9 @@ export async function resolveAnimeRouteIds(
 
     const anilistMedia = await lookupAnilistMedia(routeId).catch(() => null);
     if (anilistMedia?.id) {
-        const meta = await resolveAnimeTmdbMeta(anilistMedia.id, anilistMedia);
+        const meta = await resolveAnimeTmdbMeta(anilistMedia.id, anilistMedia, {
+            deferFranchise: true
+        });
         const tmdbId = meta?.tmdbId ?? routeId;
         registerTmdbAnilistPlaybackId(tmdbId, anilistMedia.id);
         return {
@@ -1020,8 +1104,12 @@ export async function resolveAnimeTmdbEpisodesByTmdbId(
 ): Promise<AnimeTmdbEpisode[]> {
     const axios = useAxios();
     try {
-        const showRes = await axios.get(`tv/${tmdbId}`);
-        const show = showRes?.data;
+        let show = tmdbShowDetailsCache.get(tmdbId) ?? null;
+        if (!show) {
+            const showRes = await axios.get(`tv/${tmdbId}`);
+            show = showRes?.data ?? null;
+            if (show) cacheTmdbShowDetails(show);
+        }
         if (!show) return [];
 
         const episodes = await fetchFlattenedTmdbEpisodes(tmdbId, show.seasons || []);

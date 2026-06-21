@@ -77,7 +77,7 @@
                             type="anime"
                             :title="anime.title.english || anime.title.romaji"
                             :original-title="anime.title.native || anime.title.romaji"
-                            :poster-path="anime.coverImage?.large || null"
+                            :poster-path="anime.coverImage?.large || anime.coverImage?.medium || null"
                             :rating="anime.averageScore ? anime.averageScore / 10 : 0"
                             :release-date="anime.seasonYear?.toString() || ''"
                             :genre-ids="[]"

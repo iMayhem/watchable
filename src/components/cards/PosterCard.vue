@@ -128,6 +128,7 @@ import {
     prefetchMoovieResolve,
     warmMooviePlayerAssets
 } from '../../composables/useMooviePlayer';
+import { prefetchAnimeTmdbArtwork } from '../../composables/useAnimeTmdbArtwork';
 
 
 type MediaType = 'movie' | 'tv' | 'anime';
@@ -182,14 +183,17 @@ export default defineComponent({
             const path = effectivePosterPath.value;
             if (!path) return '';
             const isAnilist = /anilist\.co/i.test(path);
+            const isAnime = props.type === 'anime' || isAnilist;
             const size =
-                props.size === 'lg' || isAnilist
+                props.size === 'lg'
                     ? 'large'
                     : props.size === 'sm'
                       ? 'small'
-                      : props.catalog === 'netflix'
-                        ? 'large'
-                        : 'medium';
+                      : isAnime
+                        ? 'medium'
+                        : props.catalog === 'netflix'
+                          ? 'large'
+                          : 'medium';
             return useWebImage(path, size);
         });
 
@@ -270,6 +274,28 @@ export default defineComponent({
             });
         };
 
+        const warmAnimeDetailPrefetch = () => {
+            if (props.type !== 'anime' || props.catalog !== 'tmdb' || props.loading) return;
+            const anilistId = Number(props.id);
+            if (!Number.isFinite(anilistId) || anilistId <= 0) return;
+
+            const yearFromRelease = props.releaseDate
+                ? parseInt(props.releaseDate.slice(0, 4), 10)
+                : null;
+            const seasonYear = props.year
+                ? Number(props.year)
+                : (Number.isFinite(yearFromRelease) ? yearFromRelease : null);
+
+            prefetchAnimeTmdbArtwork(anilistId, {
+                title: {
+                    english: props.title,
+                    romaji: props.originalTitle || props.title
+                },
+                seasonYear: Number.isFinite(seasonYear) ? seasonYear : null,
+                format: 'TV'
+            });
+        };
+
         const warmNetflixPlayback = () => {
             if (props.catalog !== 'netflix' || props.anilistId) return;
             const catalogId = props.moovieCatalogId || String(props.id);
@@ -343,6 +369,7 @@ export default defineComponent({
             enterTimer = window.setTimeout(() => {
                 peeking.value = true;
                 warmNetflixPlayback();
+                warmAnimeDetailPrefetch();
                 enterTimer = null;
             }, 240);
         };

@@ -31,7 +31,7 @@
                     <p class="episode-guide__desc">Every installment, in running order.</p>
 
                     <!-- Premium Custom Season Changer tabs -->
-                    <div v-if="loading" class="anime-detail__seasons-rail" aria-hidden="true">
+                    <div v-if="isLoadingEpisodes" class="anime-detail__seasons-rail" aria-hidden="true">
                         <div v-for="i in 3" :key="i" class="season-tab-btn-skeleton" />
                     </div>
                     <div v-else-if="seasonsList.length > 1" class="anime-detail__seasons-rail">
@@ -47,7 +47,7 @@
                         </button>
                     </div>
 
-                    <div v-if="loading || totalEpisodesCount <= 0" class="episode-guide__grid" aria-hidden="true">
+                    <div v-if="isLoadingEpisodes || totalEpisodesCount <= 0" class="episode-guide__grid" aria-hidden="true">
                         <div v-for="i in 12" :key="i" class="episode-card-skeleton">
                             <div class="episode-card-skeleton__still episode-card-skeleton__shimmer" />
                             <div class="episode-card-skeleton__meta">
@@ -78,7 +78,7 @@
                         </router-link>
                     </div>
 
-                    <div v-if="!loading && totalEpisodesCount > 0" class="episode-guide__pagination">
+                    <div v-if="!isLoadingEpisodes && totalEpisodesCount > 0" class="episode-guide__pagination">
                         <button 
                             @click="currentPage > 1 ? currentPage-- : null"
                             :disabled="currentPage === 1"
@@ -152,7 +152,7 @@ import StatsBlock, { StatEntry } from '../components/detail/StatsBlock.vue';
 import { useAniList } from '../composables/useAniList';
 import { addViewedItem } from '../composables/useHistory';
 import { useSeo } from '../composables/useSeo';
-import { useWebImage } from '../utils/useWebImage';
+import { prefetchArtworkImages, useWebImage } from '../utils/useWebImage';
 import {
     estimateAnimeEpisodeTotal,
     resolveAnimeTmdbEpisodesByTmdbId,
@@ -361,11 +361,29 @@ export default defineComponent({
             }
         };
 
-        const loadTmdbArtworkByTmdbId = async (tmdbId: number) => {
+        const applyCachedArtwork = (tmdbId: number, anilistHintId?: number | null) => {
+            const cached = anilistHintId
+                ? getCachedAnimeTmdbArtwork(anilistHintId)
+                : getCachedTmdbArtworkByTmdbId(tmdbId);
+            if (!cached) return;
+
+            if (cached.posterPath) tmdbPoster.value = cached.posterPath;
+            if (cached.backdropPath) tmdbBackdrop.value = cached.backdropPath;
+            if (cached.totalEpisodeCount) {
+                tmdbTotalEpisodeCount.value = cached.totalEpisodeCount;
+            }
+            applyTmdbSeasonState(cached, anilistHintId);
+            if (cached.episodes.length) {
+                tmdbEpisodes.value = cached.episodes;
+            }
+        };
+
+        const loadTmdbArtworkByTmdbId = async (tmdbId: number, generation: number) => {
             isLoadingTmdb.value = true;
             let meta: Awaited<ReturnType<typeof resolveAnimeTmdbMetaByTmdbId>> = null;
             try {
                 meta = await resolveAnimeTmdbMetaByTmdbId(tmdbId);
+                if (generation !== loadGeneration) return;
                 if (meta) {
                     tmdbPoster.value = meta.posterPath;
                     tmdbBackdrop.value = meta.backdropPath;
@@ -373,17 +391,24 @@ export default defineComponent({
                     applyTmdbSeasonState(meta, anilistIdRef.value);
                     if (meta.episodes.length) {
                         tmdbEpisodes.value = meta.episodes;
+                        isLoadingEpisodes.value = false;
                     }
                 }
             } catch (err) {
                 console.warn('Failed to load TMDb anime meta by TMDB ID:', err);
             } finally {
-                isLoadingTmdb.value = false;
+                if (generation === loadGeneration) {
+                    isLoadingTmdb.value = false;
+                }
             }
+
+            if (generation !== loadGeneration) return;
+            if (tmdbEpisodes.value.length) return;
 
             isLoadingEpisodes.value = true;
             try {
                 const episodes = await resolveAnimeTmdbEpisodesByTmdbId(tmdbId);
+                if (generation !== loadGeneration) return;
                 if (episodes.length) {
                     tmdbEpisodes.value = episodes;
                     applyTmdbSeasonState(
@@ -394,7 +419,9 @@ export default defineComponent({
             } catch (err) {
                 console.warn('Failed to load TMDb anime episodes by TMDB ID:', err);
             } finally {
-                isLoadingEpisodes.value = false;
+                if (generation === loadGeneration) {
+                    isLoadingEpisodes.value = false;
+                }
             }
         };
 
@@ -478,6 +505,7 @@ export default defineComponent({
         const loadAnime = async (routeId: number) => {
             const generation = ++loadGeneration;
             loading.value = true;
+            isLoadingEpisodes.value = true;
             currentPage.value = 1;
 
             try {
@@ -494,6 +522,7 @@ export default defineComponent({
                 let tmdbId = resolvedTmdbId;
                 tmdbIdRef.value = tmdbId;
                 anilistIdRef.value = anilistId;
+                applyCachedArtwork(tmdbId, anilistIdRef.value);
 
                 if (tmdbId !== routeId) {
                     suppressRouteReload.value = true;
@@ -520,27 +549,35 @@ export default defineComponent({
                 if (!show) return;
 
                 tmdbShow.value = show;
-                tmdbPoster.value = show.poster_path ?? null;
-                tmdbBackdrop.value = show.backdrop_path ?? null;
+                tmdbPoster.value = show.poster_path ?? tmdbPoster.value;
+                tmdbBackdrop.value = show.backdrop_path ?? tmdbBackdrop.value;
                 tmdbTotalEpisodeCount.value = estimateAnimeEpisodeTotal(
-                    [],
-                    show.number_of_episodes ?? 0,
+                    tmdbEpisodes.value,
+                    show.number_of_episodes ?? tmdbTotalEpisodeCount.value,
                     0
                 );
 
-                if (!anilistIdRef.value) {
-                    anilistIdRef.value = await resolveAnilistIdForPlayback(tmdbId);
-                }
-                if (generation !== loadGeneration) return;
-
-                await loadTmdbArtworkByTmdbId(tmdbId);
-                if (generation !== loadGeneration) return;
-
+                loading.value = false;
+                prefetchArtworkImages(
+                    [tmdbBackdrop.value, tmdbPoster.value],
+                    'hero',
+                    2
+                );
                 publishAnimePage(tmdbId);
+
+                if (!anilistIdRef.value) {
+                    void resolveAnilistIdForPlayback(tmdbId).then((id) => {
+                        if (generation === loadGeneration && id) {
+                            anilistIdRef.value = id;
+                        }
+                    });
+                }
+
+                void loadTmdbArtworkByTmdbId(tmdbId, generation);
             } catch (err) {
                 console.error('Failed to load anime:', err);
             } finally {
-                if (generation === loadGeneration) {
+                if (generation === loadGeneration && loading.value) {
                     loading.value = false;
                 }
             }
@@ -568,6 +605,7 @@ export default defineComponent({
             releaseYear,
             tmdbGenreNames,
             loading,
+            isLoadingEpisodes,
             isLoadingTmdb,
             usesTmdbSeasonTabs,
             activeTmdbSeason,

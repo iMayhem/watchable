@@ -60,7 +60,7 @@ const gridItems = computed(() =>
     results.value.map(anime => ({
         id: anime.id,
         title: anime.title.english || anime.title.romaji,
-        posterPath: anime.coverImage.large,
+        posterPath: anime.coverImage.large || anime.coverImage.medium,
         rating: anime.averageScore ? anime.averageScore / 10 : 0,
         releaseDate: anime.seasonYear?.toString() || '',
         type: 'anime' as const

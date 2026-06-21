@@ -76,7 +76,12 @@ export default defineComponent({
 
         const imageUrl = computed(() => {
             if (!props.posterPath) return '';
-            const size = props.size === 'lg' ? 'large' : 'medium';
+            const size =
+                props.size === 'lg'
+                    ? 'large'
+                    : props.size === 'sm'
+                      ? 'small'
+                      : 'medium';
             return useWebImage(props.posterPath, size);
         });
 

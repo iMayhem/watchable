@@ -23,7 +23,7 @@ import { useWatchlist } from '@/composables/useWatchlist';
 import { useAppPaths } from '@/composables/useAppPaths';
 import {
     getCachedAnimeTmdbArtwork,
-    resolveAnimeTmdbPosterOnly
+    resolveAnimeTmdbPosterBatch
 } from '@/composables/useAnimeTmdbArtwork';
 
 const { movies } = useAppPaths();
@@ -47,20 +47,27 @@ async function hydrateAnimePosters() {
     if (!animeItems.length) return;
 
     const updates: Record<string, string> = {};
-    await Promise.all(
-        animeItems.map(async (item: any) => {
-            const key = String(item.id);
-            const cached = getCachedAnimeTmdbArtwork(Number(item.id));
-            if (cached?.posterPath) {
-                updates[key] = cached.posterPath;
-                return;
-            }
-            const artwork = await resolveAnimeTmdbPosterOnly(Number(item.id), {
-                title: { english: item.title, romaji: item.title }
-            }).catch(() => null);
-            if (artwork?.posterPath) updates[key] = artwork.posterPath;
-        })
-    );
+    for (const item of animeItems) {
+        const key = String(item.id);
+        const cached = getCachedAnimeTmdbArtwork(Number(item.id));
+        if (cached?.posterPath) {
+            updates[key] = cached.posterPath;
+        }
+    }
+
+    const pending = animeItems.filter((item: any) => !updates[String(item.id)]);
+    if (pending.length) {
+        const resolved = await resolveAnimeTmdbPosterBatch(
+            pending.map((item: any) => ({
+                id: Number(item.id),
+                title: { english: item.title, romaji: item.title },
+                format: 'TV'
+            }))
+        ).catch(() => ({} as Record<number, string>));
+        for (const [id, posterPath] of Object.entries(resolved)) {
+            if (posterPath) updates[id] = posterPath;
+        }
+    }
 
     if (Object.keys(updates).length) {
         animeTmdbPosters.value = { ...animeTmdbPosters.value, ...updates };

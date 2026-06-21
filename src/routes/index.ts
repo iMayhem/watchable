@@ -9,6 +9,7 @@ import StreamAnime from '../pages/StreamAnime.vue'
 import { useSeo } from '../composables/useSeo'
 import { getContentMode, isContentModeChosen } from '../composables/useContentMode'
 import { redirectPathForMode } from '../utils/contentModeRoutes'
+import { recordDetailReturnPath } from '../composables/useDetailBackNavigation'
 
 declare module 'vue-router' {
     interface RouteMeta {
@@ -338,7 +339,9 @@ const router = createRouter({
 
 const { updateSeo } = useSeo();
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to, from, next) => {
+    recordDetailReturnPath(from, to);
+
     if (!isContentModeChosen()) {
         next();
         return;

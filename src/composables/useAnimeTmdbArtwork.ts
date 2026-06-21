@@ -39,6 +39,8 @@ export interface AnimeTmdbArtwork {
     /** Long runners (e.g. One Piece) use TMDB seasons instead of AniList relations. */
     usesTmdbSeasonTabs: boolean;
     seasonTabs: AnimeTmdbSeasonTab[];
+    /** TMDB season_number when AniList lists a sequel season separately. */
+    preferredTmdbSeason?: number | null;
 }
 
 type AnilistMediaFields = {
@@ -49,6 +51,12 @@ type AnilistMediaFields = {
     };
     format?: string | null;
     seasonYear?: number | null;
+    startDate?: {
+        year?: number | null;
+        month?: number | null;
+        day?: number | null;
+    } | null;
+    synonyms?: string[] | null;
     episodes?: number | null;
     status?: string | null;
     nextAiringEpisode?: {
@@ -57,16 +65,149 @@ type AnilistMediaFields = {
 };
 
 const artworkCache = new Map<number, AnimeTmdbArtwork | null>();
+/** TMDB-keyed cache when AniList id mapping is not yet available. */
+const tmdbOnlyCache = new Map<number, AnimeTmdbArtwork>();
+/** TMDB id → AniList id for video embeds only. */
+const tmdbToAnilistPlaybackId = new Map<number, number>();
 const ANIMATION_GENRE_ID = 16;
 
+export function parseAnilistSeasonNumber(media: AnilistMediaFields): number | null {
+    const parts = [
+        media.title?.english,
+        media.title?.romaji,
+        media.title?.native,
+        ...(media.synonyms ?? [])
+    ]
+        .filter(Boolean)
+        .map(String);
+
+    for (const part of parts) {
+        const seasonAfter = part.match(/\b(?:season|part|cour)\s*(\d+)\b/i);
+        if (seasonAfter) return Number(seasonAfter[1]);
+
+        const seasonBefore = part.match(/\b(\d+)(?:st|nd|rd|th)\s+season\b/i);
+        if (seasonBefore) return Number(seasonBefore[1]);
+
+        const jpCour = part.match(/第(\d+)期/);
+        if (jpCour) return Number(jpCour[1]);
+    }
+    return null;
+}
+
 function cleanAnimeTitle(title: string): string {
-    return title.replace(/\b(Season|Part|Cour)\s*\d+\b/gi, '').replace(/\s+/g, ' ').trim();
+    return title
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\b\d+(?:st|nd|rd|th)?\s*(?:season|part|cour)\b/gi, '')
+        .replace(/\b(?:season|part|cour)\s*\d+\b/gi, '')
+        .replace(/第\d+期/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 function searchTitles(media: AnilistMediaFields): string[] {
-    return [media.title?.english, media.title?.romaji, media.title?.native]
+    const raw = [
+        media.title?.english,
+        media.title?.romaji,
+        media.title?.native,
+        ...(media.synonyms ?? [])
+    ].filter(Boolean).map((t) => String(t));
+
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const title of raw) {
+        for (const variant of [title, cleanAnimeTitle(title)]) {
+            const key = variant.toLowerCase();
+            if (!variant || seen.has(key)) continue;
+            seen.add(key);
+            out.push(variant);
+        }
+    }
+    return out;
+}
+
+type TmdbSearchHit = {
+    id: number;
+    poster_path?: string | null;
+    backdrop_path?: string | null;
+    genre_ids?: number[];
+    first_air_date?: string;
+    name?: string;
+    original_name?: string;
+};
+
+function anilistTargetYear(media: AnilistMediaFields): number | null {
+    if (media.seasonYear) return media.seasonYear;
+    if (media.startDate?.year) return media.startDate.year;
+    return null;
+}
+
+function hasRebootTitleHint(media: AnilistMediaFields): boolean {
+    const blob = [
+        media.title?.english,
+        media.title?.romaji,
+        media.title?.native,
+        ...(media.synonyms ?? [])
+    ]
         .filter(Boolean)
-        .map((t) => cleanAnimeTitle(String(t)));
+        .join(' ');
+    return /shin|new|gou|sotsu|reboot|remake|\(新|新アニメ/i.test(blob);
+}
+
+function titleSimilarityScore(needle: string, names: string[]): number {
+    if (!needle) return 0;
+    let best = 0;
+    for (const name of names) {
+        if (!name) continue;
+        if (name === needle) return 30;
+        if (name.includes(needle) || needle.includes(name)) {
+            best = Math.max(best, 20);
+            continue;
+        }
+        const needleTokens = needle.split(/\s+/).filter((t) => t.length > 2);
+        const matched = needleTokens.filter((token) => name.includes(token)).length;
+        if (needleTokens.length) {
+            best = Math.max(best, Math.round((matched / needleTokens.length) * 16));
+        }
+    }
+    return best;
+}
+
+function scoreTmdbCandidate(
+    hit: TmdbSearchHit,
+    media: AnilistMediaFields,
+    searchTitle: string
+): number {
+    let score = 0;
+    if (hit.genre_ids?.includes(ANIMATION_GENRE_ID)) score += 50;
+
+    const targetYear = anilistTargetYear(media);
+    const airYear = hit.first_air_date
+        ? parseInt(hit.first_air_date.slice(0, 4), 10)
+        : null;
+    const seasonHint = parseAnilistSeasonNumber(media);
+
+    if (targetYear && airYear) {
+        const yearDiff = Math.abs(targetYear - airYear);
+        if (seasonHint && seasonHint > 1) {
+            // Sequel seasons share one TMDB show; premiere year is often season 1.
+            score += Math.max(0, 28 - yearDiff * 4);
+        } else {
+            score += Math.max(0, 40 - yearDiff * 8);
+        }
+    } else if (hasRebootTitleHint(media) && airYear && airYear >= 2018) {
+        score += 30;
+    } else if (airYear && !seasonHint) {
+        // Long runners (e.g. One Piece): prefer the earliest animated match.
+        score += Math.max(0, 24 - Math.floor((airYear - 1990) / 4));
+    }
+
+    const needle = cleanAnimeTitle(searchTitle).toLowerCase();
+    const names = [hit.name, hit.original_name]
+        .filter(Boolean)
+        .map((name) => String(name).toLowerCase());
+    score += titleSimilarityScore(needle, names);
+
+    return score;
 }
 
 async function findAnimatedTmdbShow(
@@ -74,34 +215,51 @@ async function findAnimatedTmdbShow(
 ): Promise<{ id: number; poster_path?: string | null; backdrop_path?: string | null } | null> {
     const isMovie = media.format === 'MOVIE';
     const searchType = isMovie ? 'movie' : 'tv';
-    const year = media.seasonYear || undefined;
+    const year = media.seasonYear || media.startDate?.year || undefined;
     const axios = useAxios();
 
+    let best: TmdbSearchHit | null = null;
+    let bestScore = -1;
+
     for (const title of searchTitles(media)) {
-        const params: Record<string, string | number> = { query: title };
+        const attempts: Record<string, string | number>[] = [{ query: title }];
         if (year && isMovie) {
-            params.year = year;
+            attempts.push({ query: title, year });
         }
 
-        const res = await axios.get(`search/${searchType}`, { params });
-        const results = res?.data?.results || [];
-        if (!results.length) continue;
+        for (const params of attempts) {
+            const res = await axios.get(`search/${searchType}`, { params });
+            const results = (res?.data?.results || []) as TmdbSearchHit[];
+            if (!results.length) continue;
 
-        const animated = results.filter((row: { genre_ids?: number[] }) =>
-            row.genre_ids?.includes(ANIMATION_GENRE_ID)
-        );
-        const pool = animated.length ? animated : results;
+            const animated = results.filter((row) =>
+                row.genre_ids?.includes(ANIMATION_GENRE_ID)
+            );
+            const pool = animated.length ? animated : results;
 
-        // Prefer the longest-running match (e.g. One Piece 1999 over live-action 2023).
-        pool.sort((a: { first_air_date?: string }, b: { first_air_date?: string }) =>
-            (a.first_air_date || '9999').localeCompare(b.first_air_date || '9999')
-        );
-
-        const hit = pool[0];
-        if (hit?.id) return hit;
+            for (const hit of pool) {
+                const score = scoreTmdbCandidate(hit, media, title);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = hit;
+                }
+            }
+        }
     }
 
-    return null;
+    return best?.id ? best : null;
+}
+
+export function resolvePreferredTmdbSeason(
+    artwork: AnimeTmdbArtwork | null | undefined,
+    anilistId?: number | null
+): number | null {
+    const direct = artwork?.preferredTmdbSeason;
+    if (direct && direct > 0) return direct;
+    if (!anilistId) return null;
+    const cached = artworkCache.get(anilistId);
+    const hinted = cached?.preferredTmdbSeason;
+    return hinted && hinted > 0 ? hinted : null;
 }
 
 
@@ -512,7 +670,7 @@ export async function resolveAnimeTmdbPosterOnly(
 
 function buildArtworkResult(
     showId: number,
-    _media: AnilistMediaFields,
+    media: AnilistMediaFields | undefined,
     details: {
         posterPath: string | null;
         backdropPath: string | null;
@@ -538,7 +696,8 @@ function buildArtworkResult(
         episodes,
         episodesLoaded,
         usesTmdbSeasonTabs,
-        seasonTabs
+        seasonTabs,
+        preferredTmdbSeason: media ? parseAnilistSeasonNumber(media) : null
     };
 }
 
@@ -763,6 +922,7 @@ export async function resolveAnimeTmdbMetaByTmdbId(
                 const json = await res.json();
                 const matchedMedia = json?.data?.Page?.media?.[0];
                 if (matchedMedia) {
+                    registerTmdbAnilistPlaybackId(tmdbId, matchedMedia.id);
                     await populateSeasonTabsAnilistIds(matchedMedia.id, matchedMedia, result);
                     artworkCache.set(matchedMedia.id, result);
                 }
@@ -771,12 +931,89 @@ export async function resolveAnimeTmdbMetaByTmdbId(
             }
         }
 
+        if (result.tmdbId) {
+            tmdbOnlyCache.set(result.tmdbId, result);
+        }
         return result;
     } catch (err) {
         console.warn('Failed to resolve TMDB anime meta by TMDB ID:', tmdbId, err);
         return null;
     }
 }
+
+export type TmdbAnimeShowDetails = {
+    id: number;
+    name: string;
+    original_name?: string;
+    overview?: string;
+    poster_path?: string | null;
+    backdrop_path?: string | null;
+    first_air_date?: string;
+    vote_average?: number;
+    status?: string;
+    number_of_episodes?: number;
+    genres?: Array<{ id: number; name: string }>;
+    networks?: Array<{ name: string }>;
+};
+
+export async function fetchTmdbAnimeShowDetails(
+    tmdbId: number
+): Promise<TmdbAnimeShowDetails | null> {
+    const axios = useAxios();
+    try {
+        const res = await axios.get(`tv/${tmdbId}`);
+        return res?.data ?? null;
+    } catch (err) {
+        console.warn('Failed to fetch TMDB anime show details:', tmdbId, err);
+        return null;
+    }
+}
+
+/** Resolve route id (AniList or TMDB) to canonical TMDB id + AniList id for embed playback. */
+export async function resolveAnimeRouteIds(
+    routeId: number,
+    lookupAnilistMedia: (id: number) => Promise<AnilistMediaFields & { id: number } | null>
+): Promise<{ tmdbId: number; anilistId: number | null }> {
+    const cachedAnilist = artworkCache.get(routeId);
+    if (cachedAnilist?.tmdbId) {
+        return { tmdbId: cachedAnilist.tmdbId, anilistId: routeId };
+    }
+
+    const anilistMedia = await lookupAnilistMedia(routeId).catch(() => null);
+    if (anilistMedia?.id) {
+        const meta = await resolveAnimeTmdbMeta(anilistMedia.id, anilistMedia);
+        const tmdbId = meta?.tmdbId ?? routeId;
+        registerTmdbAnilistPlaybackId(tmdbId, anilistMedia.id);
+        return {
+            tmdbId,
+            anilistId: anilistMedia.id
+        };
+    }
+
+    await resolveAnimeTmdbMetaByTmdbId(routeId);
+    const anilistId = getAnilistIdForTmdbId(routeId) ?? null;
+    if (anilistId) {
+        registerTmdbAnilistPlaybackId(routeId, anilistId);
+    }
+    return {
+        tmdbId: routeId,
+        anilistId
+    };
+}
+
+/** AniList id for video embeds only — never used for detail UI. */
+export async function resolveAnilistIdForPlayback(tmdbId: number): Promise<number | null> {
+    const existing = getAnilistIdForTmdbId(tmdbId);
+    if (existing) return existing;
+
+    await resolveAnimeTmdbMetaByTmdbId(tmdbId);
+    const afterMeta = getAnilistIdForTmdbId(tmdbId);
+    if (afterMeta) return afterMeta;
+
+    return searchAnilistIdForTmdbShow(tmdbId);
+}
+
+
 
 export async function resolveAnimeTmdbEpisodesByTmdbId(
     tmdbId: number
@@ -813,7 +1050,26 @@ export async function resolveAnimeTmdbEpisodesByTmdbId(
     }
 }
 
+export function registerTmdbAnilistPlaybackId(tmdbId: number, anilistId: number): void {
+    if (!tmdbId || !anilistId) return;
+    tmdbToAnilistPlaybackId.set(tmdbId, anilistId);
+
+    const existing = artworkCache.get(anilistId);
+    if (existing) {
+        artworkCache.set(anilistId, { ...existing, tmdbId });
+        return;
+    }
+
+    const tmdbCached = tmdbOnlyCache.get(tmdbId);
+    if (tmdbCached) {
+        artworkCache.set(anilistId, { ...tmdbCached, tmdbId });
+    }
+}
+
 export function getAnilistIdForTmdbId(tmdbId: number): number | undefined {
+    const direct = tmdbToAnilistPlaybackId.get(tmdbId);
+    if (direct) return direct;
+
     for (const [aniId, cached] of artworkCache.entries()) {
         if (cached && cached.tmdbId === tmdbId) {
             return aniId;
@@ -821,3 +1077,71 @@ export function getAnilistIdForTmdbId(tmdbId: number): number | undefined {
     }
     return undefined;
 }
+
+async function searchAnilistIdForTmdbShow(tmdbId: number): Promise<number | null> {
+    const show = await fetchTmdbAnimeShowDetails(tmdbId);
+    if (!show) return null;
+
+    const year = show.first_air_date
+        ? parseInt(show.first_air_date.slice(0, 4), 10)
+        : undefined;
+    const titles = [...new Set(
+        [show.name, show.original_name]
+            .filter(Boolean)
+            .map((title) => cleanAnimeTitle(String(title)))
+    )];
+
+    for (const search of titles) {
+        try {
+            const query = `
+              query ($search: String, $year: Int) {
+                Page(page: 1, perPage: 5) {
+                  media(
+                    search: $search,
+                    type: ANIME,
+                    format_in: [TV, ONA, SPECIAL, MOVIE],
+                    seasonYear: $year
+                  ) {
+                    id
+                    seasonYear
+                    format
+                  }
+                }
+              }
+            `;
+            const res = await fetch('https://graphql.anilist.co', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    variables: { search, year: year || null }
+                })
+            });
+            const json = await res.json();
+            const candidates = json?.data?.Page?.media || [];
+            if (!candidates.length) continue;
+
+            const hit = (year
+                ? candidates.find((row: { seasonYear?: number | null }) => row.seasonYear === year)
+                : null) || candidates[0];
+            if (hit?.id) {
+                registerTmdbAnilistPlaybackId(tmdbId, hit.id);
+                return hit.id;
+            }
+        } catch (err) {
+            console.warn('Failed to search AniList for TMDB show:', search, err);
+        }
+    }
+
+    return null;
+}
+
+export function getCachedTmdbArtworkByTmdbId(tmdbId: number): AnimeTmdbArtwork | null {
+    const direct = tmdbOnlyCache.get(tmdbId);
+    if (direct) return direct;
+    for (const cached of artworkCache.values()) {
+        if (cached?.tmdbId === tmdbId) return cached;
+    }
+    return null;
+}
+

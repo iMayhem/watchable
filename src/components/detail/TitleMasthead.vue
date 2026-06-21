@@ -1,12 +1,19 @@
 <template>
     <header ref="rootRef" class="masthead" :class="{ 'trailer-playing': trailerLive, 'is-loading': loading }" :aria-label="loading ? 'Loading...' : `${title} — masthead`">
+        <button
+            type="button"
+            class="masthead__crumb eyebrow"
+            :class="{ 'is-dimmed': loading }"
+            @click="goBackToIssue"
+        >
+            <span aria-hidden="true">←</span>
+            Back to issue
+        </button>
+
         <!-- Skeleton Loading state -->
         <div v-if="loading" class="masthead__skeleton-wrapper">
             <div class="masthead__stage masthead__skeleton-shimmer" />
             <div class="container-lm masthead__inner">
-                <div class="masthead__crumb eyebrow" style="opacity: 0.3">
-                    <span aria-hidden="true">←</span> Back to issue
-                </div>
                 <div class="masthead__content">
                     <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 140px; height: 16px; margin-bottom: 24px; border-radius: 4px" />
                     <div class="masthead__skeleton-line masthead__skeleton-shimmer" style="width: 55%; height: 5.5rem; margin-bottom: 24px; border-radius: 8px" />
@@ -80,15 +87,6 @@
             />
 
             <div class="container-lm masthead__inner">
-                <button
-                    type="button"
-                    class="masthead__crumb eyebrow"
-                    @click="goBackToIssue"
-                >
-                    <span aria-hidden="true">←</span>
-                    Back to issue
-                </button>
-
                 <div class="masthead__content">
                     <span class="eyebrow masthead__eyebrow">
                         {{ eyebrow }}
@@ -473,11 +471,15 @@ export default defineComponent({
     }
 
     &__crumb {
+        position: fixed;
+        top: calc(var(--site-header-height) + var(--s-3));
+        left: max(var(--container-gutter), calc((100vw - var(--container-max)) / 2 + var(--container-gutter)));
+        z-index: calc(var(--z-header) - 1);
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
         color: var(--bone-200);
-        margin-bottom: var(--s-8);
+        margin: 0;
         padding: 0;
         border: 0;
         background: none;
@@ -485,6 +487,9 @@ export default defineComponent({
         cursor: pointer;
         text-decoration: none;
         transition: color var(--dur-fast) var(--ease-out);
+        text-shadow: 0 1px 12px rgba(11, 10, 8, 0.85);
+
+        &.is-dimmed { opacity: 0.45; }
 
         &:hover, &:focus-visible { color: var(--ember); }
 
@@ -604,7 +609,6 @@ export default defineComponent({
     @media (max-width: 720px) {
         min-height: clamp(440px, 68vh, 620px);
 
-        &__crumb { margin-bottom: var(--s-5); }
         &__actions { margin-top: var(--s-5); }
     }
 }

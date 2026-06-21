@@ -76,6 +76,11 @@ const getRouteKey = (route: any) => {
     if (route.name === 'NetflixExplore') {
         return `nf-explore-${route.params.mediaType || 'all'}-${route.fullPath}`;
     }
+    // Stable key: AniList browse links normalize to TMDB ids via router.replace.
+    // Path-based keys remount the page and replay the full loading skeleton.
+    if (route.name === 'AnimeDetail') {
+        return 'anime-detail';
+    }
     // Do NOT include region in the key for Home/listing pages.
     // Those pages handle region changes themselves via the movora_settings_change
     // event + their own watch(region) watcher. Including region here would

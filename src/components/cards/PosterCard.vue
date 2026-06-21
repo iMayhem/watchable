@@ -312,7 +312,10 @@ export default defineComponent({
                 return;
             }
             if (props.type === 'anime') {
-                router.push({ path: `/stream/anime/${props.id}`, query });
+                router.push({
+                    path: `/stream/anime/${props.id}`,
+                    query: { ...query, ani: String(props.id) }
+                });
             } else if (props.type === 'tv') {
                 router.push({ path: `/stream/tv-show/${props.id}/season/1/episode/1`, query });
             } else {

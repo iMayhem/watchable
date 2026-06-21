@@ -5,6 +5,7 @@ import AnimeDetail from './pages/AnimeDetail.vue';
 import Actor from './pages/Actor.vue';
 import { useSeo } from './composables/useSeo';
 import { enforceMobileGlobalMode, isNetflixPath, mobileSafePath } from './utils/mobileGlobalOnly';
+import { recordDetailReturnPath } from '@/composables/useDetailBackNavigation';
 
 const routes: Array<RouteRecordRaw> = [
     {
@@ -132,7 +133,8 @@ const router = createRouter({
     }
 });
 
-router.beforeEach((to) => {
+router.beforeEach((to, from) => {
+    recordDetailReturnPath(from, to);
     enforceMobileGlobalMode();
     if (isNetflixPath(to.path)) {
         return mobileSafePath(to.path);

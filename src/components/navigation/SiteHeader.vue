@@ -1,5 +1,5 @@
 <template>
-    <header class="site-header" :class="{ 'is-scrolled': scrolled }">
+    <header class="site-header" :class="{ 'is-scrolled': scrolled || onDetailPage }">
         <div class="container-lm site-header__inner">
             <router-link to="/" class="site-header__logo" aria-label="moovie home">
                 <div class="site-header__wordmark">
@@ -63,17 +63,17 @@
             </nav>
 
             <div class="site-header__actions">
-                <router-link
-                    :to="isNetflixMode ? '/nf/search' : '/search'"
+                <button
+                    type="button"
                     class="site-header__search"
                     aria-label="Search"
-                    @click.prevent="openPalette"
+                    @click="openPalette"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                         <circle cx="11" cy="11" r="8" />
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                </router-link>
+                </button>
 
                 <ExtensionPrompt v-if="isNetflixMode" />
 
@@ -216,14 +216,14 @@
                         <span class="site-header__drawer-label">{{ item.label }}</span>
                     </a>
 
-                    <router-link
-                        :to="isNetflixMode ? '/nf/search' : '/search'"
+                    <button
+                        type="button"
                         class="site-header__drawer-link site-header__drawer-search"
-                        @click="drawerOpen = false"
+                        @click="openFromDrawer"
                     >
                         <span class="eyebrow site-header__drawer-num">✦</span>
                         <span class="site-header__drawer-label">Search</span>
-                    </router-link>
+                    </button>
 
                     <button
                         type="button"
@@ -247,14 +247,14 @@
                         <span class="site-header__drawer-label">{{ item.label }}</span>
                     </router-link>
 
-                    <router-link
-                        :to="isNetflixMode ? '/nf/search' : '/search'"
+                    <button
+                        type="button"
                         class="site-header__drawer-link site-header__drawer-search"
-                        @click="drawerOpen = false"
+                        @click="openFromDrawer"
                     >
                         <span class="eyebrow site-header__drawer-num">✦</span>
                         <span class="site-header__drawer-label">Search</span>
-                    </router-link>
+                    </button>
 
                     <a href="/party/" class="site-header__drawer-link" @click="drawerOpen = false">
                         <span class="eyebrow site-header__drawer-num">✦</span>
@@ -409,6 +409,19 @@ export default defineComponent({
             getNetflixCatalogue();
         const isNetflixMode = computed(() => contentMode.value === 'netflix');
         const scrolled = ref(false);
+
+        const DETAIL_ROUTE_NAMES = new Set([
+            'AnimeDetail',
+            'Movie',
+            'TVShow',
+            'Actor',
+            'NetflixDetail',
+            'NetflixAnimeDetail'
+        ]);
+
+        const onDetailPage = computed(() =>
+            Boolean(route.name && DETAIL_ROUTE_NAMES.has(String(route.name)))
+        );
         const drawerOpen = ref(false);
 
         const isAuthModalOpen = ref(false);
@@ -675,6 +688,7 @@ export default defineComponent({
         return {
             primaryNav,
             scrolled,
+            onDetailPage,
             drawerOpen,
             modKey,
             isActive,
@@ -749,9 +763,9 @@ export default defineComponent({
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: var(--s-5);
+        gap: var(--s-3);
         padding-block: var(--s-3);
-        min-height: 68px;
+        min-height: var(--site-header-height);
     }
 
     // ── Logo ─────────────────────────────────────────────────────────────
@@ -808,7 +822,7 @@ export default defineComponent({
     // ── Nav links ────────────────────────────────────────────────────────
     &__nav {
         display: flex;
-        gap: var(--s-1);
+        gap: 0;
 
         @media (max-width: 860px) {
             display: none;
@@ -819,13 +833,13 @@ export default defineComponent({
             min-width: 0;
             display: flex;
             align-items: center;
-            gap: var(--s-1);
+            gap: 0;
             overflow: visible;
             max-width: calc(100% - 320px);
 
             .site-header__link {
                 flex-shrink: 0;
-                padding: var(--s-2) var(--s-3);
+                padding: var(--s-2) var(--s-2);
                 font-size: 0.82rem;
             }
         }
@@ -834,7 +848,7 @@ export default defineComponent({
     &__nav-scroll {
         display: inline-flex;
         align-items: center;
-        gap: var(--s-1);
+        gap: 0;
         min-width: 0;
         overflow-x: auto;
         flex-wrap: nowrap;
@@ -852,7 +866,7 @@ export default defineComponent({
 
     &__link {
         position: relative;
-        padding: var(--s-2) var(--s-4);
+        padding: var(--s-2) var(--s-2);
         border: none;
         background: transparent;
         cursor: pointer;
@@ -894,7 +908,7 @@ export default defineComponent({
     &__actions {
         display: flex;
         align-items: center;
-        gap: var(--s-2);
+        gap: var(--s-1);
     }
 
     &__search {
@@ -909,6 +923,7 @@ export default defineComponent({
         font-family: var(--font-ui);
         font-size: var(--fs-sm);
         min-width: 120px;
+        cursor: pointer;
         transition:
             background-color var(--dur-fast),
             border-color var(--dur-fast),

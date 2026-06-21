@@ -104,6 +104,49 @@ export function isEpisodeNotYetAired(
     return episodeNumber > getLastReleasedEpisodeNumber(episodes, now);
 }
 
+/** Stream player list: aired episodes plus at most one scheduled upcoming (TV + anime). */
+export function partitionStreamSeasonEpisodes<T extends EpisodeLike>(
+    episodes: T[],
+    now = new Date()
+): { released: T[]; nextAiring: T | null; list: T[] } {
+    const sorted = sortEpisodes(episodes);
+    const released = sorted.filter((ep) => {
+        if (!ep.air_date) return true;
+        return new Date(ep.air_date) <= now;
+    }) as T[];
+    const nextAiring = (sorted.find((ep) => {
+        if (!ep.air_date) return false;
+        return new Date(ep.air_date) > now;
+    }) ?? null) as T | null;
+    const list = nextAiring ? [...released, nextAiring] : released;
+    return { released, nextAiring, list };
+}
+
+/** Episode list for stream navigator: aired episodes plus at most one scheduled upcoming. */
+export function filterNavigatorEpisodes(
+    episodes: EpisodeLike[],
+    now = new Date()
+): EpisodeLike[] {
+    const sorted = sortEpisodes(episodes);
+    if (!sorted.length) return [];
+
+    const hasAnyAirDate = sorted.some((ep) => ep.air_date);
+    if (!hasAnyAirDate) {
+        return sorted;
+    }
+
+    const released = getReleasedEpisodes(sorted, now);
+    const nextUpcoming = getNextUpcomingEpisode(sorted, now);
+
+    if (nextUpcoming) {
+        const byNumber = new Map(released.map((ep) => [ep.episode_number, ep]));
+        byNumber.set(nextUpcoming.episode_number, nextUpcoming);
+        return sortEpisodes([...byNumber.values()]);
+    }
+
+    return released;
+}
+
 export function formatEpisodeAirDate(
     airDate: string | null | undefined,
     now = new Date()

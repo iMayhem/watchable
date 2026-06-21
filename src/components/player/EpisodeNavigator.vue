@@ -1,10 +1,10 @@
 <template>
-    <section class="episode-navigator">
+    <section ref="rootRef" class="episode-navigator">
         <header class="episode-navigator__head">
             <div class="episode-navigator__heading">
                 <p class="eyebrow">Reel order</p>
                 <h3 class="episode-navigator__title">
-                    Season {{ currentSeason }}
+                    {{ headingLabel || `Season ${currentSeason}` }}
                     <span class="meta episode-navigator__count">
                         · {{ seasonEpisodes.length }} episodes
                     </span>
@@ -17,7 +17,7 @@
                     class="episode-navigator__nav"
                     :disabled="!canGoPrevious"
                     aria-label="Previous episode"
-                    @click="emit('previous')"
+                    @click="emitPrevious"
                 >
                     <ArrowLeft />
                 </button>
@@ -29,14 +29,14 @@
                     class="episode-navigator__nav"
                     :disabled="!canGoNext"
                     aria-label="Next episode"
-                    @click="emit('next')"
+                    @click="emitNext"
                 >
                     <ArrowRight />
                 </button>
             </div>
         </header>
 
-        <div class="episode-navigator__season">
+        <div v-if="availableSeasons.length > 1" class="episode-navigator__season">
             <label class="meta episode-navigator__label" for="ep-nav-season">Season</label>
             <div class="episode-navigator__select">
                 <select
@@ -68,7 +68,21 @@
             <span class="meta">Loading episodes…</span>
         </div>
 
-        <ol v-else class="episode-navigator__list" role="listbox" aria-label="Episodes">
+        <div
+            v-else-if="!seasonEpisodes.length"
+            class="episode-navigator__empty"
+            role="status"
+        >
+            <span class="meta">Episodes are not available yet. Try refreshing the page.</span>
+        </div>
+
+        <ol
+            v-else
+            ref="listRef"
+            class="episode-navigator__list"
+            role="listbox"
+            aria-label="Episodes"
+        >
             <li v-for="ep in seasonEpisodes" :key="ep.id">
                 <button
                     type="button"
@@ -80,7 +94,7 @@
                     :disabled="isEpisodeUpcoming(ep)"
                     role="option"
                     :aria-selected="ep.episode_number === currentEpisode"
-                    @click="emit('select', ep.episode_number)"
+                    @click="selectEpisode(ep.episode_number)"
                 >
                     <div class="ep-row__still">
                         <img
@@ -129,7 +143,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onUnmounted, PropType } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref, PropType } from 'vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { getProgressPercent } from '../../composables/useProgress';
 import { Episode, TVShowSeasonDetails } from '../../composables/useTvShows';
@@ -149,17 +163,24 @@ export default defineComponent({
         currentSeason: { type: Number, required: true },
         currentEpisode: { type: Number, required: true },
         showId: { type: [String, Number], default: '' },
-        isLoadingEpisodes: { type: Boolean, default: false }
+        isLoadingEpisodes: { type: Boolean, default: false },
+        mediaType: { type: String as PropType<'tv' | 'anime'>, default: 'tv' },
+        headingLabel: { type: String, default: '' }
     },
     emits: ['season-change', 'select', 'previous', 'next'],
     setup(props, { emit }) {
+        const currentEpisodeIndex = computed(() =>
+            props.seasonEpisodes.findIndex((ep) => ep.episode_number === props.currentEpisode)
+        );
+
         const canGoPrevious = computed(() => {
-            if (props.currentEpisode > 1) return true;
+            if (currentEpisodeIndex.value > 0) return true;
             return !!props.availableSeasons.find((s) => s.season_number === props.currentSeason - 1);
         });
 
         const canGoNext = computed(() => {
-            if (props.currentEpisode < props.seasonEpisodes.length) return true;
+            const idx = currentEpisodeIndex.value;
+            if (idx >= 0 && idx < props.seasonEpisodes.length - 1) return true;
             return !!props.availableSeasons.find((s) => s.season_number === props.currentSeason + 1);
         });
 
@@ -170,10 +191,20 @@ export default defineComponent({
             }
         };
 
+        const selectEpisode = (episodeNumber: number) => {
+            emit('select', episodeNumber);
+        };
+
+        const emitPrevious = () => emit('previous');
+        const emitNext = () => emit('next');
+
         const webImage = (path: string) => useWebImage(path, 'medium');
 
         const epProgress = (epNumber: number) => {
             if (!props.showId) return 0;
+            if (props.mediaType === 'anime') {
+                return getProgressPercent(props.showId, 'anime', 1, epNumber) / 100;
+            }
             return getProgressPercent(props.showId, 'tv', props.currentSeason, epNumber) / 100;
         };
 
@@ -219,18 +250,95 @@ export default defineComponent({
             });
         };
 
-        onMounted(() => document.addEventListener('keydown', onKey));
-        onUnmounted(() => document.removeEventListener('keydown', onKey));
+        const rootRef = ref<HTMLElement | null>(null);
+        const listRef = ref<HTMLElement | null>(null);
+        let touchLastY = 0;
+        let unbindScrollTrap: (() => void) | null = null;
+
+        const wheelDelta = (e: WheelEvent, list: HTMLElement) => {
+            let delta = e.deltaY;
+            if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+                delta *= 16;
+            } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+                delta *= list.clientHeight;
+            }
+            return delta;
+        };
+
+        const bindScrollTrap = (root: HTMLElement | null) => {
+            if (!root) return undefined;
+
+            const onWheel = (e: WheelEvent) => {
+                const list = listRef.value;
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (!list || list.scrollHeight <= list.clientHeight) return;
+
+                const maxScroll = list.scrollHeight - list.clientHeight;
+                list.scrollTop = Math.max(0, Math.min(maxScroll, list.scrollTop + wheelDelta(e, list)));
+            };
+
+            const onTouchStart = (e: TouchEvent) => {
+                touchLastY = e.touches[0]?.pageY ?? 0;
+            };
+
+            const onTouchMove = (e: TouchEvent) => {
+                const list = listRef.value;
+                if (!list || list.scrollHeight <= list.clientHeight) {
+                    e.preventDefault();
+                    return;
+                }
+
+                if (e.touches.length !== 1) return;
+
+                const y = e.touches[0].pageY;
+                const delta = y - touchLastY;
+                touchLastY = y;
+
+                const { scrollTop, scrollHeight, clientHeight } = list;
+                const atTop = scrollTop <= 0;
+                const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+                if ((atTop && delta > 0) || (atBottom && delta < 0)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            };
+
+            root.addEventListener('wheel', onWheel, { passive: false, capture: true });
+            root.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+            root.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+
+            return () => {
+                root.removeEventListener('wheel', onWheel, { capture: true });
+                root.removeEventListener('touchstart', onTouchStart, { capture: true });
+                root.removeEventListener('touchmove', onTouchMove, { capture: true });
+            };
+        };
+
+        onMounted(() => {
+            document.addEventListener('keydown', onKey);
+            unbindScrollTrap = bindScrollTrap(rootRef.value) ?? null;
+        });
+
+        onUnmounted(() => {
+            document.removeEventListener('keydown', onKey);
+            unbindScrollTrap?.();
+        });
 
         return {
+            listRef,
             canGoPrevious,
             canGoNext,
             onSeasonChange,
+            selectEpisode,
+            emitPrevious,
+            emitNext,
             webImage,
             epProgress,
             formatDate,
             truncate,
-            emit,
             isEpisodeUpcoming,
             formatUpcomingDate
         };
@@ -246,6 +354,7 @@ export default defineComponent({
     padding: var(--s-5) var(--s-5);
     display: grid;
     gap: var(--s-5);
+    overscroll-behavior: contain;
 
     @media (min-width: 768px) {
         padding: var(--s-6);
@@ -380,7 +489,8 @@ export default defineComponent({
         svg { width: 18px; height: 18px; }
     }
 
-    &__loading {
+    &__loading,
+    &__empty {
         display: flex;
         align-items: center;
         gap: var(--s-3);
@@ -404,10 +514,17 @@ export default defineComponent({
         display: grid;
         gap: var(--s-3);
 
+        max-height: clamp(280px, 50vh, 520px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: none;
+        overscroll-behavior-y: none;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        padding-right: var(--s-2);
+
         @media (min-width: 1024px) {
             max-height: clamp(300px, 50vh, 520px);
-            overflow-y: auto;
-            padding-right: var(--s-2);
 
             &::-webkit-scrollbar {
                 width: 6px;
@@ -428,6 +545,9 @@ export default defineComponent({
     box-sizing: border-box;
     width: 100%;
     display: grid;
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
     grid-template-columns: 168px 1fr auto;
     gap: var(--s-4);
     align-items: center;

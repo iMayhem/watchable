@@ -5,7 +5,7 @@
         <span class="grain" aria-hidden="true" />
 
         <router-view v-slot="{ Component, route }">
-            <component :is="Component" :key="route.path" />
+            <component :is="Component" :key="getRouteKey(route)" />
         </router-view>
 
         <CommandPalette />
@@ -15,6 +15,14 @@
 
 <script lang="ts" setup>
 import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
+
+const getRouteKey = (route: RouteLocationNormalizedLoaded) => {
+    if (route.name === 'AnimeDetail') {
+        return 'anime-detail';
+    }
+    return route.path;
+};
 
 const Toast = defineAsyncComponent(() => import('@/components/feedback/Toast.vue'));
 const CommandPalette = defineAsyncComponent(() => import('@/components/navigation/CommandPalette.vue'));

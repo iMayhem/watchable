@@ -2,7 +2,7 @@
     <Teleport to="body">
         <div v-if="isOpen" class="auth-modal-overlay" @click.self="close" ref="overlayRef">
         <!-- HTML5 Interactive Neon Car & Particles Canvas -->
-        <canvas v-show="mode === 'signup'" ref="canvasRef" class="auth-canvas"></canvas>
+        <canvas ref="canvasRef" class="auth-canvas"></canvas>
 
         <!-- Dynamic 3D Spring-Physics Jelly Login Card -->
         <div 
@@ -722,13 +722,9 @@ export default defineComponent({
             }
 
             loading.value = true;
-            if (mode.value === 'signup') {
-                isCrashing.value = true;
-                carState.value = 'REVERSING';
-                carTimer.value = 0;
-            } else {
-                executeAuthRequest();
-            }
+            isCrashing.value = true;
+            carState.value = 'REVERSING';
+            carTimer.value = 0;
         };
 
         // Actual auth execution after crash impact
@@ -810,38 +806,27 @@ export default defineComponent({
         };
 
         // Lifecycle loops
+        const restartAnimation = () => {
+            stopAnimation();
+            nextTick(() => {
+                initAnimation();
+            });
+        };
+
         watch(() => props.isOpen, (newVal) => {
             if (newVal) {
                 document.body.style.overflow = 'hidden';
-                if (mode.value === 'signup') {
-                    nextTick(() => {
-                        initAnimation();
-                    });
-                }
+                restartAnimation();
             } else {
                 document.body.style.overflow = '';
                 stopAnimation();
             }
         });
 
-        watch(mode, (newMode) => {
-            if (props.isOpen) {
-                if (newMode === 'signup') {
-                    nextTick(() => {
-                        initAnimation();
-                    });
-                } else {
-                    stopAnimation();
-                }
-            }
-        });
-
         onMounted(() => {
             if (props.isOpen) {
                 document.body.style.overflow = 'hidden';
-                if (mode.value === 'signup') {
-                    initAnimation();
-                }
+                initAnimation();
             }
         });
 

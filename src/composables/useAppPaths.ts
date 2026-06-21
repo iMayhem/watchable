@@ -36,9 +36,19 @@ export function useAppPaths() {
         return `${prefix.value}/stream/tv-show/${id}/season/${season}/episode/${episode}`;
     }
 
-    function streamAnime(id: number | string, episode?: number | string) {
-        if (episode != null) return `${prefix.value}/stream/anime/${id}/episode/${episode}`;
-        return `${prefix.value}/stream/anime/${id}`;
+    function streamAnime(
+        id: number | string,
+        episode?: number | string,
+        anilistId?: number | string | null
+    ) {
+        const base = episode != null
+            ? `${prefix.value}/stream/anime/${id}/episode/${episode}`
+            : `${prefix.value}/stream/anime/${id}`;
+        const ani = Number(anilistId);
+        if (Number.isFinite(ani) && ani > 0) {
+            return `${base}?ani=${ani}`;
+        }
+        return base;
     }
 
     function detailPath(type: 'movie' | 'tv' | 'anime', id: number | string) {

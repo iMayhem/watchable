@@ -15,16 +15,16 @@
             </div>
         </div>
         <router-link v-else :to="routeTo" class="poster-card__link" :aria-label="title">
-            <div class="poster-card__poster" :class="{ 'poster-card__skeleton-shimmer': !imageLoaded && imageUrl }">
+            <div class="poster-card__poster">
                 <img
                     v-if="imageUrl"
+                    ref="imgRef"
                     :src="imageUrl"
                     :alt="title"
                     class="poster-card__img"
-                    :class="{ 'is-loaded': imageLoaded }"
                     :loading="priorityLoad ? 'eager' : 'lazy'"
                     decoding="async"
-                    :fetchpriority="priorityLoad ? 'high' : 'low'"
+                    :fetchpriority="priorityLoad ? 'high' : 'auto'"
                     @load="onPosterLoad"
                 />
                 <div v-else class="poster-card__img poster-card__img--empty">
@@ -109,7 +109,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onBeforeUnmount, PropType, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, PropType, ref, watch } from 'vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { genreName } from '../../composables/useGenreLookup';
 import { isInWatchlist, toggleWatchlistItem } from '../../composables/useWatchlist';
@@ -163,12 +163,7 @@ export default defineComponent({
         moovieCatalogId: { type: String, default: '' }
     },
     setup(props) {
-        const imageLoaded = ref(
-            Boolean(
-                (props.posterPath || props.backdropPath) &&
-                    loadedPosterUrls.has(props.posterPath || props.backdropPath || '')
-            )
-        );
+        const imgRef = ref<HTMLImageElement | null>(null);
         const router = useRouter();
         const { detailPath } = useAppPaths();
         const peeking = ref(false);
@@ -197,19 +192,26 @@ export default defineComponent({
             return useWebImage(path, size);
         });
 
-        watch(
-            effectivePosterPath,
-            (path) => {
-                imageLoaded.value = Boolean(path && loadedPosterUrls.has(path));
-            }
-        );
-
-        const onPosterLoad = () => {
-            imageLoaded.value = true;
+        const markCachedPoster = () => {
             const path = effectivePosterPath.value;
             if (path) {
                 loadedPosterUrls.add(path);
             }
+        };
+
+        const syncCachedImage = () => {
+            const img = imgRef.value;
+            if (img?.complete && img.naturalWidth > 0) {
+                markCachedPoster();
+            }
+        };
+
+        watch(imageUrl, () => {
+            void nextTick(syncCachedImage);
+        });
+
+        const onPosterLoad = () => {
+            markCachedPoster();
         };
 
         const initial = computed(() => props.title?.[0]?.toUpperCase() ?? '·');
@@ -409,7 +411,7 @@ export default defineComponent({
             handleEnter,
             handleLeave,
             handleLeaveFocus,
-            imageLoaded,
+            imgRef,
             onPosterLoad
         };
     }
@@ -460,12 +462,7 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center;
-        opacity: 0;
-        transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
-
-        &.is-loaded {
-            opacity: 1;
-        }
+        transition: transform var(--dur-slow) var(--ease-out);
 
         .is-peeking & {
             transform: scale(1.04);

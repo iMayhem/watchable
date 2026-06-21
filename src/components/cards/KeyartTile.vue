@@ -2,14 +2,14 @@
     <article class="keyart-tile" :class="{ 'is-large': size === 'lg', 'is-loading': loading }">
         <div v-if="loading" class="keyart-tile__frame keyart-tile__skeleton-shimmer" />
         <router-link v-else :to="routeTo" class="keyart-tile__link" :aria-label="title">
-            <div class="keyart-tile__frame" :class="{ 'keyart-tile__skeleton-shimmer': !imageLoaded && imageUrl }">
+            <div class="keyart-tile__frame">
                 <img
                     v-if="imageUrl"
                     :src="imageUrl"
                     :alt="title"
                     class="keyart-tile__img"
-                    :class="{ 'is-loaded': imageLoaded }"
-                    @load="imageLoaded = true"
+                    loading="lazy"
+                    decoding="async"
                 />
                 <div v-else class="keyart-tile__placeholder">
                     <span class="display">{{ initial }}</span>
@@ -38,7 +38,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { computed, defineComponent, PropType } from 'vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { useAppPaths } from '../../composables/useAppPaths';
 
@@ -64,8 +64,6 @@ export default defineComponent({
     },
     setup(props) {
         const { detailPath } = useAppPaths();
-        const imageLoaded = ref(false);
-
         const imageUrl = computed(() => {
             const path = props.backdropPath || props.posterPath;
             if (!path) return '';
@@ -82,7 +80,7 @@ export default defineComponent({
             detailPath(props.type === 'tv' ? 'tv' : 'movie', props.id)
         );
 
-        return { imageUrl, initial, year, routeTo, imageLoaded };
+        return { imageUrl, initial, year, routeTo };
     }
 });
 </script>
@@ -124,12 +122,7 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center;
-        opacity: 0;
-        transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out);
-
-        &.is-loaded {
-            opacity: 1;
-        }
+        transition: transform var(--dur-slow) var(--ease-out);
     }
 
     &__skeleton-shimmer {

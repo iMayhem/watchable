@@ -8,14 +8,14 @@
             </div>
         </div>
         <router-link v-else :to="routeTo" class="m-poster-card__link" :aria-label="title">
-            <div class="m-poster-card__poster" :class="{ 'm-poster-card__skeleton-shimmer': !imageLoaded && imageUrl }">
+            <div class="m-poster-card__poster">
                 <img
                     v-if="imageUrl"
                     :src="imageUrl"
                     :alt="title"
                     class="m-poster-card__img"
-                    :class="{ 'is-loaded': imageLoaded }"
-                    @load="imageLoaded = true"
+                    loading="lazy"
+                    decoding="async"
                 />
                 <div v-else class="m-poster-card__img m-poster-card__img--empty">
                     <span class="display display--italic">{{ initial }}</span>
@@ -45,7 +45,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { computed, defineComponent, PropType } from 'vue';
 import { useWebImage } from '@/utils/useWebImage';
 import { genreName } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
@@ -72,8 +72,6 @@ export default defineComponent({
     },
     setup(props) {
         const { detailPath } = useAppPaths();
-        const imageLoaded = ref(false);
-
         const imageUrl = computed(() => {
             if (!props.posterPath) return '';
             const size =
@@ -112,8 +110,7 @@ export default defineComponent({
             ratingLabel,
             year: yearLabel,
             genreLabel,
-            routeTo,
-            imageLoaded
+            routeTo
         };
     }
 });
@@ -158,13 +155,6 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center;
-        opacity: 0;
-        transition: opacity var(--dur-base) var(--ease-out);
-
-        &.is-loaded {
-            opacity: 1;
-        }
-
         &--empty {
             display: flex;
             align-items: center;

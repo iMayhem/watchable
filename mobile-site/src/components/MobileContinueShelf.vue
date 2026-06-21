@@ -50,7 +50,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent } from 'vue';
+import { computed, defineComponent, ref, watchEffect } from 'vue';
 import MobileSection from './MobileSection.vue';
 import { viewHistory } from '@/composables/useHistory';
 import { streamData } from '@/composables/useStream';
@@ -81,6 +81,8 @@ export default defineComponent({
     },
     setup() {
         const paths = useAppPaths();
+        const animePosterMap = ref<Record<string, string>>({});
+        const pendingAnimePosterRequests = new Set<string>();
 
         const entries = computed<Entry[]>(() => {
             return viewHistory.value.map((item: any) => {
@@ -88,11 +90,10 @@ export default defineComponent({
                 const isTv = item.type === 'tv';
                 const isAnime = item.type === 'anime';
                 const state = streamData.value.movieServerMap[id];
-                if (isAnime && !getCachedAnimeTmdbArtwork(Number(item.id))) {
-                    void resolveAnimeTmdbMetaByTmdbId(Number(item.id));
-                }
                 const animePoster = isAnime
-                    ? getCachedAnimeTmdbArtwork(Number(item.id))?.posterPath
+                    ? animePosterMap.value[id]
+                        || getCachedAnimeTmdbArtwork(Number(item.id))?.posterPath
+                        || null
                     : null;
                 const imagePath = animePoster || item.image;
                 const image = imagePath ? useWebImage(imagePath, 'medium') : '';
@@ -139,6 +140,31 @@ export default defineComponent({
                             : `Resume ${item.title}`)
                 } satisfies Entry;
             });
+        });
+
+        watchEffect(() => {
+            for (const item of viewHistory.value) {
+                if (item.type !== 'anime') continue;
+                const id = String(item.id);
+                if (animePosterMap.value[id] || pendingAnimePosterRequests.has(id)) continue;
+
+                const cached = getCachedAnimeTmdbArtwork(Number(item.id));
+                if (cached?.posterPath) {
+                    animePosterMap.value[id] = cached.posterPath;
+                    continue;
+                }
+
+                pendingAnimePosterRequests.add(id);
+                void resolveAnimeTmdbMetaByTmdbId(Number(item.id))
+                    .then((meta) => {
+                        if (meta?.posterPath) {
+                            animePosterMap.value[id] = meta.posterPath;
+                        }
+                    })
+                    .finally(() => {
+                        pendingAnimePosterRequests.delete(id);
+                    });
+            }
         });
 
         return { entries };

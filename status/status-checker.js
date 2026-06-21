@@ -47,7 +47,7 @@ const services = {
         },
         {
             name: 'Cinemaos',
-            url: 'https://cinemaos.tech/player/502356',
+            url: 'https://cinemaos.live/player/502356',
             testType: 'embed'
         },
         {

@@ -78,7 +78,7 @@ export default defineComponent({
                 attrs.referrerpolicy = 'origin';
                 attrs.allow = 'autoplay; fullscreen; picture-in-picture';
             }
-            if (url.includes('cinemaos.tech') || url.includes('smashystream.com')) {
+            if (url.includes('cinemaos.live') || url.includes('smashystream.com')) {
                 attrs.sandbox = 'allow-scripts allow-same-origin allow-forms';
             }
             return attrs;

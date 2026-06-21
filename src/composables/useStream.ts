@@ -51,7 +51,7 @@ if (streamData.value) {
 
 export const movieServers = ref<Server[]>([
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?autoPlay=true&autoplay=true&autoplay=1' },
-  { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{tmdbId}' },
+  { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{tmdbId}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
   { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/movie/{tmdbId}' },
   { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
@@ -70,7 +70,7 @@ export const movieServers = ref<Server[]>([
 
 export const tvServers = ref<Server[]>([
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&autoplay=true&autoplay=1' },
-  { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.tech/player/{externalId}/{season}/{episode}' },
+  { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{externalId}/{season}/{episode}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
   { name: 'Kaju Katli', urlTemplate: 'https://mappletv.uk/watch/tv/{externalId}/{season}/{episode}' },
   { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },

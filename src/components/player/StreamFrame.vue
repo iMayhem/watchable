@@ -117,7 +117,7 @@ export default defineComponent({
         watch(() => props.embedUrl, (newUrl) => {
             if (overlayTimer) clearTimeout(overlayTimer);
             if (intervalTimer) clearInterval(intervalTimer);
-            if (newUrl && newUrl.includes('cinemaos.tech')) {
+            if (newUrl && newUrl.includes('cinemaos.live')) {
                 showOverlay.value = true;
                 countdown.value = 15;
                 
@@ -152,7 +152,7 @@ export default defineComponent({
                 attrs.referrerpolicy = 'origin';
             }
             const url = props.embedUrl.toLowerCase();
-            if (url.includes('cinemaos.tech') || url.includes('smashystream.com')) {
+            if (url.includes('cinemaos.live') || url.includes('smashystream.com')) {
                 attrs.sandbox = 'allow-scripts allow-same-origin allow-forms allow-presentation';
             }
             return attrs;

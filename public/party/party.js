@@ -1429,7 +1429,7 @@
         // Available Stream Servers
         const serversList = [
             { id: 'rasmalai', name: 'Rasmalai', movie: 'https://peachify.top/embed/movie/{tmdbId}', tv: 'https://peachify.top/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'cinemaos', name: 'Gulab Jamun', movie: 'https://cinemaos.tech/player/{tmdbId}', tv: 'https://cinemaos.tech/player/{tmdbId}/{season}/{episode}' },
+            { id: 'cinemaos', name: 'Gulab Jamun', movie: 'https://cinemaos.live/player/{tmdbId}', tv: 'https://cinemaos.live/player/{tmdbId}/{season}/{episode}' },
             { id: 'smashy', name: 'Jalebi', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },
             { id: 'mappletv', name: 'Kaju Katli', movie: 'https://mappletv.uk/watch/movie/{tmdbId}', tv: 'https://mappletv.uk/watch/tv/{tmdbId}/{season}/{episode}' },
             { id: 'vidking', name: 'Kheer', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
@@ -1744,7 +1744,7 @@
                     newIframe.referrerPolicy = 'origin';
                 }
                 if (
-                    lowerUrl.includes('cinemaos.tech') ||
+                    lowerUrl.includes('cinemaos.live') ||
                     lowerUrl.includes('smashystream.com')
                 ) {
                     newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
@@ -1757,7 +1757,7 @@
                 let existingTip = parent.querySelector('.party-server-tip');
                 if (existingTip) existingTip.remove();
                 
-                if (lowerUrl.includes('cinemaos.tech')) {
+                if (lowerUrl.includes('cinemaos.live')) {
                     const tip = document.createElement('div');
                     tip.className = 'party-server-tip';
                     let secondsLeft = 15;

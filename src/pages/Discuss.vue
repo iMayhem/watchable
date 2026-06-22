@@ -3,22 +3,17 @@
         <SiteHeader />
 
         <main id="main" class="discuss-page__main" role="main">
-
-
-            <!-- Split Layout Container -->
-            <div class="discuss-page__content">
+            <div class="discuss-page__content container-lm">
                 <div class="discuss-layout">
-                    
-                    <!-- Left Side: Discussion -->
-                    <div class="discuss-chat">
+                    <section class="discuss-chat discuss-chat--lounge" aria-label="General lounge">
                         <header class="discuss-chat__header">
-                            <div class="discuss-chat__header-info">
-                                <span class="discuss-chat__status-dot"></span>
-                                <span class="discuss-chat__panel-title">💬 Discussion</span>
+                            <div class="discuss-chat__header-copy">
+                                <p class="eyebrow discuss-chat__eyebrow">Live now</p>
+                                <h2 class="discuss-chat__panel-title">General lounge</h2>
                             </div>
                             <div class="discuss-chat__user-badge">
-                                <span v-if="isLoggedIn">Logged in as <strong>@{{ currentUsername }}</strong></span>
-                                <span v-else>Viewing as guest</span>
+                                <span v-if="isLoggedIn">Signed in as <strong>@{{ currentUsername }}</strong></span>
+                                <span v-else class="meta">Browsing as guest</span>
                             </div>
                         </header>
 
@@ -44,7 +39,7 @@
                                     }"
                                 >
                                     <div class="discuss-msg__avatar">
-                                        <img :src="getAvatarUrl(c.username)" :alt="c.username" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                                        <img :src="getAvatarUrl(c.username)" :alt="c.username" class="discuss-msg__avatar-img" />
                                     </div>
 
                                     <div class="discuss-msg__body">
@@ -64,7 +59,7 @@
                                             >
                                                 Report
                                             </button>
-                                            <span v-else class="discuss-msg__reported-tag">⚠️ Reported</span>
+                                            <span v-else class="discuss-msg__reported-tag">Reported</span>
                                         </div>
                                     </div>
                                 </div>
@@ -85,7 +80,7 @@
                                     <input 
                                         type="text" 
                                         v-model="newCommentText" 
-                                        placeholder="Say something in the general lounge..." 
+                                        placeholder="Share something with the lounge…"
                                         required
                                         class="discuss-chat__message-input"
                                         :disabled="submitting"
@@ -103,23 +98,28 @@
                                 </form>
                             </template>
                         </footer>
-                    </div>
+                    </section>
 
-                    <!-- Right Side: Movie Reviews Feed (Newest first, clickable redirects) OR Movie-specific chat -->
-                    <div class="discuss-chat">
+                    <section class="discuss-chat discuss-chat--reviews" aria-label="Title reviews">
                         <template v-if="selectedMovieId">
                             <header class="discuss-chat__header">
-                                <div class="discuss-chat__header-info">
-                                    <button @click="closeMovieDiscussion" class="btn btn-secondary btn-xs discuss-chat__back-btn" style="margin-right: var(--s-2); padding: 2px 6px;">
-                                        ← Back
+                                <div class="discuss-chat__header-copy discuss-chat__header-copy--thread">
+                                    <button
+                                        type="button"
+                                        class="btn btn-secondary btn-xs discuss-chat__back-btn"
+                                        @click="closeMovieDiscussion"
+                                    >
+                                        Back
                                     </button>
-                                    <span class="discuss-chat__status-dot" style="background: var(--ember); box-shadow: 0 0 6px var(--ember);"></span>
-                                    <span class="discuss-chat__panel-title" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                        🎬 {{ getMediaName(selectedMovieType, selectedMovieId) }}
-                                    </span>
+                                    <div class="discuss-chat__thread-copy">
+                                        <p class="eyebrow discuss-chat__eyebrow">Title thread</p>
+                                        <h2 class="discuss-chat__panel-title discuss-chat__panel-title--truncate">
+                                            {{ getMediaName(selectedMovieType, selectedMovieId) }}
+                                        </h2>
+                                    </div>
                                 </div>
                                 <div class="discuss-chat__user-badge">
-                                    <span class="meta">Review Room</span>
+                                    <span class="meta">Review room</span>
                                 </div>
                             </header>
 
@@ -128,7 +128,7 @@
                                 <div v-if="loadingSelectedMovie" class="discuss-chat__shimmer-list" role="status" aria-label="Loading comments...">
                                     <div v-for="i in 5" :key="i" class="discuss-msg discuss-msg--shimmer">
                                         <div class="discuss-msg__avatar discuss-msg__avatar--shimmer"></div>
-                                        <div class="discuss-msg__body" style="width: 100%;">
+                                        <div class="discuss-msg__body discuss-msg__body--full">
                                             <div class="discuss-msg__meta">
                                                 <div class="shimmer-bar shimmer-bar--username"></div>
                                                 <div class="shimmer-bar shimmer-bar--time"></div>
@@ -156,7 +156,7 @@
                                         }"
                                     >
                                         <div class="discuss-msg__avatar">
-                                            <img :src="getAvatarUrl(c.username)" :alt="c.username" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                                            <img :src="getAvatarUrl(c.username)" :alt="c.username" class="discuss-msg__avatar-img" />
                                         </div>
 
                                         <div class="discuss-msg__body">
@@ -176,7 +176,7 @@
                                                 >
                                                     Report
                                                 </button>
-                                                <span v-else class="discuss-msg__reported-tag">⚠️ Reported</span>
+                                                <span v-else class="discuss-msg__reported-tag">Reported</span>
                                             </div>
                                         </div>
                                     </div>
@@ -185,19 +185,15 @@
 
                             <!-- Movie Comment Composer -->
                             <footer class="discuss-chat__composer">
-                                <form @submit.prevent="postSelectedMovieComment" class="discuss-composer-form" style="flex-direction: column; align-items: stretch; gap: var(--s-2); width: 100%;">
-                                    <div v-if="!isLoggedIn" class="discuss-composer-guest-row" style="display: flex; gap: var(--s-2); align-items: center;">
-                                        <input 
-                                            type="text" 
-                                            v-model="guestName" 
-                                            placeholder="Your nickname (e.g. Guest123)" 
-                                            required
-                                            class="discuss-chat__message-input"
-                                            style="max-width: 220px;"
-                                        />
-                                        <span class="meta" style="font-size: var(--fs-xs);">or <a href="#" @click.prevent="showAuthModal = true" style="color: var(--ember); text-decoration: underline;">Sign In</a></span>
-                                    </div>
-                                    <div class="discuss-composer-input-row" style="display: flex; gap: var(--s-2); width: 100%;">
+                                <form @submit.prevent="postSelectedMovieComment" class="discuss-composer-form discuss-composer-form--stacked">
+                                    <p v-if="!isLoggedIn" class="discuss-composer-anon-hint meta">
+                                        Posting as Anonymous.
+                                        <button type="button" class="discuss-composer-signin" @click="showAuthModal = true">
+                                            Sign in
+                                        </button>
+                                        to use your account.
+                                    </p>
+                                    <div class="discuss-composer-input-row">
                                         <input 
                                             type="text" 
                                             v-model="newSelectedCommentText" 
@@ -223,12 +219,12 @@
 
                         <template v-else>
                             <header class="discuss-chat__header">
-                                <div class="discuss-chat__header-info">
-                                    <span class="discuss-chat__status-dot" style="background: var(--ember); box-shadow: 0 0 6px var(--ember);"></span>
-                                    <span class="discuss-chat__panel-title">🎬 Movie & Series Activity</span>
+                                <div class="discuss-chat__header-copy">
+                                    <p class="eyebrow discuss-chat__eyebrow">From the catalogue</p>
+                                    <h2 class="discuss-chat__panel-title">Title reviews</h2>
                                 </div>
                                 <div class="discuss-chat__user-badge">
-                                    <span class="meta">Select a title to discuss</span>
+                                    <span class="meta">Pick a thread to join</span>
                                 </div>
                             </header>
 
@@ -251,10 +247,10 @@
                                         :class="{ 'discuss-msg--reported': c.isReported }"
                                     >
                                         <div class="discuss-msg__avatar">
-                                            <img :src="getAvatarUrl(c.username)" :alt="c.username" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                                            <img :src="getAvatarUrl(c.username)" :alt="c.username" class="discuss-msg__avatar-img" />
                                         </div>
 
-                                        <div class="discuss-msg__body" style="width: 100%;">
+                                        <div class="discuss-msg__body discuss-msg__body--full">
                                             <div class="discuss-msg__meta">
                                                 <span class="discuss-msg__username">{{ c.username }}</span>
                                                 <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
@@ -270,8 +266,12 @@
                                             </div>
 
                                             <div class="discuss-msg__movie-footer">
-                                                <button @click="viewMovieDiscussion(c.media_type, c.media_id)" class="discuss-msg__redirect-link btn btn-secondary btn-xs">
-                                                    Go to Discussion Page →
+                                                <button
+                                                    type="button"
+                                                    class="discuss-msg__redirect-link btn btn-secondary btn-xs"
+                                                    @click="viewMovieDiscussion(c.media_type, c.media_id)"
+                                                >
+                                                    Open thread
                                                 </button>
 
                                                 <button 
@@ -281,15 +281,14 @@
                                                 >
                                                     Report
                                                 </button>
-                                                <span v-else class="discuss-msg__reported-tag">⚠️ Reported</span>
+                                                <span v-else class="discuss-msg__reported-tag">Reported</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </template>
-                    </div>
-
+                    </section>
                 </div>
             </div>
         </main>
@@ -401,7 +400,7 @@ export default defineComponent({
         const loadingSelectedMovie = ref(false);
         const submittingSelected = ref(false);
         const newSelectedCommentText = ref('');
-        const guestName = ref('');
+
         const movieChatBox = ref<HTMLElement | null>(null);
         let selectedMovieRealtimeChannel: any = null;
         let isMovieChatAtBottom = true;
@@ -585,9 +584,9 @@ export default defineComponent({
             if (!newSelectedCommentText.value.trim() || !selectedMovieId.value) return;
             submittingSelected.value = true;
 
-            const nameToPost = isLoggedIn.value 
-                ? `@${currentUsername.value}` 
-                : guestName.value.trim() || 'Anonymous Guest';
+            const nameToPost = isLoggedIn.value
+                ? `@${currentUsername.value}`
+                : 'Anonymous';
 
             try {
                 const supabase = await getSupabaseClient();
@@ -909,8 +908,8 @@ export default defineComponent({
 
         onMounted(async () => {
             updateSeo({
-                title: 'Live Chat Lounge — Moovie',
-                description: 'Join watch lounge conversations in real-time, discuss reviews and talk about movies on Moovie.',
+                title: 'Discuss — Moovie',
+                description: 'Community lounge chatter and title-specific reviews on Moovie.',
                 canonical: 'https://moovie.fun/discuss'
             });
             checkAuth();
@@ -983,7 +982,6 @@ export default defineComponent({
             loadingSelectedMovie,
             submittingSelected,
             newSelectedCommentText,
-            guestName,
             movieChatBox,
             getMediaName,
             handleMovieChatScroll,
@@ -996,9 +994,16 @@ export default defineComponent({
 </script>
 
 <style lang="scss" scoped>
+@mixin discuss-nav-type($color: var(--bone-300)) {
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    letter-spacing: var(--ls-snug);
+    color: $color;
+}
+
 .discuss-page {
     position: relative;
-    height: 100vh;
     height: 100dvh;
     overflow: hidden;
     display: flex;
@@ -1008,145 +1013,118 @@ export default defineComponent({
 
     &__main {
         flex: 1;
+        min-height: 0;
         display: flex;
         flex-direction: column;
-        padding-top: var(--s-3);
-        padding-bottom: var(--s-3);
         overflow: hidden;
-    }
-
-    &__masthead {
-        padding-inline: clamp(var(--s-2), 2vw, var(--s-5));
-        margin-bottom: var(--s-3);
-        flex-shrink: 0;
-    }
-
-    &__masthead-flex {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: var(--s-4);
-        flex-wrap: wrap;
-    }
-
-    &__eyebrow {
-        color: var(--ember);
-        margin: 0 0 2px;
-    }
-
-    &__title {
-        font-family: var(--font-display);
-        font-weight: 500;
-        font-size: clamp(1.8rem, 4vw, 2.6rem);
-        line-height: 1;
-        letter-spacing: -0.01em;
-        color: var(--bone-50);
-        margin: 0;
-        font-variation-settings: 'opsz' 144, 'SOFT' 30;
+        padding-block: var(--s-3);
     }
 
     &__content {
         flex: 1;
+        min-height: 0;
         display: flex;
+        flex-direction: column;
         overflow: hidden;
         width: 100%;
-        max-width: 100%;
-        padding-inline: clamp(var(--s-2), 2vw, var(--s-5));
-        margin: 0 auto;
     }
 }
 
 .discuss-layout {
     flex: 1;
+    min-height: 0;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.75rem, 2vw, 1rem);
     width: 100%;
     height: 100%;
-    border: 1px solid var(--rule);
-    border-radius: var(--r-lg);
     overflow: hidden;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
 
     @media (max-width: 900px) {
         grid-template-columns: 1fr;
-        grid-template-rows: 1fr 1fr;
+        grid-template-rows: repeat(2, minmax(0, 1fr));
     }
 }
 
-/* Chat Lounge Panel style */
 .discuss-chat {
     display: flex;
     flex-direction: column;
-    background: var(--surface-tint);
+    min-height: 0;
     height: 100%;
     overflow: hidden;
     position: relative;
-
-    &:first-child {
-        border-right: 1px solid var(--rule);
-
-        @media (max-width: 900px) {
-            border-right: none;
-            border-bottom: 1px solid var(--rule);
-        }
-    }
+    background: var(--surface-tint);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-md);
 
     &__header {
         display: flex;
-        align-items: center;
+        align-items: flex-end;
         justify-content: space-between;
-        padding: var(--s-3) var(--s-4);
-        background: rgba(255, 255, 255, 0.01);
+        gap: var(--s-3);
+        padding: var(--s-4);
         border-bottom: 1px solid var(--rule);
-        height: 52px;
         flex-shrink: 0;
     }
 
-    &__header-info {
+    &__header-copy {
         display: flex;
-        align-items: center;
-        gap: var(--s-2);
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+
+        &--thread {
+            flex-direction: row;
+            align-items: center;
+            gap: var(--s-3);
+        }
+    }
+
+    &__thread-copy {
         min-width: 0;
     }
 
-    &__status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--ember);
-        box-shadow: 0 0 6px var(--ember);
-        display: inline-block;
-        animation: pulse 2s infinite;
+    &__eyebrow {
+        margin: 0;
+    }
+
+    &__back-btn {
         flex-shrink: 0;
+        padding: 0.3rem 0.7rem;
     }
 
     &__panel-title {
-        font-family: var(--font-display);
-        font-weight: 500;
-        font-size: var(--fs-sm);
-        color: var(--bone-50);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        @include discuss-nav-type(var(--bone-50));
+        line-height: 1.25;
+        margin: 0;
+
+        &--truncate {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: min(24rem, 100%);
+        }
     }
 
     &__user-badge {
-        font-size: var(--fs-xs);
-        color: var(--bone-300);
-        font-family: var(--font-ui);
+        @include discuss-nav-type(var(--bone-300));
         flex-shrink: 0;
+        text-align: right;
     }
 
     &__messages {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: var(--s-4);
         display: flex;
         flex-direction: column;
         gap: var(--s-4);
-        background: rgba(4, 6, 10, 0.2);
+        background: rgba(11, 10, 8, 0.35);
         position: relative;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
 
         &::-webkit-scrollbar {
             width: 6px;
@@ -1155,7 +1133,7 @@ export default defineComponent({
             background: transparent;
         }
         &::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(245, 239, 228, 0.12);
             border-radius: 3px;
         }
     }
@@ -1166,7 +1144,7 @@ export default defineComponent({
         justify-content: center;
         gap: var(--s-3);
         margin: auto;
-        color: var(--bone-300);
+        @include discuss-nav-type(var(--bone-300));
     }
 
     &__spinner {
@@ -1181,9 +1159,8 @@ export default defineComponent({
     &__empty {
         text-align: center;
         margin: auto;
-        color: var(--bone-400);
         padding: var(--s-6);
-        font-family: var(--font-ui);
+        @include discuss-nav-type(var(--bone-300));
     }
 
     &__message-list {
@@ -1192,30 +1169,28 @@ export default defineComponent({
         gap: var(--s-4);
     }
 
-    /* Composer area */
     &__composer {
-        background: rgba(255, 255, 255, 0.01);
         border-top: 1px solid var(--rule);
-        padding: var(--s-3);
+        padding: var(--s-3) var(--s-4);
         display: flex;
         flex-direction: column;
         gap: var(--s-3);
         flex-shrink: 0;
+        background: rgba(245, 239, 228, 0.02);
     }
 
     &__message-input {
         flex: 1;
-        background: var(--ink-950);
+        background: var(--ink-800);
         border: 1px solid var(--rule);
-        border-radius: var(--r-pill);
-        color: var(--bone-50);
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
-        padding: 0.65rem var(--s-4);
+        border-radius: var(--r-sm);
+        @include discuss-nav-type(var(--bone-50));
+        font-weight: 400;
+        padding: 0.7rem var(--s-3);
         transition: border-color var(--dur-fast) var(--ease-out);
 
         &:focus {
-            border-color: var(--ember);
+            border-color: rgba(255, 90, 31, 0.45);
             outline: none;
         }
     }
@@ -1245,8 +1220,7 @@ export default defineComponent({
 
         p {
             margin: 0;
-            color: var(--bone-300);
-            font-size: var(--fs-xs);
+            @include discuss-nav-type(var(--bone-300));
         }
 
         .login-prompt-btn {
@@ -1259,6 +1233,30 @@ export default defineComponent({
     display: flex;
     gap: var(--s-2);
     align-items: center;
+    width: 100%;
+
+    &--stacked {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+.discuss-composer-anon-hint {
+    margin: 0;
+    @include discuss-nav-type(var(--bone-300));
+}
+
+.discuss-composer-signin {
+    all: unset;
+    cursor: pointer;
+    color: var(--ember);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.discuss-composer-input-row {
+    display: flex;
+    gap: var(--s-2);
     width: 100%;
 }
 
@@ -1279,9 +1277,9 @@ export default defineComponent({
         }
 
         .discuss-msg__bubble {
-            background: linear-gradient(135deg, rgba(255, 90, 31, 0.15) 0%, rgba(255, 90, 31, 0.05) 100%);
-            border-color: rgba(255, 90, 31, 0.25);
-            border-radius: 12px 1px 12px 12px;
+            background: rgba(255, 90, 31, 0.1);
+            border-color: rgba(255, 90, 31, 0.28);
+            border-radius: var(--r-md) var(--r-sm) var(--r-md) var(--r-md);
         }
 
         .discuss-msg__meta {
@@ -1307,24 +1305,33 @@ export default defineComponent({
     }
 
     &__avatar {
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: var(--font-ui);
-        font-size: var(--fs-xs);
         flex-shrink: 0;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
         overflow: hidden;
-        background: var(--ink-950);
+        background: var(--ink-800);
+        border: 1px solid var(--rule);
+    }
+
+    &__avatar-img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
     }
 
     &__body {
         display: flex;
         flex-direction: column;
         gap: var(--s-1);
+
+        &--full {
+            width: 100%;
+        }
     }
 
     &__meta {
@@ -1335,58 +1342,52 @@ export default defineComponent({
     }
 
     &__username {
-        font-family: var(--font-ui);
-        font-weight: 600;
-        font-size: var(--fs-xs);
-        color: var(--bone-100);
+        @include discuss-nav-type(var(--bone-50));
     }
 
     &__badge {
-        font-family: var(--font-mono);
-        font-size: 0.55rem;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
-        color: var(--ember);
+        @include discuss-nav-type(var(--ember));
+        font-size: var(--fs-xs);
         background: rgba(255, 90, 31, 0.06);
-        padding: 0px 4px;
+        padding: 0.1rem 0.45rem;
         border-radius: var(--r-pill);
         border: 1px solid rgba(255, 90, 31, 0.15);
     }
 
     &__topic-badge {
-        font-family: var(--font-mono);
-        font-size: 0.62rem;
-        background: rgba(255, 255, 255, 0.04);
-        color: var(--ember);
-        padding: 1px 8px;
+        @include discuss-nav-type(var(--bone-50));
+        background: var(--surface-tint);
+        padding: 0.15rem 0.55rem;
         border-radius: var(--r-pill);
         border: 1px solid var(--rule);
     }
 
     &__time {
-        font-size: 0.65rem;
-        color: var(--bone-400);
+        font-family: var(--font-mono);
+        font-size: var(--fs-xs);
+        font-weight: 500;
+        color: var(--bone-300);
+        text-transform: uppercase;
+        letter-spacing: 0;
     }
 
     &__bubble {
-        background: var(--surface-tint-hover);
-        border: 1px solid var(--rule-strong);
-        border-radius: 1px 12px 12px 12px;
-        padding: 0.5rem 0.85rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        background: rgba(245, 239, 228, 0.04);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-sm) var(--r-md) var(--r-md) var(--r-md);
+        padding: 0.6rem 0.85rem;
         word-break: break-word;
 
         &--movie {
-            border-radius: 4px var(--r-md) var(--r-md) var(--r-md);
+            border-radius: var(--r-sm);
         }
     }
 
     &__text {
         margin: 0;
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
-        line-height: 1.4;
-        color: var(--bone-100);
+        @include discuss-nav-type(var(--bone-200));
+        font-weight: 400;
+        line-height: 1.45;
     }
 
     &__movie-footer {
@@ -1398,15 +1399,14 @@ export default defineComponent({
     }
 
     &__redirect-link {
-        font-size: 0.62rem;
-        padding: 0.25rem 0.65rem;
+        @include discuss-nav-type(var(--bone-300));
+        padding: 0.35rem 0.75rem;
         border-radius: var(--r-pill);
         text-decoration: none;
-        color: var(--bone-100);
 
         &:hover {
-            color: var(--ember);
-            background: rgba(255, 90, 31, 0.05);
+            color: var(--bone-50);
+            background: var(--surface-tint);
         }
     }
 
@@ -1420,15 +1420,13 @@ export default defineComponent({
         display: flex;
         align-items: center;
         gap: var(--s-1);
-        font-family: var(--font-ui);
-        font-size: 0.65rem;
-        color: var(--bone-400);
+        @include discuss-nav-type(var(--bone-300));
         background: transparent;
         border: 0;
         cursor: pointer;
-        padding: 2px 4px;
+        padding: 0.15rem 0.35rem;
         border-radius: var(--r-sm);
-        transition: all var(--dur-fast) var(--ease-out);
+        transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 
         &:hover {
             color: #ef4444;
@@ -1437,10 +1435,7 @@ export default defineComponent({
     }
 
     &__reported-tag {
-        font-family: var(--font-ui);
-        font-size: 0.65rem;
-        color: #ef4444;
-        font-weight: 500;
+        @include discuss-nav-type(#ef4444);
     }
 }
 
@@ -1463,18 +1458,18 @@ export default defineComponent({
 
     &__content {
         position: relative;
-        background: var(--ink-850);
-        border: 1px solid var(--rule-strong);
+        background: var(--ink-800);
+        border: 1px solid var(--rule);
         border-radius: var(--r-md);
         padding: var(--s-6);
         max-width: 460px;
         width: 100%;
-        box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+        box-shadow: var(--shadow-lg);
     }
 
     &__title {
         font-family: var(--font-display);
-        font-size: var(--fs-lg);
+        font-size: clamp(1.25rem, 2.5vw, 1.5rem);
         margin: 0 0 var(--s-1);
     }
 
@@ -1534,12 +1529,6 @@ export default defineComponent({
 
 @keyframes spin {
     to { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.15); opacity: 0.6; }
-    100% { transform: scale(1); opacity: 1; }
 }
 
 /* Shimmering skeletons */

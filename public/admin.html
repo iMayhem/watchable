@@ -668,8 +668,7 @@
             resultsContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--bone-400); font-size: 0.9rem;">Searching...</div>';
 
             try {
-                // Fetch from TMDB proxy endpoint relative path
-                const res = await fetch(`/api/tmdb/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(query)}&language=en-US&page=1`);
+                const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(query)}&language=en-US&page=1`);
                 const data = await res.json();
                 const results = data.results || [];
                 

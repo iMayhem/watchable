@@ -137,7 +137,7 @@ function normalizeTmdbPath(path: string): string {
 }
 
 /**
- * TMDB image URL. Path must include size token, e.g. w342/abc.jpg
+ * TMDB image URL (direct CDN). Path must include size token, e.g. w342/abc.jpg
  */
 export function buildProxiedImageUrl(tmdbPath: string): string {
     if (!tmdbPath) return '';
@@ -156,7 +156,7 @@ export function buildCatalogCdnImageUrl(url: string, size: WebImageSize = 'mediu
 
 /**
  * AniList covers are served from s4.anilist.co (public CDN).
- * The /api/catalog-img hop returns 403 from the edge for these URLs, so use direct links.
+ * AniList covers must load directly from their CDN.
  */
 function buildAnilistImageUrl(url: string, _size: WebImageSize = 'medium'): string {
     if (!url || !ANILIST_CDN_PATTERN.test(url)) return url;

@@ -143,7 +143,7 @@ async function scrapeVideasyForServer(server, type, tmdbId, title, year, season,
       if (Array.isArray(result.sources)) {
         result.sources.forEach(src => {
           options.push({
-            url: `/api/cinestream?proxyUrl=${encodeURIComponent(src.url)}`,
+            url: src.url,
             quality: src.quality || 'Auto',
             format: src.url.includes('.m3u8') ? 'm3u8' : 'mp4',
             server: `Videasy [${server.toUpperCase()}]`,
@@ -155,7 +155,7 @@ async function scrapeVideasyForServer(server, type, tmdbId, title, year, season,
       if (Array.isArray(result.subtitles)) {
         result.subtitles.forEach(sub => {
           captions.push({
-            url: `/api/cinestream?proxyUrl=${encodeURIComponent(sub.url)}`,
+            url: sub.url,
             language: sub.language || 'English',
             languageCode: sub.languageCode || 'en'
           });
@@ -211,70 +211,6 @@ export async function onRequest(context) {
   }
   
   console.log('[CineStream Cache] MISS - Fetching fresh data');
-
-  // Unified HLS Playlist and Subtitle Proxy Tunneling
-  const proxyUrl = url.searchParams.get('proxyUrl');
-  if (proxyUrl) {
-    try {
-      const headers = {
-        'User-Agent': USER_AGENT,
-        'Origin': 'https://www.cineby.sc',
-        'Referer': 'https://www.cineby.sc/'
-      };
-      const proxyRes = await fetch(proxyUrl, { headers });
-      if (!proxyRes.ok) return new Response('Proxy offline', { status: proxyRes.status });
-
-      const contentType = proxyRes.headers.get('content-type') || '';
-      
-      // If VTT subtitle
-      if (proxyUrl.includes('.vtt') || contentType.includes('text/vtt') || proxyUrl.includes('type=vtt')) {
-        const text = await proxyRes.text();
-        return new Response(text, {
-          headers: {
-            'content-type': 'text/vtt',
-            'access-control-allow-origin': '*',
-            'cache-control': 'public, max-age=86400'
-          }
-        });
-      }
-
-      // If HLS Playlist
-      if (proxyUrl.includes('.m3u8') || contentType.includes('application/x-mpegURL') || contentType.includes('application/vnd.apple.mpegurl')) {
-        const text = await proxyRes.text();
-        const lines = text.split('\n');
-        const rewrittenLines = lines.map(line => {
-          const trimmed = line.trim();
-          if (trimmed && !trimmed.startsWith('#')) {
-            try {
-              const absoluteUrl = new URL(trimmed, proxyUrl).href;
-              return `/api/cinestream?proxyUrl=${encodeURIComponent(absoluteUrl)}`;
-            } catch(e) {
-              return line;
-            }
-          }
-          return line;
-        });
-        
-        return new Response(rewrittenLines.join('\n'), {
-          headers: {
-            'content-type': 'application/vnd.apple.mpegurl',
-            'access-control-allow-origin': '*'
-          }
-        });
-      }
-
-      // Any other binary resource (e.g., .ts chunk or variant playlist)
-      return new Response(proxyRes.body, {
-        headers: {
-          'content-type': contentType,
-          'access-control-allow-origin': '*',
-          'access-control-expose-headers': '*'
-        }
-      });
-    } catch (err) {
-      return new Response('Proxy error', { status: 500 });
-    }
-  }
 
   const type = url.searchParams.get('type');
   const id = url.searchParams.get('id');

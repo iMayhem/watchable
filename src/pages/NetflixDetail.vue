@@ -94,6 +94,7 @@ import {
     itemMatchesLanguage
 } from '../composables/useNetflixLanguage';
 import { useSeo } from '../composables/useSeo';
+import { useWebImage } from '../utils/useWebImage';
 import {
     resolveInstantCatalogArtwork,
     toCuratedItemFast
@@ -316,11 +317,9 @@ export default defineComponent({
             updateSeo({
                 title: `${displayTitle.value} — Netflix on Moovie`,
                 canonical: `https://moovie.fun/nf/${mediaType.value}/${id}`,
-                image: seoImage?.startsWith('http')
-                    ? seoImage
-                    : seoImage
-                      ? `https://moovie.fun/api/img?path=${encodeURIComponent(seoImage)}`
-                      : 'https://moovie.fun/og-image.png'
+                image: seoImage
+                    ? useWebImage(seoImage, 'hero')
+                    : 'https://moovie.fun/og-image.png'
             });
         };
 

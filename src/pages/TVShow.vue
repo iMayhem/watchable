@@ -322,14 +322,9 @@ export default defineComponent({
                 show.value = details.data.value ?? null;
 
                 if (show.value) {
-                    const rawPosterUrl = show.value.poster_path 
-                        ? buildProxiedImageUrl(`original${show.value.poster_path}`) 
-                        : '/og-image.png';
-                    // SEO meta needs an absolute URL; in production buildProxiedImageUrl
-                    // returns a relative /api/img?... path, so we prefix the canonical host.
-                    const posterUrl = rawPosterUrl.startsWith('/')
-                        ? `https://moovie.fun${rawPosterUrl}`
-                        : rawPosterUrl;
+                    const posterUrl = show.value.poster_path
+                        ? buildProxiedImageUrl(`original${show.value.poster_path}`)
+                        : 'https://moovie.fun/og-image.png';
                     updateSeo({
                         title: `${show.value.name} — Moovie`,
                         description: show.value.overview || `Watch ${show.value.name} online on Moovie.`,

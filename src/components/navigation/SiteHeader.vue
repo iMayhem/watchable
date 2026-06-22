@@ -88,10 +88,11 @@
 
 
 
-                <a
+                <router-link
                     v-if="!isNetflixMode"
-                    href="/party/"
+                    to="/party"
                     class="site-header__party-btn"
+                    :class="{ 'is-active': isPartyRoute }"
                     aria-label="Watch Together"
                     title="Watch Together Lobby"
                 >
@@ -102,7 +103,7 @@
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
                     <span class="site-header__party-label">Watch Together</span>
-                </a>
+                </router-link>
 
                 <template v-if="!isNetflixMode">
                     <button v-if="currentUser" class="site-header__user-badge" @click="handleLogout" title="Sign Out">
@@ -256,10 +257,10 @@
                         <span class="site-header__drawer-label">Search</span>
                     </button>
 
-                    <a href="/party/" class="site-header__drawer-link" @click="drawerOpen = false">
+                    <router-link to="/party" class="site-header__drawer-link" :class="{ 'is-active': isPartyRoute }" @click="drawerOpen = false">
                         <span class="eyebrow site-header__drawer-num">✦</span>
                         <span class="site-header__drawer-label">Watch Together</span>
-                    </a>
+                    </router-link>
 
                     <button class="site-header__drawer-link" @click="isSettingsModalOpen = true; drawerOpen = false">
                         <span class="eyebrow site-header__drawer-num">🌐</span>
@@ -409,6 +410,7 @@ export default defineComponent({
         const { catalogue: netflixCatalogue, setCatalogue: setNetflixCatalogue } =
             getNetflixCatalogue();
         const isNetflixMode = computed(() => contentMode.value === 'netflix');
+        const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
         const scrolled = ref(false);
 
         const DETAIL_ROUTE_NAMES = new Set([
@@ -715,6 +717,7 @@ export default defineComponent({
             toggleContentMode,
 
             isNetflixMode,
+            isPartyRoute,
             netflixNavLeading,
             netflixNavTrailing,
             isMovieSectionActive,
@@ -1065,6 +1068,12 @@ export default defineComponent({
             background: rgba(255, 90, 31, 0.16);
             border-color: rgba(255, 90, 31, 0.45);
             transform: translateY(-1px);
+        }
+
+        &.is-active {
+            background: rgba(255, 90, 31, 0.2);
+            border-color: rgba(255, 90, 31, 0.55);
+            color: #fff;
         }
     }
 

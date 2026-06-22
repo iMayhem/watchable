@@ -58,6 +58,43 @@
             transition: background-color 0.5s ease;
         }
 
+        html.party-embedded {
+            min-height: 100%;
+        }
+
+        html.party-embedded:has(body.room-view-active) {
+            height: 100%;
+        }
+
+        html.party-embedded body:not(.room-view-active) {
+            height: auto;
+            min-height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        html.party-embedded #main-header {
+            display: none !important;
+        }
+
+        html.party-embedded body:not(.room-view-active) .party-main {
+            flex: 1 0 auto;
+            min-height: 0;
+            overflow: visible;
+        }
+
+        html.party-embedded body.room-view-active {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        html.party-embedded body.room-view-active .party-main {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
         /* Hide scroll car on party/watch together pages */
         .scroll-car-container {
             display: none !important;
@@ -543,9 +580,17 @@
             margin-bottom: 1.5rem;
         }
 
+        .party-lobby-bar__eyebrow-row {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0.5rem 0.75rem;
+            margin-bottom: 0.35rem;
+        }
+
         .party-lobby-bar__eyebrow {
             color: var(--bone-400);
-            margin: 0 0 0.35rem;
+            margin: 0;
         }
 
         .party-lobby-bar__title {
@@ -554,6 +599,14 @@
             font-weight: 500;
             margin: 0;
             color: var(--bone-50);
+        }
+
+        .party-lobby-bar__note {
+            margin: 0;
+            font-size: var(--fs-xs);
+            color: var(--bone-500);
+            line-height: 1.45;
+            letter-spacing: var(--ls-micro);
         }
 
         .rooms-grid {
@@ -3830,7 +3883,5 @@
                 align-items: stretch;
             }
 
-            .party-lobby-bar .btn-primary {
-                width: 100%;
-            }
+
         }

@@ -301,6 +301,15 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/party',
+        name: 'Party',
+        component: () => import('../pages/Party.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Watch Together'
+        }
+    },
+    {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: () => import('../pages/NotFound.vue'),

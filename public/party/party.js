@@ -99,6 +99,27 @@
         let joinRoomId = urlParams.get('room') || '';
         const prefillTitle = urlParams.get('title') || '';
 
+        function isPartyEmbedded() {
+            if (urlParams.get('embedded') === '1') return true;
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        const partyEmbedded = isPartyEmbedded();
+
+        function syncParentPartyUrl(path) {
+            if (!partyEmbedded) return;
+            try {
+                window.parent.postMessage({
+                    type: 'watchable-party-nav',
+                    path
+                }, window.location.origin);
+            } catch (e) {}
+        }
+
         // Parsing room parameter for custom player URLs
         let isAnime = false;
         let isTv = false;
@@ -1480,6 +1501,12 @@
         let loadRoomsTimer = null;
         let roomActivityHeartbeat = null;
 
+        const PARTY_INACTIVE_HOURS = 12;
+
+        function partyInactiveThresholdIso() {
+            return new Date(Date.now() - PARTY_INACTIVE_HOURS * 60 * 60 * 1000).toISOString();
+        }
+
         const PARTY_SESSION_KEY = 'watchable_party_session_id';
         let presenceSessionId = safeLocalStorage.getItem(PARTY_SESSION_KEY);
         if (!presenceSessionId) {
@@ -1666,7 +1693,12 @@
 
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('lobby-view').classList.add('active');
-            window.history.pushState({}, '', window.location.pathname);
+            if (partyEmbedded) {
+                window.history.pushState({}, '', '/party/app.html');
+            } else {
+                window.history.pushState({}, '', window.location.pathname);
+            }
+            syncParentPartyUrl('/party');
             loadActiveRooms();
             setupLobbyFeed();
         }
@@ -1808,7 +1840,14 @@
 
             // Update URL to the shareable room short code link
             const displayId = uuidToShortCode(room.id) || room.id;
-            window.history.pushState({}, '', `?room=${displayId}`);
+            if (partyEmbedded) {
+                window.history.pushState({}, '', `/party/app.html?room=${displayId}`);
+            } else {
+                window.history.pushState({}, '', `?room=${displayId}`);
+            }
+            const parentRoomParams = new URLSearchParams({ room: displayId });
+            if (prefillTitle) parentRoomParams.set('title', prefillTitle);
+            syncParentPartyUrl(`/party?${parentRoomParams.toString()}`);
             
             // Connect to real-time chat & presence channel
             connectToRealtimeRoom(room);
@@ -2228,18 +2267,17 @@
             teardownLobbyPresence();
             
             try {
-                // Automatically prune rooms older than 24 hours from the database on page load
-                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                // Prune rooms with no activity in the last 12 hours
+                const inactiveThreshold = partyInactiveThresholdIso();
                 await supabaseClient
                     .from('rooms')
                     .delete()
-                    .lt('created_at', twentyFourHoursAgo);
+                    .lt('scheduled_start_time', inactiveThreshold);
 
-                const activeThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
                 const { data: rooms, error } = await supabaseClient
                     .from('rooms')
                     .select('*')
-                    .or(`scheduled_start_time.gte.${activeThreshold},created_at.gte.${activeThreshold}`)
+                    .gte('scheduled_start_time', inactiveThreshold)
                     .order('scheduled_start_time', { ascending: false });
 
                 if (error) throw error;
@@ -2690,24 +2728,6 @@
         window.addEventListener('DOMContentLoaded', async () => {
             updateHeaderBadge();
             bindPartyEpNavButtons();
-
-            // Fast navigation helper when leaving the party page back to home
-            document.querySelectorAll('a[href="../index.html"]').forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const href = link.href;
-                    const iframe = document.getElementById('video-player-iframe');
-                    if (iframe) {
-                        iframe.src = 'about:blank';
-                        try {
-                            iframe.parentNode.removeChild(iframe);
-                        } catch (err) {}
-                    }
-                    setTimeout(() => {
-                        window.location.href = href;
-                    }, 20);
-                });
-            });
 
             // Listen for complete event from iframe players to advance episodes for social host
             window.addEventListener('message', (event) => {

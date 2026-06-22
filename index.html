@@ -47,27 +47,58 @@
         try {
           var host = location.hostname;
           if (host === 'localhost' || host === '127.0.0.1') return;
-          
-          var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
+
+          if (host === 'www.moovie.fun') {
+            location.replace('https://moovie.fun' + location.pathname + location.search + location.hash);
+            return;
+          }
+
+          var params = new URLSearchParams(location.search || '');
+          if (params.has('desktop')) return;
+
           var path = location.pathname;
           if (path.indexOf('/api/') === 0 || path.indexOf('/party') === 0 || /\.[a-z0-9]+$/i.test(path)) return;
           if (/^\/nf(\/|$)/.test(path) || /^\/stream\/nf(\/|$)/.test(path) || /^\/embed\/nf(\/|$)/.test(path)) {
             path = '/';
           }
-          
-          var q = location.search || '';
-          if (/\bdesktop=1\b/.test(q) || q.indexOf('desktop') !== -1) return;
-          var mobileQ = /\bmobile=1\b/.test(q) || q.indexOf('mobile') !== -1;
+
           var ua = navigator.userAgent || '';
-          var mobileUa = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua) || /iPad|Tablet/i.test(ua);
           var touch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
-          var narrow = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
-          var tablet = touch && narrow;
-          if (mobileQ || mobileUa || tablet) {
-            var targetHost = cleanHost.indexOf('m.') === 0 ? cleanHost : 'm.' + cleanHost;
-            var targetUrl = 'https://' + targetHost + path + location.search + location.hash;
-            location.replace(targetUrl);
+          function isPhoneViewport() {
+            var w = window.innerWidth || document.documentElement.clientWidth || 0;
+            var h = window.innerHeight || 0;
+            var sw = screen.width || 0;
+            var sh = screen.height || 0;
+            var min = Math.min(w || sw, h || sh);
+            return min > 0 && min < 768;
           }
+          function isPhoneUa(u) {
+            if (/iPhone|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(u)) return true;
+            if (/Android/i.test(u) && /Mobile/i.test(u)) return true;
+            if (/Mobile/i.test(u) && !/iPad|Tablet|tablet|PlayBook|Silk/i.test(u)) return true;
+            return false;
+          }
+          function isTabletUa(u) {
+            if (isPhoneViewport()) return false;
+            if (/iPad|Tablet|tablet|PlayBook|Silk/i.test(u)) return true;
+            if (/Android/i.test(u) && !/Mobile/i.test(u)) return true;
+            if (/Macintosh/i.test(u) && touch && (navigator.maxTouchPoints || 0) > 1) return true;
+            return false;
+          }
+          function isLargeTabletViewport() {
+            if (isPhoneViewport()) return false;
+            var w = screen.width || 0, h = screen.height || 0;
+            return Math.min(w, h) >= 768 && Math.max(w, h) >= 1024;
+          }
+          var useMobile = params.has('mobile')
+            || isPhoneUa(ua)
+            || isPhoneViewport()
+            || (isTabletUa(ua) && !isLargeTabletViewport());
+          if (!useMobile) return;
+
+          var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
+          var targetHost = cleanHost.indexOf('m.') === 0 ? cleanHost : 'm.' + cleanHost;
+          location.replace('https://' + targetHost + path + location.search + location.hash);
         } catch (e) {}
       })();
     </script>

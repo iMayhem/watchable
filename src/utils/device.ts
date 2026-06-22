@@ -1,9 +1,9 @@
-const MOBILE_UA =
-    /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile/i;
+const PHONE_UA = /iPhone|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i;
 
 const TABLET_UA = /iPad|Tablet|tablet|PlayBook|Silk/i;
 
-const TABLET_MAX_WIDTH = 1024;
+const LARGE_TABLET_MIN_SHORT = 768;
+const LARGE_TABLET_MIN_LONG = 1024;
 
 export type DevicePreference = 'auto' | 'mobile' | 'desktop';
 
@@ -40,17 +40,52 @@ export function isTouchDevice(): boolean {
     );
 }
 
-export function isNarrowViewport(): boolean {
+/** Narrow viewport — phones (e.g. iPhone 12 Pro 390×844). */
+export function isPhoneViewport(): boolean {
     if (typeof window === 'undefined') return false;
-    return window.matchMedia(`(max-width: ${TABLET_MAX_WIDTH}px)`).matches;
+    const w = window.innerWidth || document.documentElement?.clientWidth || 0;
+    const h = window.innerHeight || 0;
+    const sw = typeof screen !== 'undefined' ? screen.width || 0 : 0;
+    const sh = typeof screen !== 'undefined' ? screen.height || 0 : 0;
+    const min = Math.min(w || sw, h || sh);
+    return min > 0 && min < LARGE_TABLET_MIN_SHORT;
 }
 
-/** True for phones, tablets, and touch laptops under tablet breakpoint. */
+/** True for phones (not tablets). */
+export function isPhoneUserAgent(ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): boolean {
+    if (PHONE_UA.test(ua)) return true;
+    if (/Android/i.test(ua) && /Mobile/i.test(ua)) return true;
+    if (/Mobile/i.test(ua) && !TABLET_UA.test(ua)) return true;
+    return false;
+}
+
+/** True for tablets (iPad, Android tablet, iPadOS-as-Macintosh). */
+export function isTabletUserAgent(ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): boolean {
+    if (isPhoneViewport()) return false;
+    if (TABLET_UA.test(ua)) return true;
+    if (/Android/i.test(ua) && !/Mobile/i.test(ua)) return true;
+    if (/Macintosh/i.test(ua) && isTouchDevice() && navigator.maxTouchPoints > 1) return true;
+    return false;
+}
+
+/** Only 1024×768 and larger tablets qualify for the desktop site. */
+export function isLargeTabletViewport(): boolean {
+    if (isPhoneViewport()) return false;
+    if (typeof screen === 'undefined') return false;
+    const w = screen.width || 0;
+    const h = screen.height || 0;
+    return (
+        Math.min(w, h) >= LARGE_TABLET_MIN_SHORT &&
+        Math.max(w, h) >= LARGE_TABLET_MIN_LONG
+    );
+}
+
+/** True when the device should use the mobile site (phones + smaller tablets). */
 export function isMobileOrTabletUserAgent(ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): boolean {
-    if (MOBILE_UA.test(ua) || TABLET_UA.test(ua)) return true;
-    // iPadOS 13+ may report as Macintosh
-    if (/Macintosh/i.test(ua) && isTouchDevice() && isNarrowViewport()) return true;
-    return isTouchDevice() && isNarrowViewport();
+    if (isPhoneUserAgent(ua)) return true;
+    if (isPhoneViewport()) return true;
+    if (isTabletUserAgent(ua) && !isLargeTabletViewport()) return true;
+    return false;
 }
 
 export function shouldUseMobileSite(search = typeof location !== 'undefined' ? location.search : ''): boolean {

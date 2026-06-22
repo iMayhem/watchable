@@ -688,7 +688,11 @@ export default defineComponent({
             gap: var(--s-6) var(--s-5);
         }
 
-        @media (min-width: 1200px) {
+        @media (min-width: 1024px) and (max-width: 1499px) {
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        }
+
+        @media (min-width: 1500px) {
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         }
     }

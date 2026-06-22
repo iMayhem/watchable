@@ -1,12 +1,24 @@
+import { mobileRedirectUrl } from './deviceRouting';
+
 // Edge Middleware to dynamically inject SEO metadata before serving the Single Page Application
 export async function onRequest(context) {
   const { request, next } = context;
   const url = new URL(request.url);
   const pathname = url.pathname;
 
+  if (url.hostname === 'www.moovie.fun') {
+    url.hostname = 'moovie.fun';
+    return Response.redirect(url.toString(), 301);
+  }
+
   // 1. Only intercept GET requests
   if (request.method !== 'GET') {
     return next();
+  }
+
+  const deviceRedirect = mobileRedirectUrl(request);
+  if (deviceRedirect) {
+    return Response.redirect(deviceRedirect, 302);
   }
 
   // 2. Skip requests that are not page loads (API, files, sitemaps, static assets)

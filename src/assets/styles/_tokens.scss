@@ -88,6 +88,7 @@
   --s-10: 7.5rem;   // 120
 
   // ── Layout ───────────────────────────────────────────────────────────────
+  --ui-scale: 1;
   --container-max: 1440px;
   --container-gutter: 2rem;
   --site-header-height: 68px;
@@ -125,6 +126,15 @@
   --z-toast: 120;
   --z-miniplayer: 140;
   --z-command: 160;
+}
+
+// Compact laptops (e.g. MacBook Pro 1440×900) — boost rem scale so UI matches
+// denser Windows panels; slightly tighter gutters reclaim horizontal space.
+@media (min-width: 1024px) and (max-width: 1599px) {
+  :root {
+    --ui-scale: 1.125;
+    --container-gutter: 1.5rem;
+  }
 }
 
 // Prefer reduced motion ------------------------------------------------------

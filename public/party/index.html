@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <meta name="theme-color" content="#04060a">
+    <meta name="theme-color" content="#0b0a08">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="robots" content="noindex, nofollow">
@@ -12,7 +12,9 @@
     <!-- Premium Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&display=swap" rel="stylesheet">
+    <link href="https://api.fontshare.com/v2/css?f[]=general-sans@200,300,400,500,600,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -130,6 +132,7 @@
     </script>
 </head>
 <body>
+    <span class="grain" aria-hidden="true"></span>
     <script>
         (function() {
             const params = new URLSearchParams(window.location.search);
@@ -141,49 +144,39 @@
     </script>
 
     <!-- Main Header -->
-    <header id="main-header">
-        <div class="header-inner">
-            <div class="header-left">
-                <a href="../index.html" class="back-btn" title="Back to Home">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="19" y1="12" x2="5" y2="12"></line>
-                        <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                    Home
-                </a>
-                <a href="../index.html" class="logo" aria-label="moovie home">
-                    <div class="logo-wordmark">
-                        <span class="logo-mark-text">moovie</span>
-                        <span class="logo-kicker">A Cinema Periodical</span>
-                    </div>
-                </a>
-            </div>
-            <div id="header-user">
+    <header id="main-header" class="party-header">
+        <div class="container-lm party-header__inner">
+            <a href="/" class="party-header__logo" aria-label="moovie home">
+                <div class="party-header__wordmark">
+                    <span class="party-header__mark">moovie</span>
+                    <span class="party-header__kicker eyebrow">A Cinema Periodical</span>
+                </div>
+            </a>
+            <div id="header-user" class="party-header__user">
                 <!-- Injected via JS -->
             </div>
         </div>
     </header>
 
-    <main>
+    <main class="party-main">
         <!-- LOBBY VIEW -->
         <section id="lobby-view" class="view">
-            <div class="lobby-hero">
-                <h1>Watch Together</h1>
-                <p>Host or join interactive, synchronous movie sessions with real-time video sync & chat.</p>
-            </div>
+            <div class="container-lm">
+                <div class="party-lobby-bar">
+                    <div class="party-lobby-bar__copy">
+                        <p class="eyebrow party-lobby-bar__eyebrow">The Marquee</p>
+                        <h2 class="party-lobby-bar__title">Active rooms</h2>
+                    </div>
+                    <button class="btn btn-primary" onclick="showCreateView()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Create room
+                    </button>
+                </div>
 
-            <div class="lobby-controls">
-                <h2 class="lobby-title">Active Watch Parties</h2>
-                <button class="btn btn-primary" onclick="showCreateView()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Create Party Room
-                </button>
-            </div>
-
-            <div id="rooms-container" class="rooms-grid">
+                <div id="rooms-container" class="rooms-grid">
                 <!-- Shimmer Skeletons shown on load -->
                 <div class="skeleton-card skeleton-shimmer">
                     <div class="skeleton-text skeleton-text--title"></div>
@@ -210,33 +203,41 @@
                     <div class="skeleton-button" style="margin-top: auto;"></div>
                 </div>
             </div>
+            </div>
         </section>
 
         <!-- CREATE ROOM VIEW -->
         <section id="create-view" class="view">
-            <div class="form-card">
-                <h2 class="form-title">Create Watch Party</h2>
-                <form id="create-room-form" onsubmit="handleCreateRoom(event)">
-                    <div class="form-group">
-                        <label class="form-label">Party Name</label>
-                        <input type="text" id="form-room-name" class="form-input" placeholder="e.g. Sujeet's Late Night Movie Club" required>
-                    </div>
+            <div class="container-lm party-create-wrap">
+                <div class="form-card">
+                    <header class="form-card__head">
+                        <p class="eyebrow form-card__eyebrow">New session</p>
+                        <h2 class="form-title">Create a watch party</h2>
+                        <p class="form-card__lede meta">Set a room name, title, and embed link. Friends join via your invite URL.</p>
+                    </header>
+                    <form id="create-room-form" onsubmit="handleCreateRoom(event)">
+                        <div class="form-group">
+                            <label class="form-label" for="form-room-name">Room name</label>
+                            <input type="text" id="form-room-name" class="form-input" placeholder="Late Night Movie Club" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Select Feature / Movie Title</label>
-                        <input type="text" id="form-movie-title" class="form-input" placeholder="e.g. Spider-Man: Into the Spider-Verse" required>
-                    </div>
+                        <div class="form-group">
+                            <label class="form-label" for="form-movie-title">Feature title</label>
+                            <input type="text" id="form-movie-title" class="form-input" placeholder="Spider-Man: Into the Spider-Verse" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Video Embed URL (vidsrc / superembed)</label>
-                        <input type="url" id="form-embed-url" class="form-input" placeholder="e.g. https://vidsrc.to/embed/movie/502356" required>
-                    </div>
+                        <div class="form-group">
+                            <label class="form-label" for="form-embed-url">Embed URL</label>
+                            <input type="url" id="form-embed-url" class="form-input" placeholder="https://vidsrc.to/embed/movie/502356" required>
+                            <p class="form-hint meta">vidsrc, superembed, or your stream provider embed link</p>
+                        </div>
 
-                    <div class="form-buttons">
-                        <button type="button" class="btn btn-secondary" onclick="showLobbyView()">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Launch Lobby</button>
-                    </div>
-                </form>
+                        <div class="form-buttons">
+                            <button type="button" class="btn btn-secondary" onclick="showLobbyView()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Launch lobby</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </section>
 
@@ -249,13 +250,22 @@
                     <!-- Info Banner -->
                     <div class="workspace-banner">
                         <div class="banner-progress">
-                            <a href="../index.html" class="back-btn" title="Back to Home">
+                            <a href="/" class="back-btn" title="Back to Home">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="19" y1="12" x2="5" y2="12"></line>
                                     <polyline points="12 19 5 12 12 5"></polyline>
                                 </svg>
                                 Home
                             </a>
+                            <button type="button" class="back-btn" onclick="showLobbyView()" title="Back to Party Lobby">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                                Lobby
+                            </button>
                             <span id="banner-playing-text">🍿 Loading feature stream...</span>
                         </div>
                     </div>

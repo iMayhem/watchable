@@ -21,7 +21,6 @@
                             v-model="q"
                             type="text"
                             class="lm-palette__input"
-                            :placeholder="searchPlaceholder"
                             autocomplete="off"
                             spellcheck="false"
                             @keydown="onKey"
@@ -294,12 +293,6 @@ export default defineComponent({
             isNetflixMode.value ? NETFLIX_SEARCH_SCOPES : GLOBAL_SEARCH_SCOPES
         );
 
-        const searchPlaceholder = computed(() =>
-            isNetflixMode.value
-                ? 'Search Netflix catalogue — or jump to a page'
-                : 'Search movies, shows, anime, upcoming — or jump to a page'
-        );
-
         const searchScopeLabel = computed(() =>
             isNetflixMode.value ? 'the catalogue' : 'TMDB'
         );
@@ -457,7 +450,6 @@ export default defineComponent({
             filteredJump,
             hasAnyResult,
             searchHistory: activeSearchHistory,
-            searchPlaceholder,
             searchScopeLabel,
             input,
             list,

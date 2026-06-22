@@ -93,7 +93,7 @@
                     href="/party/"
                     class="site-header__party-btn"
                     aria-label="Watch Together"
-                    title="Watch Together Party Lobby"
+                    title="Watch Together Lobby"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="site-header__party-icon">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -101,7 +101,7 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
-                    <span class="site-header__party-label">Party</span>
+                    <span class="site-header__party-label">Watch Together</span>
                 </a>
 
                 <template v-if="!isNetflixMode">

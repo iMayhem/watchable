@@ -60,26 +60,38 @@
         }
 
         async function persistRoomPrivacy(nextPrivate) {
-            const { data, error } = await supabaseClient
+            const roomId = activeRoom.id;
+
+            const { error: updateError } = await supabaseClient
                 .from('rooms')
                 .update({ is_private: nextPrivate })
-                .eq('id', activeRoom.id)
-                .select('id, is_private');
+                .eq('id', roomId);
 
-            if (error) {
-                if (isMissingPrivacyColumnError(error)) {
+            if (updateError) {
+                if (isMissingPrivacyColumnError(updateError)) {
                     throw new Error(
                         'The rooms.is_private column is missing. Run docs/rooms_private_migration.sql in the Supabase SQL Editor.'
                     );
                 }
-                throw error;
+                throw updateError;
             }
 
-            if (!Array.isArray(data) || data.length !== 1) {
-                throw new Error('Room privacy could not be saved. Check Supabase update permissions on the rooms table.');
+            const { data, error: fetchError } = await supabaseClient
+                .from('rooms')
+                .select('id, is_private')
+                .eq('id', roomId)
+                .maybeSingle();
+
+            if (fetchError) throw fetchError;
+            if (!data) throw new Error('Room not found.');
+
+            if (Boolean(data.is_private) !== nextPrivate) {
+                throw new Error(
+                    'Room privacy could not be saved. Run docs/rooms_private_migration.sql in Supabase — the rooms table needs an UPDATE policy.'
+                );
             }
 
-            return { ...activeRoom, ...data[0] };
+            return { ...activeRoom, ...data };
         }
 
         function canJoinRoom(room) {

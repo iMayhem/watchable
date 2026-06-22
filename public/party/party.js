@@ -1751,6 +1751,7 @@
         let activeRoom = null;
         let channel = null;
         let isHost = false;
+
         let lobbyChannels = [];
         let lobbyRoomsChannel = null;
         let lobbyRefreshInterval = null;
@@ -1948,11 +1949,7 @@
             if (nativeStage) nativeStage.style.display = 'none';
             destroyNetflixPlayer();
 
-            // Disconnect from realtime channel
-            if (channel) {
-                supabaseClient.removeChannel(channel);
-                channel = null;
-            }
+            void leaveCurrentPartyRoom({ purgeChatIfLast: true });
             stopRoomActivityHeartbeat();
 
             // Reset room state
@@ -2747,11 +2744,63 @@
             }
         }
 
-        // Realtime social communication via WebSockets
-        function connectToRealtimeRoom(room) {
-            if (channel) {
-                supabaseClient.removeChannel(channel);
+        function resetChatPanel() {
+            const box = document.getElementById('chat-box');
+            if (box) box.innerHTML = '';
+        }
+
+        async function persistPartyChatMessage(roomId, user, message, imageUrl) {
+            if (!roomId) return;
+            const { error } = await supabaseClient
+                .from('party_chat_messages')
+                .insert([{
+                    room_id: roomId,
+                    user_name: user,
+                    message: message || '',
+                    image_url: imageUrl || null
+                }]);
+            if (error) throw error;
+        }
+
+        async function purgePartyChat(roomId) {
+            if (!roomId) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('party_chat_messages')
+                    .delete()
+                    .eq('room_id', roomId);
+                if (error) throw error;
+            } catch (err) {
+                console.warn('Failed to purge party chat:', err);
             }
+        }
+
+        function maybePurgePartyChatWhenEmpty(presenceState) {
+            if (!activeRoom?.id) return;
+            if (countPresenceMembers(presenceState) > 0) return;
+            void purgePartyChat(activeRoom.id);
+        }
+
+        async function leaveCurrentPartyRoom({ purgeChatIfLast = false } = {}) {
+            const roomId = activeRoom?.id;
+            if (!channel) return;
+
+            if (purgeChatIfLast && roomId) {
+                const state = channel.presenceState();
+                if (countPresenceMembers(state) <= 1) {
+                    await purgePartyChat(roomId);
+                }
+            }
+
+            supabaseClient.removeChannel(channel);
+            channel = null;
+        }
+
+        // Realtime social communication via WebSockets
+        async function connectToRealtimeRoom(room) {
+            await leaveCurrentPartyRoom({ purgeChatIfLast: true });
+
+            resetChatPanel();
 
             touchRoomActivity(room.id);
             startRoomActivityHeartbeat(room.id);
@@ -2768,7 +2817,9 @@
             // Listen for system Broadcast events (Realtime Lobby Chat)
             channel
                 .on('broadcast', { event: 'chat' }, (payload) => {
-                    appendChatMessage(payload.payload.user, payload.payload.message, 'other', payload.payload.image);
+                    const data = payload.payload || {};
+                    if (data.user === currentUserName) return;
+                    appendChatMessage(data.user, data.message, 'other', data.image);
                 })
                 .on('broadcast', { event: 'next_episode' }, (payload) => {
                     if (isHost) return;
@@ -2812,6 +2863,7 @@
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
+                    maybePurgePartyChatWhenEmpty(state);
                     const name = displayNameFromPresence(key, leftPresences);
                     appendChatMessage('System', `${name} left the watch party.`, 'system');
                 });
@@ -2887,15 +2939,20 @@
                 finalImage = await uploadBase64ToStorage(imageToSend);
             }
 
-            // Broadcast to the room
+            if (activeRoom?.id) {
+                void persistPartyChatMessage(activeRoom.id, currentUserName, textToSend, finalImage)
+                    .catch((err) => console.warn('party chat persist failed:', err));
+            }
+
+            // Broadcast to everyone currently in the room (no history for late joiners).
             if (channel) {
                 channel.send({
                     type: 'broadcast',
                     event: 'chat',
-                    payload: { 
-                        user: currentUserName, 
-                        message: textToSend, 
-                        image: finalImage 
+                    payload: {
+                        user: currentUserName,
+                        message: textToSend,
+                        image: finalImage
                     }
                 });
             }

@@ -2149,19 +2149,12 @@
             }
             
             try {
-                // Automatically prune rooms older than 24 hours from the database on page load
-                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-                await supabaseClient
-                    .from('rooms')
-                    .delete()
-                    .lt('created_at', twentyFourHoursAgo);
-
-                const activeThreshold = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+                const inactiveThreshold = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
                 const { data: rooms, error } = await supabaseClient
                     .from('rooms')
                     .select('*')
-                    .gt('created_at', activeThreshold)
-                    .order('created_at', { ascending: false });
+                    .gte('scheduled_start_time', inactiveThreshold)
+                    .order('scheduled_start_time', { ascending: false });
 
                 if (error) throw error;
 

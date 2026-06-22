@@ -2584,12 +2584,9 @@
             teardownLobbyPresence();
             
             try {
-                // Prune rooms with no activity in the last 12 hours
+                // Only list rooms active in the last 12 hours.
+                // Stale rows are removed server-side (see docs/rooms_cleanup_migration.sql).
                 const inactiveThreshold = partyInactiveThresholdIso();
-                await supabaseClient
-                    .from('rooms')
-                    .delete()
-                    .lt('scheduled_start_time', inactiveThreshold);
 
                 const { data: rooms, error } = await supabaseClient
                     .from('rooms')

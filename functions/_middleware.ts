@@ -4,11 +4,6 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const pathname = url.pathname;
 
-  if (url.hostname === 'www.moovie.fun') {
-    url.hostname = 'moovie.fun';
-    return Response.redirect(url.toString(), 301);
-  }
-
   // 1. Only intercept GET requests
   if (request.method !== 'GET') {
     return next();

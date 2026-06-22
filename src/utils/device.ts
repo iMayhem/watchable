@@ -1,5 +1,5 @@
 const MOBILE_UA =
-    /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i;
+    /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile/i;
 
 const TABLET_UA = /iPad|Tablet|tablet|PlayBook|Silk/i;
 
@@ -45,15 +45,11 @@ export function isNarrowViewport(): boolean {
     return window.matchMedia(`(max-width: ${TABLET_MAX_WIDTH}px)`).matches;
 }
 
-/** iPadOS 13+ may report as Macintosh with multi-touch. */
-export function isIPadOsMacintosh(ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): boolean {
-    return /Macintosh/i.test(ua) && isTouchDevice() && navigator.maxTouchPoints > 1;
-}
-
-/** True for phones, tablets, iPadOS, and touch viewports under the tablet breakpoint. */
+/** True for phones, tablets, and touch laptops under tablet breakpoint. */
 export function isMobileOrTabletUserAgent(ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): boolean {
     if (MOBILE_UA.test(ua) || TABLET_UA.test(ua)) return true;
-    if (isIPadOsMacintosh(ua)) return true;
+    // iPadOS 13+ may report as Macintosh
+    if (/Macintosh/i.test(ua) && isTouchDevice() && isNarrowViewport()) return true;
     return isTouchDevice() && isNarrowViewport();
 }
 

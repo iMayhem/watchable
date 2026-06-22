@@ -124,27 +124,31 @@
         try {
           var host = location.hostname;
           if (host === 'localhost' || host === '127.0.0.1') return;
-
-          var params = new URLSearchParams(location.search || '');
-          if (params.has('mobile')) return;
-
+          
+          var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
+          var q = location.search || '';
+          if (/\bmobile=1\b/.test(q) || q.indexOf('mobile') !== -1) return;
+          
+          var desktopQ = /\bdesktop=1\b/.test(q) || q.indexOf('desktop') !== -1;
+          var ua = navigator.userAgent || '';
+          var mobileUa = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua) || /iPad|Tablet/i.test(ua);
+          var touch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+          var narrow = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
+          var tablet = touch && narrow;
+          
           var path = location.pathname;
           if (/^\/nf(\/|$)/.test(path) || /^\/stream\/nf(\/|$)/.test(path) || /^\/embed\/nf(\/|$)/.test(path)) {
             path = '/';
           }
 
-          var ua = navigator.userAgent || '';
-          var mobileUa = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)
-            || /iPad|Tablet|tablet|PlayBook|Silk/i.test(ua);
-          var touch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
-          var narrow = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
-          var macTablet = /Macintosh/i.test(ua) && touch && (navigator.maxTouchPoints || 0) > 1;
-          var useMobile = mobileUa || macTablet || (touch && narrow);
-
-          if (params.has('desktop') || !useMobile) {
-            var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
-            var targetHost = cleanHost.indexOf('m.') === 0 ? cleanHost.substring(2) : cleanHost;
-            location.replace('https://' + targetHost + path + location.search + location.hash);
+          // If NOT mobile/tablet, redirect to the desktop site
+          if (desktopQ || (!mobileUa && !tablet)) {
+            var targetHost = cleanHost;
+            if (cleanHost.indexOf('m.') === 0) {
+              targetHost = cleanHost.substring(2);
+            }
+            var targetUrl = 'https://' + targetHost + path + location.search + location.hash;
+            location.replace(targetUrl);
           } else if (path !== location.pathname) {
             location.replace(path + location.search + location.hash);
           }

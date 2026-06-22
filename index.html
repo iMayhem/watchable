@@ -63,15 +63,6 @@
           }
 
           var ua = navigator.userAgent || '';
-          var touch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
-          function isPhoneViewport() {
-            var w = window.innerWidth || document.documentElement.clientWidth || 0;
-            var h = window.innerHeight || 0;
-            var sw = screen.width || 0;
-            var sh = screen.height || 0;
-            var min = Math.min(w || sw, h || sh);
-            return min > 0 && min < 768;
-          }
           function isPhoneUa(u) {
             if (/iPhone|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(u)) return true;
             if (/Android/i.test(u) && /Mobile/i.test(u)) return true;
@@ -79,22 +70,26 @@
             return false;
           }
           function isTabletUa(u) {
-            if (isPhoneViewport()) return false;
             if (/iPad|Tablet|tablet|PlayBook|Silk/i.test(u)) return true;
             if (/Android/i.test(u) && !/Mobile/i.test(u)) return true;
-            if (/Macintosh/i.test(u) && touch && (navigator.maxTouchPoints || 0) > 1) return true;
             return false;
           }
           function isLargeTabletViewport() {
-            if (isPhoneViewport()) return false;
             var w = screen.width || 0, h = screen.height || 0;
             return Math.min(w, h) >= 768 && Math.max(w, h) >= 1024;
           }
-          var useMobile = params.has('mobile')
-            || isPhoneUa(ua)
-            || isPhoneViewport()
-            || (isTabletUa(ua) && !isLargeTabletViewport());
-          if (!useMobile) return;
+          function shouldUseMobile() {
+            if (params.has('mobile')) return true;
+            if (isPhoneUa(ua)) return true;
+            if (isTabletUa(ua) && !isLargeTabletViewport()) return true;
+            return false;
+          }
+
+          if (!shouldUseMobile()) return;
+
+          var guard = sessionStorage.getItem('moovie-route');
+          if (guard === 'mobile') return;
+          sessionStorage.setItem('moovie-route', 'mobile');
 
           var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
           var targetHost = cleanHost.indexOf('m.') === 0 ? cleanHost : 'm.' + cleanHost;

@@ -59,12 +59,10 @@ export function isPhoneUserAgent(ua = typeof navigator !== 'undefined' ? navigat
     return false;
 }
 
-/** True for tablets (iPad, Android tablet, iPadOS-as-Macintosh). */
+/** True for tablets (iPad, Android tablet). Macintosh+iPadOS is handled via screen size in redirect scripts. */
 export function isTabletUserAgent(ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): boolean {
-    if (isPhoneViewport()) return false;
     if (TABLET_UA.test(ua)) return true;
     if (/Android/i.test(ua) && !/Mobile/i.test(ua)) return true;
-    if (/Macintosh/i.test(ua) && isTouchDevice() && navigator.maxTouchPoints > 1) return true;
     return false;
 }
 
@@ -83,7 +81,6 @@ export function isLargeTabletViewport(): boolean {
 /** True when the device should use the mobile site (phones + smaller tablets). */
 export function isMobileOrTabletUserAgent(ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): boolean {
     if (isPhoneUserAgent(ua)) return true;
-    if (isPhoneViewport()) return true;
     if (isTabletUserAgent(ua) && !isLargeTabletViewport()) return true;
     return false;
 }

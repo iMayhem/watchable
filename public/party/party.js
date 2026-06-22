@@ -226,7 +226,48 @@
         // Parse query params (Direct Join or Stream details transfer)
         const urlParams = new URLSearchParams(window.location.search);
         let joinRoomId = urlParams.get('room') || '';
+        const catalogMediaId = urlParams.get('media') || '';
         const prefillTitle = urlParams.get('title') || '';
+
+        function isCatalogMediaKey(value) {
+            if (!value || typeof value !== 'string') return false;
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return false;
+            if (isPartyShortCode(value)) return false;
+            return true;
+        }
+
+        async function createCatalogPartyRoom(catalogKey) {
+            const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse/i.test(navigator.userAgent) || navigator.webdriver;
+            if (isBot) {
+                console.log('Bot detected. Skipping automatic room creation.');
+                showLobbyView();
+                return;
+            }
+
+            const roomName = `${currentUserName}'s Watch Lounge`;
+            const shortCode = generateShortCode();
+            const uuid = shortCodeToUuid(shortCode);
+            const row = {
+                id: uuid,
+                name: roomName,
+                movie_title: prefillTitle || 'Feature Title',
+                embed_sources: catalogKey,
+                media_id: catalogKey,
+                scheduled_start_time: new Date().toISOString()
+            };
+
+            const { data: newRoom, error: createError } = await supabaseClient
+                .from('rooms')
+                .insert([row])
+                .select()
+                .single();
+
+            if (createError) throw createError;
+
+            activeRoom = newRoom;
+            applyRoomHostRole(newRoom, true);
+            showRoomView(newRoom);
+        }
 
         function isPartyEmbedded() {
             if (urlParams.get('embedded') === '1') return true;
@@ -3029,22 +3070,21 @@
                 }
             });
 
-            if (joinRoomId) {
-                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
-                const isShortCode = isPartyShortCode(joinRoomId);
-                
-                if (isUuid) {
-                    joinExistingRoom(joinRoomId);
-                } else if (isShortCode) {
-                    // It's a short code! Try to find the corresponding UUID room
-                    const codeUuid = shortCodeToUuid(joinRoomId);
-                    try {
+            try {
+                if (joinRoomId) {
+                    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
+                    const isShortCode = isPartyShortCode(joinRoomId);
+
+                    if (isUuid) {
+                        await joinExistingRoom(joinRoomId);
+                    } else if (isShortCode) {
+                        const codeUuid = shortCodeToUuid(joinRoomId);
                         const { data: room, error } = await supabaseClient
                             .from('rooms')
                             .select('*')
                             .eq('id', codeUuid)
                             .single();
-                        
+
                         if (!error && room) {
                             if (!canJoinRoom(room)) {
                                 notifyPrivateRoomBlocked();
@@ -3058,47 +3098,20 @@
                             alert('Party room not found or has been closed.');
                             showLobbyView();
                         }
-                    } catch (err) {
-                        alert('Party room not found or has been closed.');
+                    } else if (isCatalogMediaKey(joinRoomId)) {
+                        // Legacy links used ?room=1084244 for the movie — always create a new lounge
+                        await createCatalogPartyRoom(joinRoomId);
+                    } else {
                         showLobbyView();
                     }
+                } else if (catalogMediaId) {
+                    await createCatalogPartyRoom(catalogMediaId);
                 } else {
-                    // Catalog embed key (TMDB / TV / anime). Always spin up a fresh lounge —
-                    // joinRoomId is the media source, not a shared room id.
-                    try {
-                        const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse/i.test(navigator.userAgent) || navigator.webdriver;
-                        if (isBot) {
-                            console.log('Bot detected. Skipping automatic room creation.');
-                            showLobbyView();
-                        } else {
-                            const roomName = `${currentUserName}'s Watch Lounge`;
-                            const shortCode = generateShortCode();
-                            const uuid = shortCodeToUuid(shortCode);
-                            const { data: newRoom, error: createError } = await supabaseClient
-                                .from('rooms')
-                                .insert([{
-                                    id: uuid,
-                                    name: roomName,
-                                    movie_title: prefillTitle || 'Feature Title',
-                                    embed_sources: joinRoomId,
-                                    scheduled_start_time: new Date().toISOString()
-                                }])
-                                .select()
-                                .single();
-
-                            if (createError) throw createError;
-
-                            activeRoom = newRoom;
-                            applyRoomHostRole(newRoom, true);
-                            showRoomView(newRoom);
-                        }
-                    } catch (err) {
-                        console.error('Error auto-resolving watch party room:', err);
-                        showLobbyView();
-                    }
+                    bootstrapLobbyView();
                 }
-            } else {
-                bootstrapLobbyView();
+            } catch (err) {
+                console.error('Error booting watch party room:', err);
+                showLobbyView();
             }
         });
     

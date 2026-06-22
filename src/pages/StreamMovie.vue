@@ -26,7 +26,7 @@
                     />
 
                     <a
-                        :href="`/party?room=${movieId}&title=${encodeURIComponent(movie?.title || '')}`"
+                        :href="`/party?media=${movieId}&title=${encodeURIComponent(movie?.title || '')}`"
                         class="watch-stage__party-btn"
                         title="Watch Together with friends!"
                         rel="nofollow"

@@ -97,7 +97,48 @@
         // Parse query params (Direct Join or Stream details transfer)
         const urlParams = new URLSearchParams(window.location.search);
         let joinRoomId = urlParams.get('room') || '';
+        const catalogMediaId = urlParams.get('media') || '';
         const prefillTitle = urlParams.get('title') || '';
+
+        function isCatalogMediaKey(value) {
+            if (!value || typeof value !== 'string') return false;
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return false;
+            if (isPartyShortCode(value)) return false;
+            return true;
+        }
+
+        async function createCatalogPartyRoom(catalogKey) {
+            const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse/i.test(navigator.userAgent) || navigator.webdriver;
+            if (isBot) {
+                console.log('Bot detected. Skipping automatic room creation.');
+                showLobbyView();
+                return;
+            }
+
+            const roomName = `${currentUserName}'s Watch Lounge`;
+            const shortCode = generateShortCode();
+            const uuid = shortCodeToUuid(shortCode);
+            const row = {
+                id: uuid,
+                name: roomName,
+                movie_title: prefillTitle || 'Feature Title',
+                embed_sources: catalogKey,
+                media_id: catalogKey,
+                scheduled_start_time: new Date().toISOString()
+            };
+
+            const { data: newRoom, error: createError } = await supabaseClient
+                .from('rooms')
+                .insert([row])
+                .select()
+                .single();
+
+            if (createError) throw createError;
+
+            activeRoom = newRoom;
+            applyRoomHostRole(newRoom, true);
+            showRoomView(newRoom);
+        }
 
         // Parsing room parameter for custom player URLs
         let isAnime = false;
@@ -2561,22 +2602,21 @@
                 }
             });
 
-            if (joinRoomId) {
-                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
-                const isShortCode = isPartyShortCode(joinRoomId);
-                
-                if (isUuid) {
-                    joinExistingRoom(joinRoomId);
-                } else if (isShortCode) {
-                    // It's a short code! Try to find the corresponding UUID room
-                    const codeUuid = shortCodeToUuid(joinRoomId);
-                    try {
+            try {
+                if (joinRoomId) {
+                    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
+                    const isShortCode = isPartyShortCode(joinRoomId);
+
+                    if (isUuid) {
+                        await joinExistingRoom(joinRoomId);
+                    } else if (isShortCode) {
+                        const codeUuid = shortCodeToUuid(joinRoomId);
                         const { data: room, error } = await supabaseClient
                             .from('rooms')
                             .select('*')
                             .eq('id', codeUuid)
                             .single();
-                        
+
                         if (!error && room) {
                             activeRoom = room;
                             applyRoomHostRole(room);
@@ -2585,61 +2625,18 @@
                             alert('Party room not found or has been closed.');
                             showLobbyView();
                         }
-                    } catch (err) {
-                        alert('Party room not found or has been closed.');
+                    } else if (isCatalogMediaKey(joinRoomId)) {
+                        await createCatalogPartyRoom(joinRoomId);
+                    } else {
                         showLobbyView();
                     }
+                } else if (catalogMediaId) {
+                    await createCatalogPartyRoom(catalogMediaId);
                 } else {
-                    // TMDb ID. Let's automatically check if a room already exists.
-                    try {
-                        const { data: existingRooms, error } = await supabaseClient
-                            .from('rooms')
-                            .select('*')
-                            .eq('embed_sources', joinRoomId)
-                            .order('created_at', { ascending: false });
-
-                        if (!error && existingRooms && existingRooms.length > 0) {
-                            const room = existingRooms[0];
-                            activeRoom = room;
-                            applyRoomHostRole(room);
-                            showRoomView(room);
-                        } else {
-                            // Check if bot/crawler to prevent automated room insertion
-                            const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse/i.test(navigator.userAgent) || navigator.webdriver;
-                            if (isBot) {
-                                console.log('Bot detected. Skipping automatic room creation.');
-                                showLobbyView();
-                            } else {
-                                // Real user! Auto-create the room instantly with zero resistance
-                                const roomName = `${currentUserName}'s Watch Lounge`;
-                                const shortCode = generateShortCode();
-                                const uuid = shortCodeToUuid(shortCode);
-                                const { data: newRoom, error: createError } = await supabaseClient
-                                    .from('rooms')
-                                    .insert([{
-                                        id: uuid,
-                                        name: roomName,
-                                        movie_title: prefillTitle || 'Feature Title',
-                                        embed_sources: joinRoomId,
-                                        scheduled_start_time: new Date().toISOString()
-                                    }])
-                                    .select()
-                                    .single();
-
-                                if (createError) throw createError;
-
-                                activeRoom = newRoom;
-                                applyRoomHostRole(newRoom, true);
-                                showRoomView(newRoom);
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Error auto-resolving watch party room:', err);
-                        showLobbyView();
-                    }
+                    showLobbyView();
                 }
-            } else {
-                // No room parameter - show lobby
+            } catch (err) {
+                console.error('Error booting watch party room:', err);
                 showLobbyView();
             }
         });

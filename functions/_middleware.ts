@@ -14,9 +14,6 @@ export async function onRequest(context) {
     return next();
   }
 
-  // Device routing is client-side only (index.html) — edge redirects disagreed with
-  // browser viewport/UA checks and caused moovie.fun ↔ m.moovie.fun refresh loops.
-
   // 2. Skip requests that are not page loads (API, files, sitemaps, static assets)
   if (
     pathname.startsWith('/api/') ||

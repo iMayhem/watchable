@@ -134,33 +134,14 @@
           }
 
           var ua = navigator.userAgent || '';
-          function isPhoneUa(u) {
-            if (/iPhone|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(u)) return true;
-            if (/Android/i.test(u) && /Mobile/i.test(u)) return true;
-            if (/Mobile/i.test(u) && !/iPad|Tablet|tablet|PlayBook|Silk/i.test(u)) return true;
-            return false;
-          }
-          function isTabletUa(u) {
-            if (/iPad|Tablet|tablet|PlayBook|Silk/i.test(u)) return true;
-            if (/Android/i.test(u) && !/Mobile/i.test(u)) return true;
-            return false;
-          }
-          function isLargeTabletViewport() {
-            var w = screen.width || 0, h = screen.height || 0;
-            return Math.min(w, h) >= 768 && Math.max(w, h) >= 1024;
-          }
-          function shouldUseMobile() {
-            if (params.has('mobile')) return true;
-            if (isPhoneUa(ua)) return true;
-            if (isTabletUa(ua) && !isLargeTabletViewport()) return true;
-            return false;
-          }
+          var mobileUa = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)
+            || /iPad|Tablet|tablet|PlayBook|Silk/i.test(ua);
+          var touch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+          var narrow = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
+          var macTablet = /Macintosh/i.test(ua) && touch && (navigator.maxTouchPoints || 0) > 1;
+          var useMobile = mobileUa || macTablet || (touch && narrow);
 
-          if (params.has('desktop') || !shouldUseMobile()) {
-            var guard = sessionStorage.getItem('moovie-route');
-            if (guard === 'desktop') return;
-            sessionStorage.setItem('moovie-route', 'desktop');
-
+          if (params.has('desktop') || !useMobile) {
             var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
             var targetHost = cleanHost.indexOf('m.') === 0 ? cleanHost.substring(2) : cleanHost;
             location.replace('https://' + targetHost + path + location.search + location.hash);

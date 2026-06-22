@@ -6,12 +6,12 @@
             </router-link>
 
             <div class="m-app__header-actions">
-                <button type="button" class="m-app__icon-btn" aria-label="Search" @click="openPalette">
+                <router-link :to="search" class="m-app__icon-btn" aria-label="Search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <circle cx="11" cy="11" r="7" />
                         <path d="m20 20-3.5-3.5" />
                     </svg>
-                </button>
+                </router-link>
                 <router-link :to="watchlist" class="m-app__icon-btn" aria-label="Watchlist">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -45,9 +45,8 @@
 import { computed, defineComponent, h } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAppPaths } from '@/composables/useAppPaths';
-import { openPalette } from '@/composables/useCommandPalette';
 
-const { home, movies, tvShows, animeList, actors, watchlist } = useAppPaths();
+const { home, movies, tvShows, animeList, actors, watchlist, search } = useAppPaths();
 const route = useRoute();
 
 const iconHome = defineComponent({

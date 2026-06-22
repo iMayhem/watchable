@@ -3,64 +3,231 @@
         <div class="m-search">
             <header class="m-search__head">
                 <h1 class="m-search__title">Search</h1>
-                <form role="search" @submit.prevent>
+                <form role="search" @submit.prevent="submitSearch">
                     <input
+                        ref="inputEl"
                         v-model="searchTerm"
-                        type="text"
+                        type="search"
                         class="m-search__input"
-                        placeholder="Movies, TV, people…"
+                        placeholder="Movies, TV, anime, people…"
                         aria-label="Search"
                         autocomplete="off"
+                        enterkeyhint="search"
+                        @input="onSearchInput"
                     />
                 </form>
             </header>
 
             <LmTabs
-                v-if="searchTerm"
+                v-if="searchTerm.trim()"
                 v-model="activeTab"
                 :tabs="tabs"
                 variant="underline"
                 class="m-search__tabs"
             />
 
-            <div v-if="isLoading" class="m-search__loading">
-                <div class="m-discover__spinner" aria-hidden="true" />
+            <div v-if="tabLoading && !currentCount" class="m-search__loading">
+                <div class="m-search__spinner" aria-hidden="true" />
+                <span class="meta">Searching…</span>
             </div>
 
-            <MobileMediaGrid v-else-if="activeTab === 'movies' && movies.length" :items="movieItems" />
-            <MobileMediaGrid v-else-if="activeTab === 'shows' && shows.length" :items="showItems" />
+            <template v-else-if="searchTerm.trim()">
+                <MobileMediaGrid
+                    v-if="activeTab === 'movies' && movieItems.length"
+                    :items="movieItems"
+                />
+                <MobileMediaGrid
+                    v-else-if="activeTab === 'shows' && showItems.length"
+                    :items="showItems"
+                />
+                <div
+                    v-else-if="activeTab === 'people' && people.length"
+                    class="m-search__people"
+                >
+                    <PersonCard
+                        v-for="person in people"
+                        :key="person.id"
+                        :id="person.id"
+                        :name="person.name"
+                        :profile-path="person.profile_path"
+                        :department="person.known_for_department || ''"
+                    />
+                </div>
+                <MobileMediaGrid
+                    v-else-if="activeTab === 'anime' && animeItems.length"
+                    :items="animeItems"
+                />
+                <template v-else-if="activeTab === 'upcoming' && upcomingCount">
+                    <MobileSection v-if="upcomingMovieItems.length" title="Films" eyebrow="Upcoming">
+                        <MobileMediaGrid :items="upcomingMovieItems" />
+                    </MobileSection>
+                    <MobileSection v-if="upcomingAnimeItems.length" title="Anime" eyebrow="Upcoming">
+                        <MobileMediaGrid :items="upcomingAnimeItems" />
+                    </MobileSection>
+                </template>
 
-            <div v-else-if="searchTerm && !isLoading" class="m-search__empty meta">No results.</div>
+                <div v-else class="m-search__empty meta">
+                    No {{ emptyLabel }} matched &ldquo;{{ searchTerm.trim() }}&rdquo;.
+                </div>
+
+                <div v-if="hasMore && currentCount" class="m-search__more">
+                    <button type="button" :disabled="isLoadingMore" @click="loadMore">
+                        <span v-if="isLoadingMore">Loading…</span>
+                        <span v-else-if="activeTab === 'anime'">
+                            Load more · page {{ animeMeta.page }}/{{ animeMeta.lastPage }}
+                        </span>
+                        <span v-else-if="activeTab === 'upcoming'">Load more</span>
+                        <span v-else>
+                            Load more · page {{ reqMetaData.page }}/{{ reqMetaData.total_pages }}
+                        </span>
+                    </button>
+                </div>
+            </template>
+
+            <section v-else class="m-search__idle">
+                <p v-if="recentSearches.length" class="m-search__idle-label eyebrow">Recent</p>
+                <div v-if="recentSearches.length" class="m-search__chips">
+                    <button
+                        v-for="term in recentSearches"
+                        :key="`r-${term}`"
+                        type="button"
+                        class="m-search__chip"
+                        @click="runSearch(term)"
+                    >
+                        {{ term }}
+                    </button>
+                </div>
+                <p class="m-search__idle-label eyebrow">Popular</p>
+                <div class="m-search__chips">
+                    <button
+                        v-for="term in popularSearches"
+                        :key="`p-${term}`"
+                        type="button"
+                        class="m-search__chip m-search__chip--ember"
+                        @click="runSearch(term)"
+                    >
+                        {{ term }}
+                    </button>
+                </div>
+            </section>
         </div>
     </MobileShell>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { debounce } from '@/utils/memoization';
 import MobileShell from '../layout/MobileShell.vue';
+import MobileSection from '../components/MobileSection.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
+import PersonCard from '@/components/cards/PersonCard.vue';
 import LmTabs from '@/components/primitives/Tabs.vue';
+import type { AnimeMedia } from '@/composables/useAniList';
+import { addSearchTerm, searchHistory } from '@/composables/useHistory';
 import {
     useSearch,
     discoveredMovies,
-    discoveredTv
+    discoveredTv,
+    discoveredPeople,
+    discoveredAnime,
+    discoveredUpcomingMovies,
+    discoveredUpcomingAnime,
+    reqMetaData,
+    animeMeta,
+    upcomingMoviesMeta,
+    upcomingAnimeMeta
 } from '@/composables/useSearch';
 
-const searchTerm = ref('');
-const activeTab = ref<'movies' | 'shows'>('movies');
+const TAB_KEYS = ['movies', 'shows', 'people', 'anime', 'upcoming'] as const;
+type TabKey = typeof TAB_KEYS[number];
+
+const isTabKey = (value: string): value is TabKey =>
+    (TAB_KEYS as readonly string[]).includes(value);
+
+const route = useRoute();
+const router = useRouter();
+const {
+    fetchSearchResults,
+    fetchAnimeSearch,
+    fetchUpcomingSearch,
+    clearSearchResults
+} = useSearch();
+
+const inputEl = ref<HTMLInputElement | null>(null);
+const searchTerm = ref(typeof route.query.search === 'string' ? route.query.search : '');
+const activeTab = ref<TabKey>(
+    typeof route.query.tab === 'string' && isTabKey(route.query.tab)
+        ? route.query.tab
+        : 'movies'
+);
 const isLoading = ref(false);
-const { fetchSearchResults } = useSearch();
-const movies = discoveredMovies;
-const shows = discoveredTv;
+const isLoadingAnime = ref(false);
+const isLoadingUpcoming = ref(false);
+const isLoadingMore = ref(false);
+
+const popularSearches = [
+    'Dune', 'The Bear', 'One Piece', 'Succession',
+    'Florence Pugh', 'Studio Ghibli', 'Oppenheimer', 'Severance'
+];
+
+const movies = computed(() => discoveredMovies.value);
+const shows = computed(() => discoveredTv.value);
+const people = computed(() => discoveredPeople.value);
+const anime = computed(() => discoveredAnime.value);
+const upcomingMovies = computed(() => discoveredUpcomingMovies.value);
+const upcomingAnime = computed(() => discoveredUpcomingAnime.value);
+const upcomingCount = computed(
+    () => upcomingMovies.value.length + upcomingAnime.value.length
+);
+
+const recentSearches = computed(() =>
+    (searchHistory.value || []).filter(Boolean).slice(0, 6)
+);
 
 const tabs = [
     { value: 'movies', label: 'Movies' },
-    { value: 'shows', label: 'TV' }
+    { value: 'shows', label: 'TV' },
+    { value: 'people', label: 'People' },
+    { value: 'anime', label: 'Anime' },
+    { value: 'upcoming', label: 'Upcoming' }
 ];
 
+const tabLoading = computed(() => {
+    if (activeTab.value === 'anime') return isLoadingAnime.value;
+    if (activeTab.value === 'upcoming') return isLoadingUpcoming.value;
+    return isLoading.value;
+});
+
+const currentCount = computed(() => {
+    if (activeTab.value === 'movies') return movies.value.length;
+    if (activeTab.value === 'shows') return shows.value.length;
+    if (activeTab.value === 'people') return people.value.length;
+    if (activeTab.value === 'anime') return anime.value.length;
+    return upcomingCount.value;
+});
+
+const emptyLabel = computed(() => {
+    if (activeTab.value === 'movies') return 'films';
+    if (activeTab.value === 'shows') return 'series';
+    if (activeTab.value === 'people') return 'people';
+    if (activeTab.value === 'anime') return 'anime';
+    return 'upcoming titles';
+});
+
+const hasMore = computed(() => {
+    if (activeTab.value === 'anime') return animeMeta.value.hasNextPage;
+    if (activeTab.value === 'upcoming') {
+        return (
+            upcomingMoviesMeta.value.page < upcomingMoviesMeta.value.total_pages
+            || upcomingAnimeMeta.value.hasNextPage
+        );
+    }
+    return reqMetaData.value.page > 0 && reqMetaData.value.page < reqMetaData.value.total_pages;
+});
+
 const movieItems = computed(() =>
-    movies.value.map((m: any) => ({
+    movies.value.map((m) => ({
         id: m.id,
         title: m.title || m.original_title || '',
         posterPath: m.poster_path,
@@ -73,9 +240,9 @@ const movieItems = computed(() =>
 );
 
 const showItems = computed(() =>
-    shows.value.map((s: any) => ({
+    shows.value.map((s) => ({
         id: s.id,
-        title: s.name || '',
+        title: s.name || s.original_name || '',
         posterPath: s.poster_path,
         rating: s.vote_average || 0,
         releaseDate: s.first_air_date || '',
@@ -85,25 +252,256 @@ const showItems = computed(() =>
     }))
 );
 
-const runSearch = debounce(async () => {
+const animePosterPath = (item: AnimeMedia) =>
+    item.coverImage?.extraLarge
+    || item.coverImage?.large
+    || item.coverImage?.medium
+    || null;
+
+const animeReleaseDate = (item: AnimeMedia) => {
+    const date = item.startDate;
+    if (date?.year) {
+        const month = String(date.month || 1).padStart(2, '0');
+        const day = String(date.day || 1).padStart(2, '0');
+        return `${date.year}-${month}-${day}`;
+    }
+    return item.seasonYear?.toString() || '';
+};
+
+const animeItems = computed(() =>
+    anime.value.map((item) => ({
+        id: item.id,
+        title: item.title.english || item.title.romaji || item.title.native,
+        posterPath: animePosterPath(item),
+        rating: item.averageScore ? item.averageScore / 10 : 0,
+        releaseDate: animeReleaseDate(item),
+        type: 'anime' as const
+    }))
+);
+
+const upcomingMovieItems = computed(() =>
+    upcomingMovies.value.map((m) => ({
+        id: m.id,
+        title: m.title || m.original_title || '',
+        posterPath: m.poster_path,
+        rating: m.vote_average || 0,
+        releaseDate: m.release_date || '',
+        genreIds: m.genre_ids || [],
+        adult: m.adult || false,
+        type: 'movie' as const
+    }))
+);
+
+const upcomingAnimeItems = computed(() =>
+    upcomingAnime.value.map((item) => ({
+        id: item.id,
+        title: item.title.english || item.title.romaji || item.title.native,
+        posterPath: animePosterPath(item),
+        rating: item.averageScore ? item.averageScore / 10 : 0,
+        releaseDate: animeReleaseDate(item),
+        type: 'anime' as const
+    }))
+);
+
+const syncRoute = () => {
+    const q: Record<string, string> = {};
+    if (searchTerm.value.trim()) q.search = searchTerm.value.trim();
+    if (searchTerm.value.trim() && activeTab.value !== 'movies') q.tab = activeTab.value;
+    const current = route.query;
+    if (JSON.stringify(q) !== JSON.stringify(current)) {
+        router.replace({ query: q });
+    }
+};
+
+const chooseDefaultTab = () => {
+    if (activeTab.value !== 'movies') return;
+    if (!movies.value.length && shows.value.length) activeTab.value = 'shows';
+    else if (!movies.value.length && !shows.value.length && people.value.length) {
+        activeTab.value = 'people';
+    }
+    syncRoute();
+};
+
+const loadAnimeResults = async (query: string, page = 1) => {
+    const q = query.trim();
+    if (!q) return;
+    if (page === 1) isLoadingAnime.value = true;
+    else isLoadingMore.value = true;
+    try {
+        await fetchAnimeSearch(q, page, page > 1);
+    } finally {
+        isLoadingAnime.value = false;
+        isLoadingMore.value = false;
+    }
+};
+
+const loadUpcomingResults = async (query: string, page = 1) => {
+    const q = query.trim();
+    if (!q) return;
+    if (page === 1) isLoadingUpcoming.value = true;
+    else isLoadingMore.value = true;
+    try {
+        await fetchUpcomingSearch(q, page, page > 1);
+    } finally {
+        isLoadingUpcoming.value = false;
+        isLoadingMore.value = false;
+    }
+};
+
+const ensureTabResults = async (tab: TabKey) => {
     const q = searchTerm.value.trim();
     if (!q) return;
-    isLoading.value = true;
+
+    if (
+        (tab === 'movies' || tab === 'shows' || tab === 'people')
+        && !movies.value.length
+        && !shows.value.length
+        && !people.value.length
+        && !isLoading.value
+    ) {
+        isLoading.value = true;
+        try {
+            await fetchSearchResults(q, 1);
+        } finally {
+            isLoading.value = false;
+        }
+    }
+
+    if (tab === 'anime' && !anime.value.length && !isLoadingAnime.value) {
+        await loadAnimeResults(q);
+    } else if (tab === 'upcoming' && !upcomingCount.value && !isLoadingUpcoming.value) {
+        await loadUpcomingResults(q);
+    }
+};
+
+const performSearch = async (query: string, page = 1) => {
+    const q = query.trim();
+    if (!q) return;
+
+    if (page === 1) {
+        clearSearchResults();
+        if (activeTab.value === 'anime') isLoadingAnime.value = true;
+        else if (activeTab.value === 'upcoming') isLoadingUpcoming.value = true;
+        else isLoading.value = true;
+    } else {
+        isLoadingMore.value = true;
+    }
+
     try {
-        await fetchSearchResults(q, 1);
+        if (activeTab.value === 'anime') {
+            await loadAnimeResults(q, page);
+            return;
+        }
+        if (activeTab.value === 'upcoming') {
+            await loadUpcomingResults(q, page);
+            return;
+        }
+
+        await fetchSearchResults(q, page);
+        if (page === 1) chooseDefaultTab();
     } finally {
         isLoading.value = false;
+        isLoadingAnime.value = false;
+        isLoadingUpcoming.value = false;
+        isLoadingMore.value = false;
     }
+};
+
+const runSearch = (term: string) => {
+    searchTerm.value = term;
+    syncRoute();
+    addSearchTerm(term);
+    void performSearch(term);
+};
+
+const debouncedSearch = debounce((term: string) => {
+    const q = term.trim();
+    if (!q) {
+        clearSearchResults();
+        syncRoute();
+        return;
+    }
+    addSearchTerm(q);
+    syncRoute();
+    void performSearch(q);
 }, 350);
 
-watch(searchTerm, runSearch);
+const onSearchInput = () => {
+    if (!searchTerm.value.trim()) {
+        clearSearchResults();
+        syncRoute();
+        return;
+    }
+    debouncedSearch(searchTerm.value);
+};
+
+const submitSearch = () => {
+    const q = searchTerm.value.trim();
+    if (!q) return;
+    addSearchTerm(q);
+    syncRoute();
+    void performSearch(q);
+};
+
+const loadMore = async () => {
+    if (!hasMore.value || !searchTerm.value.trim()) return;
+
+    if (activeTab.value === 'anime') {
+        await loadAnimeResults(searchTerm.value, animeMeta.value.page + 1);
+        return;
+    }
+
+    if (activeTab.value === 'upcoming') {
+        const nextPage = Math.max(
+            upcomingMoviesMeta.value.page,
+            upcomingAnimeMeta.value.page
+        ) + 1;
+        await loadUpcomingResults(searchTerm.value, nextPage);
+        return;
+    }
+
+    await performSearch(searchTerm.value, reqMetaData.value.page + 1);
+};
+
+watch(activeTab, (tab) => {
+    syncRoute();
+    void ensureTabResults(tab);
+});
 
 watch(
-    () => searchTerm.value,
-    () => {
-        document.title = searchTerm.value ? `“${searchTerm.value}” — Moovie` : 'Search — Moovie';
+    () => route.query.search,
+    (query) => {
+        const q = typeof query === 'string' ? query : '';
+        if (q === searchTerm.value) return;
+        searchTerm.value = q;
+        if (q) void performSearch(q);
+        else clearSearchResults();
     }
 );
+
+watch(
+    () => route.query.tab,
+    (tab) => {
+        if (typeof tab === 'string' && isTabKey(tab) && tab !== activeTab.value) {
+            activeTab.value = tab;
+        }
+    }
+);
+
+watch(searchTerm, (value) => {
+    document.title = value.trim() ? `“${value.trim()}” — Moovie` : 'Search — Moovie';
+});
+
+onMounted(() => {
+    if (searchTerm.value.trim()) {
+        void performSearch(searchTerm.value);
+    } else {
+        clearSearchResults();
+    }
+    nextTick(() => {
+        if (!searchTerm.value.trim()) inputEl.value?.focus();
+    });
+});
 </script>
 
 <style lang="scss" scoped>
@@ -139,6 +537,80 @@ watch(
     &__empty {
         padding: var(--s-8) var(--s-4);
         text-align: center;
+    }
+
+    &__spinner {
+        width: 2rem;
+        height: 2rem;
+        margin: 0 auto var(--s-3);
+        border: 2px solid var(--rule);
+        border-top-color: var(--ember);
+        border-radius: 50%;
+        animation: m-search-spin 0.8s linear infinite;
+    }
+
+    &__people {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--s-4);
+        padding: 0 var(--s-4);
+    }
+
+    &__more {
+        display: flex;
+        justify-content: center;
+        padding: var(--s-5);
+
+        button {
+            min-height: 2.75rem;
+            padding: 0 var(--s-5);
+            border-radius: var(--r-pill);
+            border: 1px solid var(--rule-strong);
+            background: var(--ink-800);
+            color: var(--bone-100);
+            font-size: var(--fs-sm);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+        }
+    }
+
+    &__idle {
+        padding: var(--s-4);
+        display: grid;
+        gap: var(--s-3);
+    }
+
+    &__idle-label {
+        margin: 0;
+        color: var(--bone-400);
+    }
+
+    &__chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--s-2);
+    }
+
+    &__chip {
+        padding: 0.45rem 0.9rem;
+        border-radius: var(--r-pill);
+        border: 1px solid var(--rule);
+        background: var(--ink-800);
+        color: var(--bone-200);
+        font-size: var(--fs-sm);
+
+        &--ember {
+            color: var(--ember);
+            border-color: rgba(255, 90, 31, 0.3);
+        }
+    }
+}
+
+@keyframes m-search-spin {
+    to {
+        transform: rotate(360deg);
     }
 }
 </style>

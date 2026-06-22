@@ -339,11 +339,6 @@ export default defineComponent({
         @media (min-width: 1600px) {
             --rail-cols: var(--rail-cols-xl, var(--rail-cols-lg, 6.4));
         }
-
-        // MacBook Pro ~1440×900 — fewer poster tiles, larger cards (not 1080p laptops).
-        @media (min-width: 1360px) and (max-width: 1500px) and (max-height: 960px) {
-            --rail-cols: 4;
-        }
     }
 
     // Give hover-peeking cards a little vertical breathing room

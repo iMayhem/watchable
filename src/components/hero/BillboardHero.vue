@@ -324,10 +324,6 @@ export default defineComponent({
     position: relative;
     isolation: isolate;
     min-height: clamp(520px, 78vh, 880px);
-
-    @media (min-width: 1360px) and (max-width: 1500px) and (max-height: 960px) {
-        min-height: clamp(480px, 82vh, 760px);
-    }
     display: flex;
     align-items: flex-end;
     color: var(--bone-50);

@@ -38,12 +38,14 @@
         function checkIsPartyHost(room) {
             if (!room?.id) return false;
             const entry = readPartyHostMap()[room.id];
-            return Boolean(entry && entry.user === currentUserName);
+            if (entry && entry.user === currentUserName) return true;
+            return room.name === `${currentUserName}'s Watch Lounge`;
         }
 
         function applyRoomHostRole(room, created = false) {
             isHost = created || checkIsPartyHost(room);
             if (isHost && room?.id) markAsPartyHost(room.id);
+            if (activeRoom?.id === room?.id) updateRoomPrivacyButton();
         }
 
         function isRoomPrivate(room) {
@@ -1622,6 +1624,7 @@
             const randomPrefix = funnyPrefixes[Math.floor(Math.random() * funnyPrefixes.length)];
             const randomSuffix = funnySuffixes[Math.floor(Math.random() * funnySuffixes.length)];
             currentUserName = randomPrefix + randomSuffix;
+            safeLocalStorage.setItem('movora_username', currentUserName);
         }
 
         // Initialize Supabase Client

@@ -1342,29 +1342,6 @@
             text-decoration: underline;
         }
 
-        .room-privacy-btn {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: var(--bone-200);
-            font-weight: 600;
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            cursor: pointer;
-            padding: 0.4rem 0.75rem;
-            border-radius: var(--r-pill);
-            transition:
-                border-color var(--dur-fast),
-                color var(--dur-fast),
-                background var(--dur-fast);
-            white-space: nowrap;
-        }
-
-        .room-privacy-btn:hover {
-            border-color: rgba(255, 255, 255, 0.22);
-            color: var(--bone-50);
-        }
-
         .room-privacy-btn.is-private {
             background: rgba(148, 163, 184, 0.12);
             border-color: rgba(148, 163, 184, 0.35);
@@ -2277,12 +2254,6 @@
             flex-wrap: wrap;
         }
 
-        .sidebar-header .room-privacy-btn {
-            order: 3;
-            flex: 1 1 100%;
-            text-align: center;
-        }
-
         .chat-title-group {
             display: flex;
             align-items: center;
@@ -2973,6 +2944,7 @@
             }
 
             .player-controls-bar .cinema-mode-btn,
+            .player-controls-bar .room-privacy-btn,
             .player-controls-bar #share-link-btn {
                 padding: 0.4rem 0.6rem !important;
                 font-size: 0.7rem !important;

@@ -421,6 +421,14 @@
                         </div>
                         <div class="controls-right" style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; flex-wrap: nowrap;">
                             <button
+                                type="button"
+                                id="room-privacy-btn"
+                                class="room-privacy-btn cinema-mode-btn"
+                                hidden
+                                aria-pressed="false"
+                                onclick="toggleRoomPrivacy(event)"
+                            >Make private</button>
+                            <button
                                 id="cinema-mode-btn"
                                 type="button"
                                 class="cinema-mode-btn"
@@ -453,14 +461,6 @@
                             <div class="chat-status-dot"></div>
                             <span class="chat-panel-title">Lobby Chat</span>
                         </div>
-                        <button
-                            type="button"
-                            id="room-privacy-btn"
-                            class="room-privacy-btn"
-                            hidden
-                            aria-pressed="false"
-                            onclick="toggleRoomPrivacy(event)"
-                        >Make private</button>
                         <div id="users-badge-container" class="chat-user-status">
                             Joined: <strong id="chat-my-name">Guest</strong> (<span id="chat-online-count">1</span> online)
                         </div>

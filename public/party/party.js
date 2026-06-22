@@ -61,11 +61,27 @@
             alert('This room is private. The host has locked it — no new guests can join.');
         }
 
+        function maybePromoteSoloHost(presenceState) {
+            if (!activeRoom || isHost) return;
+            if (countPresenceMembers(presenceState) > 1) return;
+            isHost = true;
+            markAsPartyHost(activeRoom.id);
+            updateRoomPrivacyButton();
+            if (channel) {
+                void channel.track({
+                    user: currentUserName,
+                    joinedAt: new Date().toISOString(),
+                    isHost: true,
+                    sessionId: presenceSessionId
+                });
+            }
+        }
+
         function updateRoomPrivacyButton() {
             const btn = document.getElementById('room-privacy-btn');
             if (!btn) return;
 
-            if (!activeRoom || !isHost) {
+            if (!activeRoom || !document.body.classList.contains('room-view-active')) {
                 btn.hidden = true;
                 return;
             }
@@ -85,7 +101,11 @@
                 event.preventDefault();
                 event.stopPropagation();
             }
-            if (!activeRoom || !isHost) return false;
+            if (!activeRoom) return false;
+            if (!isHost) {
+                alert('Only the room host can change privacy settings.');
+                return false;
+            }
 
             const nextPrivate = !isRoomPrivate(activeRoom);
             const btn = document.getElementById('room-privacy-btn');
@@ -2368,6 +2388,7 @@
                 updatePartyNfAutoNextButton();
                 updatePartyNfEpisodesButton();
                 updatePartyEpNavButtons();
+                updateRoomPrivacyButton();
                 return;
             }
 
@@ -2388,6 +2409,7 @@
             const autoNextBtn = document.getElementById('party-auto-next-btn');
             if (autoNextBtn) autoNextBtn.style.display = 'none';
             updatePartyEpNavButtons();
+            updateRoomPrivacyButton();
         }
 
         function updateBannerText() {
@@ -2680,6 +2702,7 @@
                 })
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
+                    maybePromoteSoloHost(state);
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
                 })
@@ -2712,8 +2735,10 @@
                         sessionId: presenceSessionId
                     });
                     const state = channel.presenceState();
+                    maybePromoteSoloHost(state);
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
+                    updateRoomPrivacyButton();
                 }
             });
 

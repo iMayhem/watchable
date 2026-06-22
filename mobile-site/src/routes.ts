@@ -5,6 +5,7 @@ import AnimeDetail from './pages/AnimeDetail.vue';
 import Actor from './pages/Actor.vue';
 import { useSeo } from './composables/useSeo';
 import { enforceMobileGlobalMode, isNetflixPath, mobileSafePath } from './utils/mobileGlobalOnly';
+import { isMobilePartySpaEntry, redirectToMobileParty } from './utils/mobilePartyRedirect';
 import { recordDetailReturnPath } from '@/composables/useDetailBackNavigation';
 
 const routes: Array<RouteRecordRaw> = [
@@ -117,6 +118,15 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Watch Anime' }
     },
     {
+        path: '/party',
+        name: 'Party',
+        beforeEnter(to) {
+            redirectToMobileParty(to.query);
+            return false;
+        },
+        component: { template: '<div />' }
+    },
+    {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: () => import('./pages/NotFound.vue'),
@@ -138,6 +148,10 @@ router.beforeEach((to, from) => {
     enforceMobileGlobalMode();
     if (isNetflixPath(to.path)) {
         return mobileSafePath(to.path);
+    }
+    if (isMobilePartySpaEntry(to.path) && to.name !== 'Party') {
+        redirectToMobileParty(to.query);
+        return false;
     }
 });
 

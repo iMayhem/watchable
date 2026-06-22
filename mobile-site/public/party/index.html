@@ -133,7 +133,7 @@
     <script>
         (function() {
             const params = new URLSearchParams(window.location.search);
-            if (params.get('room')) {
+            if (params.get('room') || params.get('media')) {
                 document.body.classList.add('room-view-active');
                 document.body.classList.add('cinema-mode');
             }
@@ -438,7 +438,7 @@
                             <span class="chat-panel-title">Lobby Chat</span>
                         </div>
                         <div id="users-badge-container" class="chat-user-status">
-                            Joined: <strong id="chat-my-name">Guest</strong> (<span id="chat-online-count">1</span> online)
+                            Joined: <strong id="chat-my-name">Guest</strong> (<span id="chat-online-count">0</span> online)
                         </div>
                     </div>
 

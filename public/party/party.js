@@ -103,20 +103,26 @@
             alert('This room is private. The host has locked it — no new guests can join.');
         }
 
+        function buildPresencePayload() {
+            return {
+                user: currentUserName,
+                joinedAt: new Date().toISOString(),
+                isHost: isHost,
+                sessionId: presenceSessionId
+            };
+        }
+
+        async function syncPresenceTrack() {
+            if (!channel) return;
+            await channel.track(buildPresencePayload());
+        }
+
         function maybePromoteSoloHost(presenceState) {
             if (!activeRoom || isHost) return;
             if (countPresenceMembers(presenceState) > 1) return;
             isHost = true;
             markAsPartyHost(activeRoom.id);
             updateRoomPrivacyButton();
-            if (channel) {
-                void channel.track({
-                    user: currentUserName,
-                    joinedAt: new Date().toISOString(),
-                    isHost: true,
-                    sessionId: presenceSessionId
-                });
-            }
         }
 
         function updateRoomPrivacyButton() {
@@ -1784,8 +1790,8 @@
             let count = 0;
             Object.entries(presenceState || {}).forEach(([key, entries]) => {
                 if (isLobbyObserverKey(key)) return;
-                if (Array.isArray(entries)) count += entries.length;
-                else if (entries) count += 1;
+                const present = Array.isArray(entries) ? entries.length > 0 : Boolean(entries);
+                if (present) count += 1;
             });
             return count;
         }
@@ -1904,12 +1910,7 @@
                 updateHeaderBadge();
                 if (isHost && activeRoom?.id) markAsPartyHost(activeRoom.id);
                 if (channel) {
-                    channel.track({
-                        user: currentUserName,
-                        joinedAt: new Date().toISOString(),
-                        isHost: isHost,
-                        sessionId: presenceSessionId
-                    });
+                    void syncPresenceTrack();
                 }
             }
         }
@@ -2790,7 +2791,9 @@
                 })
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
+                    const wasHost = isHost;
                     maybePromoteSoloHost(state);
+                    if (!wasHost && isHost) void syncPresenceTrack();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
                 })
@@ -2815,15 +2818,9 @@
 
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    // Track user presence
-                    await channel.track({
-                        user: currentUserName,
-                        joinedAt: new Date().toISOString(),
-                        isHost: isHost,
-                        sessionId: presenceSessionId
-                    });
+                    maybePromoteSoloHost(channel.presenceState());
+                    await syncPresenceTrack();
                     const state = channel.presenceState();
-                    maybePromoteSoloHost(state);
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
                     updateRoomPrivacyButton();

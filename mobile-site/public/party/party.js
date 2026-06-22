@@ -103,13 +103,34 @@
             alert('This room is private. The host has locked it — no new guests can join.');
         }
 
+        const LOBBY_OBSERVER_PREFIX = 'lobby_observer_';
+
+        function isLobbyObserverKey(key) {
+            return typeof key === 'string' && key.startsWith(LOBBY_OBSERVER_PREFIX);
+        }
+
         function countPresenceMembers(presenceState) {
             let count = 0;
-            Object.values(presenceState || {}).forEach((entries) => {
-                if (Array.isArray(entries)) count += entries.length;
-                else if (entries) count += 1;
+            Object.entries(presenceState || {}).forEach(([key, entries]) => {
+                if (isLobbyObserverKey(key)) return;
+                const present = Array.isArray(entries) ? entries.length > 0 : Boolean(entries);
+                if (present) count += 1;
             });
             return count;
+        }
+
+        function buildPresencePayload() {
+            return {
+                user: currentUserName,
+                joinedAt: new Date().toISOString(),
+                isHost: isHost,
+                sessionId: presenceSessionId
+            };
+        }
+
+        async function syncPresenceTrack() {
+            if (!channel) return;
+            await channel.track(buildPresencePayload());
         }
 
         function maybePromoteSoloHost(presenceState) {
@@ -118,13 +139,6 @@
             isHost = true;
             markAsPartyHost(activeRoom.id);
             updateRoomPrivacyButton();
-            if (channel) {
-                void channel.track({
-                    user: currentUserName,
-                    joinedAt: new Date().toISOString(),
-                    isHost: true
-                });
-            }
         }
 
         function updateRoomPrivacyButton() {
@@ -1672,6 +1686,52 @@
         let isHost = false;
         let lobbyChannels = [];
 
+        const PARTY_SESSION_KEY = 'watchable_party_session_id';
+        let presenceSessionId = safeLocalStorage.getItem(PARTY_SESSION_KEY);
+        if (!presenceSessionId) {
+            presenceSessionId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+            safeLocalStorage.setItem(PARTY_SESSION_KEY, presenceSessionId);
+        }
+
+        function getPresenceKey() {
+            return `${currentUserName}:${presenceSessionId}`;
+        }
+
+        function displayNameFromPresence(key, presences) {
+            if (presences?.[0]?.user) return presences[0].user;
+            if (typeof key === 'string' && key.includes(':')) return key.split(':')[0];
+            return key || 'Someone';
+        }
+
+        function formatParticipantLabel(count) {
+            const safeCount = Number.isFinite(count) && count >= 0 ? count : 0;
+            return `👥 ${safeCount} ${safeCount === 1 ? 'user' : 'users'}`;
+        }
+
+        function updateLobbyParticipantLabel(roomId, count) {
+            const countEl = document.querySelector(`.room-participants[data-room-id="${roomId}"]`);
+            if (!countEl) return;
+            countEl.classList.remove('skeleton-shimmer-inline');
+            countEl.textContent = formatParticipantLabel(count);
+        }
+
+        function broadcastLobbyParticipantCount(activeChannel, presenceState) {
+            if (!activeChannel) return;
+            const count = countPresenceMembers(presenceState);
+            activeChannel.send({
+                type: 'broadcast',
+                event: 'lobby_count',
+                payload: { count }
+            });
+        }
+
+        function teardownLobbyPresence() {
+            if (lobbyChannels && lobbyChannels.length) {
+                lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
+                lobbyChannels = [];
+            }
+        }
+
         // Update Header user badge
         function updateHeaderBadge() {
             const container = document.getElementById('header-user');
@@ -1692,7 +1752,7 @@
                 updateHeaderBadge();
                 if (isHost && activeRoom?.id) markAsPartyHost(activeRoom.id);
                 if (channel) {
-                    channel.track({ user: currentUserName, joinedAt: new Date().toISOString(), isHost: isHost });
+                    void syncPresenceTrack();
                 }
             }
         }
@@ -1731,10 +1791,7 @@
         }
 
         function showCreateView(title = '', embedUrl = '') {
-            if (lobbyChannels && lobbyChannels.length) {
-                lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
-                lobbyChannels = [];
-            }
+            teardownLobbyPresence();
             document.body.classList.remove('room-view-active');
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             
@@ -1808,10 +1865,7 @@
         }
 
         async function showRoomView(room) {
-            if (lobbyChannels && lobbyChannels.length) {
-                lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
-                lobbyChannels = [];
-            }
+            teardownLobbyPresence();
             document.body.classList.add('room-view-active');
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('room-view').classList.add('active');
@@ -2290,10 +2344,7 @@
         async function loadActiveRooms() {
             const container = document.getElementById('rooms-container');
             
-            if (lobbyChannels && lobbyChannels.length) {
-                lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
-                lobbyChannels = [];
-            }
+            teardownLobbyPresence();
             
             try {
                 const inactiveThreshold = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
@@ -2343,43 +2394,41 @@
                             ${privateRoom ? '<div class="room-info-item">🔒 <strong>Access:</strong> Invite only</div>' : ''}
                         </div>
                         <div class="room-footer">
-                            <span class="room-participants skeleton-shimmer-inline" data-room-id="${room.id}">👥 Open lobby</span>
+                            <span class="room-participants" data-room-id="${room.id}">${formatParticipantLabel(0)}</span>
                             ${joinControl}
                         </div>
                     </div>
                 `;
                 }).join('');
 
-                // Connect to presence channel for each room to display online count dynamically
+                // Subscribe to each room's shared channel for live participant counts
                 rooms.forEach(room => {
-                    const tempChannel = supabaseClient.channel(`lobby_presence_${room.id}`, {
+                    const roomPresenceChannel = supabaseClient.channel(`party_room_${room.id}`, {
                         config: {
                             presence: {
-                                key: 'lobby_viewer'
+                                key: `${LOBBY_OBSERVER_PREFIX}${presenceSessionId}_${room.id}`
                             }
                         }
                     });
 
-                    // Match the actual room presence channel
-                    const roomPresenceChannel = supabaseClient.channel(`party_room_${room.id}`);
-                    
-                    roomPresenceChannel.on('presence', { event: 'sync' }, () => {
+                    const updateLobbyParticipantCount = () => {
                         const state = roomPresenceChannel.presenceState();
-                        let count = 0;
-                        Object.keys(state).forEach(k => {
-                            if (k !== 'lobby_viewer') {
-                                count += state[k].length || 1;
-                            }
-                        });
-                        
-                        const countEl = document.querySelector(`.room-participants[data-room-id="${room.id}"]`);
-                        if (countEl) {
-                            countEl.classList.remove('skeleton-shimmer-inline');
-                            countEl.textContent = `👥 ${count} ${count === 1 ? 'person' : 'people'} online`;
-                        }
-                    });
+                        updateLobbyParticipantLabel(room.id, countPresenceMembers(state));
+                    };
 
-                    roomPresenceChannel.subscribe();
+                    roomPresenceChannel
+                        .on('broadcast', { event: 'lobby_count' }, ({ payload }) => {
+                            if (payload && Number.isFinite(payload.count)) {
+                                updateLobbyParticipantLabel(room.id, payload.count);
+                            }
+                        })
+                        .on('presence', { event: 'sync' }, updateLobbyParticipantCount)
+                        .on('presence', { event: 'join' }, updateLobbyParticipantCount)
+                        .on('presence', { event: 'leave' }, updateLobbyParticipantCount)
+                        .subscribe((status) => {
+                            if (status === 'SUBSCRIBED') updateLobbyParticipantCount();
+                        });
+
                     lobbyChannels.push(roomPresenceChannel);
                 });
 
@@ -2454,7 +2503,7 @@
             channel = supabaseClient.channel(`party_room_${room.id}`, {
                 config: {
                     presence: {
-                        key: currentUserName
+                        key: getPresenceKey()
                     }
                 }
             });
@@ -2485,26 +2534,38 @@
                 })
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
+                    const wasHost = isHost;
                     maybePromoteSoloHost(state);
+                    if (!wasHost && isHost) void syncPresenceTrack();
                     updateUsersCount(state);
+                    broadcastLobbyParticipantCount(channel, state);
                 })
                 .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                    appendChatMessage('System', `${key} joined the watch party!`, 'system');
+                    if (isLobbyObserverKey(key)) return;
+                    const state = channel.presenceState();
+                    updateUsersCount(state);
+                    broadcastLobbyParticipantCount(channel, state);
+                    const name = displayNameFromPresence(key, newPresences);
+                    if (name !== currentUserName) {
+                        appendChatMessage('System', `${name} joined the watch party!`, 'system');
+                    }
                 })
                 .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-                    appendChatMessage('System', `${key} left the watch party.`, 'system');
+                    if (isLobbyObserverKey(key)) return;
+                    const state = channel.presenceState();
+                    updateUsersCount(state);
+                    broadcastLobbyParticipantCount(channel, state);
+                    const name = displayNameFromPresence(key, leftPresences);
+                    appendChatMessage('System', `${name} left the watch party.`, 'system');
                 });
 
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    // Track user presence
-                    await channel.track({
-                        user: currentUserName,
-                        joinedAt: new Date().toISOString(),
-                        isHost: isHost
-                    });
+                    maybePromoteSoloHost(channel.presenceState());
+                    await syncPresenceTrack();
                     const state = channel.presenceState();
-                    maybePromoteSoloHost(state);
+                    updateUsersCount(state);
+                    broadcastLobbyParticipantCount(channel, state);
                     updateRoomPrivacyButton();
                 }
             });
@@ -2731,8 +2792,9 @@
         // Participants count status helper
         function updateUsersCount(presenceState) {
             const onlineCountEl = document.getElementById('chat-online-count');
-            const count = Object.keys(presenceState).length;
-            onlineCountEl.textContent = count;
+            if (onlineCountEl) {
+                onlineCountEl.textContent = String(countPresenceMembers(presenceState));
+            }
         }
 
 
@@ -2780,6 +2842,12 @@
             });
 
             try {
+                // ?media= launches a new lounge for the selected title (from detail/stream pages).
+                if (catalogMediaId && isCatalogMediaKey(catalogMediaId)) {
+                    await createCatalogPartyRoom(catalogMediaId);
+                    return;
+                }
+
                 if (joinRoomId) {
                     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
                     const isShortCode = isPartyShortCode(joinRoomId);
@@ -2808,15 +2876,15 @@
                             showLobbyView();
                         }
                     } else if (isCatalogMediaKey(joinRoomId)) {
+                        // Legacy links used ?room= for catalogue ids.
                         await createCatalogPartyRoom(joinRoomId);
                     } else {
                         showLobbyView();
                     }
-                } else if (catalogMediaId) {
-                    await createCatalogPartyRoom(catalogMediaId);
-                } else {
-                    showLobbyView();
+                    return;
                 }
+
+                showLobbyView();
             } catch (err) {
                 console.error('Error booting watch party room:', err);
                 showLobbyView();

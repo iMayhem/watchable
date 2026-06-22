@@ -137,6 +137,7 @@
           var tablet = touch && narrow;
           
           var path = location.pathname;
+          if (path.indexOf('/party') === 0 || /\.[a-z0-9]+$/i.test(path)) return;
           if (/^\/nf(\/|$)/.test(path) || /^\/stream\/nf(\/|$)/.test(path) || /^\/embed\/nf(\/|$)/.test(path)) {
             path = '/';
           }

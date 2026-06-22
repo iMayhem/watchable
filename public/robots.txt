@@ -1,6 +1,47 @@
-User-agent: *
-Disallow: /party/
-Disallow: /party
+# To block all Google search crawlers from accessing your site, add the following
+# to the top level of your robots.txt file.
+User-agent: Googlebot
+Disallow: /
 
-Sitemap: https://moovie.fun/sitemap.xml
-Sitemap: https://moovie.fun/sitemap-dynamic.xml
+User-agent: Googlebot-Image
+Disallow: /
+
+User-agent: Googlebot-News
+Disallow: /
+
+User-agent: Googlebot-Video
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: GoogleOther
+Disallow: /
+
+User-agent: GoogleOther-Image
+Disallow: /
+
+User-agent: GoogleOther-Video
+Disallow: /
+
+User-agent: Google-InspectionTool
+Disallow: /
+
+User-agent: Google-CloudVertexBot
+Disallow: /
+
+User-agent: AdsBot-Google
+Disallow: /
+
+User-agent: AdsBot-Google-Mobile
+Disallow: /
+
+User-agent: Mediapartners-Google
+Disallow: /
+
+User-agent: Storebot-Google
+Disallow: /
+
+# Stop all other bot traffic
+User-agent: *
+Disallow: /

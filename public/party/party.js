@@ -227,7 +227,10 @@
 
         // Supabase Dynamic configuration
         const defaultUrl = 'https://eeyiragtylotiwozbgqp.supabase.co';
-        const defaultKey = safeLocalStorage.getItem('supabase_anon_key') || ''; // Overrides can be in localStorage
+        let defaultKey = safeLocalStorage.getItem('supabase_anon_key') || ''; // Overrides can be in localStorage
+        if (defaultKey === 'undefined' || defaultKey === 'null' || defaultKey.trim() === '') {
+            defaultKey = '';
+        }
 
         // Parse query params (Direct Join or Stream details transfer)
         const urlParams = new URLSearchParams(window.location.search);

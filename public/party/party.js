@@ -46,6 +46,80 @@
             if (isHost && room?.id) markAsPartyHost(room.id);
         }
 
+        function isRoomPrivate(room) {
+            return Boolean(room?.is_private);
+        }
+
+        function canJoinRoom(room) {
+            if (!room) return false;
+            return !isRoomPrivate(room) || checkIsPartyHost(room);
+        }
+
+        function notifyPrivateRoomBlocked() {
+            alert('This room is private. The host has locked it — no new guests can join.');
+        }
+
+        function updateRoomPrivacyButton() {
+            const btn = document.getElementById('room-privacy-btn');
+            if (!btn) return;
+
+            if (!activeRoom || !isHost) {
+                btn.hidden = true;
+                return;
+            }
+
+            btn.hidden = false;
+            const locked = isRoomPrivate(activeRoom);
+            btn.textContent = locked ? 'Make public' : 'Make private';
+            btn.classList.toggle('is-private', locked);
+            btn.setAttribute('aria-pressed', locked ? 'true' : 'false');
+            btn.title = locked
+                ? 'Open this room so new guests can join from the lobby'
+                : 'Lock this room so no new guests can join';
+        }
+
+        async function toggleRoomPrivacy(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (!activeRoom || !isHost) return false;
+
+            const nextPrivate = !isRoomPrivate(activeRoom);
+            const btn = document.getElementById('room-privacy-btn');
+            if (btn) btn.disabled = true;
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('rooms')
+                    .update({ is_private: nextPrivate })
+                    .eq('id', activeRoom.id)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                activeRoom = data;
+                updateRoomPrivacyButton();
+                appendChatMessage(
+                    'System',
+                    nextPrivate
+                        ? 'Room is now private — new guests cannot join.'
+                        : 'Room is now public — anyone can join from the lobby.',
+                    'system'
+                );
+            } catch (err) {
+                console.error('Failed to toggle room privacy:', err);
+                alert('Could not update room privacy. ' + (err.message || 'Please try again.'));
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+
+            return false;
+        }
+
+        window.toggleRoomPrivacy = toggleRoomPrivacy;
+
         // Adjust links for file:// protocol vs http:// protocol dynamically
         if (window.location.protocol !== 'file:') {
             document.querySelectorAll('a[href="../index.html"]').forEach(link => {
@@ -1738,6 +1812,7 @@
             syncParentPartyUrl('/party');
             scheduleLoadActiveRooms();
             setupLobbyFeed();
+            updateRoomPrivacyButton();
             finishPartyBoot();
         }
 
@@ -1779,6 +1854,7 @@
             syncParentPartyUrl('/party');
             scheduleLoadActiveRooms();
             setupLobbyFeed();
+            updateRoomPrivacyButton();
             finishPartyBoot();
         }
 
@@ -1970,6 +2046,7 @@
             
             connectToRealtimeRoom(room);
             updateControlsVisibility();
+            updateRoomPrivacyButton();
             finishPartyBoot();
             scheduleRoomEmbedLoad();
         }
@@ -2429,19 +2506,28 @@
                     const startedLabel = startedAt
                         ? new Date(startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : 'Just now';
+                    const privateRoom = isRoomPrivate(room);
+                    const joinable = canJoinRoom(room);
+                    const statusBadge = privateRoom
+                        ? '<span class="room-status room-status--private">Private</span>'
+                        : '<span class="room-status">Live</span>';
+                    const joinControl = joinable
+                        ? `<button class="btn btn-primary" onclick="joinExistingRoom('${room.id}')">Join Party</button>`
+                        : `<button class="btn btn-primary room-join-btn--locked" type="button" disabled>Locked</button>`;
                     return `
-                    <div class="room-card">
+                    <div class="room-card${privateRoom ? ' room-card--private' : ''}">
                         <div class="room-header">
                             <div class="room-name">${safeName}</div>
-                            <span class="room-status">LIVE</span>
+                            ${statusBadge}
                         </div>
                         <div class="room-info">
                             <div class="room-info-item">🎬 <strong>Playing:</strong> ${safeTitle}</div>
                             <div class="room-info-item">🕒 <strong>Active:</strong> ${startedLabel}</div>
+                            ${privateRoom ? '<div class="room-info-item">🔒 <strong>Access:</strong> Invite only</div>' : ''}
                         </div>
                         <div class="room-footer">
                             <span class="room-participants" data-room-id="${room.id}">${formatParticipantLabel(0)}</span>
-                            <button class="btn btn-primary" onclick="joinExistingRoom('${room.id}')">Join Party</button>
+                            ${joinControl}
                         </div>
                     </div>
                 `;
@@ -2500,6 +2586,10 @@
                     .single();
 
                 if (error) throw error;
+                if (!canJoinRoom(room)) {
+                    notifyPrivateRoomBlocked();
+                    return;
+                }
                 activeRoom = room;
                 applyRoomHostRole(room);
                 showRoomView(room);
@@ -2895,6 +2985,11 @@
                             .single();
                         
                         if (!error && room) {
+                            if (!canJoinRoom(room)) {
+                                notifyPrivateRoomBlocked();
+                                showLobbyView();
+                                return;
+                            }
                             activeRoom = room;
                             applyRoomHostRole(room);
                             showRoomView(room);
@@ -2917,6 +3012,11 @@
 
                         if (!error && existingRooms && existingRooms.length > 0) {
                             const room = existingRooms[0];
+                            if (!canJoinRoom(room)) {
+                                notifyPrivateRoomBlocked();
+                                showLobbyView();
+                                return;
+                            }
                             activeRoom = room;
                             applyRoomHostRole(room);
                             showRoomView(room);

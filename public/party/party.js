@@ -48,27 +48,8 @@
             if (activeRoom?.id === room?.id) updateRoomPrivacyButton();
         }
 
-        const PARTY_PRIVATE_ROOMS_KEY = 'watchable_party_private_rooms';
-
-        function readPrivateRoomMap() {
-            try {
-                return JSON.parse(safeLocalStorage.getItem(PARTY_PRIVATE_ROOMS_KEY) || '{}');
-            } catch (e) {
-                return {};
-            }
-        }
-
-        function setRoomPrivateLocal(roomId, isPrivate) {
-            if (!roomId) return;
-            const map = readPrivateRoomMap();
-            if (isPrivate) map[roomId] = true;
-            else delete map[roomId];
-            safeLocalStorage.setItem(PARTY_PRIVATE_ROOMS_KEY, JSON.stringify(map));
-        }
-
         function isRoomPrivate(room) {
-            if (!room?.id) return false;
-            return Boolean(room.is_private) || Boolean(readPrivateRoomMap()[room.id]);
+            return Boolean(room?.is_private);
         }
 
         function isMissingPrivacyColumnError(error) {
@@ -87,28 +68,18 @@
 
             if (error) {
                 if (isMissingPrivacyColumnError(error)) {
-                    setRoomPrivateLocal(activeRoom.id, nextPrivate);
-                    return {
-                        room: { ...activeRoom, is_private: nextPrivate },
-                        usedLocalFallback: true
-                    };
+                    throw new Error(
+                        'The rooms.is_private column is missing. Run docs/rooms_private_migration.sql in the Supabase SQL Editor.'
+                    );
                 }
                 throw error;
             }
 
-            if (Array.isArray(data) && data.length > 0) {
-                setRoomPrivateLocal(activeRoom.id, nextPrivate);
-                return {
-                    room: { ...activeRoom, ...data[0] },
-                    usedLocalFallback: false
-                };
+            if (!Array.isArray(data) || data.length !== 1) {
+                throw new Error('Room privacy could not be saved. Check Supabase update permissions on the rooms table.');
             }
 
-            setRoomPrivateLocal(activeRoom.id, nextPrivate);
-            return {
-                room: { ...activeRoom, is_private: nextPrivate },
-                usedLocalFallback: true
-            };
+            return { ...activeRoom, ...data[0] };
         }
 
         function canJoinRoom(room) {
@@ -171,8 +142,7 @@
             if (btn) btn.disabled = true;
 
             try {
-                const { room, usedLocalFallback } = await persistRoomPrivacy(nextPrivate);
-                activeRoom = room;
+                activeRoom = await persistRoomPrivacy(nextPrivate);
                 updateRoomPrivacyButton();
                 appendChatMessage(
                     'System',
@@ -181,13 +151,6 @@
                         : 'Room is now public — anyone can join from the lobby.',
                     'system'
                 );
-                if (usedLocalFallback) {
-                    appendChatMessage(
-                        'System',
-                        'Privacy saved locally. Run docs/rooms_private_migration.sql in Supabase so lobby guests see locked rooms.',
-                        'system'
-                    );
-                }
             } catch (err) {
                 console.error('Failed to toggle room privacy:', err);
                 alert('Could not update room privacy. ' + (err.message || 'Please try again.'));

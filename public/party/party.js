@@ -3063,53 +3063,34 @@
                         showLobbyView();
                     }
                 } else {
-                    // TMDb ID. Let's automatically check if a room already exists.
+                    // Catalog embed key (TMDB / TV / anime). Always spin up a fresh lounge —
+                    // joinRoomId is the media source, not a shared room id.
                     try {
-                        const { data: existingRooms, error } = await supabaseClient
-                            .from('rooms')
-                            .select('*')
-                            .eq('embed_sources', joinRoomId)
-                            .order('created_at', { ascending: false });
-
-                        if (!error && existingRooms && existingRooms.length > 0) {
-                            const room = existingRooms[0];
-                            if (!canJoinRoom(room)) {
-                                notifyPrivateRoomBlocked();
-                                showLobbyView();
-                                return;
-                            }
-                            activeRoom = room;
-                            applyRoomHostRole(room);
-                            showRoomView(room);
+                        const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse/i.test(navigator.userAgent) || navigator.webdriver;
+                        if (isBot) {
+                            console.log('Bot detected. Skipping automatic room creation.');
+                            showLobbyView();
                         } else {
-                            // Check if bot/crawler to prevent automated room insertion
-                            const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse/i.test(navigator.userAgent) || navigator.webdriver;
-                            if (isBot) {
-                                console.log('Bot detected. Skipping automatic room creation.');
-                                showLobbyView();
-                            } else {
-                                // Real user! Auto-create the room instantly with zero resistance
-                                const roomName = `${currentUserName}'s Watch Lounge`;
-                                const shortCode = generateShortCode();
-                                const uuid = shortCodeToUuid(shortCode);
-                                const { data: newRoom, error: createError } = await supabaseClient
-                                    .from('rooms')
-                                    .insert([{
-                                        id: uuid,
-                                        name: roomName,
-                                        movie_title: prefillTitle || 'Feature Title',
-                                        embed_sources: joinRoomId,
-                                        scheduled_start_time: new Date().toISOString()
-                                    }])
-                                    .select()
-                                    .single();
+                            const roomName = `${currentUserName}'s Watch Lounge`;
+                            const shortCode = generateShortCode();
+                            const uuid = shortCodeToUuid(shortCode);
+                            const { data: newRoom, error: createError } = await supabaseClient
+                                .from('rooms')
+                                .insert([{
+                                    id: uuid,
+                                    name: roomName,
+                                    movie_title: prefillTitle || 'Feature Title',
+                                    embed_sources: joinRoomId,
+                                    scheduled_start_time: new Date().toISOString()
+                                }])
+                                .select()
+                                .single();
 
-                                if (createError) throw createError;
+                            if (createError) throw createError;
 
-                                activeRoom = newRoom;
-                                applyRoomHostRole(newRoom, true);
-                                showRoomView(newRoom);
-                            }
+                            activeRoom = newRoom;
+                            applyRoomHostRole(newRoom, true);
+                            showRoomView(newRoom);
                         }
                     } catch (err) {
                         console.error('Error auto-resolving watch party room:', err);

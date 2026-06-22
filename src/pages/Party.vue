@@ -3,7 +3,6 @@
         <SiteHeader />
 
         <iframe
-            :key="frameSrc"
             class="party-shell__frame"
             :src="frameSrc"
             title="Watch Together"
@@ -13,8 +12,9 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import type { LocationQuery } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import { useSeo } from '../composables/useSeo';
 
@@ -22,11 +22,14 @@ const route = useRoute();
 const router = useRouter();
 const { updateSeo } = useSeo();
 
-const frameSrc = computed(() => {
+const frameSrc = ref('');
+let syncingFromIframe = false;
+
+function buildFrameSrc(query: LocationQuery): string {
     const params = new URLSearchParams();
     params.set('embedded', '1');
 
-    Object.entries(route.query).forEach(([key, value]) => {
+    Object.entries(query).forEach(([key, value]) => {
         if (value == null || key === 'embedded') return;
         if (Array.isArray(value)) {
             value.forEach((entry) => params.append(key, String(entry)));
@@ -36,7 +39,17 @@ const frameSrc = computed(() => {
     });
 
     return `/party/app.html?${params.toString()}`;
-});
+}
+
+function partyPathsEqual(a: string, b: string): boolean {
+    const normalize = (path: string) => {
+        const url = new URL(path, 'https://moovie.fun');
+        const pathname = url.pathname.replace(/\/+$/, '') || '/party';
+        return `${pathname}${url.search}`;
+    };
+
+    return normalize(a) === normalize(b);
+}
 
 function onPartyMessage(event: MessageEvent) {
     if (event.origin !== window.location.origin) return;
@@ -46,12 +59,28 @@ function onPartyMessage(event: MessageEvent) {
     const next = typeof data.path === 'string' ? data.path : '';
     if (!next.startsWith('/party')) return;
 
-    if (next === route.fullPath) return;
+    if (partyPathsEqual(next, route.fullPath)) return;
 
-    router.replace(next);
+    syncingFromIframe = true;
+    void router.replace(next).finally(() => {
+        void nextTick(() => {
+            syncingFromIframe = false;
+        });
+    });
 }
 
+watch(
+    () => route.query,
+    (query) => {
+        if (syncingFromIframe) return;
+        frameSrc.value = buildFrameSrc(query);
+    },
+    { deep: true }
+);
+
 onMounted(() => {
+    frameSrc.value = buildFrameSrc(route.query);
+
     updateSeo({
         title: 'Watch Together — Moovie',
         canonical: `https://moovie.fun/party`

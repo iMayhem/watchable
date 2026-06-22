@@ -54,7 +54,6 @@ const page = ref(1);
 const totalPages = ref(1);
 const isLoading = ref(false);
 const isLoadingMore = ref(false);
-const sortMode = ref<'popular' | 'trending'>('popular');
 
 const hasMore = computed(() => page.value < totalPages.value);
 
@@ -64,9 +63,7 @@ async function fetchPage(pageNum: number, append: boolean) {
     try {
         const url = searchTerm.value.trim()
             ? `search/person?query=${encodeURIComponent(searchTerm.value.trim())}&page=${pageNum}`
-            : sortMode.value === 'trending'
-              ? `trending/person/day?page=${pageNum}`
-              : `person/popular?page=${pageNum}`;
+            : `person/popular?page=${pageNum}`;
         const res = await useAxios().get(url, { params: { language: 'en-US' } });
         const data = res.data as { results: Person[]; total_pages: number };
         const batch = data.results ?? [];

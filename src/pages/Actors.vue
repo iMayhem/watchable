@@ -38,26 +38,9 @@
                         <h2 class="actors__results-title">{{ resultsTitle }}</h2>
                     </div>
 
-                    <div class="actors__controls">
-                        <p v-if="totalResults" class="meta actors__count">
-                            {{ totalResults.toLocaleString() }} people
-                        </p>
-
-                        <label class="actors__sort" :class="{ 'is-disabled': !!searchTerm }">
-                            <span class="eyebrow">Sort</span>
-                            <select
-                                v-model="sortMode"
-                                :disabled="!!searchTerm"
-                                @change="onSortChange"
-                            >
-                                <option value="popular">Most popular</option>
-                                <option value="trending">Trending today</option>
-                            </select>
-                            <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </label>
-                    </div>
+                    <p v-if="totalResults" class="meta actors__count">
+                        {{ totalResults.toLocaleString() }} people
+                    </p>
                 </header>
 
                 <div v-if="isLoading && !results.length" class="actors__loading" role="status">
@@ -101,16 +84,23 @@
                     />
                 </div>
 
-                <div v-if="hasMore" class="actors__more">
-                    <button
-                        type="button"
-                        class="actors__more-btn"
-                        :disabled="isLoadingMore"
-                        @click="loadMore"
-                    >
-                        <span v-if="isLoadingMore">Loading…</span>
-                        <span v-else>Load more · page {{ page }}/{{ totalPages }}</span>
-                    </button>
+                <div
+                    v-if="results.length && (hasMore || isLoadingMore)"
+                    ref="scrollSentinel"
+                    class="actors__sentinel"
+                    aria-hidden="true"
+                >
+                    <div v-if="isLoadingMore" class="actors__sentinel-grid">
+                        <div
+                            v-for="n in 4"
+                            :key="`more-${n}`"
+                            class="actors__skeleton"
+                        >
+                            <div class="actors__skeleton-circle" />
+                            <div class="actors__skeleton-line" />
+                            <div class="actors__skeleton-line actors__skeleton-line--short" />
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
@@ -120,15 +110,14 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onBeforeUnmount, ref } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, onBeforeUnmount, ref } from 'vue';
 import { debounce } from '../utils/memoization';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import PersonCard from '../components/cards/PersonCard.vue';
 import { useActor, Actor } from '../composables/useActor';
 import { addSearchTerm } from '../composables/useHistory';
-
-type SortMode = 'popular' | 'trending';
+import { useInfiniteScroll } from '../composables/useLazyLoad';
 
 export default defineComponent({
     name: 'Actors',
@@ -142,15 +131,10 @@ export default defineComponent({
         const totalResults = ref(0);
         const isLoading = ref(false);
         const isLoadingMore = ref(false);
-        const sortMode = ref<SortMode>('popular');
         const searchTerm = ref('');
 
-        const buildUrl = (mode: SortMode, pageNum: number): string => {
-            if (mode === 'trending') {
-                return `https://api.themoviedb.org/3/trending/person/day?page=${pageNum}`;
-            }
-            return `https://api.themoviedb.org/3/person/popular?page=${pageNum}`;
-        };
+        const buildPopularUrl = (pageNum: number): string =>
+            `https://api.themoviedb.org/3/person/popular?page=${pageNum}`;
 
         const buildSearchUrl = (pageNum: number): string => {
             const params = new URLSearchParams({
@@ -168,7 +152,7 @@ export default defineComponent({
             try {
                 const url = searchTerm.value
                     ? buildSearchUrl(pageNum)
-                    : buildUrl(sortMode.value, pageNum);
+                    : buildPopularUrl(pageNum);
                 const { data } = await fetchTopActors(url);
                 const fresh = (data.value?.results ?? []) as Actor[];
                 totalPages.value = data.value?.total_pages ?? 0;
@@ -183,16 +167,41 @@ export default defineComponent({
 
         const reload = () => {
             page.value = 1;
-            fetchPage(1, false);
+            void fetchPage(1, false).then(() => drainPagesIfNeeded());
         };
 
-        const loadMore = () => {
-            if (isLoadingMore.value) return;
-            if (page.value >= totalPages.value) return;
-            fetchPage(page.value + 1, true);
-        };
+        const scrollSentinel = ref<HTMLElement | null>(null);
 
         const hasMore = computed(() => page.value < totalPages.value);
+
+        const scrollEnabled = computed(() => hasMore.value && results.value.length > 0);
+
+        const loadMore = async () => {
+            if (isLoadingMore.value || !hasMore.value) return;
+            await fetchPage(page.value + 1, true);
+            void drainPagesIfNeeded();
+        };
+
+        const sentinelNearViewport = () => {
+            const el = scrollSentinel.value;
+            if (!el) return false;
+            const rect = el.getBoundingClientRect();
+            return rect.top <= window.innerHeight + 640;
+        };
+
+        const drainPagesIfNeeded = async () => {
+            await nextTick();
+            if (!hasMore.value || isLoadingMore.value || isLoading.value || !sentinelNearViewport()) {
+                return;
+            }
+            await loadMore();
+            await drainPagesIfNeeded();
+        };
+
+        useInfiniteScroll(scrollSentinel, loadMore, {
+            enabled: scrollEnabled,
+            busy: isLoadingMore
+        });
 
         const debouncedSearch = debounce(() => {
             if (searchTerm.value) addSearchTerm(searchTerm.value);
@@ -209,10 +218,6 @@ export default defineComponent({
             reload();
         };
 
-        const onSortChange = () => {
-            reload();
-        };
-
         const resultsEyebrow = computed(() => {
             if (searchTerm.value) return 'Searching';
             return 'On call';
@@ -220,12 +225,12 @@ export default defineComponent({
 
         const resultsTitle = computed(() => {
             if (searchTerm.value) return `"${searchTerm.value}"`;
-            return sortMode.value === 'trending' ? 'Trending today' : 'Popular roster';
+            return 'Popular roster';
         });
 
         onMounted(() => {
             document.title = 'People — Moovie';
-            fetchPage(1, false);
+            void fetchPage(1, false).then(() => drainPagesIfNeeded());
 
             window.addEventListener('movora_settings_change', reload);
         });
@@ -236,20 +241,16 @@ export default defineComponent({
 
         return {
             results,
-            page,
-            totalPages,
             totalResults,
             isLoading,
             isLoadingMore,
-            sortMode,
             searchTerm,
             hasMore,
+            scrollSentinel,
             resultsEyebrow,
             resultsTitle,
             onSearchInput,
-            clearSearch,
-            onSortChange,
-            loadMore
+            clearSearch
         };
     }
 });
@@ -350,56 +351,8 @@ export default defineComponent({
         letter-spacing: var(--ls-tight);
     }
 
-    &__controls {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--s-5);
-    }
-
     &__count {
         color: var(--bone-400);
-    }
-
-    &__sort {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        gap: var(--s-2);
-        padding: 0.5rem var(--s-4) 0.5rem var(--s-3);
-        background: var(--surface-tint);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-pill);
-        color: var(--bone-200);
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
-        cursor: pointer;
-        transition: border-color var(--dur-fast) var(--ease-out);
-
-        &:hover { border-color: var(--rule-strong); }
-        &.is-disabled { opacity: 0.5; cursor: not-allowed; }
-
-        span { color: var(--bone-400); }
-
-        select {
-            all: unset;
-            background: transparent;
-            color: inherit;
-            font: inherit;
-            cursor: inherit;
-            padding-right: 0.75rem;
-
-            option {
-                background: var(--ink-800);
-                color: var(--bone-50);
-            }
-        }
-
-        svg {
-            position: absolute;
-            right: var(--s-3);
-            color: var(--bone-400);
-            pointer-events: none;
-        }
     }
 
     // ── Grid ──────────────────────────────────────────────────────────────
@@ -514,36 +467,20 @@ export default defineComponent({
         &:hover { transform: translateY(-1px); }
     }
 
-    // ── Load more ─────────────────────────────────────────────────────────
-    &__more {
-        display: flex;
-        justify-content: center;
-        margin-top: var(--s-7);
+    &__sentinel {
+        margin-top: var(--s-6);
+        min-height: 1px;
     }
 
-    &__more-btn {
-        all: unset;
-        cursor: pointer;
-        padding: 0.85rem var(--s-6);
-        background: var(--surface-tint);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-pill);
-        color: var(--bone-100);
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
-        letter-spacing: var(--ls-snug);
-        transition:
-            background-color var(--dur-fast) var(--ease-out),
-            border-color var(--dur-fast) var(--ease-out),
-            color var(--dur-fast) var(--ease-out);
+    &__sentinel-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: var(--s-6) var(--s-5);
 
-        &:hover:not(:disabled) {
-            background: var(--surface-tint-hover);
-            border-color: var(--rule-strong);
-            color: var(--bone-50);
+        @media (max-width: 720px) {
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: var(--s-5) var(--s-4);
         }
-
-        &:disabled { opacity: 0.6; cursor: wait; }
     }
 }
 

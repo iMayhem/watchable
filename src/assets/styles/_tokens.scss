@@ -128,9 +128,8 @@
   --z-command: 160;
 }
 
-// Compact laptops (e.g. MacBook Pro 1440×900) — boost rem scale so UI matches
-// denser Windows panels; slightly tighter gutters reclaim horizontal space.
-@media (min-width: 1024px) and (max-width: 1599px) {
+// MacBook Pro class displays (~1440×900 logical) — not 1080p Windows laptops.
+@media (min-width: 1360px) and (max-width: 1500px) and (max-height: 960px) {
   :root {
     --ui-scale: 1.125;
     --container-gutter: 1.5rem;

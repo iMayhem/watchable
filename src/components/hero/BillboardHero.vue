@@ -325,7 +325,7 @@ export default defineComponent({
     isolation: isolate;
     min-height: clamp(520px, 78vh, 880px);
 
-    @media (min-width: 1024px) and (max-height: 920px) {
+    @media (min-width: 1360px) and (max-width: 1500px) and (max-height: 960px) {
         min-height: clamp(480px, 82vh, 760px);
     }
     display: flex;

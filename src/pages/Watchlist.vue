@@ -855,10 +855,6 @@ function isValidItem(x: any): boolean {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: var(--s-6) var(--s-5);
 
-        @media (min-width: 1024px) and (max-width: 1499px) {
-            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-        }
-
         @media (max-width: 720px) {
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: var(--s-5) var(--s-4);

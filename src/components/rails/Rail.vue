@@ -80,7 +80,7 @@ export default defineComponent({
         const showArrows = ref(false);
 
         const defaultColumns: Record<Density, { base: number; sm: number; md: number; lg: number; xl: number }> = {
-            poster:     { base: 2.4, sm: 3.4, md: 4, lg: 5, xl: 6 },
+            poster:     { base: 2.4, sm: 3.4, md: 4.4, lg: 5.4, xl: 6.4 },
             keyart:     { base: 1.2, sm: 1.8, md: 2.4, lg: 3.2, xl: 3.6 },
             episode:    { base: 1.2, sm: 1.8, md: 2.4, lg: 3.2, xl: 3.6 },
             person:     { base: 3.4, sm: 4.4, md: 5.4, lg: 6.4, xl: 7.4 },
@@ -333,11 +333,16 @@ export default defineComponent({
         @media (min-width: 900px) {
             --rail-cols: var(--rail-cols-md, var(--rail-cols-sm, 4.4));
         }
-        @media (min-width: 1500px) {
-            --rail-cols: var(--rail-cols-lg, var(--rail-cols-md, 5));
+        @media (min-width: 1200px) {
+            --rail-cols: var(--rail-cols-lg, var(--rail-cols-md, 5.4));
         }
-        @media (min-width: 2200px) {
-            --rail-cols: var(--rail-cols-xl, var(--rail-cols-lg, 6));
+        @media (min-width: 1600px) {
+            --rail-cols: var(--rail-cols-xl, var(--rail-cols-lg, 6.4));
+        }
+
+        // MacBook Pro ~1440×900 — fewer poster tiles, larger cards (not 1080p laptops).
+        @media (min-width: 1360px) and (max-width: 1500px) and (max-height: 960px) {
+            --rail-cols: 4;
         }
     }
 

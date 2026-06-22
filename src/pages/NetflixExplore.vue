@@ -636,12 +636,7 @@ export default defineComponent({
             gap: var(--s-5) var(--s-4);
         }
 
-        @media (min-width: 1024px) and (max-width: 1499px) {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: var(--s-6) var(--s-5);
-        }
-
-        @media (min-width: 1500px) {
+        @media (min-width: 1200px) {
             grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: var(--s-6) var(--s-5);
         }

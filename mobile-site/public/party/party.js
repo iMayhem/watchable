@@ -303,6 +303,69 @@
             showRoomView(newRoom);
         }
 
+        function isPartyEmbedded() {
+            if (urlParams.get('embedded') === '1') return true;
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        const partyEmbedded = isPartyEmbedded();
+
+        function normalizeSitePath(path) {
+            const url = new URL(path, window.location.origin);
+            let pathname = url.pathname.replace(/\/+$/, '');
+            if (!pathname) pathname = '/';
+            return `${pathname}${url.search}`;
+        }
+
+        function syncParentPartyUrl(path) {
+            if (!partyEmbedded) return;
+            try {
+                const parent = window.parent.location;
+                const parentPath = `${parent.pathname}${parent.search}`;
+                if (normalizeSitePath(parentPath) === normalizeSitePath(path)) return;
+
+                window.parent.postMessage({
+                    type: 'watchable-party-nav',
+                    path
+                }, window.location.origin);
+            } catch (e) {}
+        }
+
+        function finishPartyBoot() {
+            document.body.classList.remove('party-booting');
+            document.documentElement.classList.remove('party-joining');
+            document.documentElement.classList.add('party-ready');
+        }
+
+        function navigateParentSite(path, event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            const target = path || '/';
+            if (!partyEmbedded) {
+                window.location.href = target;
+                return false;
+            }
+
+            try {
+                window.parent.postMessage({
+                    type: 'watchable-site-nav',
+                    path: target
+                }, window.location.origin);
+            } catch (e) {
+                window.location.href = target;
+            }
+            return false;
+        }
+
+        window.navigateParentSite = navigateParentSite;
+
         // Parsing room parameter for custom player URLs
         let isAnime = false;
         let isTv = false;
@@ -1759,6 +1822,19 @@
         }
 
         // View Toggling
+        function bootstrapLobbyView() {
+            document.body.classList.remove('room-view-active');
+            document.body.classList.remove('cinema-mode');
+
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('lobby-view').classList.add('active');
+
+            syncParentPartyUrl('/party');
+            loadActiveRooms();
+            updateRoomPrivacyButton();
+            finishPartyBoot();
+        }
+
         function showLobbyView() {
             // Cancel Cinema Mode & active view height locks
             document.body.classList.remove('room-view-active');
@@ -1782,9 +1858,15 @@
 
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('lobby-view').classList.add('active');
-            window.history.pushState({}, '', window.location.pathname);
+            if (partyEmbedded) {
+                window.history.pushState({}, '', '/party/index.html');
+            } else {
+                window.history.pushState({}, '', window.location.pathname);
+            }
+            syncParentPartyUrl('/party');
             loadActiveRooms();
             updateRoomPrivacyButton();
+            finishPartyBoot();
         }
 
         function showCreateView(title = '', embedUrl = '') {
@@ -1920,16 +2002,21 @@
                 switchStreamProvider(activeProvider);
             }
 
-            // Update URL to the shareable room short code link
             const displayId = uuidToShortCode(room.id) || room.id;
-            window.history.pushState({}, '', `?room=${displayId}`);
-            
-            // Connect to real-time chat & presence channel
+            if (partyEmbedded) {
+                window.history.pushState({}, '', `/party/index.html?room=${displayId}`);
+            } else {
+                window.history.pushState({}, '', `?room=${displayId}`);
+            }
+            const parentRoomParams = new URLSearchParams({ room: displayId });
+            if (prefillTitle) parentRoomParams.set('title', prefillTitle);
+            syncParentPartyUrl(`/party?${parentRoomParams.toString()}`);
+
             connectToRealtimeRoom(room);
-            
-            // Update Controls visibility
+
             updateControlsVisibility();
             updateRoomPrivacyButton();
+            finishPartyBoot();
         }
 
         // Dropdown toggle logic
@@ -2862,8 +2949,13 @@
             bindPartyEpNavButtons();
 
             // Fast navigation helper when leaving the party page back to home
-            document.querySelectorAll('a[href="../index.html"]').forEach(link => {
+            document.querySelectorAll('a[href="/"], a[href="../index.html"]').forEach(link => {
+                if (link.getAttribute('onclick')) return;
                 link.addEventListener('click', (e) => {
+                    if (partyEmbedded) {
+                        navigateParentSite('/', e);
+                        return;
+                    }
                     e.preventDefault();
                     const href = link.href;
                     const iframe = document.getElementById('video-player-iframe');
@@ -2941,10 +3033,9 @@
                     return;
                 }
 
-                showLobbyView();
+                bootstrapLobbyView();
             } catch (err) {
                 console.error('Error booting watch party room:', err);
-                showLobbyView();
+                bootstrapLobbyView();
             }
         });
-    

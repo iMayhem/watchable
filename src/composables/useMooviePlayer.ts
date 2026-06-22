@@ -7,7 +7,6 @@ export type PlayerSkin = 'default' | 'netflix';
 export interface MoovieStream {
     quality: string;
     url: string;
-    proxiedUrl: string;
 }
 
 export interface MoovieResolve {
@@ -97,12 +96,6 @@ function streamUrlAgeSec(rawUrl: string) {
     } catch {
         return null;
     }
-}
-
-function toAbsoluteUrl(path: string) {
-    if (!path) return '';
-    if (/^https?:\/\//i.test(path)) return path;
-    return `${window.location.origin}${path}`;
 }
 
 function withPlaybackCacheBuster(absUrl: string) {
@@ -725,10 +718,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     };
 
     const resolvePlaybackUrl = (stream: MoovieStream) => {
-        if (extensionActive.value) {
-            return withPlaybackCacheBuster(stream.url);
-        }
-        return withPlaybackCacheBuster(toAbsoluteUrl(stream.proxiedUrl));
+        return withPlaybackCacheBuster(stream.url);
     };
 
     const waitForContainer = async (timeoutMs = 4000) => {
@@ -927,8 +917,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
         try {
             if (!extensionActive.value) {
-                const probeUrl = toAbsoluteUrl(stream.proxiedUrl);
-                const resp = await fetch(probeUrl, {
+                const resp = await fetch(stream.url, {
                     method: 'GET',
                     headers: { Range: 'bytes=0-65535' }
                 });

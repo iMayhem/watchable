@@ -4,10 +4,10 @@
             <p class="nm-test__badge">Internal · Hidden</p>
             <h1>Moovie Stream Lab</h1>
             <p class="nm-test__sub">
-                Test stream resolution through moovie proxy. Not linked anywhere on the site.
+                Test stream resolution against the catalogue API. Not linked anywhere on the site.
             </p>
             <p class="nm-test__ext" :class="{ 'is-active': extensionActive }">
-                Extension: {{ extensionActive ? 'active · direct CDN' : 'not detected · using /api/proxy' }}
+                Extension: {{ extensionActive ? 'active · direct CDN' : 'not detected · direct CDN URLs' }}
             </p>
         </header>
 
@@ -93,7 +93,7 @@
                     :disabled="!activeStream"
                     @click="setPlayerMode('direct')"
                 >
-                    {{ extensionActive ? 'ArtPlayer · direct CDN' : 'ArtPlayer · proxy' }}
+                    ArtPlayer · direct CDN
                 </button>
                 <button
                     type="button"
@@ -130,7 +130,7 @@
             <p v-if="playbackError" class="nm-test__error" role="alert">{{ playbackError }}</p>
             <p v-if="activeStream && playerMode === 'direct'" class="nm-test__stream-url">
                 {{ activeStream.quality }} ·
-                {{ extensionActive ? 'direct CDN + ArtPlayer (Moovie direct path)' : 'proxied via /api/proxy' }}
+                direct CDN · {{ activeStream.url }}
             </p>
 
             <div v-if="streams.length" class="nm-test__qualities">
@@ -165,7 +165,6 @@ const LOG_PREFIX = '[Moovie Stream Test]';
 interface MoovieStream {
     quality: string;
     url: string;
-    proxiedUrl: string;
 }
 
 interface MoovieResolve {
@@ -254,12 +253,6 @@ export default defineComponent({
             }
         };
 
-        const toAbsoluteUrl = (path: string) => {
-            if (!path) return '';
-            if (/^https?:\/\//i.test(path)) return path;
-            return `${window.location.origin}${path}`;
-        };
-
         const applyExtensionDetail = (detail: { active?: boolean; version?: string; mode?: string } | undefined, source: string) => {
             const active = Boolean(detail?.active);
             if (active !== extensionActive.value) {
@@ -293,36 +286,6 @@ export default defineComponent({
             }
             debugError('cdn:probe-failed', result);
             const err = new Error(`Direct CDN probe failed (${resp.status})`) as Error & { status?: number };
-            err.status = resp.status;
-            throw err;
-        };
-
-        const probeProxiedStream = async (proxiedUrl: string) => {
-            const abs = toAbsoluteUrl(proxiedUrl);
-            debug('proxy:probe-start', { url: abs });
-            const startedAt = performance.now();
-
-            const resp = await fetch(abs, {
-                method: 'GET',
-                headers: { Range: 'bytes=0-65535' },
-            });
-
-            const result = {
-                elapsedMs: Math.round(performance.now() - startedAt),
-                status: resp.status,
-                ok: resp.ok,
-                contentType: resp.headers.get('content-type'),
-                contentRange: resp.headers.get('content-range'),
-                acceptRanges: resp.headers.get('accept-ranges'),
-            };
-
-            if (resp.ok || resp.status === 206) {
-                debug('proxy:probe-ok', result);
-                return abs;
-            }
-
-            debugError('proxy:probe-failed', result);
-            const err = new Error(`Proxy probe failed (${resp.status})`) as Error & { status?: number };
             err.status = resp.status;
             throw err;
         };
@@ -368,10 +331,7 @@ export default defineComponent({
         };
 
         const resolvePlaybackUrl = (stream: MoovieStream) => {
-            if (extensionActive.value) {
-                return withPlaybackCacheBuster(stream.url);
-            }
-            return withPlaybackCacheBuster(toAbsoluteUrl(stream.proxiedUrl));
+            return withPlaybackCacheBuster(stream.url);
         };
 
         const mountArtplayer = async (stream: MoovieStream) => {
@@ -510,11 +470,7 @@ export default defineComponent({
             }
 
             try {
-                if (extensionActive.value) {
-                    await probeDirectStream(stream.url);
-                } else {
-                    await probeProxiedStream(stream.proxiedUrl);
-                }
+                await probeDirectStream(stream.url);
                 if (token !== prepareToken) return;
                 await mountArtplayer(stream);
                 playbackError.value = '';
@@ -573,8 +529,6 @@ export default defineComponent({
             const url = new URL(base, window.location.origin);
             if (extensionActive.value) {
                 url.searchParams.set('exten', 'true');
-            } else {
-                url.searchParams.set('proxy', '1');
             }
             return `${url.pathname}${url.search}`;
         });
@@ -680,7 +634,7 @@ export default defineComponent({
                     defaultQuality: data.streams?.[streamIndex]?.quality || null,
                     playerMode: playerMode.value,
                     watchboxUrl: data.watchboxUrl,
-                    defaultProxiedUrl: data.streams?.[streamIndex]?.proxiedUrl || null,
+                    defaultStreamUrl: data.streams?.[streamIndex]?.url || null,
                 });
             } catch (err: any) {
                 error.value = err?.message || 'Failed to resolve stream';
@@ -756,8 +710,7 @@ export default defineComponent({
             debug('stream:select', {
                 index,
                 quality: stream?.quality,
-                rawUrl: stream?.url,
-                proxiedUrl: stream?.proxiedUrl,
+                url: stream?.url,
             });
             selectedStreamIndex.value = index;
             playerMode.value = 'direct';
@@ -789,7 +742,7 @@ export default defineComponent({
             debug('stream:active-changed', {
                 from: prev?.quality || null,
                 to: stream?.quality || null,
-                proxiedUrl: stream?.proxiedUrl || null,
+                url: stream?.url || null,
             });
         });
 

@@ -706,9 +706,7 @@
 
         function netflixPlaybackUrl(stream) {
             refreshPartyExtensionState();
-            const direct = stream?.url || '';
-            const proxied = stream?.proxiedUrl || '';
-            const candidate = partyExtensionActive ? direct : (proxied || direct);
+            const candidate = stream?.url || '';
             if (!candidate) return '';
             const abs = /^https?:\/\//i.test(candidate)
                 ? candidate

@@ -18,9 +18,6 @@ const UA =
 const CDN_REFERER = 'https://fmoviesunblocked.net/';
 const CDN_ORIGIN = 'https://h5.aoneroom.com';
 
-const CDN_HOST_PATTERN =
-  /https?:\/\/(?:bcdnxw\.hakunaymatata\.com|(?:sa|b)cdn\.watch2[12]\.shop)[^\s"'<>]*/g;
-
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
@@ -85,17 +82,7 @@ function buildWatchboxUrl(meta, ts, sig, server, season, episode) {
   return url;
 }
 
-function buildProxyUrl(targetUrl, referer = CDN_REFERER, origin = CDN_ORIGIN) {
-  const params = new URLSearchParams({
-    url: targetUrl,
-    referer,
-    origin,
-    user_agent: UA,
-  });
-  return `/api/proxy?${params.toString()}`;
-}
-
-function rewritePlayerHtml(html, server, { proxyStreams = false } = {}) {
+function rewritePlayerHtml(html, server) {
   const host = resolvePlayerHost(server);
   const playerBase = `https://${host}/play/`;
 
@@ -103,12 +90,6 @@ function rewritePlayerHtml(html, server, { proxyStreams = false } = {}) {
 
   if (!/<base\s/i.test(rewritten)) {
     rewritten = rewritten.replace(/<head([^>]*)>/i, `<head$1><base href="${playerBase}">`);
-  }
-
-  // Moovie extension fast path: direct CDN URLs when exten=true.
-  // Rewriting to /api/proxy forces a Cloudflare hop and breaks that path.
-  if (proxyStreams) {
-    rewritten = rewritten.replace(CDN_HOST_PATTERN, (url) => buildProxyUrl(url));
   }
 
   return rewritten;
@@ -151,7 +132,7 @@ function extractStreams(html) {
     const url = match[2];
     if (!isValidStreamUrl(url) || seen.has(url)) continue;
     seen.add(url);
-    streams.push({ quality, url, proxiedUrl: buildProxyUrl(url) });
+    streams.push({ quality, url });
   }
 
   if (!streams.length) {
@@ -162,7 +143,7 @@ function extractStreams(html) {
       const url = match[0];
       if (!isValidStreamUrl(url) || seen.has(url)) continue;
       seen.add(url);
-      streams.push({ quality: 'unknown', url, proxiedUrl: buildProxyUrl(url) });
+      streams.push({ quality: 'unknown', url });
     }
   }
 
@@ -296,7 +277,6 @@ function trailerStream(meta) {
   return {
     quality: '720P',
     url: trailer,
-    proxiedUrl: buildProxyUrl(trailer, CDN_REFERER, CDN_ORIGIN),
   };
 }
 
@@ -366,7 +346,6 @@ async function fetchFilesdlStreams(filesdlUrl) {
     streams.push({
       quality,
       url,
-      proxiedUrl: buildProxyUrl(url, CDN_REFERER, CDN_ORIGIN),
     });
   }
 
@@ -684,8 +663,7 @@ export async function onRequest(context) {
       const watchboxUrl = buildWatchboxUrl(meta, ts, sig, server, season, episode);
       const html = await fetchWatchboxHtml(watchboxUrl);
 
-      const proxyStreams = searchParams.get('proxy') === '1';
-      return new Response(rewritePlayerHtml(html, server, { proxyStreams }), {
+      return new Response(rewritePlayerHtml(html, server), {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'no-store',

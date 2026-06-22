@@ -626,7 +626,7 @@ export default defineComponent({
             const idx = props.selectedStreamIndex ?? 0;
             const s = props.streams?.[idx];
             if (!s) return '';
-            return s.proxiedUrl || s.url || '';
+            return s.url || '';
         });
 
         const onProgressHover = (event: MouseEvent) => {

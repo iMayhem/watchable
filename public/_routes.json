@@ -1,5 +1,27 @@
 {
   "version": 1,
-  "include": ["/api/*", "/sitemap-dynamic.xml"],
-  "exclude": []
+  "include": ["/*"],
+  "exclude": [
+    "/assets/*",
+    "/party/*",
+    "/icons/*",
+    "/favicon.svg",
+    "/og-image.png",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/artplayer-compact.css",
+    "/admin.html",
+    "/player.html",
+    "/test-protection.html",
+    "/*.js",
+    "/*.css",
+    "/*.png",
+    "/*.svg",
+    "/*.jpg",
+    "/*.jpeg",
+    "/*.webp",
+    "/*.woff2",
+    "/*.woff",
+    "/*.ico"
+  ]
 }

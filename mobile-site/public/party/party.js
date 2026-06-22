@@ -107,6 +107,26 @@
             return true;
         }
 
+        async function insertPartyRoom(row) {
+            let result = await supabaseClient
+                .from('rooms')
+                .insert([row])
+                .select()
+                .single();
+
+            if (result.error && /media_id/i.test(result.error.message || '')) {
+                const { media_id, ...legacyRow } = row;
+                result = await supabaseClient
+                    .from('rooms')
+                    .insert([legacyRow])
+                    .select()
+                    .single();
+            }
+
+            if (result.error) throw result.error;
+            return result.data;
+        }
+
         async function createCatalogPartyRoom(catalogKey) {
             const isBot = /bot|googlebot|crawler|spider|robot|crawling|lighthouse/i.test(navigator.userAgent) || navigator.webdriver;
             if (isBot) {
@@ -118,22 +138,14 @@
             const roomName = `${currentUserName}'s Watch Lounge`;
             const shortCode = generateShortCode();
             const uuid = shortCodeToUuid(shortCode);
-            const row = {
+            const newRoom = await insertPartyRoom({
                 id: uuid,
                 name: roomName,
                 movie_title: prefillTitle || 'Feature Title',
                 embed_sources: catalogKey,
                 media_id: catalogKey,
                 scheduled_start_time: new Date().toISOString()
-            };
-
-            const { data: newRoom, error: createError } = await supabaseClient
-                .from('rooms')
-                .insert([row])
-                .select()
-                .single();
-
-            if (createError) throw createError;
+            });
 
             activeRoom = newRoom;
             applyRoomHostRole(newRoom, true);

@@ -44,6 +44,83 @@
             transition: background-color 0.5s ease;
         }
 
+        html.party-embedded {
+            min-height: 100%;
+        }
+
+        html.party-embedded:has(body.room-view-active) {
+            height: 100%;
+        }
+
+        html.party-embedded body:not(.room-view-active) {
+            height: auto;
+            min-height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        html.party-embedded body.room-view-active #main-header {
+            display: none !important;
+        }
+
+        html.party-embedded body:not(.room-view-active) .party-main,
+        html.party-embedded body:not(.room-view-active) main {
+            flex: 1 0 auto;
+            min-height: 0;
+            overflow: visible;
+        }
+
+        html.party-embedded body.room-view-active {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        html.party-embedded body.room-view-active .party-main,
+        html.party-embedded body.room-view-active main {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        body.party-booting .view {
+            display: none !important;
+        }
+
+        body.party-booting #main-header {
+            visibility: hidden;
+        }
+
+        .party-boot-splash {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.85rem;
+            background: var(--ink-900);
+            color: var(--bone-400);
+        }
+
+        body.party-booting .party-boot-splash {
+            display: flex;
+        }
+
+        .party-boot-splash__spinner {
+            width: 1.75rem;
+            height: 1.75rem;
+            border: 2px solid var(--rule);
+            border-top-color: var(--bone-200);
+            border-radius: 50%;
+            animation: partyBootSpin 0.8s linear infinite;
+        }
+
+        @keyframes partyBootSpin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Hide scroll car on party/watch together pages */
         .scroll-car-container {
             display: none !important;

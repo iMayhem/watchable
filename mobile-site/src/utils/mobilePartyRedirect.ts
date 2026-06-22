@@ -14,5 +14,5 @@ export function buildPartyFrameSrc(query: LocationQuery = {}): string {
         params.set(key, String(value));
     });
 
-    return `/party/index.html?${params.toString()}`;
+    return `/party/app.html?${params.toString()}`;
 }

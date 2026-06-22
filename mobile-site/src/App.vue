@@ -21,6 +21,9 @@ const getRouteKey = (route: RouteLocationNormalizedLoaded) => {
     if (route.name === 'AnimeDetail') {
         return 'anime-detail';
     }
+    if (route.name === 'Party') {
+        return route.fullPath;
+    }
     return route.path;
 };
 

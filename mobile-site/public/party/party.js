@@ -1859,7 +1859,7 @@
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('lobby-view').classList.add('active');
             if (partyEmbedded) {
-                window.history.pushState({}, '', '/party/index.html');
+                window.history.pushState({}, '', '/party/app.html');
             } else {
                 window.history.pushState({}, '', window.location.pathname);
             }
@@ -2004,7 +2004,7 @@
 
             const displayId = uuidToShortCode(room.id) || room.id;
             if (partyEmbedded) {
-                window.history.pushState({}, '', `/party/index.html?room=${displayId}`);
+                window.history.pushState({}, '', `/party/app.html?room=${displayId}`);
             } else {
                 window.history.pushState({}, '', `?room=${displayId}`);
             }
@@ -2991,12 +2991,6 @@
             });
 
             try {
-                // ?media= launches a new lounge for the selected title (from detail/stream pages).
-                if (catalogMediaId && isCatalogMediaKey(catalogMediaId)) {
-                    await createCatalogPartyRoom(catalogMediaId);
-                    return;
-                }
-
                 if (joinRoomId) {
                     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
                     const isShortCode = isPartyShortCode(joinRoomId);
@@ -3030,12 +3024,13 @@
                     } else {
                         showLobbyView();
                     }
-                    return;
+                } else if (catalogMediaId) {
+                    await createCatalogPartyRoom(catalogMediaId);
+                } else {
+                    bootstrapLobbyView();
                 }
-
-                bootstrapLobbyView();
             } catch (err) {
                 console.error('Error booting watch party room:', err);
-                bootstrapLobbyView();
+                showLobbyView();
             }
         });

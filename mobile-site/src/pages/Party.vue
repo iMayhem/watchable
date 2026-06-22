@@ -14,14 +14,30 @@
 <script lang="ts" setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { buildPartyFrameSrc } from '../utils/mobilePartyRedirect';
+import type { LocationQuery } from 'vue-router';
 import { useSeo } from '../composables/useSeo';
 
 const route = useRoute();
 const router = useRouter();
 const { updateSeo } = useSeo();
 
-const frameSrc = ref(buildPartyFrameSrc(route.query));
+function buildFrameSrc(query: LocationQuery): string {
+    const params = new URLSearchParams();
+    params.set('embedded', '1');
+
+    Object.entries(query).forEach(([key, value]) => {
+        if (value == null || key === 'embedded') return;
+        if (Array.isArray(value)) {
+            value.forEach((entry) => params.append(key, String(entry)));
+            return;
+        }
+        params.set(key, String(value));
+    });
+
+    return `/party/app.html?${params.toString()}`;
+}
+
+const frameSrc = ref(buildFrameSrc(route.query));
 const frameReady = ref(false);
 let syncingFromIframe = false;
 
@@ -53,6 +69,10 @@ function onPartyMessage(event: MessageEvent) {
 
     const next = typeof data.path === 'string' ? data.path : '';
     if (!next.startsWith('/party')) return;
+
+    // Keep ?media= launch URLs intact while the iframe is creating a catalogue room.
+    if (next === '/party' && route.query.media) return;
+
     if (partyPathsEqual(next, route.fullPath)) return;
 
     syncingFromIframe = true;
@@ -67,7 +87,7 @@ watch(
     () => route.query,
     (query) => {
         if (syncingFromIframe) return;
-        const nextSrc = buildPartyFrameSrc(query);
+        const nextSrc = buildFrameSrc(query);
         if (nextSrc === frameSrc.value) return;
         frameReady.value = false;
         frameSrc.value = nextSrc;

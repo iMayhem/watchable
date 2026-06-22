@@ -55,7 +55,7 @@
                     />
 
                     <a
-                        :href="`/party/?room=${showId}_s${currentSeason}e${currentEpisode}&title=${encodeURIComponent((show?.name || '') + ' - S' + currentSeason + 'E' + currentEpisode)}`"
+                        :href="`/party?room=${showId}_s${currentSeason}e${currentEpisode}&title=${encodeURIComponent((show?.name || '') + ' - S' + currentSeason + 'E' + currentEpisode)}`"
                         class="watch-stage__party-btn"
                         title="Watch Together with friends!"
                         rel="nofollow"

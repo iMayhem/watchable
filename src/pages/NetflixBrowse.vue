@@ -544,7 +544,7 @@ export default defineComponent({
 
         const genreHeroPartyHref = computed(() => {
             const item = genreHeroFeatured.value;
-            if (!item) return '/party/';
+            if (!item) return '/party';
             const mediaType = item.type || rowMeta.value.defaultType;
             return buildPartyHref({
                 id: item.id,

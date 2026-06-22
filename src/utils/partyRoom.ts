@@ -57,9 +57,9 @@ export function buildPartyRoomId(input: PartyRoomInput): string {
 /** Party link for detail pages, billboards, and spotlight modules. */
 export function buildPartyHref(input: PartyRoomInput): string {
     const room = buildPartyRoomId(input);
-    if (!room) return '/party/';
+    if (!room) return '/party';
     const title = encodeURIComponent(input.title || '');
-    return `/party/?room=${room}&title=${title}`;
+    return `/party?room=${room}&title=${title}`;
 }
 
 /** Party link for active stream playback. */

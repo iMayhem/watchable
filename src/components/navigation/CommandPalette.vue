@@ -30,27 +30,24 @@
                     </div>
 
                     <div class="lm-palette__list" ref="list" role="listbox">
-                        <!-- Search action (shown when user has typed something) -->
+                        <!-- Search actions (shown when user has typed something) -->
                         <div v-if="q.trim()" class="lm-palette__group">
                             <div class="lm-palette__group-label eyebrow">Search</div>
                             <button
+                                v-for="(scope, i) in searchScopes"
+                                :key="scope.id"
                                 class="lm-palette__item"
-                                :class="{ 'is-active': activeIdx === 0 }"
+                                :class="{ 'is-active': activeIdx === i }"
                                 role="option"
-                                :aria-selected="activeIdx === 0"
-                                @mouseenter="activeIdx = 0"
-                                @click="runSearch"
+                                :aria-selected="activeIdx === i"
+                                @mouseenter="activeIdx = i"
+                                @click="runSearch(scope.id)"
                             >
-                                <span class="lm-palette__item-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                                        <circle cx="11" cy="11" r="7" />
-                                        <path d="m21 21-4.3-4.3" />
-                                    </svg>
-                                </span>
+                                <span class="lm-palette__item-icon" v-html="scope.icon" />
                                 <span class="lm-palette__item-label">
-                                    Search for <em>&ldquo;{{ q.trim() }}&rdquo;</em>
+                                    {{ scope.label }} <em>&ldquo;{{ q.trim() }}&rdquo;</em>
                                 </span>
-                                <span class="lm-palette__item-hint meta">↵</span>
+                                <span v-if="i === 0" class="lm-palette__item-hint meta">↵</span>
                             </button>
                         </div>
 
@@ -95,7 +92,7 @@
                             >
                                 <span class="lm-palette__item-icon" v-html="item.icon" />
                                 <span class="lm-palette__item-label">{{ item.label }}</span>
-                                <span class="lm-palette__item-hint meta">{{ item.hint }}</span>
+                                <span v-if="item.hint" class="lm-palette__item-hint meta">{{ item.hint }}</span>
                             </button>
                         </div>
 
@@ -145,41 +142,90 @@ interface JumpItem {
     icon: string; // inline svg string
 }
 
+type SearchScope = 'all' | 'anime' | 'upcoming';
+
+interface SearchScopeItem {
+    id: SearchScope;
+    label: string;
+    icon: string;
+}
+
+const SEARCH_ICON =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
+
+const GLOBAL_SEARCH_SCOPES: SearchScopeItem[] = [
+    {
+        id: 'all',
+        label: 'Movies, shows & people',
+        icon: SEARCH_ICON
+    },
+    {
+        id: 'anime',
+        label: 'Anime',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9.5 8.5 14 12l-4.5 3.5z"/></svg>'
+    },
+    {
+        id: 'upcoming',
+        label: 'Upcoming',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>'
+    }
+];
+
+const NETFLIX_SEARCH_SCOPES: SearchScopeItem[] = [
+    {
+        id: 'all',
+        label: 'Search catalogue',
+        icon: SEARCH_ICON
+    }
+];
+
 const JUMP: JumpItem[] = [
     {
         label: 'Home',
         path: '/',
-        hint: 'G H',
+        hint: '',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>'
     },
     {
         label: 'Movies',
         path: '/movies',
-        hint: 'G M',
+        hint: '',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 14h4M17 9h4M17 14h4"/></svg>'
     },
     {
         label: 'TV Shows',
         path: '/tv-shows',
-        hint: 'G T',
+        hint: '',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="m8 3 4 3 4-3"/></svg>'
+    },
+    {
+        label: 'Anime',
+        path: '/anime',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9.5 8.5 14 12l-4.5 3.5z"/></svg>'
+    },
+    {
+        label: 'Upcoming',
+        path: '/upcoming',
+        hint: '',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>'
     },
     {
         label: 'Actors',
         path: '/actors',
-        hint: 'G A',
+        hint: '',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'
     },
     {
         label: 'Watchlist',
         path: '/watchlist',
-        hint: 'G W',
+        hint: '',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>'
     },
     {
         label: 'Search',
         path: '/search',
-        hint: 'G S',
+        hint: '',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>'
     }
 ];
@@ -244,10 +290,14 @@ export default defineComponent({
 
         const isNetflixMode = computed(() => contentMode.value === 'netflix');
 
+        const searchScopes = computed(() =>
+            isNetflixMode.value ? NETFLIX_SEARCH_SCOPES : GLOBAL_SEARCH_SCOPES
+        );
+
         const searchPlaceholder = computed(() =>
             isNetflixMode.value
                 ? 'Search Netflix catalogue — or jump to a page'
-                : 'Search movies, shows, people — or jump to a page'
+                : 'Search movies, shows, anime, upcoming — or jump to a page'
         );
 
         const searchScopeLabel = computed(() =>
@@ -286,18 +336,21 @@ export default defineComponent({
             );
         });
 
-        // Rows: [search?] + [recent*] + [jump*]
+        const searchRowCount = computed(() =>
+            q.value.trim() ? searchScopes.value.length : 0
+        );
+
+        // Rows: [search*] + [recent*] + [jump*]
         const jumpOffset = computed(() => {
-            if (q.value.trim()) return 1;
+            if (q.value.trim()) return searchRowCount.value;
             return activeSearchHistory.value.length
                 ? Math.min(5, activeSearchHistory.value.length)
                 : 0;
         });
 
         const rowCount = computed(() => {
-            const searchRow = q.value.trim() ? 1 : 0;
             const recent = q.value.trim() ? 0 : Math.min(5, activeSearchHistory.value.length);
-            return searchRow + recent + filteredJump.value.length;
+            return searchRowCount.value + recent + filteredJump.value.length;
         });
 
         const hasAnyResult = computed(() => rowCount.value > 0);
@@ -306,7 +359,7 @@ export default defineComponent({
             closePalette();
         };
 
-        const runSearch = () => {
+        const runSearch = (scope: SearchScope = 'all') => {
             const term = q.value.trim();
             if (!term) return;
             if (isNetflixMode.value) {
@@ -315,13 +368,16 @@ export default defineComponent({
                 addSearchTerm(term);
             }
             const path = searchPathForMode(isNetflixMode.value ? 'netflix' : 'global');
-            router.push({ path, query: { search: term } });
+            const query: Record<string, string> = { search: term };
+            if (!isNetflixMode.value && scope === 'anime') query.tab = 'anime';
+            if (!isNetflixMode.value && scope === 'upcoming') query.tab = 'upcoming';
+            router.push({ path, query });
             close();
         };
 
         const runRecent = (term: string) => {
             q.value = term;
-            runSearch();
+            runSearch('all');
         };
 
         const goTo = (path: string) => {
@@ -330,9 +386,8 @@ export default defineComponent({
         };
 
         const onEnter = () => {
-            // Dispatch based on active row.
-            if (q.value.trim() && activeIdx.value === 0) {
-                runSearch();
+            if (q.value.trim() && activeIdx.value < searchRowCount.value) {
+                runSearch(searchScopes.value[activeIdx.value]?.id ?? 'all');
                 return;
             }
             const jumpIdx = activeIdx.value - jumpOffset.value;
@@ -345,7 +400,7 @@ export default defineComponent({
                 runRecent(activeSearchHistory.value[recentIdx]);
                 return;
             }
-            if (q.value.trim()) runSearch();
+            if (q.value.trim()) runSearch('all');
         };
 
         const onKey = (e: KeyboardEvent) => {
@@ -398,6 +453,7 @@ export default defineComponent({
             q,
             activeIdx,
             jumpOffset,
+            searchScopes,
             filteredJump,
             hasAnyResult,
             searchHistory: activeSearchHistory,

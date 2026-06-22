@@ -115,6 +115,7 @@ import { getLastWatchedMetaData } from '../composables/useStream';
 import useAxios from '../composables/useAxios';
 import { primeGenres } from '../composables/useGenreLookup';
 import { buildProxiedImageUrl } from '../utils/useWebImage';
+import { displayTvStatus, premiereMetaLabel } from '../utils/releaseStatus';
 
 interface ReviewsResponse {
     results: Array<{
@@ -206,14 +207,20 @@ export default defineComponent({
             const language = show.value.spoken_languages?.[0]?.english_name
                 ?? (show.value.original_language ? show.value.original_language.toUpperCase() : '');
             return [
-                { label: 'Premiered', value: formatDate(show.value.first_air_date) },
+                {
+                    label: premiereMetaLabel(show.value.first_air_date),
+                    value: formatDate(show.value.first_air_date)
+                },
                 { label: 'Airing', value: airingWindow.value },
                 { label: 'Creator', value: creator.value },
                 { label: 'Network', value: network.value },
                 { label: 'Runtime', value: avgRuntime.value },
                 { label: 'Country', value: country },
                 { label: 'Language', value: language },
-                { label: 'Status', value: show.value.status }
+                {
+                    label: 'Status',
+                    value: displayTvStatus(show.value.status, show.value.first_air_date)
+                }
             ];
         });
 

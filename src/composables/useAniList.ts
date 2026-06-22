@@ -1,5 +1,16 @@
 import { ref } from 'vue';
 
+export interface AniListFuzzyDate {
+  year: number | null;
+  month: number | null;
+  day: number | null;
+}
+
+export interface AniListMediaTrailer {
+  id: string;
+  site: string;
+}
+
 export interface AnimeMedia {
   id: number;
   idMal: number | null;
@@ -21,6 +32,12 @@ export interface AnimeMedia {
   episodes: number | null;
   format: string | null;
   status: string | null;
+  startDate?: AniListFuzzyDate | null;
+  trailer?: AniListMediaTrailer | null;
+  nextAiringEpisode?: {
+    airingAt: number;
+    episode: number;
+  } | null;
 }
 
 export interface AnimeResponse {
@@ -114,6 +131,53 @@ export async function fetchAnimeBrowseMedia(options: {
     page: options.page || 1,
     perPage: options.perPage || 50,
     sort: [options.sort || 'POPULARITY_DESC']
+  }) as Promise<AnimeResponse>;
+}
+
+/** Anime that has not premiered yet — sorted by start date. */
+export async function fetchUpcomingAnime(options: {
+  page?: number;
+  perPage?: number;
+} = {}): Promise<AnimeResponse> {
+  const query = `
+    query ($page: Int, $perPage: Int, $sort: [MediaSort]) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo {
+          total
+          currentPage
+          lastPage
+          hasNextPage
+          perPage
+        }
+        media(
+          type: ANIME,
+          status: NOT_YET_RELEASED,
+          sort: $sort,
+          format_in: [TV, ONA, MOVIE, SPECIAL]
+        ) {
+          ${ANIME_BROWSE_MEDIA_FIELDS}
+          startDate {
+            year
+            month
+            day
+          }
+          trailer {
+            id
+            site
+          }
+          nextAiringEpisode {
+            airingAt
+            episode
+          }
+        }
+      }
+    }
+  `;
+
+  return queryAniListApi(query, {
+    page: options.page || 1,
+    perPage: options.perPage || 24,
+    sort: ['START_DATE']
   }) as Promise<AnimeResponse>;
 }
 

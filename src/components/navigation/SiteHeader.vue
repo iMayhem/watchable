@@ -138,7 +138,7 @@
                             @click="toggleRegionDropdown"
                         >
                             <span class="site-header__region-flag">{{ getFlagEmoji(currentRegion) }}</span>
-                            Change Region
+                            Region
                         </button>
 
                         <div v-if="isRegionDropdownOpen" class="region-dropdown">
@@ -395,7 +395,8 @@ const primaryNav: NavItem[] = [
         num: 5
     },
     { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
-    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 }
+    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
+    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 }
 ];
 
 export default defineComponent({
@@ -659,7 +660,7 @@ export default defineComponent({
         const showModeSwitch = computed(() => isChosen());
 
         const modeLabel = computed(() =>
-            contentMode.value === 'netflix' ? 'Switch to Global' : 'Switch to Netflix'
+            contentMode.value === 'netflix' ? 'Switch to Global' : 'Netflix'
         );
 
         const toggleContentMode = () => {

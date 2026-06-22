@@ -224,6 +224,15 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/upcoming',
+        name: 'Upcoming',
+        component: () => import('../pages/Upcoming.vue'),
+        meta: {
+            showInHeader: true,
+            title: 'Upcoming'
+        }
+    },
+    {
         path: '/help',
         name: 'Help',
         component: () => import('../pages/Help.vue'),

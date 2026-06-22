@@ -119,9 +119,9 @@ export const buildTrailerEmbed = (
         playsinline: '1',
         loop: loop ? '1' : '0',
         iv_load_policy: '3',
-        disablekb: '1',
+        disablekb: controls ? '0' : '1',
         cc_load_policy: '0',
-        fs: '0'
+        fs: controls ? '1' : '0'
     };
     if (loop) params.playlist = key;
     if (jsApi) params.enablejsapi = '1';

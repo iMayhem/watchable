@@ -1,4 +1,5 @@
 import { getSupabaseClient } from './supabase';
+import { createDefaultCollection, normalizeWatchlistStorage } from '../composables/useWatchlist';
 
 export interface UserAccount {
     username: string;
@@ -51,7 +52,7 @@ export async function registerUser(username: string, password: string): Promise<
                 username: cleanUsername, 
                 password_hash: passwordHash, 
                 liked_list: [], 
-                watchlist: [],
+                watchlist: createDefaultCollection(),
                 watch_history: [],
                 search_history: []
             }]);
@@ -64,7 +65,7 @@ export async function registerUser(username: string, password: string): Promise<
         // Auto-login after registration
         localStorage.setItem('movora_current_user', cleanUsername);
         localStorage.setItem('watch_username', cleanUsername);
-        localStorage.setItem('watchlist', '[]');
+        localStorage.setItem('watchlist', JSON.stringify(createDefaultCollection()));
 
         window.dispatchEvent(new Event('movora_auth_change'));
         return { success: true };
@@ -103,7 +104,10 @@ export async function loginUser(username: string, password: string): Promise<{ s
         localStorage.setItem('watch_username', cleanUsername);
         
         if (user.watchlist) {
-            localStorage.setItem('watchlist', JSON.stringify(user.watchlist));
+            localStorage.setItem(
+                'watchlist',
+                JSON.stringify(normalizeWatchlistStorage(user.watchlist))
+            );
         }
         if (user.watch_history) {
             localStorage.setItem('viewHistory', JSON.stringify(user.watch_history));
@@ -136,28 +140,41 @@ export function getCurrentUser(): string | null {
 }
 
 // Helper to push user lists to Supabase
-export async function pushUserDataToSupabase(username: string, watchlist: any[], watchHistory?: any[], searchHistory?: string[]) {
+export async function pushUserDataToSupabase(
+    username: string,
+    watchlist?: unknown,
+    watchHistory?: any[],
+    searchHistory?: string[]
+): Promise<boolean> {
     try {
         const supabase = await getSupabaseClient();
-        const updateData: any = { watchlist };
-        
+        const updateData: Record<string, unknown> = {};
+
+        if (watchlist !== undefined) {
+            updateData.watchlist = normalizeWatchlistStorage(watchlist);
+        }
         if (watchHistory !== undefined) {
             updateData.watch_history = watchHistory;
         }
         if (searchHistory !== undefined) {
             updateData.search_history = searchHistory;
         }
-        
+
+        if (!Object.keys(updateData).length) return true;
+
         const { error } = await supabase
             .from('movora_users')
             .update(updateData)
             .eq('username', username.toLowerCase());
-            
+
         if (error) {
             console.error('Error updating user data in Supabase:', error);
+            return false;
         }
+        return true;
     } catch (e) {
         console.error('Failed to update user data in Supabase:', e);
+        return false;
     }
 }
 
@@ -174,7 +191,10 @@ export async function syncUserDataWithSupabase(username: string) {
 
         if (!error && user) {
             if (user.watchlist) {
-                localStorage.setItem('watchlist', JSON.stringify(user.watchlist));
+                localStorage.setItem(
+                    'watchlist',
+                    JSON.stringify(normalizeWatchlistStorage(user.watchlist))
+                );
             }
             if (user.watch_history) {
                 localStorage.setItem('viewHistory', JSON.stringify(user.watch_history));

@@ -33,7 +33,7 @@ export function addSearchTerm(term: string): void {
 
   const user = getCurrentUser();
   if (user) {
-    pushUserDataToSupabase(user, [], undefined, searchHistory.value);
+    pushUserDataToSupabase(user, undefined, undefined, searchHistory.value);
   }
 }
 
@@ -56,7 +56,7 @@ export function addViewedItem(item: ViewedItem): void {
   // Sync to Supabase if user is logged in
   const user = getCurrentUser();
   if (user) {
-    pushUserDataToSupabase(user, [], viewHistory.value, undefined);
+    pushUserDataToSupabase(user, undefined, viewHistory.value, undefined);
   }
 }
 
@@ -67,7 +67,7 @@ if (typeof window !== 'undefined') {
     (newVal) => {
       const user = getCurrentUser();
       if (user) {
-        pushUserDataToSupabase(user, [], newVal, undefined);
+        pushUserDataToSupabase(user, undefined, newVal, undefined);
       }
     },
     { deep: true }

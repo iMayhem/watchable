@@ -1,14 +1,18 @@
 <template>
     <LmDialog v-model="dialogOpen" size="xl" class="trailer-shell" @close="$emit('close')">
-        <template #header>
-            <div class="trailer-shell__heading">
-                <span class="trailer-shell__eyebrow">{{ headerEyebrow }}</span>
-                <h3 class="trailer-shell__title">{{ title }}</h3>
-            </div>
-        </template>
-
         <div class="trailer-dialog" :class="{ 'is-solo': videos.length <= 1 }">
+            <p class="trailer-dialog__sr-title">{{ title }} trailers</p>
             <div class="trailer-dialog__stage">
+                <button
+                    type="button"
+                    class="trailer-dialog__close"
+                    aria-label="Close trailers"
+                    @click="closeDialog"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                </button>
                 <div v-if="activeEmbed" class="trailer-dialog__frame">
                     <iframe
                         :key="activeKey || ''"
@@ -174,14 +178,12 @@ export default defineComponent({
                 : ''
         );
 
-        const headerEyebrow = computed(() => {
-            const n = props.videos.length;
-            if (n === 0) return 'No trailer filed';
-            if (n === 1) return 'Trailer';
-            return `Trailers · ${pad(n)}`;
-        });
-
         const pad = (n: number) => String(n).padStart(2, '0');
+
+        const closeDialog = () => {
+            dialogOpen.value = false;
+            emit('close');
+        };
 
         const step = (delta: number) => {
             const next = activeIndex.value + delta;
@@ -237,7 +239,7 @@ export default defineComponent({
 
         return {
             dialogOpen,
-            headerEyebrow,
+            closeDialog,
             activeKey,
             activeIndex,
             activeVideo,
@@ -253,78 +255,99 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .trailer-shell {
+    padding: var(--s-2) var(--s-2) var(--s-4);
+
     :deep(.lm-dialog__panel) {
         background: var(--ink-850);
         border-color: var(--rule);
-    }
-
-    :deep(.lm-dialog__header) {
-        align-items: flex-start;
-        padding-block: var(--s-4) var(--s-4);
-        background: var(--ink-850);
+        max-width: min(1200px, calc(100vw - var(--s-4)));
+        max-height: calc(100dvh - var(--s-3));
+        display: flex;
+        flex-direction: column;
     }
 
     :deep(.lm-dialog__body) {
         padding: 0;
         background: var(--ink-900);
-    }
-
-    &__heading {
+        flex: 1;
+        min-height: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.2rem;
-        min-width: 0;
-    }
-
-    &__eyebrow {
-        font-family: var(--font-mono);
-        font-size: 0.72rem;
-        letter-spacing: var(--ls-micro);
-        text-transform: uppercase;
-        color: var(--ember);
-    }
-
-    &__title {
-        font-family: var(--font-display);
-        font-weight: 500;
-        font-size: clamp(1.4rem, 2.4vw, 1.85rem);
-        line-height: 1.1;
-        letter-spacing: var(--ls-tight);
-        color: var(--bone-50);
-        margin: 0;
-        text-wrap: balance;
-        font-variation-settings: 'opsz' 144, 'SOFT' 30;
+        overflow: hidden;
     }
 }
 
 .trailer-dialog {
-    padding: var(--s-5) var(--s-6) var(--s-6);
+    position: relative;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--s-5);
+    gap: 0;
+
+    &__sr-title {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
 
     &__stage {
         position: relative;
         width: 100%;
+        aspect-ratio: 16 / 9;
+        flex-shrink: 0;
+        background: #000;
+    }
+
+    &__close {
+        position: absolute;
+        top: var(--s-3);
+        right: var(--s-3);
+        z-index: 4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: 0;
+        border-radius: 50%;
+        color: var(--bone-50);
+        background: rgba(11, 10, 8, 0.72);
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        transition:
+            color var(--dur-fast) var(--ease-out),
+            background-color var(--dur-fast) var(--ease-out);
+
+        svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        &:hover {
+            color: var(--bone-50);
+            background: rgba(255, 90, 31, 0.85);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--ember);
+            outline-offset: 2px;
+        }
     }
 
     &__frame {
-        position: relative;
-        width: 100%;
-        max-width: min(100%, calc((100dvh - 320px) * 16 / 9));
-        margin-inline: auto;
-        aspect-ratio: 16 / 9;
+        position: absolute;
+        inset: 0;
         background: #000;
-        border-radius: var(--r-md);
-        overflow: hidden;
-        box-shadow:
-            0 0 0 1px var(--rule-strong),
-            0 30px 60px -20px rgba(0, 0, 0, 0.7),
-            0 0 90px -30px rgba(255, 90, 31, 0.35);
 
         iframe {
-            position: absolute;
-            inset: 0;
+            display: block;
             width: 100%;
             height: 100%;
             border: 0;
@@ -332,13 +355,11 @@ export default defineComponent({
     }
 
     &__empty {
-        width: 100%;
-        aspect-ratio: 16 / 9;
+        position: absolute;
+        inset: 0;
         display: grid;
         place-items: center;
         background: var(--ink-800);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-md);
         color: var(--bone-400);
 
         .meta {
@@ -353,6 +374,10 @@ export default defineComponent({
         align-items: center;
         gap: var(--s-3);
         flex-wrap: wrap;
+        flex-shrink: 0;
+        padding: var(--s-4) var(--s-5);
+        border-top: 1px solid var(--rule);
+        background: var(--ink-900);
     }
 
     &__badge {
@@ -417,8 +442,10 @@ export default defineComponent({
         display: flex;
         flex-direction: column;
         gap: var(--s-3);
-        padding-top: var(--s-4);
+        flex-shrink: 0;
+        padding: var(--s-4) var(--s-5) var(--s-5);
         border-top: 1px solid var(--rule);
+        background: var(--ink-900);
     }
 
     &__reel-head {
@@ -623,9 +650,19 @@ export default defineComponent({
         transition: color var(--dur-fast) var(--ease-out);
     }
 
+    &.is-solo .trailer-dialog__stage {
+        min-height: min(78dvh, calc((min(1200px, 100vw - var(--s-4))) * 9 / 16));
+    }
+
     @media (max-width: 720px) {
-        padding: var(--s-4) var(--s-4) var(--s-5);
-        gap: var(--s-4);
+        &__caption,
+        &__reel {
+            padding-inline: var(--s-4);
+        }
+
+        &__stage {
+            min-height: min(56dvh, calc((100vw - var(--s-4)) * 9 / 16));
+        }
 
         &__chip {
             flex: 0 0 160px;

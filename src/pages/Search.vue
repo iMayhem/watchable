@@ -4,12 +4,6 @@
 
         <main id="main" class="search-page__main" role="main">
             <section class="search-page__masthead container-lm">
-                <p class="eyebrow search-page__eyebrow">The Index</p>
-                <h1 class="search-page__title display">Search the archive</h1>
-                <p class="search-page__subtitle">
-                    Every film, every series, every face on record — cross-referenced in one query.
-                </p>
-
                 <form class="search-page__search" role="search" @submit.prevent>
                     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
                         <circle cx="11" cy="11" r="7"/>
@@ -19,7 +13,7 @@
                         ref="inputEl"
                         type="text"
                         class="search-page__input"
-                        placeholder="Search movies, shows, and people"
+                        placeholder="Search movies, shows, anime, and people"
                         :value="searchTerm"
                         aria-label="Search"
                         autocomplete="off"
@@ -50,7 +44,7 @@
                 </section>
 
                 <section class="search-page__results container-lm">
-                    <div v-if="isLoading && !currentCount" class="search-page__loading" role="status">
+                    <div v-if="tabLoading && !currentCount" class="search-page__loading" role="status">
                         <div class="search-page__spinner" aria-hidden="true" />
                         <span class="meta">Searching the archive…</span>
                     </div>
@@ -104,6 +98,64 @@
                         </div>
                     </template>
 
+                    <template v-else-if="activeTab === 'anime' && anime.length">
+                        <div class="search-page__grid">
+                            <PosterCard
+                                v-for="item in anime"
+                                :key="`a-${item.id}`"
+                                :id="item.id"
+                                type="anime"
+                                :title="item.title.english || item.title.romaji"
+                                :original-title="item.title.native || item.title.romaji"
+                                :poster-path="animePosterPath(item)"
+                                :rating="item.averageScore ? item.averageScore / 10 : 0"
+                                :release-date="animeReleaseDate(item)"
+                                :genre-ids="[]"
+                                :adult="false"
+                            />
+                        </div>
+                    </template>
+
+                    <template v-else-if="activeTab === 'upcoming' && upcomingCount">
+                        <div v-if="upcomingMovies.length" class="search-page__subsection">
+                            <h3 class="search-page__subsection-title">Films</h3>
+                            <div class="search-page__grid">
+                                <PosterCard
+                                    v-for="item in upcomingMovies"
+                                    :key="`um-${item.id}`"
+                                    :id="item.id"
+                                    type="movie"
+                                    :title="item.title || item.original_title || ''"
+                                    :original-title="item.original_title || ''"
+                                    :poster-path="item.poster_path"
+                                    :rating="item.vote_average || 0"
+                                    :release-date="item.release_date || ''"
+                                    :genre-ids="item.genre_ids || []"
+                                    :adult="item.adult || false"
+                                />
+                            </div>
+                        </div>
+
+                        <div v-if="upcomingAnime.length" class="search-page__subsection">
+                            <h3 class="search-page__subsection-title">Anime</h3>
+                            <div class="search-page__grid">
+                                <PosterCard
+                                    v-for="item in upcomingAnime"
+                                    :key="`ua-${item.id}`"
+                                    :id="item.id"
+                                    type="anime"
+                                    :title="item.title.english || item.title.romaji"
+                                    :original-title="item.title.native || item.title.romaji"
+                                    :poster-path="animePosterPath(item)"
+                                    :rating="item.averageScore ? item.averageScore / 10 : 0"
+                                    :release-date="animeReleaseDate(item)"
+                                    :genre-ids="[]"
+                                    :adult="false"
+                                />
+                            </div>
+                        </div>
+                    </template>
+
                     <div v-else class="search-page__empty">
                         <div class="search-page__empty-icon" aria-hidden="true">
                             <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.4">
@@ -130,6 +182,10 @@
                             @click="loadMore"
                         >
                             <span v-if="isLoadingMore">Loading…</span>
+                            <span v-else-if="activeTab === 'anime'">
+                                Load more · page {{ animeMeta.page }}/{{ animeMeta.lastPage }}
+                            </span>
+                            <span v-else-if="activeTab === 'upcoming'">Load more</span>
                             <span v-else>Load more · page {{ reqMetaData.page }}/{{ reqMetaData.total_pages }}</span>
                         </button>
                     </div>
@@ -192,11 +248,22 @@ import {
     discoveredMovies,
     discoveredTv,
     discoveredPeople,
-    reqMetaData
+    discoveredAnime,
+    discoveredUpcomingMovies,
+    discoveredUpcomingAnime,
+    reqMetaData,
+    animeMeta,
+    upcomingMoviesMeta,
+    upcomingAnimeMeta
 } from '../composables/useSearch';
+import type { AnimeMedia } from '../composables/useAniList';
 import { addSearchTerm, searchHistory } from '../composables/useHistory';
 
-type TabKey = 'movies' | 'shows' | 'people';
+const TAB_KEYS = ['movies', 'shows', 'people', 'anime', 'upcoming'] as const;
+type TabKey = typeof TAB_KEYS[number];
+
+const isTabKey = (value: string): value is TabKey =>
+    (TAB_KEYS as readonly string[]).includes(value);
 
 export default defineComponent({
     name: 'Search',
@@ -204,16 +271,23 @@ export default defineComponent({
     setup() {
         const route = useRoute();
         const router = useRouter();
-        const { fetchSearchResults, clearSearchResults } = useSearch();
+        const {
+            fetchSearchResults,
+            fetchAnimeSearch,
+            fetchUpcomingSearch,
+            clearSearchResults
+        } = useSearch();
 
         const inputEl = ref<HTMLInputElement | null>(null);
         const searchTerm = ref<string>(typeof route.query.search === 'string' ? route.query.search : '');
         const activeTab = ref<TabKey>(
-            (typeof route.query.tab === 'string' && ['movies', 'shows', 'people'].includes(route.query.tab))
-                ? route.query.tab as TabKey
+            typeof route.query.tab === 'string' && isTabKey(route.query.tab)
+                ? route.query.tab
                 : 'movies'
         );
         const isLoading = ref(false);
+        const isLoadingAnime = ref(false);
+        const isLoadingUpcoming = ref(false);
         const isLoadingMore = ref(false);
 
         const popularSearches = [
@@ -224,32 +298,75 @@ export default defineComponent({
         const movies = computed(() => discoveredMovies.value);
         const shows = computed(() => discoveredTv.value);
         const people = computed(() => discoveredPeople.value);
+        const anime = computed(() => discoveredAnime.value);
+        const upcomingMovies = computed(() => discoveredUpcomingMovies.value);
+        const upcomingAnime = computed(() => discoveredUpcomingAnime.value);
+        const upcomingCount = computed(
+            () => upcomingMovies.value.length + upcomingAnime.value.length
+        );
 
         const recentSearches = computed(() =>
             (searchHistory.value || []).filter(Boolean).slice(0, 6)
         );
 
-        const tabs = computed<TabDef[]>(() => [
-            { label: 'Movies', value: 'movies', count: movies.value.length },
-            { label: 'Shows', value: 'shows', count: shows.value.length },
-            { label: 'People', value: 'people', count: people.value.length }
-        ]);
+        const tabs: TabDef[] = [
+            { label: 'Movies', value: 'movies' },
+            { label: 'Shows', value: 'shows' },
+            { label: 'People', value: 'people' },
+            { label: 'Anime', value: 'anime' },
+            { label: 'Upcoming', value: 'upcoming' }
+        ];
+
+        const tabLoading = computed(() => {
+            if (activeTab.value === 'anime') return isLoadingAnime.value;
+            if (activeTab.value === 'upcoming') return isLoadingUpcoming.value;
+            return isLoading.value;
+        });
 
         const currentCount = computed(() => {
             if (activeTab.value === 'movies') return movies.value.length;
             if (activeTab.value === 'shows') return shows.value.length;
-            return people.value.length;
+            if (activeTab.value === 'people') return people.value.length;
+            if (activeTab.value === 'anime') return anime.value.length;
+            return upcomingCount.value;
         });
 
         const emptyLabel = computed(() => {
             if (activeTab.value === 'movies') return 'films';
             if (activeTab.value === 'shows') return 'series';
-            return 'people';
+            if (activeTab.value === 'people') return 'people';
+            if (activeTab.value === 'anime') return 'anime';
+            return 'upcoming titles';
         });
 
-        const hasMore = computed(() =>
-            reqMetaData.value.page > 0 && reqMetaData.value.page < reqMetaData.value.total_pages
-        );
+        const hasMore = computed(() => {
+            if (activeTab.value === 'anime') {
+                return animeMeta.value.hasNextPage;
+            }
+            if (activeTab.value === 'upcoming') {
+                return (
+                    upcomingMoviesMeta.value.page < upcomingMoviesMeta.value.total_pages
+                    || upcomingAnimeMeta.value.hasNextPage
+                );
+            }
+            return reqMetaData.value.page > 0 && reqMetaData.value.page < reqMetaData.value.total_pages;
+        });
+
+        const animePosterPath = (item: AnimeMedia) =>
+            item.coverImage?.extraLarge
+            || item.coverImage?.large
+            || item.coverImage?.medium
+            || null;
+
+        const animeReleaseDate = (item: AnimeMedia) => {
+            const date = item.startDate;
+            if (date?.year) {
+                const month = String(date.month || 1).padStart(2, '0');
+                const day = String(date.day || 1).padStart(2, '0');
+                return `${date.year}-${month}-${day}`;
+            }
+            return item.seasonYear?.toString() || '';
+        };
 
         const chooseDefaultTab = () => {
             if (!movies.value.length && shows.value.length) activeTab.value = 'shows';
@@ -261,18 +378,95 @@ export default defineComponent({
             syncRoute();
         };
 
+        const loadAnimeResults = async (query: string, page = 1) => {
+            const q = query.trim();
+            if (!q) return;
+
+            if (page === 1) isLoadingAnime.value = true;
+            else isLoadingMore.value = true;
+
+            try {
+                await fetchAnimeSearch(q, page, page > 1);
+            } finally {
+                isLoadingAnime.value = false;
+                isLoadingMore.value = false;
+            }
+        };
+
+        const loadUpcomingResults = async (query: string, page = 1) => {
+            const q = query.trim();
+            if (!q) return;
+
+            if (page === 1) isLoadingUpcoming.value = true;
+            else isLoadingMore.value = true;
+
+            try {
+                await fetchUpcomingSearch(q, page, page > 1);
+            } finally {
+                isLoadingUpcoming.value = false;
+                isLoadingMore.value = false;
+            }
+        };
+
+        const ensureTabResults = async (tab: TabKey) => {
+            const q = searchTerm.value.trim();
+            if (!q) return;
+
+            if (
+                (tab === 'movies' || tab === 'shows' || tab === 'people')
+                && !movies.value.length
+                && !shows.value.length
+                && !people.value.length
+                && !isLoading.value
+            ) {
+                isLoading.value = true;
+                try {
+                    await fetchSearchResults(q, 1);
+                } finally {
+                    isLoading.value = false;
+                }
+            }
+
+            if (tab === 'anime' && !anime.value.length && !isLoadingAnime.value) {
+                await loadAnimeResults(q);
+            } else if (
+                tab === 'upcoming'
+                && !upcomingCount.value
+                && !isLoadingUpcoming.value
+            ) {
+                await loadUpcomingResults(q);
+            }
+        };
+
         const performSearch = async (query: string, page: number = 1) => {
             const q = query.trim();
             if (!q) return;
 
-            if (page === 1) isLoading.value = true;
-            else isLoadingMore.value = true;
+            if (page === 1) {
+                clearSearchResults();
+                if (activeTab.value === 'anime') isLoadingAnime.value = true;
+                else if (activeTab.value === 'upcoming') isLoadingUpcoming.value = true;
+                else isLoading.value = true;
+            } else {
+                isLoadingMore.value = true;
+            }
 
             try {
+                if (activeTab.value === 'anime') {
+                    await loadAnimeResults(q, page);
+                    return;
+                }
+                if (activeTab.value === 'upcoming') {
+                    await loadUpcomingResults(q, page);
+                    return;
+                }
+
                 await fetchSearchResults(q, page);
                 if (page === 1) chooseDefaultTab();
             } finally {
                 isLoading.value = false;
+                isLoadingAnime.value = false;
+                isLoadingUpcoming.value = false;
                 isLoadingMore.value = false;
             }
         };
@@ -326,10 +520,28 @@ export default defineComponent({
 
         const loadMore = async () => {
             if (!hasMore.value || !searchTerm.value) return;
+
+            if (activeTab.value === 'anime') {
+                await loadAnimeResults(searchTerm.value, animeMeta.value.page + 1);
+                return;
+            }
+
+            if (activeTab.value === 'upcoming') {
+                const nextPage = Math.max(
+                    upcomingMoviesMeta.value.page,
+                    upcomingAnimeMeta.value.page
+                ) + 1;
+                await loadUpcomingResults(searchTerm.value, nextPage);
+                return;
+            }
+
             await performSearch(searchTerm.value, reqMetaData.value.page + 1);
         };
 
-        watch(activeTab, () => syncRoute());
+        watch(activeTab, (tab) => {
+            syncRoute();
+            void ensureTabResults(tab);
+        });
 
         watch(
             () => route.query.search,
@@ -368,11 +580,15 @@ export default defineComponent({
             inputEl,
             searchTerm,
             activeTab,
-            isLoading,
+            tabLoading,
             isLoadingMore,
             movies,
             shows,
             people,
+            anime,
+            upcomingMovies,
+            upcomingAnime,
+            upcomingCount,
             recentSearches,
             popularSearches,
             tabs,
@@ -380,6 +596,9 @@ export default defineComponent({
             emptyLabel,
             hasMore,
             reqMetaData,
+            animeMeta,
+            animePosterPath,
+            animeReleaseDate,
             onSearchInput,
             handleClearSearch,
             runSearch,
@@ -401,37 +620,12 @@ export default defineComponent({
     }
 
     &__masthead {
-        padding-block: clamp(var(--s-5), 5vw, var(--s-7));
+        padding-bottom: var(--s-5);
         border-bottom: 1px solid var(--rule);
-        margin-bottom: clamp(var(--s-5), 5vw, var(--s-7));
-    }
-
-    &__eyebrow {
-        color: var(--ember);
-        margin: 0 0 var(--s-2);
-    }
-
-    &__title {
-        font-family: var(--font-display);
-        font-weight: 500;
-        font-size: clamp(2.4rem, 6vw, 4.5rem);
-        line-height: 1;
-        letter-spacing: -0.02em;
-        color: var(--bone-50);
-        margin: 0;
-        font-variation-settings: 'opsz' 144, 'SOFT' 30;
-    }
-
-    &__subtitle {
-        margin: var(--s-4) 0 0;
-        color: var(--bone-300);
-        font-family: var(--font-ui);
-        line-height: 1.55;
-        max-width: 58ch;
+        margin-bottom: var(--s-5);
     }
 
     &__search {
-        margin-top: var(--s-6);
         display: flex;
         align-items: center;
         gap: var(--s-3);
@@ -479,6 +673,25 @@ export default defineComponent({
         overflow-x: auto;
         scrollbar-width: none;
         &::-webkit-scrollbar { display: none; }
+    }
+
+    &__subsection {
+        display: grid;
+        gap: var(--s-4);
+
+        & + & {
+            margin-top: var(--s-7);
+        }
+    }
+
+    &__subsection-title {
+        margin: 0;
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--bone-400);
     }
 
     &__results {

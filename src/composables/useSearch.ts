@@ -1,5 +1,6 @@
 import { ref } from "vue"
-import  useAxios  from "./useAxios"
+import useAxios from "./useAxios"
+import { queryAniListApi, type AnimeMedia, type AnimeResponse } from "./useAniList"
 
 export interface SearchMovie {
     id: number;
@@ -42,6 +43,103 @@ export const reqMetaData = ref<{
 export const discoveredMovies = ref<SearchMovie[]>([])
 export const discoveredTv = ref<SearchShow[]>([])
 export const discoveredPeople = ref<SearchPerson[]>([])
+export const discoveredAnime = ref<AnimeMedia[]>([])
+export const discoveredUpcomingMovies = ref<SearchMovie[]>([])
+export const discoveredUpcomingAnime = ref<AnimeMedia[]>([])
+
+export const animeMeta = ref({
+    page: 0,
+    hasNextPage: false,
+    lastPage: 1
+})
+
+export const upcomingMoviesMeta = ref({
+    page: 0,
+    total_pages: 0
+})
+
+export const upcomingAnimeMeta = ref({
+    page: 0,
+    hasNextPage: false,
+    lastPage: 1
+})
+
+const ANIME_SEARCH_FIELDS = `
+    id
+    title {
+        romaji
+        english
+        native
+    }
+    coverImage {
+        extraLarge
+        large
+        medium
+    }
+    averageScore
+    seasonYear
+    format
+    status
+    startDate {
+        year
+        month
+        day
+    }
+`
+
+const ANIME_SEARCH_QUERY = `
+    query ($search: String, $page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+            pageInfo {
+                currentPage
+                lastPage
+                hasNextPage
+            }
+            media(type: ANIME, search: $search, sort: [POPULARITY_DESC]) {
+                ${ANIME_SEARCH_FIELDS}
+            }
+        }
+    }
+`
+
+const UPCOMING_ANIME_SEARCH_QUERY = `
+    query ($search: String, $page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+            pageInfo {
+                currentPage
+                lastPage
+                hasNextPage
+            }
+            media(
+                type: ANIME,
+                search: $search,
+                status: NOT_YET_RELEASED,
+                sort: [POPULARITY_DESC],
+                format_in: [TV, ONA, MOVIE, SPECIAL]
+            ) {
+                ${ANIME_SEARCH_FIELDS}
+            }
+        }
+    }
+`
+
+const isFutureRelease = (dateStr?: string) => {
+    if (!dateStr) return false
+    return dateStr >= new Date().toISOString().slice(0, 10)
+}
+
+const mergeUniqueAnime = (existing: AnimeMedia[], incoming: AnimeMedia[]) => {
+    const seen = new Set(existing.map(item => item.id))
+    const fresh = incoming.filter(item => !seen.has(item.id))
+    return fresh.length ? [...existing, ...fresh] : existing
+}
+
+const mergeUniqueMovies = (existing: SearchMovie[], incoming: SearchMovie[]) => {
+    const seen = new Set(existing.map(item => item.id))
+    const fresh = incoming.filter(item => !seen.has(item.id))
+    return fresh.length ? [...existing, ...fresh] : existing
+}
+
 export const useSearch = () => {
     const fetchSearchResults = async (query: string, pageNumber: number =1) => {
         let loading = ref(false)
@@ -68,17 +166,84 @@ export const useSearch = () => {
         }
     }
 
+    const fetchAnimeSearch = async (query: string, pageNumber = 1, append = false) => {
+        const response = (await queryAniListApi(ANIME_SEARCH_QUERY, {
+            search: query,
+            page: pageNumber,
+            perPage: 20
+        })) as AnimeResponse
+        const media = response.data?.Page?.media ?? []
+        const pageInfo = response.data?.Page?.pageInfo
+
+        discoveredAnime.value = append
+            ? mergeUniqueAnime(discoveredAnime.value, media)
+            : media
+
+        animeMeta.value = {
+            page: pageInfo?.currentPage ?? pageNumber,
+            hasNextPage: Boolean(pageInfo?.hasNextPage),
+            lastPage: pageInfo?.lastPage ?? 1
+        }
+    }
+
+    const fetchUpcomingSearch = async (query: string, pageNumber = 1, append = false) => {
+        const [movieRes, animeRes] = await Promise.all([
+            useAxios().get('search/movie', { params: { query, page: pageNumber } }),
+            queryAniListApi(UPCOMING_ANIME_SEARCH_QUERY, {
+                search: query,
+                page: pageNumber,
+                perPage: 20
+            }) as Promise<AnimeResponse>
+        ])
+
+        const upcomingMovies = (movieRes.data.results ?? []).filter(
+            (movie: SearchMovie) => isFutureRelease(movie.release_date)
+        )
+
+        const animePage = animeRes.data?.Page
+        const upcomingAnime = animePage?.media ?? []
+
+        discoveredUpcomingMovies.value = append
+            ? mergeUniqueMovies(discoveredUpcomingMovies.value, upcomingMovies)
+            : upcomingMovies
+
+        discoveredUpcomingAnime.value = append
+            ? mergeUniqueAnime(discoveredUpcomingAnime.value, upcomingAnime)
+            : upcomingAnime
+
+        upcomingMoviesMeta.value = {
+            page: movieRes.data.page ?? pageNumber,
+            total_pages: movieRes.data.total_pages ?? 1
+        }
+
+        const animePageInfo = animePage?.pageInfo
+        upcomingAnimeMeta.value = {
+            page: animePageInfo?.currentPage ?? pageNumber,
+            hasNextPage: Boolean(animePageInfo?.hasNextPage),
+            lastPage: animePageInfo?.lastPage ?? 1
+        }
+    }
+
     const clearSearchResults = () => {
         discoveredMovies.value = []
         discoveredTv.value = []
         discoveredPeople.value = []
+        discoveredAnime.value = []
+        discoveredUpcomingMovies.value = []
+        discoveredUpcomingAnime.value = []
         reqMetaData.value = {
             page: 0,
             total_pages: 0
         }
+        animeMeta.value = { page: 0, hasNextPage: false, lastPage: 1 }
+        upcomingMoviesMeta.value = { page: 0, total_pages: 0 }
+        upcomingAnimeMeta.value = { page: 0, hasNextPage: false, lastPage: 1 }
     }
+
     return {
         fetchSearchResults,
+        fetchAnimeSearch,
+        fetchUpcomingSearch,
         clearSearchResults,
     }
 }

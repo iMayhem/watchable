@@ -119,6 +119,7 @@ const initIdle = async () => {
     import('./pages/Anime.vue');
     import('./pages/Search.vue');
     import('./pages/Watchlist.vue');
+    import('./pages/Upcoming.vue');
     import('./pages/NetflixBrowse.vue');
 };
 

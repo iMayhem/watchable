@@ -4,13 +4,6 @@
 
         <main id="main" class="actors__main" role="main">
             <section class="actors__masthead container-lm">
-                <p class="eyebrow actors__eyebrow">The Roster · Talent</p>
-                <h1 class="actors__title display" data-reveal>Faces in the frame.</h1>
-                <p class="actors__subtitle">
-                    The people who carry the picture — leads, character actors, voices,
-                    and the next reel of names worth watching.
-                </p>
-
                 <form class="actors__search" role="search" @submit.prevent>
                     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
                         <circle cx="11" cy="11" r="7"/>
@@ -275,56 +268,12 @@ export default defineComponent({
 
     // ── Masthead ───────────────────────────────────────────────────────────
     &__masthead {
-        padding-block: clamp(var(--s-5), 5vw, var(--s-7));
+        padding-bottom: var(--s-5);
         border-bottom: 1px solid var(--rule);
-        margin-bottom: clamp(var(--s-6), 6vw, var(--s-8));
-        position: relative;
-        isolation: isolate;
-        overflow-x: clip;
-
-        &::after {
-            content: '';
-            position: absolute;
-            inset: -10% -20% auto auto;
-            width: 70%;
-            aspect-ratio: 1;
-            background: radial-gradient(
-                circle at center,
-                rgba(255, 90, 31, 0.18),
-                transparent 60%
-            );
-            filter: blur(60px);
-            z-index: -1;
-            pointer-events: none;
-        }
-    }
-
-    &__eyebrow {
-        color: var(--ember);
-        margin: 0 0 var(--s-2);
-    }
-
-    &__title {
-        font-family: var(--font-display);
-        font-weight: 500;
-        font-size: clamp(2.4rem, 6vw, 4.5rem);
-        line-height: 1;
-        letter-spacing: -0.02em;
-        color: var(--bone-50);
-        margin: 0;
-        font-variation-settings: 'opsz' 144, 'SOFT' 30;
-    }
-
-    &__subtitle {
-        margin: var(--s-4) 0 0;
-        color: var(--bone-300);
-        font-family: var(--font-ui);
-        line-height: 1.55;
-        max-width: 60ch;
+        margin-bottom: var(--s-5);
     }
 
     &__search {
-        margin-top: var(--s-6);
         display: flex;
         align-items: center;
         gap: var(--s-3);

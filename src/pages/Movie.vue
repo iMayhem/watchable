@@ -103,6 +103,7 @@ import { getLastWatchedMetaData } from '../composables/useStream';
 import useAxios from '../composables/useAxios';
 import { primeGenres } from '../composables/useGenreLookup';
 import { buildProxiedImageUrl } from '../utils/useWebImage';
+import { displayMovieStatus, releaseDateMetaLabel } from '../utils/releaseStatus';
 
 interface ReviewsResponse {
     results: Array<{
@@ -198,13 +199,19 @@ export default defineComponent({
             const language = movie.value.spoken_languages?.[0]?.english_name
                 ?? (movie.value.original_language ? movie.value.original_language.toUpperCase() : '');
             const items: MetaEntry[] = [
-                { label: 'Released', value: formatDate(movie.value.release_date) },
+                {
+                    label: releaseDateMetaLabel(movie.value.release_date),
+                    value: formatDate(movie.value.release_date)
+                },
                 { label: 'Runtime', value: runtimeLabel.value },
                 { label: 'Director', value: director.value },
                 { label: 'Writer', value: writer.value },
                 { label: 'Country', value: country },
                 { label: 'Language', value: language },
-                { label: 'Status', value: movie.value.status }
+                {
+                    label: 'Status',
+                    value: displayMovieStatus(movie.value.status, movie.value.release_date)
+                }
             ];
             if (movie.value.imdb_id) {
                 items.push({

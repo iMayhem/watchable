@@ -153,6 +153,7 @@ import { useAniList } from '../composables/useAniList';
 import { addViewedItem } from '../composables/useHistory';
 import { useSeo } from '../composables/useSeo';
 import { prefetchArtworkImages, useWebImage } from '../utils/useWebImage';
+import { displayTvStatus, premiereMetaLabel } from '../utils/releaseStatus';
 import {
     estimateAnimeEpisodeTotal,
     resolveAnimeTmdbEpisodesByTmdbId,
@@ -253,10 +254,18 @@ export default defineComponent({
         const metaItems = computed<MetaEntry[]>(() => {
             if (!tmdbShow.value) return [];
             return [
-                { label: 'Premiered', value: formatPremiered(tmdbShow.value.first_air_date) },
+                {
+                    label: premiereMetaLabel(tmdbShow.value.first_air_date),
+                    value: formatPremiered(tmdbShow.value.first_air_date)
+                },
                 { label: 'Format', value: 'TV' },
                 { label: 'Network', value: networkLabel.value || 'N/A' },
-                { label: 'Status', value: tmdbShow.value.status || 'N/A' },
+                {
+                    label: 'Status',
+                    value:
+                        displayTvStatus(tmdbShow.value.status, tmdbShow.value.first_air_date) ||
+                        'N/A'
+                },
                 { label: 'Genres', value: tmdbGenreNames.value.slice(0, 3).join(', ') || '' }
             ];
         });

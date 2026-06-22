@@ -3,20 +3,45 @@
         <SiteHeader />
 
         <main id="main" class="watchlist__main" role="main">
-            <section class="watchlist__masthead container-lm">
-                <p class="eyebrow watchlist__eyebrow">The Reel · Saved for you</p>
-                <h1 class="watchlist__title display" data-reveal>Your watchlist.</h1>
-                <p class="watchlist__subtitle" v-if="totalCount">
-                    {{ totalCount }} title{{ totalCount === 1 ? '' : 's' }} on the queue —
-                    {{ unwatchedCount }} still to watch.
-                </p>
-                <p class="watchlist__subtitle" v-else>
-                    A private programme, picked by you. Add titles from any detail page or
-                    poster card and they'll land here.
-                </p>
-            </section>
+            <section v-if="hasAnyItems" class="watchlist__body container-lm">
+                <div class="watchlist__collections">
+                    <div class="watchlist__collection-tabs" role="tablist" aria-label="Watchlists">
+                        <button
+                            v-for="list in watchlistLists"
+                            :key="list.id"
+                            type="button"
+                            class="watchlist__collection-tab"
+                            :class="{ 'is-active': list.id === activeWatchlistId }"
+                            role="tab"
+                            :aria-selected="list.id === activeWatchlistId"
+                            @click="setActiveWatchlist(list.id)"
+                        >
+                            <span class="watchlist__collection-name">{{ list.name }}</span>
+                            <span class="watchlist__collection-count">{{ list.items.length }}</span>
+                        </button>
+                    </div>
 
-            <section v-if="totalCount" class="watchlist__body container-lm">
+                    <div class="watchlist__collection-actions">
+                        <button
+                            type="button"
+                            class="watchlist__collection-action"
+                            aria-label="Rename watchlist"
+                            @click="renameActiveList"
+                        >
+                            Rename
+                        </button>
+                        <button
+                            v-if="activeWatchlistId !== mainWatchlistId"
+                            type="button"
+                            class="watchlist__collection-action watchlist__collection-action--danger"
+                            aria-label="Delete watchlist"
+                            @click="deleteActiveList"
+                        >
+                            Delete list
+                        </button>
+                    </div>
+                </div>
+
                 <header class="watchlist__toolbar">
                     <div class="watchlist__filters" role="tablist" aria-label="Watchlist filters">
                         <button
@@ -222,14 +247,16 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import { useWebImage } from '../utils/useWebImage';
 import {
     useWatchlist,
+    MAIN_WATCHLIST_ID,
     WatchlistItem
 } from '../composables/useWatchlist';
+import { getCurrentUser } from '../lib/auth';
 import { useToast } from '../composables/useToast';
 import {
     getCachedAnimeTmdbArtwork,
@@ -244,11 +271,17 @@ export default defineComponent({
     components: { SiteHeader, SiteFooter },
     setup() {
         const {
-            watchlist,
+            watchlistLists,
+            activeWatchlistId,
+            activeWatchlist,
+            setActiveWatchlist,
+            renameWatchlistList,
+            importWatchlistAsNewList,
+            deleteWatchlistList,
             removeFromWatchlist,
             setWatched,
             clearWatchlist,
-            replaceWatchlist
+            syncWatchlistToSupabase
         } = useWatchlist();
         const { addToast } = useToast();
 
@@ -265,8 +298,14 @@ export default defineComponent({
             return item.image;
         };
 
+        const activeItems = computed(() => activeWatchlist.value?.items ?? []);
+
+        const hasAnyItems = computed(
+            () => watchlistLists.value.some(list => list.items.length > 0)
+        );
+
         const hydrateAnimePosters = async () => {
-            const animeItems = watchlist.value.filter((item) => item.type === 'anime');
+            const animeItems = activeItems.value.filter((item) => item.type === 'anime');
             if (!animeItems.length) return;
 
             const updates: Record<string, string> = {};
@@ -301,19 +340,23 @@ export default defineComponent({
             void hydrateAnimePosters();
         });
 
-        const totalCount = computed(() => watchlist.value.length);
+        watch(activeWatchlistId, () => {
+            void hydrateAnimePosters();
+        });
+
+        const totalCount = computed(() => activeItems.value.length);
 
         const movieCount = computed(
-            () => watchlist.value.filter(i => i.type === 'movie').length
+            () => activeItems.value.filter(i => i.type === 'movie').length
         );
         const tvCount = computed(
-            () => watchlist.value.filter(i => i.type === 'tv').length
+            () => activeItems.value.filter(i => i.type === 'tv').length
         );
         const watchedCount = computed(
-            () => watchlist.value.filter(i => i.watched).length
+            () => activeItems.value.filter(i => i.watched).length
         );
         const unwatchedCount = computed(
-            () => watchlist.value.filter(i => !i.watched).length
+            () => activeItems.value.filter(i => !i.watched).length
         );
 
         const filters = computed(() => [
@@ -330,7 +373,7 @@ export default defineComponent({
 
         const filtered = computed<WatchlistItem[]>(() => {
             const f = activeFilter.value;
-            const list = watchlist.value.filter(item => {
+            const list = activeItems.value.filter(item => {
                 if (f === 'all') return true;
                 if (f === 'movie' || f === 'tv') return item.type === f;
                 if (f === 'watched') return !!item.watched;
@@ -378,20 +421,52 @@ export default defineComponent({
             addToast(`Removed "${item.title}" from watchlist`, 'info', 2400);
         };
 
+        const renameActiveList = () => {
+            const list = activeWatchlist.value;
+            if (!list) return;
+            const next = window.prompt('Rename watchlist', list.name);
+            if (!next?.trim()) return;
+            if (renameWatchlistList(list.id, next.trim())) {
+                addToast(`Renamed to "${next.trim()}"`, 'success', 2200);
+            }
+        };
+
+        const deleteActiveList = async () => {
+            const list = activeWatchlist.value;
+            if (!list || list.id === MAIN_WATCHLIST_ID) return;
+            const ok = window.confirm(`Delete "${list.name}" and its ${list.items.length} title(s)?`);
+            if (!ok) return;
+            if (deleteWatchlistList(list.id)) {
+                const user = getCurrentUser();
+                if (user) await syncWatchlistToSupabase();
+                addToast(`Deleted "${list.name}"`, 'info', 2400);
+            }
+        };
+
         const confirmClear = () => {
             if (!totalCount.value) return;
+            const listName = activeWatchlist.value?.name ?? 'watchlist';
             const ok = window.confirm(
-                `Clear all ${totalCount.value} title(s) from your watchlist? This cannot be undone.`
+                `Clear all ${totalCount.value} title(s) from "${listName}"? This cannot be undone.`
             );
             if (!ok) return;
             clearWatchlist();
-            addToast('Watchlist cleared', 'info', 2400);
+            addToast(`"${listName}" cleared`, 'info', 2400);
         };
+
+        const slugify = (value: string) =>
+            value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'watchlist';
 
         const onExport = () => {
             try {
+                const list = activeWatchlist.value;
                 const payload = JSON.stringify(
-                    { version: 1, exportedAt: new Date().toISOString(), items: watchlist.value },
+                    {
+                        version: 2,
+                        name: list?.name ?? 'Watchlist',
+                        exportedAt: new Date().toISOString(),
+                        items: activeItems.value
+                    },
                     null,
                     2
                 );
@@ -400,7 +475,7 @@ export default defineComponent({
                 const a = document.createElement('a');
                 const stamp = new Date().toISOString().slice(0, 10);
                 a.href = url;
-                a.download = `movieace-watchlist-${stamp}.json`;
+                a.download = `moovie-${slugify(list?.name ?? 'watchlist')}-${stamp}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -446,23 +521,22 @@ export default defineComponent({
 
                 if (!valid.length) throw new Error('No valid items');
 
-                const replace = window.confirm(
-                    `Import ${valid.length} title(s)?\n\nOK = replace current watchlist.\nCancel = merge with existing (no duplicates).`
-                );
+                const listName = importWatchlistAsNewList(valid);
+                const summary = `Imported ${valid.length} title(s) as "${listName}"`;
 
-                if (replace) {
-                    replaceWatchlist(valid);
-                    addToast(`Replaced watchlist with ${valid.length} title(s)`, 'success', 2800);
+                const user = getCurrentUser();
+                if (user) {
+                    const synced = await syncWatchlistToSupabase();
+                    if (synced) {
+                        addToast(`${summary} and synced to your account`, 'success', 3200);
+                    } else {
+                        addToast(`${summary}, but cloud sync failed`, 'error', 3500);
+                    }
                 } else {
-                    const seen = new Set(
-                        watchlist.value.map(i => `${i.type}-${i.id}`)
-                    );
-                    const additions = valid.filter(
-                        i => !seen.has(`${i.type}-${i.id}`)
-                    );
-                    replaceWatchlist([...additions, ...watchlist.value]);
-                    addToast(`Merged ${additions.length} new title(s)`, 'success', 2800);
+                    addToast(`${summary}. Sign in to sync to the cloud.`, 'success', 3200);
                 }
+
+                void hydrateAnimePosters();
             } catch (err) {
                 addToast('Import failed — file is not a valid watchlist export', 'error', 3500);
             } finally {
@@ -487,7 +561,13 @@ export default defineComponent({
         };
 
         return {
-            watchlist,
+            watchlistLists,
+            activeWatchlistId,
+            mainWatchlistId: MAIN_WATCHLIST_ID,
+            setActiveWatchlist,
+            renameActiveList,
+            deleteActiveList,
+            hasAnyItems,
             useWebImage,
             posterFor,
             activeFilter,
@@ -530,58 +610,108 @@ function isValidItem(x: any): boolean {
         padding-block: clamp(var(--s-6), 6vw, var(--s-8));
     }
 
-    // ── Masthead ───────────────────────────────────────────────────────────
-    &__masthead {
-        padding-block: clamp(var(--s-5), 5vw, var(--s-7));
-        border-bottom: 1px solid var(--rule);
-        margin-bottom: clamp(var(--s-6), 6vw, var(--s-8));
-        position: relative;
-        isolation: isolate;
-
-        &::after {
-            content: '';
-            position: absolute;
-            inset: -10% auto auto -20%;
-            width: 60%;
-            aspect-ratio: 1;
-            background: radial-gradient(
-                circle at center,
-                rgba(201, 167, 106, 0.16),
-                transparent 60%
-            );
-            filter: blur(60px);
-            z-index: -1;
-            pointer-events: none;
-        }
-    }
-
-    &__eyebrow {
-        color: var(--gold-leaf);
-        margin: 0 0 var(--s-2);
-    }
-
-    &__title {
-        font-family: var(--font-display);
-        font-weight: 500;
-        font-size: clamp(2.4rem, 6vw, 4.5rem);
-        line-height: 1;
-        letter-spacing: var(--ls-tight);
-        color: var(--bone-50);
-        margin: 0;
-        font-variation-settings: 'opsz' 144, 'SOFT' 30;
-    }
-
-    &__subtitle {
-        margin: var(--s-4) 0 0;
-        color: var(--bone-300);
-        font-family: var(--font-ui);
-        line-height: 1.55;
-        max-width: 60ch;
-    }
-
     // ── Body ──────────────────────────────────────────────────────────────
     &__body {
         padding-bottom: clamp(var(--s-7), 8vw, var(--s-10));
+    }
+
+    &__collections {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--s-3);
+        margin-bottom: var(--s-5);
+    }
+
+    &__collection-tabs {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: var(--s-1);
+        background: var(--surface-tint);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-pill);
+        padding: 0.25rem;
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar { display: none; }
+    }
+
+    &__collection-tab {
+        all: unset;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-2);
+        padding: 0.5rem var(--s-4);
+        border-radius: var(--r-pill);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        color: var(--bone-300);
+        white-space: nowrap;
+        transition:
+            color var(--dur-fast) var(--ease-out),
+            background-color var(--dur-fast) var(--ease-out);
+
+        &:hover { color: var(--bone-100); }
+
+        &.is-active {
+            color: var(--ink-900);
+            background: var(--bone-50);
+
+            .watchlist__collection-count {
+                color: var(--ink-900);
+                background: rgba(11, 10, 8, 0.12);
+            }
+        }
+    }
+
+    &__collection-name {
+        max-width: 14ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__collection-count {
+        font-family: var(--font-mono);
+        font-size: 0.6875rem;
+        color: var(--bone-400);
+        background: var(--surface-tint);
+        padding: 0.05rem 0.45rem;
+        border-radius: var(--r-pill);
+    }
+
+    &__collection-actions {
+        display: inline-flex;
+        gap: var(--s-2);
+        flex-wrap: wrap;
+    }
+
+    &__collection-action {
+        all: unset;
+        cursor: pointer;
+        padding: 0.45rem var(--s-3);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-pill);
+        font-family: var(--font-ui);
+        font-size: var(--fs-xs);
+        color: var(--bone-200);
+        background: var(--surface-tint);
+        transition:
+            color var(--dur-fast) var(--ease-out),
+            border-color var(--dur-fast) var(--ease-out);
+
+        &:hover {
+            color: var(--bone-50);
+            border-color: var(--rule-strong);
+        }
+
+        &--danger:hover {
+            color: var(--ember);
+            border-color: rgba(255, 90, 31, 0.45);
+        }
     }
 
     &__toolbar {

@@ -154,6 +154,7 @@
                         </LmButton>
 
                         <LmButton
+                            v-if="partySource !== 'netflix'"
                             variant="outline"
                             size="lg"
                             :href="partyHref"
@@ -332,6 +333,7 @@ export default defineComponent({
         };
 
         const partyHref = computed(() => {
+            if (props.partySource === 'netflix') return '';
             // Global anime parties must use AniList ids — route/detail ids are TMDB.
             if (props.type === 'anime' && props.partyId == null) return '';
             return buildPartyHref({

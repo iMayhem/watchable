@@ -29,23 +29,7 @@
                                 </template>
                                 Play
                             </LmButton>
-                            <LmButton
-                                variant="outline"
-                                size="lg"
-                                :href="genreHeroPartyHref"
-                                rel="nofollow"
-                                aria-label="Watch Together"
-                            >
-                                <template #leading>
-                                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                        <circle cx="9" cy="7" r="4" />
-                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                                    </svg>
-                                </template>
-                                Watch Together
-                            </LmButton>
+
                         </div>
                     </div>
                 </div>
@@ -281,7 +265,7 @@ import { fetchAnimeCatalogCacheByMoovieIds } from '../composables/useAnimeCatalo
 import {
     netflixCatalogPlayPath
 } from '../composables/useNetflixCatalogLookup';
-import { buildPartyHref } from '../utils/partyRoom';
+
 import { useInfiniteScroll } from '../composables/useLazyLoad';
 
 const BROWSE_PAGE_SIZE = BROWSE_GRID_BATCH;
@@ -540,18 +524,6 @@ export default defineComponent({
                     anilistId: item.anilistId
                 })
             };
-        });
-
-        const genreHeroPartyHref = computed(() => {
-            const item = genreHeroFeatured.value;
-            if (!item) return '/party';
-            const mediaType = item.type || rowMeta.value.defaultType;
-            return buildPartyHref({
-                id: item.id,
-                title: item.title,
-                type: mediaType === 'tv' ? 'tv' : 'movie',
-                source: 'netflix'
-            });
         });
 
         const genreHeroStyle = computed(() => {
@@ -1206,7 +1178,6 @@ export default defineComponent({
             isGenreBrowse,
             genreHeroFeatured,
             genreHeroPlayRoute,
-            genreHeroPartyHref,
             genreHeroBackdrop,
             genreHeroStyle,
             genreRails,

@@ -4,7 +4,7 @@
 
         <main id="main" role="main">
             <!-- Loading -->
-            <div v-if="isLoading" class="actor-page__loading container-lm">
+            <div v-if="isLoadingDetails && !actorDetails" class="actor-page__loading container-lm">
                 <div class="actor-page__loading-portrait" aria-hidden="true" />
                 <div class="actor-page__loading-body">
                     <div class="actor-page__loading-line actor-page__loading-line--eyebrow" />
@@ -16,7 +16,7 @@
             </div>
 
             <!-- Error -->
-            <div v-else-if="hasError || !actorDetails" class="actor-page__error container-lm">
+            <div v-else-if="hasError && !actorDetails" class="actor-page__error container-lm">
                 <p class="eyebrow">No file on record</p>
                 <h1 class="actor-page__error-title display">{{ errorMessage || 'We can’t find that person.' }}</h1>
                 <p class="actor-page__error-desc">
@@ -29,7 +29,7 @@
                 </div>
             </div>
 
-            <template v-else>
+            <template v-else-if="actorDetails">
                 <!-- Masthead -->
                 <section ref="mastheadRef" class="actor-page__masthead">
                     <div
@@ -42,6 +42,11 @@
 
                     <div class="container-lm actor-page__masthead-grid">
                         <div class="actor-page__portrait">
+                            <div
+                                v-if="actorDetails.profile_path && !portraitLoaded"
+                                class="actor-page__portrait-skeleton"
+                                aria-hidden="true"
+                            />
                             <img
                                 v-if="actorDetails.profile_path"
                                 :src="useWebImage(actorDetails.profile_path, 'large')"
@@ -49,6 +54,9 @@
                                 loading="eager"
                                 fetchpriority="high"
                                 class="actor-page__portrait-img"
+                                :class="{ 'is-loaded': portraitLoaded }"
+                                @load="portraitLoaded = true"
+                                @error="portraitLoaded = true"
                             />
                             <div v-else class="actor-page__portrait-empty">
                                 <span class="display">{{ initials }}</span>
@@ -146,7 +154,22 @@
                 </section>
 
                 <!-- Known For -->
-                <section v-if="knownFor.length" class="actor-page__known container-lm">
+                <section v-if="isLoadingCredits" class="actor-page__known container-lm">
+                    <header class="actor-page__section-head">
+                        <p class="eyebrow actor-page__section-eyebrow">Known for</p>
+                        <h2 class="actor-page__section-title">The work people remember.</h2>
+                    </header>
+                    <div class="actor-page__known-grid">
+                        <div
+                            v-for="n in 4"
+                            :key="`known-skel-${n}`"
+                            class="actor-page__tile-skeleton"
+                            aria-hidden="true"
+                        />
+                    </div>
+                </section>
+
+                <section v-else-if="knownFor.length" class="actor-page__known container-lm">
                     <header class="actor-page__section-head">
                         <p class="eyebrow actor-page__section-eyebrow">Known for</p>
                         <h2 class="actor-page__section-title">The work people remember.</h2>
@@ -168,7 +191,22 @@
                 </section>
 
                 <!-- Filmography by decade -->
-                <section v-if="decadeGroups.length" class="actor-page__filmo container-lm">
+                <section v-if="isLoadingCredits" class="actor-page__filmo container-lm">
+                    <header class="actor-page__section-head">
+                        <p class="eyebrow actor-page__section-eyebrow">The full credit roll</p>
+                        <h2 class="actor-page__section-title">Filmography</h2>
+                    </header>
+                    <div class="actor-page__decade-grid">
+                        <div
+                            v-for="n in 8"
+                            :key="`filmo-skel-${n}`"
+                            class="actor-page__poster-skeleton"
+                            aria-hidden="true"
+                        />
+                    </div>
+                </section>
+
+                <section v-else-if="decadeGroups.length" class="actor-page__filmo container-lm">
                     <header class="actor-page__section-head">
                         <p class="eyebrow actor-page__section-eyebrow">The full credit roll</p>
                         <h2 class="actor-page__section-title">Filmography</h2>
@@ -244,7 +282,22 @@
                 </section>
 
                 <!-- Photos -->
-                <section v-if="profiles.length" class="actor-page__photos container-lm">
+                <section v-if="isLoadingPhotos" class="actor-page__photos container-lm">
+                    <header class="actor-page__section-head">
+                        <p class="eyebrow actor-page__section-eyebrow">Contact sheet</p>
+                        <h2 class="actor-page__section-title">Loading photos…</h2>
+                    </header>
+                    <div class="actor-page__photos-grid">
+                        <div
+                            v-for="n in 8"
+                            :key="`photo-skel-${n}`"
+                            class="actor-page__photo-skeleton"
+                            aria-hidden="true"
+                        />
+                    </div>
+                </section>
+
+                <section v-else-if="profiles.length" class="actor-page__photos container-lm">
                     <header class="actor-page__section-head">
                         <p class="eyebrow actor-page__section-eyebrow">Contact sheet</p>
                         <h2 class="actor-page__section-title">{{ profiles.length }} photo{{ profiles.length === 1 ? '' : 's' }}</h2>
@@ -336,10 +389,13 @@ export default defineComponent({
         const actorImages = ref<ActorImages | undefined>();
         const credits = ref<CreditItem[]>([]);
 
-        const isLoading = ref(true);
+        const isLoadingDetails = ref(true);
+        const isLoadingCredits = ref(false);
+        const isLoadingPhotos = ref(false);
         const hasError = ref(false);
         const errorMessage = ref('');
         const showFullBio = ref(false);
+        const portraitLoaded = ref(false);
 
         const filmoFilter = ref<FilmoFilter>('all');
 
@@ -347,16 +403,42 @@ export default defineComponent({
         const ambientPath = computed(() => actorDetails.value?.profile_path ?? null);
         useAmbientColor(ambientPath, mastheadRef);
 
+        const applyActorSeo = (details: ActorDetails) => {
+            const profileUrl = details.profile_path
+                ? useWebImage(details.profile_path, 'large')
+                : 'https://moovie.fun/og-image.png';
+            updateSeo({
+                title: `${details.name} — Moovie`,
+                description: details.biography || `Discover movies and shows starring ${details.name} on Moovie.`,
+                image: profileUrl,
+                canonical: `https://moovie.fun/actor/${details.id}`,
+                jsonLd: {
+                    '@context': 'https://schema.org',
+                    '@type': 'Person',
+                    'name': details.name,
+                    'description': details.biography || undefined,
+                    'image': profileUrl || undefined,
+                    'birthDate': details.birthday || undefined,
+                    'deathDate': details.deathday || undefined,
+                    'birthPlace': details.place_of_birth || undefined
+                }
+            });
+        };
+
         const fetchAll = async () => {
             const id = Number(actorId.value);
             if (!Number.isFinite(id)) {
                 hasError.value = true;
                 errorMessage.value = 'Invalid person id.';
-                isLoading.value = false;
+                isLoadingDetails.value = false;
+                isLoadingCredits.value = false;
+                isLoadingPhotos.value = false;
                 return;
             }
 
-            isLoading.value = true;
+            isLoadingDetails.value = true;
+            isLoadingCredits.value = true;
+            isLoadingPhotos.value = true;
             hasError.value = false;
             errorMessage.value = '';
             actorDetails.value = undefined;
@@ -364,6 +446,7 @@ export default defineComponent({
             credits.value = [];
             showFullBio.value = false;
             filmoFilter.value = 'all';
+            portraitLoaded.value = false;
 
             try {
                 const detailsRes = await fetchActorDetails(id);
@@ -371,45 +454,38 @@ export default defineComponent({
                     throw new Error('Could not load this person.');
                 }
                 actorDetails.value = detailsRes.data.value;
-
-                const [imagesRes, creditsRes] = await Promise.all([
-                    fetchActorImages(id),
-                    fetchCombinedCredits(id)
-                ]);
-
-                actorImages.value = imagesRes.data.value;
-                const cast = (creditsRes.data.value?.cast ?? []) as CreditItem[];
-                credits.value = cast.filter(c => c.media_type === 'movie' || c.media_type === 'tv');
-
-                if (actorDetails.value) {
-                    const profileUrl = actorDetails.value.profile_path 
-                        ? useWebImage(actorDetails.value.profile_path, 'large') 
-                        : 'https://moovie.fun/og-image.png';
-                    updateSeo({
-                        title: `${actorDetails.value.name} — Moovie`,
-                        description: actorDetails.value.biography || `Discover movies and shows starring ${actorDetails.value.name} on Moovie.`,
-                        image: profileUrl,
-                        canonical: `https://moovie.fun/actor/${actorDetails.value.id}`,
-                        jsonLd: {
-                            '@context': 'https://schema.org',
-                            '@type': 'Person',
-                            'name': actorDetails.value.name,
-                            'description': actorDetails.value.biography || undefined,
-                            'image': profileUrl || undefined,
-                            'birthDate': actorDetails.value.birthday || undefined,
-                            'deathDate': actorDetails.value.deathday || undefined,
-                            'birthPlace': actorDetails.value.place_of_birth || undefined
-                        }
-                    });
-                } else {
-                    document.title = 'People — Moovie';
-                }
+                applyActorSeo(actorDetails.value);
             } catch (e: any) {
                 hasError.value = true;
                 errorMessage.value = e?.message || 'Could not load this person.';
+                isLoadingCredits.value = false;
+                isLoadingPhotos.value = false;
             } finally {
-                isLoading.value = false;
+                isLoadingDetails.value = false;
             }
+
+            void fetchCombinedCredits(id)
+                .then((creditsRes) => {
+                    const cast = (creditsRes.data.value?.cast ?? []) as CreditItem[];
+                    credits.value = cast.filter(c => c.media_type === 'movie' || c.media_type === 'tv');
+                })
+                .catch(() => {
+                    credits.value = [];
+                })
+                .finally(() => {
+                    isLoadingCredits.value = false;
+                });
+
+            void fetchActorImages(id)
+                .then((imagesRes) => {
+                    actorImages.value = imagesRes.data.value;
+                })
+                .catch(() => {
+                    actorImages.value = undefined;
+                })
+                .finally(() => {
+                    isLoadingPhotos.value = false;
+                });
         };
 
         const retryFetch = () => fetchAll();
@@ -562,7 +638,9 @@ export default defineComponent({
         return {
             mastheadRef,
             actorDetails,
-            isLoading,
+            isLoadingDetails,
+            isLoadingCredits,
+            isLoadingPhotos,
             hasError,
             errorMessage,
             retryFetch,
@@ -576,6 +654,7 @@ export default defineComponent({
             bioParagraphs,
             bioIsLong,
             showFullBio,
+            portraitLoaded,
             toggleFullBio,
             knownFor,
             decadeGroups,
@@ -765,6 +844,7 @@ function decadeForCredit(c: { release_date?: string; first_air_date?: string }):
     }
 
     &__portrait {
+        position: relative;
         aspect-ratio: 2 / 3;
         border-radius: var(--r-lg);
         overflow: hidden;
@@ -782,6 +862,25 @@ function decadeForCredit(c: { release_date?: string; first_air_date?: string }):
         width: 100%;
         height: 100%;
         object-fit: cover;
+        opacity: 0;
+        transition: opacity var(--dur-base) var(--ease-out);
+
+        &.is-loaded {
+            opacity: 1;
+        }
+    }
+
+    &__portrait-skeleton {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            90deg,
+            var(--ink-700) 0%,
+            var(--ink-600) 50%,
+            var(--ink-700) 100%
+        );
+        background-size: 200% 100%;
+        animation: actor-shimmer 1.6s linear infinite;
     }
 
     &__portrait-empty {
@@ -1082,6 +1181,30 @@ function decadeForCredit(c: { release_date?: string; first_air_date?: string }):
         }
 
         &:hover img { transform: scale(1.06); }
+    }
+
+    &__photo-skeleton,
+    &__poster-skeleton,
+    &__tile-skeleton {
+        border-radius: var(--r-md);
+        background: linear-gradient(
+            90deg,
+            var(--ink-700) 0%,
+            var(--ink-600) 50%,
+            var(--ink-700) 100%
+        );
+        background-size: 200% 100%;
+        animation: actor-shimmer 1.6s linear infinite;
+    }
+
+    &__photo-skeleton,
+    &__poster-skeleton {
+        aspect-ratio: 2 / 3;
+    }
+
+    &__tile-skeleton {
+        aspect-ratio: 16 / 9;
+        min-height: 180px;
     }
 
     // ── Aliases ──────────────────────────────────────────────────────────

@@ -57,6 +57,8 @@
                     :to="item.path"
                     class="site-header__link"
                     :class="{ 'is-active': isActive(item) }"
+                    @mouseenter="prefetchPrimaryNav(item)"
+                    @focus="prefetchPrimaryNav(item)"
                 >
                     {{ item.label }}
                 </router-link>
@@ -242,6 +244,8 @@
                         :to="item.path"
                         class="site-header__drawer-link"
                         :class="{ 'is-active': isActive(item) }"
+                        @mouseenter="prefetchPrimaryNav(item)"
+                        @focus="prefetchPrimaryNav(item)"
                         @click="drawerOpen = false"
                     >
                         <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
@@ -323,6 +327,8 @@ import {
 import { netflixBrowsePath, isNetflixGenreBrowsePage } from '../../composables/useNetflixRails';
 import { getNetflixLanguage } from '../../composables/useNetflixLanguage';
 import { prefetchNetflixBrowseRoute } from '../../composables/useNetflixBrowsePrefetch';
+import { prefetchPopularActors } from '../../composables/useActorsPrefetch';
+import { prefetchDiscussFeed } from '../../composables/useDiscussPrefetch';
 import { nfDebug } from '../../composables/useNetflixDebug';
 import {
     NETFLIX_ANIMATED_EXPLORE_PATH,
@@ -651,6 +657,11 @@ export default defineComponent({
             prefetchNetflixBrowseRoute(match[1], match[2], netflixLanguage.value);
         };
 
+        const prefetchPrimaryNav = (item: { path: string }) => {
+            if (item.path === '/actors') prefetchPopularActors();
+            if (item.path === '/discuss') prefetchDiscussFeed();
+        };
+
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as Node;
 
@@ -723,7 +734,8 @@ export default defineComponent({
             isMovieSectionActive,
             navigateToMovies,
             navigateNetflixNav,
-            prefetchNetflixNav
+            prefetchNetflixNav,
+            prefetchPrimaryNav
         };
     }
 });

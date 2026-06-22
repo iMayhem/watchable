@@ -38,13 +38,150 @@
         function checkIsPartyHost(room) {
             if (!room?.id) return false;
             const entry = readPartyHostMap()[room.id];
-            return Boolean(entry && entry.user === currentUserName);
+            if (entry && entry.user === currentUserName) return true;
+            return room.name === `${currentUserName}'s Watch Lounge`;
         }
 
         function applyRoomHostRole(room, created = false) {
             isHost = created || checkIsPartyHost(room);
             if (isHost && room?.id) markAsPartyHost(room.id);
+            if (activeRoom?.id === room?.id) updateRoomPrivacyButton();
         }
+
+        function isRoomPrivate(room) {
+            return Boolean(room?.is_private);
+        }
+
+        function isMissingPrivacyColumnError(error) {
+            const message = String(error?.message || '');
+            return /is_private/i.test(message)
+                || /column/i.test(message)
+                || error?.code === 'PGRST204';
+        }
+
+        async function persistRoomPrivacy(nextPrivate) {
+            const roomId = activeRoom.id;
+
+            const { error: updateError } = await supabaseClient
+                .from('rooms')
+                .update({ is_private: nextPrivate })
+                .eq('id', roomId);
+
+            if (updateError) {
+                if (isMissingPrivacyColumnError(updateError)) {
+                    throw new Error(
+                        'The rooms.is_private column is missing. Run docs/rooms_private_migration.sql in the Supabase SQL Editor.'
+                    );
+                }
+                throw updateError;
+            }
+
+            const { data, error: fetchError } = await supabaseClient
+                .from('rooms')
+                .select('id, is_private')
+                .eq('id', roomId)
+                .maybeSingle();
+
+            if (fetchError) throw fetchError;
+            if (!data) throw new Error('Room not found.');
+
+            if (Boolean(data.is_private) !== nextPrivate) {
+                throw new Error(
+                    'Room privacy could not be saved. Run docs/rooms_private_migration.sql in Supabase — the rooms table needs an UPDATE policy.'
+                );
+            }
+
+            return { ...activeRoom, ...data };
+        }
+
+        function canJoinRoom(room) {
+            if (!room) return false;
+            return !isRoomPrivate(room) || checkIsPartyHost(room);
+        }
+
+        function notifyPrivateRoomBlocked() {
+            alert('This room is private. The host has locked it — no new guests can join.');
+        }
+
+        function countPresenceMembers(presenceState) {
+            let count = 0;
+            Object.values(presenceState || {}).forEach((entries) => {
+                if (Array.isArray(entries)) count += entries.length;
+                else if (entries) count += 1;
+            });
+            return count;
+        }
+
+        function maybePromoteSoloHost(presenceState) {
+            if (!activeRoom || isHost) return;
+            if (countPresenceMembers(presenceState) > 1) return;
+            isHost = true;
+            markAsPartyHost(activeRoom.id);
+            updateRoomPrivacyButton();
+            if (channel) {
+                void channel.track({
+                    user: currentUserName,
+                    joinedAt: new Date().toISOString(),
+                    isHost: true
+                });
+            }
+        }
+
+        function updateRoomPrivacyButton() {
+            const btn = document.getElementById('room-privacy-btn');
+            if (!btn) return;
+
+            if (!activeRoom || !document.body.classList.contains('room-view-active')) {
+                btn.hidden = true;
+                return;
+            }
+
+            btn.hidden = false;
+            const locked = isRoomPrivate(activeRoom);
+            btn.textContent = locked ? 'Make public' : 'Make private';
+            btn.classList.toggle('is-private', locked);
+            btn.setAttribute('aria-pressed', locked ? 'true' : 'false');
+            btn.title = locked
+                ? 'Open this room so new guests can join from the lobby'
+                : 'Lock this room so no new guests can join';
+        }
+
+        async function toggleRoomPrivacy(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (!activeRoom) return false;
+            if (!isHost) {
+                alert('Only the room host can change privacy settings.');
+                return false;
+            }
+
+            const nextPrivate = !isRoomPrivate(activeRoom);
+            const btn = document.getElementById('room-privacy-btn');
+            if (btn) btn.disabled = true;
+
+            try {
+                activeRoom = await persistRoomPrivacy(nextPrivate);
+                updateRoomPrivacyButton();
+                appendChatMessage(
+                    'System',
+                    nextPrivate
+                        ? 'Room is now private — new guests cannot join.'
+                        : 'Room is now public — anyone can join from the lobby.',
+                    'system'
+                );
+            } catch (err) {
+                console.error('Failed to toggle room privacy:', err);
+                alert('Could not update room privacy. ' + (err.message || 'Please try again.'));
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+
+            return false;
+        }
+
+        window.toggleRoomPrivacy = toggleRoomPrivacy;
 
         // Adjust links for file:// protocol vs http:// protocol dynamically
         if (window.location.protocol !== 'file:') {
@@ -518,10 +655,10 @@
 
         async function fetchNetflixMeta() {
             const type = (isTv || (isAnime && isNetflix)) ? 'tv' : 'movie';
-            const res = await fetch(`/api/moovie-catalog?action=meta&type=${type}&id=${encodeURIComponent(String(mediaId))}`);
+            const res = await fetch(`${PARTY_CATALOG_META_API}/${type}/${encodeURIComponent(String(mediaId))}`);
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || `Meta failed (${res.status})`);
-            return data.meta || null;
+            if (!res.ok) throw new Error(data?.error || `Meta failed (${res.status})`);
+            return data?.results?.[0] || null;
         }
 
         async function fetchNetflixLanguageVariants(meta) {
@@ -529,7 +666,8 @@
             const displayTitle = parsed.displayTitle;
             if (!displayTitle) return [meta].filter(Boolean);
 
-            const res = await fetch(`/api/moovie-catalog?action=search&q=${encodeURIComponent(displayTitle)}`);
+            const encoded = encodeURIComponent(displayTitle).replace(/%20/g, '+');
+            const res = await fetch(`${PARTY_CATALOG_BROWSE_API}/search2/${encoded}?page=0`);
             const data = await res.json();
             const results = data?.results || [];
             const normalized = displayTitle.toLowerCase();
@@ -674,10 +812,14 @@
             btn.hidden = !(isHost && partyHasEpisodeRail());
         }
 
+        const PARTY_TMDB_API_BASE = 'https://api.themoviedb.org/3/';
+        const PARTY_CATALOG_META_API = 'https://api2.imdb3.shop/api';
+        const PARTY_CATALOG_BROWSE_API = 'https://api2.imdb4.shop/api';
+
         async function fetchPartyTmdb(path) {
             const sep = path.includes('?') ? '&' : '?';
             const res = await fetch(
-                `/api/tmdb/3/${path}${sep}api_key=${PARTY_TMDB_API_KEY}&language=en-US`
+                `${PARTY_TMDB_API_BASE}${path}${sep}api_key=${PARTY_TMDB_API_KEY}&language=en-US`
             );
             if (!res.ok) throw new Error(`TMDB failed (${res.status})`);
             return res.json();
@@ -686,7 +828,7 @@
         function partyStillUrl(path) {
             if (!path) return '';
             const clean = path.startsWith('/') ? path : `/${path}`;
-            return `/api/img?path=${encodeURIComponent(`/w342${clean}`)}`;
+            return `https://image.tmdb.org/t/p/w342${clean}`;
         }
 
         function partySeasonCacheKey(seasonNum = season) {
@@ -1518,6 +1660,7 @@
             const randomPrefix = funnyPrefixes[Math.floor(Math.random() * funnyPrefixes.length)];
             const randomSuffix = funnySuffixes[Math.floor(Math.random() * funnySuffixes.length)];
             currentUserName = randomPrefix + randomSuffix;
+            safeLocalStorage.setItem('movora_username', currentUserName);
         }
 
         // Initialize Supabase Client
@@ -1584,6 +1727,7 @@
             document.getElementById('lobby-view').classList.add('active');
             window.history.pushState({}, '', window.location.pathname);
             loadActiveRooms();
+            updateRoomPrivacyButton();
         }
 
         function showCreateView(title = '', embedUrl = '') {
@@ -1623,7 +1767,7 @@
 
             try {
                 const tmdbRes = await fetch(
-                    `/api/tmdb/3/tv/${numeric}?api_key=${PARTY_TMDB_API_KEY}&language=en-US`
+                    `${PARTY_TMDB_API_BASE}tv/${numeric}?api_key=${PARTY_TMDB_API_KEY}&language=en-US`
                 );
                 if (!tmdbRes.ok) return String(rawId);
                 const show = await tmdbRes.json();
@@ -1734,6 +1878,7 @@
             
             // Update Controls visibility
             updateControlsVisibility();
+            updateRoomPrivacyButton();
         }
 
         // Dropdown toggle logic
@@ -2039,6 +2184,7 @@
                 updatePartyNfAutoNextButton();
                 updatePartyNfEpisodesButton();
                 updatePartyEpNavButtons();
+                updateRoomPrivacyButton();
                 return;
             }
 
@@ -2059,6 +2205,7 @@
             const autoNextBtn = document.getElementById('party-auto-next-btn');
             if (autoNextBtn) autoNextBtn.style.display = 'none';
             updatePartyEpNavButtons();
+            updateRoomPrivacyButton();
         }
 
         function updateBannerText() {
@@ -2169,22 +2316,39 @@
                     return;
                 }
 
-                container.innerHTML = rooms.map(room => `
-                    <div class="room-card">
+                container.innerHTML = rooms.map(room => {
+                    const safeName = partyEscapeHtml(room.name);
+                    const safeTitle = partyEscapeHtml(room.movie_title);
+                    const startedAt = room.scheduled_start_time || room.created_at;
+                    const startedLabel = startedAt
+                        ? new Date(startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : 'Just now';
+                    const privateRoom = isRoomPrivate(room);
+                    const joinable = canJoinRoom(room);
+                    const statusBadge = privateRoom
+                        ? '<span class="room-status room-status--private">Private</span>'
+                        : '<span class="room-status">Live</span>';
+                    const joinControl = joinable
+                        ? `<button class="btn btn-primary" onclick="joinExistingRoom('${room.id}')">Join Party</button>`
+                        : `<button class="btn btn-primary room-join-btn--locked" type="button" disabled>Locked</button>`;
+                    return `
+                    <div class="room-card${privateRoom ? ' room-card--private' : ''}">
                         <div class="room-header">
-                            <div class="room-name">${room.name}</div>
-                            <span class="room-status">LIVE</span>
+                            <div class="room-name">${safeName}</div>
+                            ${statusBadge}
                         </div>
                         <div class="room-info">
-                            <div class="room-info-item">🎬 <strong>Playing:</strong> ${room.movie_title}</div>
-                            <div class="room-info-item">🕒 <strong>Started:</strong> ${new Date(room.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                            <div class="room-info-item">🎬 <strong>Playing:</strong> ${safeTitle}</div>
+                            <div class="room-info-item">🕒 <strong>Started:</strong> ${startedLabel}</div>
+                            ${privateRoom ? '<div class="room-info-item">🔒 <strong>Access:</strong> Invite only</div>' : ''}
                         </div>
                         <div class="room-footer">
                             <span class="room-participants skeleton-shimmer-inline" data-room-id="${room.id}">👥 Open lobby</span>
-                            <button class="btn btn-primary" onclick="joinExistingRoom('${room.id}')">Join Party</button>
+                            ${joinControl}
                         </div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
 
                 // Connect to presence channel for each room to display online count dynamically
                 rooms.forEach(room => {
@@ -2233,6 +2397,10 @@
                     .single();
 
                 if (error) throw error;
+                if (!canJoinRoom(room)) {
+                    notifyPrivateRoomBlocked();
+                    return;
+                }
                 activeRoom = room;
                 applyRoomHostRole(room);
                 showRoomView(room);
@@ -2317,6 +2485,7 @@
                 })
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
+                    maybePromoteSoloHost(state);
                     updateUsersCount(state);
                 })
                 .on('presence', { event: 'join' }, ({ key, newPresences }) => {
@@ -2334,6 +2503,9 @@
                         joinedAt: new Date().toISOString(),
                         isHost: isHost
                     });
+                    const state = channel.presenceState();
+                    maybePromoteSoloHost(state);
+                    updateRoomPrivacyButton();
                 }
             });
 
@@ -2623,6 +2795,11 @@
                             .single();
 
                         if (!error && room) {
+                            if (!canJoinRoom(room)) {
+                                notifyPrivateRoomBlocked();
+                                showLobbyView();
+                                return;
+                            }
                             activeRoom = room;
                             applyRoomHostRole(room);
                             showRoomView(room);

@@ -728,10 +728,10 @@
 
         async function fetchNetflixMeta() {
             const type = (isTv || (isAnime && isNetflix)) ? 'tv' : 'movie';
-            const res = await fetch(`/api/moovie-catalog?action=meta&type=${type}&id=${encodeURIComponent(String(mediaId))}`);
+            const res = await fetch(`${PARTY_CATALOG_META_API}/${type}/${encodeURIComponent(String(mediaId))}`);
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || `Meta failed (${res.status})`);
-            return data.meta || null;
+            if (!res.ok) throw new Error(data?.error || `Meta failed (${res.status})`);
+            return data?.results?.[0] || null;
         }
 
         async function fetchNetflixLanguageVariants(meta) {
@@ -739,7 +739,8 @@
             const displayTitle = parsed.displayTitle;
             if (!displayTitle) return [meta].filter(Boolean);
 
-            const res = await fetch(`/api/moovie-catalog?action=search&q=${encodeURIComponent(displayTitle)}`);
+            const encoded = encodeURIComponent(displayTitle).replace(/%20/g, '+');
+            const res = await fetch(`${PARTY_CATALOG_BROWSE_API}/search2/${encoded}?page=0`);
             const data = await res.json();
             const results = data?.results || [];
             const normalized = displayTitle.toLowerCase();
@@ -884,10 +885,14 @@
             btn.hidden = !(isHost && partyHasEpisodeRail());
         }
 
+        const PARTY_TMDB_API_BASE = 'https://api.themoviedb.org/3/';
+        const PARTY_CATALOG_META_API = 'https://api2.imdb3.shop/api';
+        const PARTY_CATALOG_BROWSE_API = 'https://api2.imdb4.shop/api';
+
         async function fetchPartyTmdb(path) {
             const sep = path.includes('?') ? '&' : '?';
             const res = await fetch(
-                `/api/tmdb/3/${path}${sep}api_key=${PARTY_TMDB_API_KEY}&language=en-US`
+                `${PARTY_TMDB_API_BASE}${path}${sep}api_key=${PARTY_TMDB_API_KEY}&language=en-US`
             );
             if (!res.ok) throw new Error(`TMDB failed (${res.status})`);
             return res.json();
@@ -896,7 +901,7 @@
         function partyStillUrl(path) {
             if (!path) return '';
             const clean = path.startsWith('/') ? path : `/${path}`;
-            return `/api/img?path=${encodeURIComponent(`/w342${clean}`)}`;
+            return `https://image.tmdb.org/t/p/w342${clean}`;
         }
 
         function partySeasonCacheKey(seasonNum = season) {
@@ -2002,7 +2007,7 @@
 
             try {
                 const tmdbRes = await fetch(
-                    `/api/tmdb/3/tv/${numeric}?api_key=${PARTY_TMDB_API_KEY}&language=en-US`
+                    `${PARTY_TMDB_API_BASE}tv/${numeric}?api_key=${PARTY_TMDB_API_KEY}&language=en-US`
                 );
                 if (!tmdbRes.ok) return String(rawId);
                 const show = await tmdbRes.json();

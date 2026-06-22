@@ -4,9 +4,7 @@ import { MovieDetails } from '../composables/useMovies';
 import { TVShowDetails } from '../composables/useTvShows';
 import { getSettings } from '../composables/useSettings';
 
-// Dev: direct TMDB/CDN URLs for fast local iteration.
-// Prod: same-origin proxies with 7-day edge cache (no third-party wsrv hop).
-const IS_DEV = import.meta.env.DEV;
+// TMDB posters/backdrops load directly from image.tmdb.org (browser → TMDB CDN).
 const TMDB_BASE = 'https://image.tmdb.org/t/p/';
 
 const ANILIST_CDN_PATTERN = /(?:^https?:\/\/)(?:[\w-]+\.)?anilist\.co\//i;
@@ -139,17 +137,13 @@ function normalizeTmdbPath(path: string): string {
 }
 
 /**
- * TMDB image via same-origin proxy (7-day edge cache).
- * Path must include size token, e.g. w342/abc.jpg
+ * TMDB image URL. Path must include size token, e.g. w342/abc.jpg
  */
 export function buildProxiedImageUrl(tmdbPath: string): string {
     if (!tmdbPath) return '';
     const path = normalizeTmdbPath(tmdbPath);
-    if (IS_DEV) {
-        const clean = path.startsWith('/') ? path.slice(1) : path;
-        return `${TMDB_BASE}${clean}`;
-    }
-    return `/api/img?path=${encodeURIComponent(path)}`;
+    const clean = path.startsWith('/') ? path.slice(1) : path;
+    return `${TMDB_BASE}${clean}`;
 }
 
 /** Catalogue CDN posters — direct OSS resize (NetMirror parity). */

@@ -19,9 +19,20 @@
 
                         <!-- Scrollable General Chat Feed -->
                         <div ref="chatBox" class="discuss-chat__messages" @scroll="handleScroll">
-                            <div v-if="loading" class="discuss-chat__loading" role="status">
-                                <div class="discuss-chat__spinner" aria-hidden="true" />
-                                <span class="meta">Loading lounge feed…</span>
+                            <div v-if="loading" class="discuss-chat__shimmer-list" role="status" aria-label="Loading lounge feed…">
+                                <div v-for="i in 6" :key="`lounge-skel-${i}`" class="discuss-msg discuss-msg--shimmer">
+                                    <div class="discuss-msg__avatar discuss-msg__avatar--shimmer" />
+                                    <div class="discuss-msg__body discuss-msg__body--full">
+                                        <div class="discuss-msg__meta">
+                                            <div class="shimmer-bar shimmer-bar--username" />
+                                            <div class="shimmer-bar shimmer-bar--time" />
+                                        </div>
+                                        <div class="discuss-msg__bubble discuss-msg__bubble--shimmer">
+                                            <div class="shimmer-bar shimmer-bar--line1" />
+                                            <div class="shimmer-bar shimmer-bar--line2" />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div v-else-if="!comments.length" class="discuss-chat__empty">
@@ -230,9 +241,21 @@
 
                             <!-- Scrollable Movies Feed -->
                             <div class="discuss-chat__messages">
-                                <div v-if="loadingMovie" class="discuss-chat__loading" role="status">
-                                    <div class="discuss-chat__spinner" aria-hidden="true" />
-                                    <span class="meta">Retrieving latest reviews…</span>
+                                <div v-if="loadingMovie" class="discuss-chat__shimmer-list" role="status" aria-label="Loading title reviews…">
+                                    <div v-for="i in 5" :key="`review-skel-${i}`" class="discuss-msg discuss-msg--shimmer discuss-msg--movie-card">
+                                        <div class="discuss-msg__avatar discuss-msg__avatar--shimmer" />
+                                        <div class="discuss-msg__body discuss-msg__body--full">
+                                            <div class="discuss-msg__meta">
+                                                <div class="shimmer-bar shimmer-bar--username" />
+                                                <div class="shimmer-bar shimmer-bar--time" />
+                                                <div class="shimmer-bar shimmer-bar--topic" />
+                                            </div>
+                                            <div class="discuss-msg__bubble discuss-msg__bubble--shimmer discuss-msg__bubble--shimmer-wide">
+                                                <div class="shimmer-bar shimmer-bar--line1" />
+                                                <div class="shimmer-bar shimmer-bar--line2" />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div v-else-if="!movieComments.length" class="discuss-chat__empty">
@@ -352,6 +375,7 @@ import { useMovies } from '../composables/useMovies';
 import { useTvShows } from '../composables/useTvShows';
 import { useAniList } from '../composables/useAniList';
 import { resolveAnimeTmdbMetaByTmdbId, getAnilistIdForTmdbId } from '../composables/useAnimeTmdbArtwork';
+import { consumeLoungeFeed, consumeReviewsFeed, resetDiscussFeedCache } from '../composables/useDiscussPrefetch';
 
 interface Comment {
     id: string;
@@ -372,8 +396,8 @@ export default defineComponent({
         // Message lists and load states
         const comments = ref<Comment[]>([]);
         const movieComments = ref<Comment[]>([]);
-        const loading = ref(false);
-        const loadingMovie = ref(false);
+        const loading = ref(true);
+        const loadingMovie = ref(true);
         const submitting = ref(false);
         const submittingMovie = ref(false);
         const newCommentText = ref('');
@@ -697,15 +721,7 @@ export default defineComponent({
         const fetchComments = async () => {
             loading.value = true;
             try {
-                const supabase = await getSupabaseClient();
-                const { data, error } = await supabase
-                    .from('movora_chat')
-                    .select('*')
-                    .order('created_at', { ascending: true })
-                    .limit(100);
-
-                if (error) throw error;
-                comments.value = data || [];
+                comments.value = (await consumeLoungeFeed()) as Comment[];
                 scrollToBottom();
             } catch (e) {
                 console.error('Failed to load global discussions:', e);
@@ -718,21 +734,21 @@ export default defineComponent({
         const fetchMovieComments = async () => {
             loadingMovie.value = true;
             try {
-                const supabase = await getSupabaseClient();
-                const { data, error } = await supabase
-                    .from('movora_comments')
-                    .select('*')
-                    .in('media_type', ['movie', 'tv', 'anime'])
-                    .order('created_at', { ascending: false })
-                    .limit(100);
-
-                if (error) throw error;
-                movieComments.value = (data || []).filter((c: any) => c.media_id !== 'lounge');
+                movieComments.value = (await consumeReviewsFeed()) as Comment[];
             } catch (e) {
                 console.error('Failed to load movie reviews:', e);
             } finally {
                 loadingMovie.value = false;
             }
+        };
+
+        const bootstrapDiscuss = async () => {
+            await Promise.all([
+                fetchComments(),
+                fetchMovieComments()
+            ]);
+            void setupRealtimeChannel();
+            void setupMovieRealtimeChannel();
         };
 
         const setupRealtimeChannel = async () => {
@@ -906,26 +922,20 @@ export default defineComponent({
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         };
 
-        onMounted(async () => {
+        checkAuth();
+        void bootstrapDiscuss();
+
+        onMounted(() => {
             updateSeo({
                 title: 'Discuss — Moovie',
                 description: 'Community lounge chatter and title-specific reviews on Moovie.',
                 canonical: 'https://moovie.fun/discuss'
             });
-            checkAuth();
-            
-            // Load and bind default general lounge
-            await fetchComments();
-            await setupRealtimeChannel();
-
-            // Load and bind movies feed
-            await fetchMovieComments();
-            await setupMovieRealtimeChannel();
-            
             window.addEventListener('movora_auth_change', checkAuth);
         });
 
         onBeforeUnmount(async () => {
+            resetDiscussFeedCache();
             window.removeEventListener('movora_auth_change', checkAuth);
             if (realtimeChannel) {
                 const supabase = await getSupabaseClient();
@@ -1603,6 +1613,23 @@ export default defineComponent({
         width: 60%;
         height: 10px;
     }
+
+    &--topic {
+        width: 110px;
+        height: 18px;
+        border-radius: var(--r-pill);
+    }
+}
+
+.discuss-chat__shimmer-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    width: 100%;
+}
+
+.discuss-msg__bubble--shimmer-wide {
+    width: min(100%, 320px);
 }
 
 @keyframes shimmer {

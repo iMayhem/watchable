@@ -129,7 +129,7 @@ export default defineComponent({
         const page = ref(1);
         const totalPages = ref(1);
         const totalResults = ref(0);
-        const isLoading = ref(false);
+        const isLoading = ref(true);
         const isLoadingMore = ref(false);
         const searchTerm = ref('');
 
@@ -228,10 +228,10 @@ export default defineComponent({
             return 'Popular roster';
         });
 
+        void fetchPage(1, false).then(() => drainPagesIfNeeded());
+
         onMounted(() => {
             document.title = 'People — Moovie';
-            void fetchPage(1, false).then(() => drainPagesIfNeeded());
-
             window.addEventListener('movora_settings_change', reload);
         });
 

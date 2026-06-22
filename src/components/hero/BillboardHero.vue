@@ -131,6 +131,7 @@
                     </LmButton>
 
                     <LmButton
+                        v-if="partySource !== 'netflix'"
                         variant="outline"
                         size="lg"
                         :href="partyHref"

@@ -398,6 +398,14 @@
                             </div>
                         </div>
                         <div class="controls-right" style="display: flex; gap: 1rem; align-items: center;">
+                            <button
+                                type="button"
+                                id="room-privacy-btn"
+                                class="room-privacy-btn cinema-mode-btn"
+                                hidden
+                                aria-pressed="false"
+                                onclick="toggleRoomPrivacy(event)"
+                            >Make private</button>
                             <button class="cinema-mode-btn" onclick="toggleCinemaMode()">
                                 Cinema Mode
                             </button>

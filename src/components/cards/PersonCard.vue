@@ -7,14 +7,29 @@
                 <div class="person-card__skeleton-line person-card__skeleton-shimmer" style="width: 50%; height: 10px; margin: 6px auto 0; border-radius: 2px" />
             </div>
         </div>
-        <router-link v-else :to="routeTo" class="person-card__link" :aria-label="name">
+        <router-link
+            v-else
+            :to="routeTo"
+            class="person-card__link"
+            :aria-label="name"
+            @mouseenter="prefetchProfile"
+            @focus="prefetchProfile"
+        >
             <div class="person-card__avatar">
+                <div
+                    v-if="imageUrl && !imageLoaded"
+                    class="person-card__avatar-shimmer person-card__skeleton-shimmer"
+                    aria-hidden="true"
+                />
                 <img
                     v-if="imageUrl"
                     :src="imageUrl"
                     :alt="name"
                     loading="lazy"
                     decoding="async"
+                    :class="{ 'is-loaded': imageLoaded }"
+                    @load="onImageLoad"
+                    @error="onImageLoad"
                 />
                 <div v-else class="person-card__initial">
                     <span>{{ initials }}</span>
@@ -32,9 +47,10 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, PropType, ref, watch } from 'vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { useAppPaths } from '../../composables/useAppPaths';
+import { prefetchActorProfile } from '../../composables/useActorsPrefetch';
 
 export default defineComponent({
     name: 'PersonCard',
@@ -66,7 +82,24 @@ export default defineComponent({
 
         const routeTo = computed(() => props.id ? actor(props.id) : '');
 
-        return { imageUrl, initials, routeTo };
+        const imageLoaded = ref(false);
+
+        watch(
+            () => props.profilePath,
+            () => {
+                imageLoaded.value = false;
+            }
+        );
+
+        const onImageLoad = () => {
+            imageLoaded.value = true;
+        };
+
+        const prefetchProfile = () => {
+            if (props.id) prefetchActorProfile(props.id);
+        };
+
+        return { imageUrl, initials, routeTo, imageLoaded, onImageLoad, prefetchProfile };
     }
 });
 </script>
@@ -96,8 +129,22 @@ export default defineComponent({
             height: 100%;
             object-fit: cover;
             object-position: center top;
-            transition: transform var(--dur-slow) var(--ease-out);
+            opacity: 0;
+            transition:
+                opacity var(--dur-base) var(--ease-out),
+                transform var(--dur-slow) var(--ease-out);
+
+            &.is-loaded {
+                opacity: 1;
+            }
         }
+    }
+
+    &__avatar-shimmer {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        z-index: 1;
     }
 
     &__link:hover &__avatar,

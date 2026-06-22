@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { getSettings } from './useSettings'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.themoviedb.org/3/'
+// Always call TMDB directly — skip the /api/tmdb Cloudflare proxy.
+const BASE_URL = 'https://api.themoviedb.org/3/'
 const API_KEY = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672'
 
 const useAxios = () => {

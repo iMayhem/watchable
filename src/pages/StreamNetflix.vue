@@ -52,7 +52,7 @@
             :auto-skip-enabled="autoSkipEnabled"
             @skip-segment="onSkipSegment"
             @toggle-auto-skip="onToggleAutoSkip"
-            :party-href="isPartyEmbed ? '' : partyHref"
+            party-href=""
             :extension-gate-visible="extensionGateVisible"
             :extension-gate-compact="extensionGateCompact"
             @extension-recheck="onExtensionRecheck"
@@ -104,7 +104,7 @@ import {
 import { useToast } from '../composables/useToast';
 import { nfDebug } from '../composables/useNetflixDebug';
 import { useNetflixAniskip } from '../composables/useNetflixAniskip';
-import { buildStreamPartyHref } from '../utils/partyRoom';
+
 
 
 export default defineComponent({
@@ -302,27 +302,6 @@ export default defineComponent({
                 parts.push(`S${season} · E${episode}`);
             }
             return parts.join(' · ');
-        });
-
-        const partyHref = computed(() => {
-            const id = playbackEntryId.value;
-            if (!id) return '';
-
-            const season = currentSeason.value;
-            const episode = currentEpisode.value;
-            const isTv = showEpisodePicker.value;
-            const partyTitle = isTv
-                ? `${title.value} - S${season}E${episode}`
-                : title.value;
-
-            return buildStreamPartyHref({
-                id,
-                title: partyTitle,
-                type: isTv ? 'tv' : 'movie',
-                season,
-                episode,
-                source: 'netflix'
-            });
         });
 
         const resolveUrl = computed(() => {
@@ -1306,7 +1285,6 @@ export default defineComponent({
             autoSkipEnabled: aniskip.autoSkip,
             onSkipSegment: aniskip.onSkipSegment,
             onToggleAutoSkip: aniskip.toggleAutoSkip,
-            partyHref,
             extensionGateVisible,
             extensionGateCompact,
             onExtensionRecheck,

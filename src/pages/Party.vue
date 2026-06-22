@@ -1,12 +1,12 @@
 <template>
     <div class="party-shell">
-        <SiteHeader />
-
         <iframe
             class="party-shell__frame"
+            :class="{ 'is-loaded': frameReady }"
             :src="frameSrc"
             title="Watch Together"
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            @load="frameReady = true"
         />
     </div>
 </template>
@@ -15,14 +15,14 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { LocationQuery } from 'vue-router';
-import SiteHeader from '../components/navigation/SiteHeader.vue';
 import { useSeo } from '../composables/useSeo';
 
 const route = useRoute();
 const router = useRouter();
 const { updateSeo } = useSeo();
 
-const frameSrc = ref('');
+const frameSrc = ref(buildFrameSrc(route.query));
+const frameReady = ref(false);
 let syncingFromIframe = false;
 
 function buildFrameSrc(query: LocationQuery): string {
@@ -44,7 +44,8 @@ function buildFrameSrc(query: LocationQuery): string {
 function partyPathsEqual(a: string, b: string): boolean {
     const normalize = (path: string) => {
         const url = new URL(path, 'https://moovie.fun');
-        const pathname = url.pathname.replace(/\/+$/, '') || '/party';
+        let pathname = url.pathname.replace(/\/+$/, '');
+        if (!pathname) pathname = '/';
         return `${pathname}${url.search}`;
     };
 
@@ -54,7 +55,17 @@ function partyPathsEqual(a: string, b: string): boolean {
 function onPartyMessage(event: MessageEvent) {
     if (event.origin !== window.location.origin) return;
     const data = event.data;
-    if (!data || data.type !== 'watchable-party-nav') return;
+    if (!data || typeof data !== 'object') return;
+
+    if (data.type === 'watchable-site-nav') {
+        const next = typeof data.path === 'string' ? data.path : '/';
+        if (!next.startsWith('/') || next.startsWith('//')) return;
+        if (partyPathsEqual(next, route.fullPath)) return;
+        void router.push(next);
+        return;
+    }
+
+    if (data.type !== 'watchable-party-nav') return;
 
     const next = typeof data.path === 'string' ? data.path : '';
     if (!next.startsWith('/party')) return;
@@ -73,14 +84,15 @@ watch(
     () => route.query,
     (query) => {
         if (syncingFromIframe) return;
-        frameSrc.value = buildFrameSrc(query);
+        const nextSrc = buildFrameSrc(query);
+        if (nextSrc === frameSrc.value) return;
+        frameReady.value = false;
+        frameSrc.value = nextSrc;
     },
     { deep: true }
 );
 
 onMounted(() => {
-    frameSrc.value = buildFrameSrc(route.query);
-
     updateSeo({
         title: 'Watch Together — Moovie',
         canonical: `https://moovie.fun/party`
@@ -106,8 +118,14 @@ onBeforeUnmount(() => {
     flex: 1 1 auto;
     width: 100%;
     border: 0;
-    height: calc(100dvh - var(--site-header-height));
-    min-height: calc(100dvh - var(--site-header-height));
+    height: 100dvh;
+    min-height: 100dvh;
     background: #0b0a08;
+    opacity: 0;
+    transition: opacity 0.2s var(--ease-out, ease-out);
+}
+
+.party-shell__frame.is-loaded {
+    opacity: 1;
 }
 </style>

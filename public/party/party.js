@@ -110,15 +110,78 @@
 
         const partyEmbedded = isPartyEmbedded();
 
+        function normalizeSitePath(path) {
+            const url = new URL(path, window.location.origin);
+            let pathname = url.pathname.replace(/\/+$/, '');
+            if (!pathname) pathname = '/';
+            return `${pathname}${url.search}`;
+        }
+
         function syncParentPartyUrl(path) {
             if (!partyEmbedded) return;
             try {
+                const parent = window.parent.location;
+                const parentPath = `${parent.pathname}${parent.search}`;
+                if (normalizeSitePath(parentPath) === normalizeSitePath(path)) return;
+
                 window.parent.postMessage({
                     type: 'watchable-party-nav',
                     path
                 }, window.location.origin);
             } catch (e) {}
         }
+
+        function finishPartyBoot() {
+            document.body.classList.remove('party-booting');
+            document.documentElement.classList.remove('party-joining');
+            document.documentElement.classList.add('party-ready');
+        }
+
+        function navigateParentSite(path, event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            const target = path || '/';
+            if (!partyEmbedded) {
+                window.location.href = target;
+                return false;
+            }
+
+            try {
+                window.parent.postMessage({
+                    type: 'watchable-site-nav',
+                    path: target
+                }, window.location.origin);
+            } catch (e) {
+                window.location.href = target;
+            }
+            return false;
+        }
+
+        window.navigateParentSite = navigateParentSite;
+
+        const CHAT_SYNC_NOTICE_KEY = 'watchable_party_sync_notice_dismissed';
+
+        function dismissChatSyncNotice(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const notice = document.getElementById('chat-sync-notice');
+            if (notice) notice.classList.add('is-dismissed');
+            safeLocalStorage.setItem(CHAT_SYNC_NOTICE_KEY, '1');
+            return false;
+        }
+
+        function restoreChatSyncNoticeState() {
+            if (safeLocalStorage.getItem(CHAT_SYNC_NOTICE_KEY) !== '1') return;
+            const notice = document.getElementById('chat-sync-notice');
+            if (notice) notice.classList.add('is-dismissed');
+        }
+
+        window.dismissChatSyncNotice = dismissChatSyncNotice;
 
         // Parsing room parameter for custom player URLs
         let isAnime = false;
@@ -368,9 +431,6 @@
 
         function setNetflixPartyStage(active) {
             document.body.classList.toggle('netflix-party-active', Boolean(active));
-            if (active) {
-                document.body.classList.add('cinema-mode');
-            }
             const stage = document.querySelector('.player-stage');
             if (stage) stage.classList.toggle('player-stage--netflix', Boolean(active));
         }
@@ -1395,6 +1455,7 @@
         }
 
         async function loadNetflixPartyPlayer(opts = {}) {
+            setPlayerStagePending(true);
             const iframe = document.getElementById('video-player-iframe');
             const nativeStage = document.getElementById('party-native-stage');
             if (iframe) {
@@ -1444,6 +1505,7 @@
                 appendChatMessage('System', err.message || 'Could not start Netflix playback.', 'system');
             } finally {
                 setPartyNfLoading(false);
+                setPlayerStagePending(false);
             }
         }
 
@@ -1665,12 +1727,28 @@
         }
 
         // View Toggling
-        function showLobbyView() {
-            // Cancel Cinema Mode & active view height locks
+        function bootstrapLobbyView() {
             document.body.classList.remove('room-view-active');
             document.body.classList.remove('cinema-mode');
+            updateCinemaModeButton();
 
-            
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('lobby-view').classList.add('active');
+
+            syncParentPartyUrl('/party');
+            scheduleLoadActiveRooms();
+            setupLobbyFeed();
+            finishPartyBoot();
+        }
+
+        function showLobbyView() {
+            // Cancel Cinema Mode & active view height locks
+            cancelScheduledEmbedLoad();
+            setPlayerStagePending(false);
+            document.body.classList.remove('room-view-active');
+            document.body.classList.remove('cinema-mode');
+            updateCinemaModeButton();
+
             const iframe = document.getElementById('video-player-iframe');
             if (iframe) {
                 iframe.src = '';
@@ -1699,8 +1777,9 @@
                 window.history.pushState({}, '', window.location.pathname);
             }
             syncParentPartyUrl('/party');
-            loadActiveRooms();
+            scheduleLoadActiveRooms();
             setupLobbyFeed();
+            finishPartyBoot();
         }
 
         function showCreateView(title = '', embedUrl = '') {
@@ -1778,67 +1857,107 @@
             return String(rawId);
         }
 
+        let embedLoadFrame = 0;
+
+        function setPlayerStagePending(active) {
+            const stage = document.getElementById('player-stage');
+            if (stage) stage.classList.toggle('player-stage--pending', Boolean(active));
+        }
+
+        function prepareRoomPlayerShell() {
+            const iframe = document.getElementById('video-player-iframe');
+            const nativeStage = document.getElementById('party-native-stage');
+
+            if (iframe) {
+                iframe.style.display = 'block';
+                iframe.removeAttribute('src');
+            }
+            if (nativeStage) nativeStage.style.display = 'none';
+            destroyNetflixPlayer();
+            setPlayerStagePending(true);
+        }
+
+        function cancelScheduledEmbedLoad() {
+            if (!embedLoadFrame) return;
+            cancelAnimationFrame(embedLoadFrame);
+            embedLoadFrame = 0;
+        }
+
+        function scheduleRoomEmbedLoad() {
+            cancelScheduledEmbedLoad();
+            embedLoadFrame = requestAnimationFrame(() => {
+                embedLoadFrame = requestAnimationFrame(() => {
+                    embedLoadFrame = 0;
+                    void loadRoomEmbed();
+                });
+            });
+        }
+
+        async function resolveDefaultStreamProvider() {
+            if (isAnime) {
+                activeProvider = 'animeplay_sub';
+                return;
+            }
+
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'default_provider')
+                    .single();
+                if (data?.value) {
+                    const matched = serversList.find(s => s.id === data.value.toLowerCase());
+                    activeProvider = matched ? data.value.toLowerCase() : 'rasmalai';
+                } else {
+                    activeProvider = 'rasmalai';
+                }
+            } catch (e) {
+                console.warn('Failed to fetch default provider, using rasmalai:', e);
+                activeProvider = 'rasmalai';
+            }
+        }
+
+        async function loadRoomEmbed() {
+            setPlayerStagePending(true);
+
+            try {
+                if (isAnime && !isNetflix) {
+                    const resolvedAnilistId = await resolvePartyAnilistId(mediaId);
+                    if (resolvedAnilistId && resolvedAnilistId !== String(mediaId)) {
+                        mediaId = resolvedAnilistId;
+                    }
+                }
+
+                if (isNetflix) {
+                    await loadNetflixPartyPlayer();
+                    return;
+                }
+
+                await resolveDefaultStreamProvider();
+                populateServerDropdown();
+                switchStreamProvider(activeProvider);
+            } catch (err) {
+                console.error('Failed to load room embed:', err);
+            } finally {
+                setPlayerStagePending(false);
+            }
+        }
+
         async function showRoomView(room) {
+            document.documentElement.classList.remove('party-joining');
             teardownLobbyFeed();
             teardownLobbyPresence();
             document.body.classList.add('room-view-active');
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('room-view').classList.add('active');
             
-            // Resolve media params and URLs first
             parseMediaParams(room.embed_sources);
 
-            if (isAnime && !isNetflix) {
-                const resolvedAnilistId = await resolvePartyAnilistId(mediaId);
-                if (resolvedAnilistId && resolvedAnilistId !== String(mediaId)) {
-                    mediaId = resolvedAnilistId;
-                }
-            }
-
-            document.body.classList.add('cinema-mode');
-
-            // Update Banner details
+            document.body.classList.remove('cinema-mode');
+            updateCinemaModeButton();
             updateBannerText();
-            
-            if (isNetflix) {
-                await loadNetflixPartyPlayer();
-            } else {
-                const nativeStage = document.getElementById('party-native-stage');
-                if (nativeStage) nativeStage.style.display = 'none';
-                const iframe = document.getElementById('video-player-iframe');
-                if (iframe) iframe.style.display = 'block';
-                destroyNetflixPlayer();
+            prepareRoomPlayerShell();
 
-                populateServerDropdown();
-
-                if (isAnime) {
-                    activeProvider = 'animeplay_sub';
-                } else {
-                    try {
-                        const { data, error } = await supabaseClient
-                            .from('app_settings')
-                            .select('value')
-                            .eq('key', 'default_provider')
-                            .single();
-                        if (data && data.value) {
-                            const matched = serversList.find(s => s.id === data.value.toLowerCase());
-                            if (matched) {
-                                activeProvider = data.value.toLowerCase();
-                            } else {
-                                activeProvider = 'rasmalai';
-                            }
-                        } else {
-                            activeProvider = 'rasmalai';
-                        }
-                    } catch (e) {
-                        console.warn('Failed to fetch default provider, using rasmalai:', e);
-                        activeProvider = 'rasmalai';
-                    }
-                }
-                switchStreamProvider(activeProvider);
-            }
-
-            // Update URL to the shareable room short code link
             const displayId = uuidToShortCode(room.id) || room.id;
             if (partyEmbedded) {
                 window.history.pushState({}, '', `/party/app.html?room=${displayId}`);
@@ -1849,11 +1968,10 @@
             if (prefillTitle) parentRoomParams.set('title', prefillTitle);
             syncParentPartyUrl(`/party?${parentRoomParams.toString()}`);
             
-            // Connect to real-time chat & presence channel
             connectToRealtimeRoom(room);
-            
-            // Update Controls visibility
             updateControlsVisibility();
+            finishPartyBoot();
+            scheduleRoomEmbedLoad();
         }
 
         // Dropdown toggle logic
@@ -1896,6 +2014,7 @@
         }
 
         function showEmbedPlayer(embedUrl) {
+            setPlayerStagePending(false);
             const oldIframe = document.getElementById('video-player-iframe');
             if (oldIframe) {
                 const parent = oldIframe.parentNode;
@@ -2015,9 +2134,19 @@
             }
         }
 
-        // Cinema Mode toggler
+        // Cinema mode toggler
+        function updateCinemaModeButton() {
+            const btn = document.getElementById('cinema-mode-btn');
+            if (!btn) return;
+            const on = document.body.classList.contains('cinema-mode');
+            btn.classList.toggle('is-active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.textContent = 'Cinema mode';
+        }
+
         function toggleCinemaMode() {
             document.body.classList.toggle('cinema-mode');
+            updateCinemaModeButton();
         }
 
         // Direct Stream Downloader
@@ -2726,6 +2855,7 @@
 
         // Page Init logic
         window.addEventListener('DOMContentLoaded', async () => {
+            restoreChatSyncNoticeState();
             updateHeaderBadge();
             bindPartyEpNavButtons();
 
@@ -2826,8 +2956,7 @@
                     }
                 }
             } else {
-                // No room parameter - show lobby
-                showLobbyView();
+                bootstrapLobbyView();
             }
         });
     

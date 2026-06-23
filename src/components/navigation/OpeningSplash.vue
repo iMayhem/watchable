@@ -26,7 +26,7 @@
                     </div>
                 </div>
 
-                <p class="opening-splash__tagline">you're gonna enjoy this</p>
+                <p class="opening-splash__tagline">a cinema periodical</p>
             </div>
 
             <button

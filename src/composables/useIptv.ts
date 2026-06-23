@@ -46,12 +46,30 @@ export async function fetchIptvCountries(): Promise<IptvCountry[]> {
     }
 
     const entries = (await response.json()) as GithubContentEntry[];
+    let regionNames: Intl.DisplayNames | null = null;
+    try {
+        regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+    } catch {
+        // Fallback to code
+    }
+
     return entries
         .filter((entry) => entry.type === 'file' && entry.name.endsWith('.m3u'))
-        .map((entry) => ({
-            name: entry.name.replace(/\.m3u$/i, ''),
-            path: entry.path
-        }))
+        .map((entry) => {
+            const code = entry.name.replace(/\.m3u$/i, '');
+            let name = code.toUpperCase();
+            if (regionNames) {
+                try {
+                    name = regionNames.of(name) || name;
+                } catch {
+                    // Fallback
+                }
+            }
+            return {
+                name,
+                path: entry.path
+            };
+        })
         .sort((a, b) => a.name.localeCompare(b.name));
 }
 

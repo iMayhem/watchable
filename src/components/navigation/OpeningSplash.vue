@@ -27,13 +27,6 @@
                 <p class="opening-splash__tagline">a cinema periodical</p>
             </div>
 
-            <button
-                type="button"
-                class="opening-splash__skip"
-                @click.stop="dismiss"
-            >
-                Skip
-            </button>
         </div>
     </Teleport>
 </template>
@@ -215,33 +208,6 @@ html.moovie-splash-lock body {
         animation: splash-tagline 0.7s ease-out 1.95s forwards;
     }
 
-    &__skip {
-        position: absolute;
-        right: max(1rem, env(safe-area-inset-right));
-        bottom: max(1rem, env(safe-area-inset-bottom));
-        z-index: 3;
-        padding: 0.45rem 0.85rem;
-        border: 1px solid rgba(245, 239, 228, 0.18);
-        border-radius: 999px;
-        background: rgba(0, 0, 0, 0.55);
-        color: rgba(245, 239, 228, 0.78);
-        font-family: var(--font-ui);
-        font-size: 0.74rem;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            color 0.15s ease,
-            background 0.15s ease;
-
-        &:hover {
-            border-color: rgba(255, 90, 31, 0.45);
-            color: #f5efe4;
-            background: rgba(255, 90, 31, 0.12);
-        }
-    }
 }
 
 @keyframes splash-letter {

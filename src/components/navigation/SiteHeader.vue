@@ -317,6 +317,7 @@ import SettingsModal from './SettingsModal.vue';
 import ExtensionPrompt from './ExtensionPrompt.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
+import { useOpeningSplash } from '../../composables/useOpeningSplash';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
@@ -418,6 +419,7 @@ export default defineComponent({
         const isNetflixMode = computed(() => contentMode.value === 'netflix');
         const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
         const scrolled = ref(false);
+        const { splashActive } = useOpeningSplash();
 
         const DETAIL_ROUTE_NAMES = new Set([
             'AnimeDetail',
@@ -691,6 +693,12 @@ export default defineComponent({
             updateCurrentUser();
             window.addEventListener('movora_auth_change', updateCurrentUser);
             document.addEventListener('click', handleClickOutside);
+        });
+
+        watch(splashActive, (active, wasActive) => {
+            if (wasActive && !active) {
+                requestAnimationFrame(() => onScroll());
+            }
         });
 
         onBeforeUnmount(() => {

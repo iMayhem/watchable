@@ -43,12 +43,11 @@ export default defineComponent({
     name: 'OpeningSplash',
     setup() {
         const route = useRoute();
-        const { setSplashActive, setSplashHandoff } = useOpeningSplash();
+        const { setSplashActive } = useOpeningSplash();
         const mounted = ref(false);
         const fading = ref(false);
         const timers: number[] = [];
         const letters = LETTERS;
-        let scrollPad = 0;
 
         const shouldPlay = () => {
             if (route.meta.bareLayout) return false;
@@ -60,30 +59,8 @@ export default defineComponent({
             return true;
         };
 
-        const setHtmlSplashState = (state: 'idle' | 'active' | 'handoff') => {
-            const root = document.documentElement;
-            root.classList.toggle('moovie-splash-active', state === 'active' || state === 'handoff');
-            root.classList.toggle('moovie-splash-handoff', state === 'handoff');
-        };
-
         const setScrollLock = (locked: boolean) => {
-            const root = document.documentElement;
-            const body = document.body;
-
-            if (locked) {
-                scrollPad = Math.max(0, window.innerWidth - root.clientWidth);
-                root.classList.add('moovie-splash-lock');
-                if (scrollPad > 0) {
-                    root.style.paddingRight = `${scrollPad}px`;
-                    body.style.paddingRight = `${scrollPad}px`;
-                }
-                return;
-            }
-
-            root.classList.remove('moovie-splash-lock');
-            root.style.paddingRight = '';
-            body.style.paddingRight = '';
-            scrollPad = 0;
+            document.documentElement.classList.toggle('moovie-splash-lock', locked);
         };
 
         const clearTimers = () => {
@@ -95,9 +72,7 @@ export default defineComponent({
             clearTimers();
             fading.value = false;
             mounted.value = false;
-            setSplashHandoff(false);
             setSplashActive(false);
-            setHtmlSplashState('idle');
             setScrollLock(false);
         };
 
@@ -109,8 +84,8 @@ export default defineComponent({
         const startFade = () => {
             if (!mounted.value || fading.value) return;
             fading.value = true;
-            setSplashHandoff(true);
-            setHtmlSplashState('handoff');
+            // Restore scroll + layout before the overlay fades so the header doesn't jump.
+            setScrollLock(false);
         };
 
         const start = () => {
@@ -120,8 +95,6 @@ export default defineComponent({
             fading.value = false;
             mounted.value = true;
             setSplashActive(true);
-            setSplashHandoff(false);
-            setHtmlSplashState('active');
             setScrollLock(true);
 
             timers.push(
@@ -161,13 +134,9 @@ html.moovie-splash-lock body {
     overflow: hidden !important;
 }
 
-html.moovie-splash-active .app-stage {
-    opacity: 0;
-}
-
-html.moovie-splash-handoff .app-stage {
-    opacity: 1;
-    transition: opacity 0.9s var(--ease-out);
+html.moovie-splash-lock .site-header,
+html.moovie-splash-lock .site-header::before {
+    transition: none !important;
 }
 </style>
 

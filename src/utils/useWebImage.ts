@@ -147,8 +147,19 @@ export function buildProxiedImageUrl(tmdbPath: string): string {
 }
 
 /** Catalogue CDN posters — direct OSS resize (NetMirror parity). */
+/** Only some catalogue CDN shards support Aliyun OSS query transforms. */
+function catalogHostSupportsOss(url: string): boolean {
+    try {
+        const host = new URL(url).hostname.toLowerCase();
+        return host === 'pacdn.aoneroom.com' || host.endsWith('.pacdn.aoneroom.com');
+    } catch {
+        return false;
+    }
+}
+
 export function buildCatalogCdnImageUrl(url: string, size: WebImageSize = 'medium'): string {
     if (!url || !CATALOG_CDN_PATTERN.test(url)) return url;
+    if (!catalogHostSupportsOss(url)) return url.split('?')[0];
     const quality = getTmdbImageQuality();
     const width = catalogOssResizeWidth(size, quality);
     return buildCatalogOssImageUrl(url, width, catalogOssQuality(quality));

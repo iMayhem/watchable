@@ -15,6 +15,12 @@ const PLAYER_HOSTS = {
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
+const CATALOG_UPSTREAM_HEADERS = {
+  'User-Agent': UA,
+  Referer: CATALOG_REFERER,
+  Origin: CATALOG_ORIGIN,
+};
+
 const CDN_REFERER = 'https://fmoviesunblocked.net/';
 const CDN_ORIGIN = 'https://h5.aoneroom.com';
 
@@ -280,19 +286,36 @@ function trailerStream(meta) {
   };
 }
 
-async function fetchMetadata(type, id) {
-  const resp = await fetch(`${CATALOG_API}/${type}/${id}`, {
+async function fetchCatalogJson(url, options = {}) {
+  const resp = await fetch(url, {
+    ...options,
     headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': UA,
+      ...CATALOG_UPSTREAM_HEADERS,
+      ...(options.headers || {}),
     },
   });
-
-  if (!resp.ok) {
-    throw new Error(`Metadata request failed (${resp.status})`);
+  const text = await resp.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    const snippet = text.slice(0, 96).replace(/\s+/g, ' ').trim();
+    throw new Error(
+      `Catalogue upstream returned non-JSON (${resp.status}): ${snippet}`
+    );
   }
+  if (!resp.ok) {
+    throw new Error(data?.error || `Catalogue upstream failed (${resp.status})`);
+  }
+  return data;
+}
 
-  const data = await resp.json();
+async function fetchMetadata(type, id) {
+  const data = await fetchCatalogJson(`${CATALOG_API}/${type}/${id}`, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
   const meta = data?.results?.[0];
   if (!meta) {
     throw new Error('No metadata found for this ID');
@@ -600,15 +623,22 @@ export async function onRequest(context) {
         url = `https://api2.imdb4.shop/api/search2/${encoded}?${upstream}`;
       }
 
-      const resp = await fetch(
-        url,
-        { headers: { 'User-Agent': UA } }
-      );
-      const data = await resp.json();
-      return jsonResponse({
-        results: data?.results || [],
-        pager: data?.pager || null,
-      });
+      try {
+        const data = await fetchCatalogJson(url);
+        return jsonResponse({
+          results: data?.results || [],
+          pager: data?.pager || null,
+        });
+      } catch (err) {
+        return jsonResponse(
+          {
+            error: err.message || 'Catalogue browse failed',
+            results: [],
+            pager: null,
+          },
+          502
+        );
+      }
     }
 
     if (action === 'meta') {

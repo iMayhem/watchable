@@ -26,6 +26,7 @@
                     decoding="async"
                     :fetchpriority="priorityLoad ? 'high' : 'auto'"
                     @load="onPosterLoad"
+                    @error="onPosterError"
                 />
                 <div v-else class="poster-card__img poster-card__img--empty">
                     <span class="display display--italic">{{ initial }}</span>
@@ -164,6 +165,7 @@ export default defineComponent({
     },
     setup(props) {
         const imgRef = ref<HTMLImageElement | null>(null);
+        const posterFallback = ref(false);
         const router = useRouter();
         const { detailPath } = useAppPaths();
         const peeking = ref(false);
@@ -189,7 +191,11 @@ export default defineComponent({
                         : props.catalog === 'netflix'
                           ? 'large'
                           : 'medium';
-            return useWebImage(path, size);
+            const resolved = useWebImage(path, size);
+            if (posterFallback.value) {
+                return path.split('?')[0];
+            }
+            return resolved;
         });
 
         const markCachedPoster = () => {
@@ -210,8 +216,18 @@ export default defineComponent({
             void nextTick(syncCachedImage);
         });
 
+        watch(effectivePosterPath, () => {
+            posterFallback.value = false;
+        });
+
         const onPosterLoad = () => {
             markCachedPoster();
+        };
+
+        const onPosterError = () => {
+            if (!posterFallback.value) {
+                posterFallback.value = true;
+            }
         };
 
         const initial = computed(() => props.title?.[0]?.toUpperCase() ?? '·');
@@ -412,7 +428,8 @@ export default defineComponent({
             handleLeave,
             handleLeaveFocus,
             imgRef,
-            onPosterLoad
+            onPosterLoad,
+            onPosterError
         };
     }
 });

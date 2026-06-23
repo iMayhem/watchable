@@ -333,6 +333,7 @@ export default defineComponent({
 
         const reload = () => {
             page.value = 1;
+            results.value = [];
             void fetchPage(1, false).then(() => drainPagesIfNeeded());
         };
 
@@ -345,6 +346,7 @@ export default defineComponent({
         const resetFilters = () => {
             filters.value = makeDefaultFilters();
             searchTerm.value = '';
+            results.value = [];
             syncRoute();
             reload();
         };
@@ -362,6 +364,7 @@ export default defineComponent({
 
         const clearSearch = () => {
             searchTerm.value = '';
+            results.value = [];
             syncRoute();
             reload();
         };

@@ -7,7 +7,7 @@ export type ContentMode = 'global' | 'netflix';
 const UNSET = 'unset' as const;
 type StoredMode = ContentMode | typeof UNSET;
 
-const storedMode = useStorage<StoredMode>('movora_content_mode', UNSET);
+const storedMode = useStorage<StoredMode>('movora_content_mode', 'global');
 
 export function isContentModeChosen(): boolean {
     return storedMode.value === 'global' || storedMode.value === 'netflix';

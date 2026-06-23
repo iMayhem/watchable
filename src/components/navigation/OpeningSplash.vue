@@ -9,9 +9,7 @@
             @click="dismiss"
         >
             <div class="opening-splash__scene">
-                <div class="opening-splash__grain" />
                 <div class="opening-splash__vignette" />
-                <div class="opening-splash__glow" />
 
                 <div class="opening-splash__word-wrap">
                     <div class="opening-splash__word">
@@ -44,7 +42,7 @@
 import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
-const SPLASH_DURATION_MS = 6800;
+const SPLASH_DURATION_MS = 5600;
 const LETTERS = ['m', 'o', 'o', 'v', 'i', 'e'] as const;
 
 export default defineComponent({
@@ -96,7 +94,7 @@ export default defineComponent({
             timers.push(
                 window.setTimeout(() => {
                     fading.value = true;
-                }, SPLASH_DURATION_MS - 1600)
+                }, SPLASH_DURATION_MS - 1200)
             );
 
             timers.push(
@@ -149,8 +147,7 @@ html.moovie-splash-lock body {
     z-index: 10000;
     background: #000;
     opacity: 1;
-    transition: opacity 1.8s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: opacity;
+    transition: opacity 1.1s ease-out;
 
     &.is-fading {
         opacity: 0;
@@ -162,80 +159,46 @@ html.moovie-splash-lock body {
         inset: 0;
         display: grid;
         place-items: center;
-        background: radial-gradient(circle at 50% 44%, #16100b 0%, #000 72%);
+        background: #0b0a08;
         overflow: hidden;
-        perspective: 1100px;
-        transform-style: preserve-3d;
-    }
-
-    &__grain {
-        position: absolute;
-        inset: -50%;
-        opacity: 0.1;
-        background-image:
-            radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55) 0.35px, transparent 0.45px),
-            radial-gradient(circle at 80% 40%, rgba(255, 255, 255, 0.4) 0.35px, transparent 0.45px);
-        background-size: 4px 4px, 5px 5px;
-        animation: splash-grain 10s linear infinite;
-        pointer-events: none;
     }
 
     &__vignette {
         position: absolute;
         inset: 0;
-        background: radial-gradient(circle at center, transparent 42%, rgba(0, 0, 0, 0.65) 100%);
-        pointer-events: none;
-    }
-
-    &__glow {
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(
-            ellipse 48% 32% at 50% 48%,
-            rgba(255, 90, 31, 0.22) 0%,
-            rgba(255, 90, 31, 0.06) 42%,
-            transparent 72%
-        );
-        animation: splash-glow 6s ease-in-out infinite;
+        background: radial-gradient(circle at center, transparent 50%, rgba(0, 0, 0, 0.55) 100%);
         pointer-events: none;
     }
 
     &__word-wrap {
         position: relative;
         z-index: 2;
-        transform-style: preserve-3d;
     }
 
     &__word {
         display: flex;
         align-items: baseline;
         justify-content: center;
-        gap: 0.04em;
+        gap: 0.05em;
         padding: 0 1rem;
         transform-origin: center center;
-        transform-style: preserve-3d;
-        animation: splash-rush-toward 2.35s cubic-bezier(0.32, 0.72, 0.22, 1) 2.95s forwards;
-        will-change: transform, opacity, filter;
+        animation: splash-rush-toward 1.65s cubic-bezier(0.25, 0.8, 0.25, 1) 2.15s forwards;
     }
 
     &__letter {
-        --delay: calc(0.1s + (var(--i) * 0.38s));
+        --delay: calc(0.08s + (var(--i) * 0.3s));
         display: inline-block;
-        font-family: Georgia, 'Times New Roman', serif;
-        font-size: clamp(3.6rem, 13.5vmin, 6.2rem);
+        font-family: var(--font-display);
+        font-size: clamp(3.4rem, 12vmin, 5.8rem);
         font-weight: 700;
         line-height: 1;
-        letter-spacing: -0.03em;
+        letter-spacing: -0.02em;
         color: #f5efe4;
         opacity: 0;
-        transform: translate3d(0, 10px, -60px) scale(0.82);
-        transform-origin: center center;
-        text-shadow:
-            0 0 16px rgba(255, 90, 31, 0.28),
-            0 0 36px rgba(255, 90, 31, 0.1);
-        animation: splash-letter 0.78s cubic-bezier(0.22, 1, 0.36, 1) var(--delay) forwards;
-        will-change: transform, opacity;
+        transform: translateY(8px);
+        animation: splash-letter 0.55s ease-out var(--delay) forwards;
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 
     &__tagline {
@@ -247,10 +210,9 @@ html.moovie-splash-lock body {
         font-weight: 600;
         letter-spacing: 0.22em;
         text-transform: lowercase;
-        color: rgba(245, 239, 228, 0.42);
+        color: rgba(245, 239, 228, 0.5);
         opacity: 0;
-        transform: translate3d(0, 8px, 0);
-        animation: splash-tagline 1s cubic-bezier(0.22, 1, 0.36, 1) 2.45s forwards;
+        animation: splash-tagline 0.7s ease-out 1.95s forwards;
     }
 
     &__skip {
@@ -282,68 +244,43 @@ html.moovie-splash-lock body {
     }
 }
 
-@keyframes splash-grain {
-    from { transform: translate3d(0, 0, 0); }
-    to { transform: translate3d(-2%, -1.5%, 0); }
-}
-
-@keyframes splash-glow {
-    0%, 100% { opacity: 0.82; }
-    50% { opacity: 1; }
-}
-
 @keyframes splash-letter {
-    0% {
-        opacity: 0;
-        transform: translate3d(0, 10px, -60px) scale(0.82);
-    }
-
-    100% {
+    to {
         opacity: 1;
-        transform: translate3d(0, 0, 0) scale(1);
-        text-shadow:
-            0 0 20px rgba(255, 90, 31, 0.42),
-            0 0 40px rgba(255, 90, 31, 0.16);
+        transform: translateY(0);
     }
 }
 
 @keyframes splash-rush-toward {
     0% {
         opacity: 1;
-        transform: translate3d(0, 0, -40px) scale(0.88);
-        filter: blur(0);
+        transform: scale(0.92);
     }
 
-    42% {
+    35% {
         opacity: 1;
-        transform: translate3d(0, 0, 30px) scale(1.18);
-        filter: blur(0);
+        transform: scale(1);
     }
 
     100% {
         opacity: 0;
-        transform: translate3d(0, 0, 280px) scale(3.6);
-        filter: blur(12px);
+        transform: scale(1.72);
     }
 }
 
 @keyframes splash-tagline {
     to {
         opacity: 1;
-        transform: translate3d(0, 0, 0);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .opening-splash__word,
     .opening-splash__letter,
-    .opening-splash__tagline,
-    .opening-splash__grain,
-    .opening-splash__glow {
+    .opening-splash__tagline {
         animation: none !important;
         opacity: 1 !important;
         transform: none !important;
-        filter: none !important;
     }
 }
 </style>

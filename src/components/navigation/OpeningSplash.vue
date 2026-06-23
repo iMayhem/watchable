@@ -6,13 +6,13 @@
             :class="{ 'is-fading': fading }"
             role="presentation"
             aria-hidden="true"
-            @click="dismiss"
         >
             <div class="opening-splash__scene">
-                <div class="opening-splash__vignette" />
+                <span class="opening-splash__bloom" aria-hidden="true" />
+                <span class="opening-splash__grain grain" aria-hidden="true" />
 
-                <div class="opening-splash__word-wrap">
-                    <div class="opening-splash__word">
+                <div class="opening-splash__brand" :class="{ 'is-settling': settling }">
+                    <div class="opening-splash__wordmark" aria-hidden="true">
                         <span
                             v-for="(letter, index) in letters"
                             :key="`${letter}-${index}`"
@@ -22,11 +22,9 @@
                             {{ letter }}
                         </span>
                     </div>
+                    <p class="eyebrow opening-splash__eyebrow">A Cinema Periodical</p>
                 </div>
-
-                <p class="opening-splash__tagline">a cinema periodical</p>
             </div>
-
         </div>
     </Teleport>
 </template>
@@ -35,7 +33,7 @@
 import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
-const SPLASH_DURATION_MS = 5600;
+const SPLASH_DURATION_MS = 5200;
 const LETTERS = ['m', 'o', 'o', 'v', 'i', 'e'] as const;
 
 export default defineComponent({
@@ -44,6 +42,7 @@ export default defineComponent({
         const route = useRoute();
         const visible = ref(false);
         const fading = ref(false);
+        const settling = ref(false);
         const timers: number[] = [];
         const letters = LETTERS;
 
@@ -70,24 +69,30 @@ export default defineComponent({
             if (!visible.value) return;
             clearTimers();
             fading.value = false;
+            settling.value = false;
             visible.value = false;
             setScrollLock(false);
         };
-
-        const dismiss = () => finish();
 
         const start = () => {
             if (!shouldPlay()) return;
 
             clearTimers();
             fading.value = false;
+            settling.value = false;
             visible.value = true;
             setScrollLock(true);
 
             timers.push(
                 window.setTimeout(() => {
+                    settling.value = true;
+                }, 2600)
+            );
+
+            timers.push(
+                window.setTimeout(() => {
                     fading.value = true;
-                }, SPLASH_DURATION_MS - 1200)
+                }, SPLASH_DURATION_MS - 1100)
             );
 
             timers.push(
@@ -97,30 +102,20 @@ export default defineComponent({
             );
         };
 
-        const onKeydown = (event: KeyboardEvent) => {
-            if (!visible.value) return;
-            if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                dismiss();
-            }
-        };
-
         onMounted(() => {
             start();
-            window.addEventListener('keydown', onKeydown);
         });
 
         onBeforeUnmount(() => {
             clearTimers();
             setScrollLock(false);
-            window.removeEventListener('keydown', onKeydown);
         });
 
         return {
             visible,
             fading,
-            letters,
-            dismiss
+            settling,
+            letters
         };
     }
 });
@@ -138,9 +133,9 @@ html.moovie-splash-lock body {
     position: fixed;
     inset: 0;
     z-index: 10000;
-    background: #000;
+    background: var(--ink-900);
     opacity: 1;
-    transition: opacity 1.1s ease-out;
+    transition: opacity 1.1s var(--ease-out);
 
     &.is-fading {
         opacity: 0;
@@ -152,99 +147,102 @@ html.moovie-splash-lock body {
         inset: 0;
         display: grid;
         place-items: center;
-        background: #0b0a08;
+        background: var(--ink-900);
+        color: var(--bone-50);
+        isolation: isolate;
         overflow: hidden;
     }
 
-    &__vignette {
+    &__bloom {
         position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at center, transparent 50%, rgba(0, 0, 0, 0.55) 100%);
+        inset: -25% -15%;
+        z-index: 0;
+        background:
+            radial-gradient(ellipse at 18% 12%, rgba(255, 90, 31, 0.2) 0%, transparent 52%),
+            radial-gradient(ellipse at 82% 78%, rgba(201, 167, 106, 0.14) 0%, transparent 55%),
+            radial-gradient(ellipse at 50% 100%, rgba(229, 9, 20, 0.08) 0%, transparent 48%),
+            radial-gradient(ellipse at center, var(--ink-850) 0%, var(--ink-900) 72%);
+        filter: blur(24px);
         pointer-events: none;
     }
 
-    &__word-wrap {
-        position: relative;
-        z-index: 2;
+    &__grain {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        opacity: 0.45;
+        pointer-events: none;
     }
 
-    &__word {
+    &__brand {
+        position: relative;
+        z-index: 2;
         display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--s-3);
+        text-align: center;
+        transition:
+            opacity var(--dur-slow) var(--ease-out),
+            transform var(--dur-slow) var(--ease-out);
+
+        &.is-settling {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+    }
+
+    &__wordmark {
+        display: inline-flex;
         align-items: baseline;
         justify-content: center;
-        gap: 0.05em;
-        padding: 0 1rem;
-        transform-origin: center center;
-        animation: splash-rush-toward 1.65s cubic-bezier(0.25, 0.8, 0.25, 1) 2.15s forwards;
+        letter-spacing: -0.07em;
+        line-height: 0.85;
     }
 
     &__letter {
-        --delay: calc(0.08s + (var(--i) * 0.3s));
+        --delay: calc(var(--i) * 0.34s);
         display: inline-block;
         font-family: var(--font-display);
-        font-size: clamp(3.4rem, 12vmin, 5.8rem);
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: -0.02em;
-        color: #f5efe4;
-        opacity: 0;
-        transform: translateY(8px);
-        animation: splash-letter 0.55s ease-out var(--delay) forwards;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-    }
-
-    &__tagline {
-        position: absolute;
-        bottom: clamp(2rem, 8vmin, 4rem);
-        z-index: 2;
-        font-family: var(--font-ui);
-        font-size: clamp(0.72rem, 2.2vmin, 0.88rem);
-        font-weight: 600;
-        letter-spacing: 0.22em;
+        font-weight: 800;
+        font-size: clamp(3rem, 13vw, 5.25rem);
         text-transform: lowercase;
-        color: rgba(245, 239, 228, 0.5);
+        background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
         opacity: 0;
-        animation: splash-tagline 0.7s ease-out 1.95s forwards;
+        transform: translateY(10px);
+        animation: splash-letter-in var(--dur-slow) var(--ease-out) var(--delay) forwards;
     }
 
+    &__eyebrow {
+        margin: 0;
+        color: var(--bone-400);
+        opacity: 0;
+        animation: splash-eyebrow-in var(--dur-slow) var(--ease-out) 1.95s forwards;
+    }
 }
 
-@keyframes splash-letter {
+@keyframes splash-letter-in {
     to {
         opacity: 1;
         transform: translateY(0);
     }
 }
 
-@keyframes splash-rush-toward {
-    0% {
-        opacity: 1;
-        transform: scale(0.92);
-    }
-
-    35% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    100% {
-        opacity: 0;
-        transform: scale(1.72);
-    }
-}
-
-@keyframes splash-tagline {
+@keyframes splash-eyebrow-in {
     to {
         opacity: 1;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .opening-splash__word,
     .opening-splash__letter,
-    .opening-splash__tagline {
+    .opening-splash__eyebrow,
+    .opening-splash__brand {
         animation: none !important;
+        transition: none !important;
         opacity: 1 !important;
         transform: none !important;
     }

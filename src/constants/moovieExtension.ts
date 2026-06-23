@@ -2,7 +2,11 @@ export const MOOVIE_EXTENSION_VERSION = '1.5.2';
 export const MOOVIE_EXTENSION_RELEASE_TAG = `v${MOOVIE_EXTENSION_VERSION}`;
 export const MOOVIE_FIREFOX_ADDON_URL =
     'https://addons.mozilla.org/en-GB/firefox/addon/moovie-extension/';
+export const MOOVIE_EDGE_ADDON_URL =
+    'https://microsoftedge.microsoft.com/addons/detail/ofnhnacpnimhklfbpfcednjlgfojgfbe';
 const RELEASE_BASE = `https://github.com/iMayhem/Moovie-Extension/releases/download/${MOOVIE_EXTENSION_RELEASE_TAG}`;
+
+export const RECOMMENDED_EXTENSION_BROWSER_IDS: ExtensionBrowserId[] = ['firefox', 'edge'];
 
 export type ExtensionBrowserId =
     | 'chrome'
@@ -47,12 +51,12 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
         id: 'edge',
         name: 'Edge',
-        fileName: 'extension.crx',
-        url: `${RELEASE_BASE}/extension.crx`,
+        fileName: 'Edge Add-ons',
+        url: MOOVIE_EDGE_ADDON_URL,
         icon: '/icons/browsers/edge.svg',
-        extensionsPage: 'edge://extensions',
+        extensionsPage: MOOVIE_EDGE_ADDON_URL,
         family: 'chromium',
-        installType: 'download'
+        installType: 'store'
     },
     {
         id: 'opera',
@@ -101,4 +105,20 @@ export function detectExtensionBrowser(): ExtensionBrowserId {
 
 export function getExtensionBrowser(id: ExtensionBrowserId) {
     return EXTENSION_BROWSER_DOWNLOADS.find((row) => row.id === id) ?? EXTENSION_BROWSER_DOWNLOADS[0];
+}
+
+export function getRecommendedExtensionBrowsers(): ExtensionBrowserDownload[] {
+    return RECOMMENDED_EXTENSION_BROWSER_IDS.map((id) => getExtensionBrowser(id));
+}
+
+export function getOtherExtensionBrowsers(): ExtensionBrowserDownload[] {
+    const recommended = new Set<ExtensionBrowserId>(RECOMMENDED_EXTENSION_BROWSER_IDS);
+    return EXTENSION_BROWSER_DOWNLOADS.filter((row) => !recommended.has(row.id));
+}
+
+export function getExtensionInstallGuide(detected: ExtensionBrowserId): ExtensionBrowserDownload {
+    if (detected === 'firefox' || detected === 'edge') {
+        return getExtensionBrowser(detected);
+    }
+    return getExtensionBrowser('firefox');
 }

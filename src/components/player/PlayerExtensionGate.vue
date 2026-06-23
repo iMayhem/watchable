@@ -40,55 +40,44 @@
             </header>
 
             <div class="nf-ext-gate__body">
-                <a
-                    class="nf-ext-gate__download"
-                    :href="browser.url"
-                    :download="browser.installType === 'download' ? browser.fileName : undefined"
-                    rel="noopener"
-                    target="_blank"
-                    @click="trackDownload"
-                >
-                    <ExtensionBrowserIcon :browser="browser.id" />
-                    <span class="nf-ext-gate__download-copy">
-                        <strong>
-                            {{ browser.installType === 'store' ? 'Get for' : 'Download for' }}
-                            {{ browser.name }}
-                        </strong>
-                        <small>v{{ extensionVersion }} · {{ browser.fileName }}</small>
-                    </span>
-                </a>
+                <div class="nf-ext-gate__downloads">
+                    <a
+                        v-for="recommended in recommendedBrowsers"
+                        :key="recommended.id"
+                        class="nf-ext-gate__download"
+                        :href="recommended.url"
+                        rel="noopener"
+                        target="_blank"
+                        @click="trackDownload(recommended.id)"
+                    >
+                        <ExtensionBrowserIcon :browser="recommended.id" />
+                        <span class="nf-ext-gate__download-copy">
+                            <strong>Get for {{ recommended.name }}</strong>
+                            <small>v{{ extensionVersion }} · {{ recommended.fileName }}</small>
+                        </span>
+                    </a>
+                </div>
 
                 <ol v-if="!compact" class="nf-ext-gate__steps">
-                    <template v-if="browser.id === 'chrome'">
-                        <li>Download <code>extension.crx</code>.</li>
-                        <li>Open <code>chrome://extensions</code> and ensure <strong>Developer mode</strong> (top-right) is turned <strong>ON</strong>.</li>
-                        <li>Drag and drop the downloaded <code>extension.crx</code> file from your Files app (Downloads folder) directly onto the middle of the <code>chrome://extensions</code> page.</li>
-                        <li>Confirm the installation prompt and reload this page.</li>
-                        <li style="margin-top: 0.75rem; list-style-type: none;">
-                            <details style="font-size: 0.74rem; opacity: 0.85; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 0.5rem;">
-                                <summary style="cursor: pointer; color: var(--ember); font-weight: 600;">Alternative: Install via ZIP (Load Unpacked)</summary>
-                                <ol style="padding-left: 1.1rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.25rem;">
-                                    <li>Download the <a :href="browser.url.replace('.crx', '.zip')" download="extension.zip" style="color: #fff; text-decoration: underline;">extension.zip</a> package.</li>
-                                    <li>Unzip the downloaded folder.</li>
-                                    <li>On <code>chrome://extensions</code>, click <strong>Load unpacked</strong> in the top-left.</li>
-                                    <li>Select the unzipped folder containing <code>manifest.json</code>.</li>
-                                </ol>
-                            </details>
-                        </li>
-                    </template>
-                    <template v-else-if="browser.id === 'firefox'">
+                    <template v-if="installGuide.id === 'firefox'">
                         <li>
                             Open
-                            <a :href="browser.url" rel="noopener" target="_blank">Firefox Add-ons</a>
+                            <a :href="installGuide.url" rel="noopener" target="_blank">Firefox Add-ons</a>
                             and click <strong>Add to Firefox</strong>.
                         </li>
                         <li>Confirm the install prompt, then hard-refresh this page.</li>
                     </template>
-                    <template v-else>
-                        <li>Unzip the download and load it in <code>{{ browser.extensionsPage }}</code>.</li>
+                    <template v-else-if="installGuide.id === 'edge'">
                         <li>
-                            Set site access to <strong>On moovie.fun</strong>, then hard-refresh this page.
+                            Open
+                            <a :href="installGuide.url" rel="noopener" target="_blank">Edge Add-ons</a>
+                            and click <strong>Get</strong>.
                         </li>
+                        <li>Confirm the install prompt, then hard-refresh this page.</li>
+                    </template>
+                    <template v-else>
+                        <li>Get Moovie from Firefox Add-ons or Edge Add-ons using the buttons above.</li>
+                        <li>Confirm the install prompt, then hard-refresh this page.</li>
                     </template>
                 </ol>
 
@@ -111,13 +100,15 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 import ExtensionBrowserIcon from '../navigation/ExtensionBrowserIcon.vue';
 import { nfDebug } from '../../composables/useNetflixDebug';
 import {
     detectExtensionBrowser,
-    getExtensionBrowser,
-    MOOVIE_EXTENSION_VERSION
+    getExtensionInstallGuide,
+    getRecommendedExtensionBrowsers,
+    MOOVIE_EXTENSION_VERSION,
+    type ExtensionBrowserId
 } from '../../constants/moovieExtension';
 
 export default defineComponent({
@@ -128,15 +119,18 @@ export default defineComponent({
     },
     emits: ['recheck', 'stream-slow'],
     setup() {
-        const browser = ref(getExtensionBrowser(detectExtensionBrowser()));
+        const detectedBrowser = ref(detectExtensionBrowser());
+        const recommendedBrowsers = getRecommendedExtensionBrowsers();
+        const installGuide = computed(() => getExtensionInstallGuide(detectedBrowser.value));
         const extensionVersion = MOOVIE_EXTENSION_VERSION;
 
-        const trackDownload = () => {
-            nfDebug('player:extension-gate:download', { browser: browser.value.id });
+        const trackDownload = (browserId: ExtensionBrowserId) => {
+            nfDebug('player:extension-gate:download', { browser: browserId });
         };
 
         return {
-            browser,
+            recommendedBrowsers,
+            installGuide,
             extensionVersion,
             trackDownload
         };
@@ -306,6 +300,13 @@ export default defineComponent({
         line-height: 1.5;
         color: rgba(255, 255, 255, 0.72);
         max-width: 34ch;
+    }
+
+    &__downloads {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        width: 100%;
     }
 
     &__download {

@@ -32,27 +32,25 @@
                     <span class="ext-prompt__version">v{{ extensionVersion }}</span>
                 </div>
 
-                <a
-                    v-if="recommendedBrowser"
-                    class="ext-prompt__hero"
-                    :href="recommendedBrowser.url"
-                    :download="recommendedBrowser.installType === 'download' ? recommendedBrowser.fileName : undefined"
-                    rel="noopener"
-                    target="_blank"
-                    @click="trackDownload(recommendedBrowser.id)"
-                >
-                    <ExtensionBrowserIcon :browser="recommendedBrowser.id" />
-                    <span class="ext-prompt__hero-copy">
-                        <strong>
-                            {{ recommendedBrowser.installType === 'store' ? 'Get for' : 'Download for' }}
-                            {{ recommendedBrowser.name }}
-                        </strong>
-                        <small>{{ recommendedBrowser.fileName }}</small>
-                    </span>
-                    <span class="ext-prompt__hero-cta" aria-hidden="true">
-                        {{ recommendedBrowser.installType === 'store' ? '→' : '↓' }}
-                    </span>
-                </a>
+                <div class="ext-prompt__heroes">
+                    <a
+                        v-for="browser in recommendedBrowsers"
+                        :key="browser.id"
+                        class="ext-prompt__hero"
+                        :href="browser.url"
+                        :download="browser.installType === 'download' ? browser.fileName : undefined"
+                        rel="noopener"
+                        target="_blank"
+                        @click="trackDownload(browser.id)"
+                    >
+                        <ExtensionBrowserIcon :browser="browser.id" />
+                        <span class="ext-prompt__hero-copy">
+                            <strong>Get for {{ browser.name }}</strong>
+                            <small>{{ browser.fileName }}</small>
+                        </span>
+                        <span class="ext-prompt__hero-cta" aria-hidden="true">→</span>
+                    </a>
+                </div>
 
                 <p class="ext-prompt__grid-label">Other browsers</p>
                 <div class="ext-prompt__grid">
@@ -79,10 +77,15 @@
                 <ol class="ext-prompt__steps">
                     <template v-if="installGuide.installType === 'store'">
                         <li>
-                            Click Firefox above to open Moovie on
-                            <a :href="installGuide.url" rel="noopener" target="_blank">Firefox Add-ons</a>.
+                            Click {{ installGuide.name }} above to open Moovie on
+                            <a :href="installGuide.url" rel="noopener" target="_blank">{{ installGuide.fileName }}</a>.
                         </li>
-                        <li>Click <strong>Add to Firefox</strong> and confirm the install prompt.</li>
+                        <li v-if="installGuide.id === 'firefox'">
+                            Click <strong>Add to Firefox</strong> and confirm the install prompt.
+                        </li>
+                        <li v-else>
+                            Click <strong>Get</strong> and confirm the install prompt.
+                        </li>
                     </template>
                     <template v-else>
                         <li>
@@ -121,7 +124,7 @@
                             <strong>{{ browser.name }}:</strong>
                             <template v-if="browser.installType === 'store'">
                                 get from
-                                <a :href="browser.url" rel="noopener" target="_blank">Firefox Add-ons</a>
+                                <a :href="browser.url" rel="noopener" target="_blank">{{ browser.fileName }}</a>
                             </template>
                             <template v-else>
                                 download
@@ -157,7 +160,9 @@ import { nfDebug } from '../../composables/useNetflixDebug';
 import {
     detectExtensionBrowser,
     EXTENSION_BROWSER_DOWNLOADS,
-    getExtensionBrowser,
+    getExtensionInstallGuide,
+    getOtherExtensionBrowsers,
+    getRecommendedExtensionBrowsers,
     MOOVIE_EXTENSION_VERSION,
     type ExtensionBrowserId
 } from '../../constants/moovieExtension';
@@ -175,13 +180,9 @@ export default defineComponent({
         const extensionVersion = MOOVIE_EXTENSION_VERSION;
         const allBrowsers = EXTENSION_BROWSER_DOWNLOADS;
 
-        const recommendedBrowser = computed(() => getExtensionBrowser(detectedBrowser.value));
-
-        const otherBrowsers = computed(() =>
-            EXTENSION_BROWSER_DOWNLOADS.filter((row) => row.id !== detectedBrowser.value)
-        );
-
-        const installGuide = computed(() => recommendedBrowser.value);
+        const recommendedBrowsers = getRecommendedExtensionBrowsers();
+        const otherBrowsers = getOtherExtensionBrowsers();
+        const installGuide = computed(() => getExtensionInstallGuide(detectedBrowser.value));
 
         const openDialog = () => {
             detectedBrowser.value = detectExtensionBrowser();
@@ -206,7 +207,7 @@ export default defineComponent({
             showPrompt,
             openDialog,
             extensionVersion,
-            recommendedBrowser,
+            recommendedBrowsers,
             otherBrowsers,
             allBrowsers,
             installGuide,
@@ -310,11 +311,17 @@ export default defineComponent({
         color: var(--bone-400);
     }
 
+    &__heroes {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        margin-bottom: var(--s-4);
+    }
+
     &__hero {
         display: flex;
         align-items: center;
         gap: var(--s-3);
-        margin-bottom: var(--s-4);
         padding: 0.85rem 1rem;
         border: 1px solid rgba(255, 90, 31, 0.35);
         border-radius: var(--r-md);

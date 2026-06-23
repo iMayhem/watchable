@@ -1,7 +1,8 @@
 /* Touch-friendly controls for mobile-site (prevents iOS zoom, 44px tap targets) */
 
 .scroll-car-container,
-.auth-canvas {
+.auth-canvas,
+.keyboard-shortcuts-info {
     display: none !important;
 }
 

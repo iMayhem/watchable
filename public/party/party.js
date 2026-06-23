@@ -1260,6 +1260,12 @@
         }
 
         function getNextPartyEpisodeTarget() {
+            if (!isNetflix) {
+                if (isAnime || isTv) {
+                    return { season, episode: episode + 1 };
+                }
+                return null;
+            }
             if (!partyHasEpisodeRail()) return null;
 
             if (netflixEpisodes.length) {

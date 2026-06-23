@@ -1,6 +1,21 @@
 const MOBILE_UA =
   /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|iPad|Tablet/i;
 
+const DESKTOP_SITE_APEX = new Set(['moovie.fun', 'localhost', '127.0.0.1']);
+
+function normalizeApexHost(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./i, '');
+}
+
+function isDesktopSiteHost(hostname: string): boolean {
+  const apex = normalizeApexHost(hostname);
+  return DESKTOP_SITE_APEX.has(apex);
+}
+
+function isMobileSiteHost(hostname: string): boolean {
+  return normalizeApexHost(hostname).startsWith('m.');
+}
+
 function isMobileRequest(request: Request): boolean {
   const ua = request.headers.get('User-Agent') || '';
   if (MOBILE_UA.test(ua)) return true;
@@ -29,14 +44,19 @@ function mapPathForMobile(pathname: string): string {
   return pathname;
 }
 
+function wantsDesktopSite(url: URL): boolean {
+  if (url.searchParams.has('desktop')) return true;
+  return /\bdesktop=1\b/i.test(url.search) || /desktop/i.test(url.search);
+}
+
 export async function onRequest(context: {
   request: Request;
   next: () => Response | Promise<Response>;
 }) {
   const url = new URL(context.request.url);
-  const host = url.hostname.replace(/^www\./, '');
+  const hostname = url.hostname;
 
-  if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('m.')) {
+  if (!isDesktopSiteHost(hostname) || isMobileSiteHost(hostname)) {
     return context.next();
   }
 
@@ -44,7 +64,7 @@ export async function onRequest(context: {
     return context.next();
   }
 
-  if (url.searchParams.has('desktop')) {
+  if (wantsDesktopSite(url)) {
     return context.next();
   }
 
@@ -52,8 +72,9 @@ export async function onRequest(context: {
     return context.next();
   }
 
+  const apex = normalizeApexHost(hostname);
   const targetPath = mapPathForMobile(url.pathname);
-  const target = new URL(`https://m.${host}${targetPath}`);
+  const target = new URL(`https://m.${apex}${targetPath}`);
   target.search = url.search;
   target.hash = url.hash;
 

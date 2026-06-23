@@ -122,10 +122,10 @@
     <script>
       (function () {
         try {
-          var host = location.hostname;
+          var host = (location.hostname || '').toLowerCase();
           if (host === 'localhost' || host === '127.0.0.1') return;
           
-          var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
+          var cleanHost = host.replace(/^www\./i, '');
           var q = location.search || '';
           if (/\bmobile=1\b/.test(q) || q.indexOf('mobile') !== -1) return;
           

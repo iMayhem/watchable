@@ -5,8 +5,10 @@
     <script>
       (function () {
         try {
-          var host = location.hostname;
-          if (host === 'localhost' || host === '127.0.0.1' || host.indexOf('m.') === 0) return;
+          var host = (location.hostname || '').toLowerCase();
+          var apex = host.replace(/^www\./i, '');
+          if (apex === 'localhost' || apex === '127.0.0.1' || apex.indexOf('m.') === 0) return;
+          if (apex !== 'moovie.fun') return;
 
           var path = location.pathname;
           if (path.indexOf('/api/') === 0 || path.indexOf('/party') === 0 || /\.[a-z0-9]+$/i.test(path)) return;
@@ -15,7 +17,7 @@
           }
 
           var q = location.search || '';
-          if (/\bdesktop=1\b/.test(q) || q.indexOf('desktop') !== -1) return;
+          if (/\bdesktop=1\b/i.test(q) || /desktop/i.test(q)) return;
 
           var ua = navigator.userAgent || '';
           var mobileUa = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|iPad|Tablet/i.test(ua);
@@ -24,9 +26,8 @@
           var narrow = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
           var tablet = touch && narrow;
 
-          if (uaDataMobile || mobileUa || tablet || /\bmobile=1\b/.test(q)) {
-            var cleanHost = host.indexOf('www.') === 0 ? host.substring(4) : host;
-            location.replace('https://m.' + cleanHost + path + location.search + location.hash);
+          if (uaDataMobile || mobileUa || tablet || /\bmobile=1\b/i.test(q)) {
+            location.replace('https://m.' + apex + path + location.search + location.hash);
           }
         } catch (e) {}
       })();

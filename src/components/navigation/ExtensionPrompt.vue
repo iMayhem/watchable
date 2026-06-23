@@ -36,17 +36,22 @@
                     v-if="recommendedBrowser"
                     class="ext-prompt__hero"
                     :href="recommendedBrowser.url"
-                    :download="recommendedBrowser.fileName"
+                    :download="recommendedBrowser.installType === 'download' ? recommendedBrowser.fileName : undefined"
                     rel="noopener"
                     target="_blank"
                     @click="trackDownload(recommendedBrowser.id)"
                 >
                     <ExtensionBrowserIcon :browser="recommendedBrowser.id" />
                     <span class="ext-prompt__hero-copy">
-                        <strong>Download for {{ recommendedBrowser.name }}</strong>
+                        <strong>
+                            {{ recommendedBrowser.installType === 'store' ? 'Get for' : 'Download for' }}
+                            {{ recommendedBrowser.name }}
+                        </strong>
                         <small>{{ recommendedBrowser.fileName }}</small>
                     </span>
-                    <span class="ext-prompt__hero-cta" aria-hidden="true">↓</span>
+                    <span class="ext-prompt__hero-cta" aria-hidden="true">
+                        {{ recommendedBrowser.installType === 'store' ? '→' : '↓' }}
+                    </span>
                 </a>
 
                 <p class="ext-prompt__grid-label">Other browsers</p>
@@ -56,10 +61,10 @@
                         :key="browser.id"
                         class="ext-prompt__card"
                         :href="browser.url"
-                        :download="browser.fileName"
+                        :download="browser.installType === 'download' ? browser.fileName : undefined"
                         rel="noopener"
                         target="_blank"
-                        :title="`Download Moovie for ${browser.name}`"
+                        :title="`${browser.installType === 'store' ? 'Get' : 'Download'} Moovie for ${browser.name}`"
                         @click="trackDownload(browser.id)"
                     >
                         <ExtensionBrowserIcon :browser="browser.id" />
@@ -72,30 +77,26 @@
                 <h3 id="ext-install-heading" class="ext-prompt__section-title">How to install</h3>
 
                 <ol class="ext-prompt__steps">
-                    <li>
-                        Click your browser above — your browser will download the <code>{{ installGuide.fileName }}</code> file.
-                    </li>
-                    <li>
-                        <template v-if="installGuide.family === 'firefox'">
-                            Open <code>about:debugging#/runtime/this-firefox</code> in Firefox.
-                        </template>
-                        <template v-else>
-                            Open <code>{{ installGuide.extensionsPage }}</code> in your browser.
-                        </template>
-                    </li>
-                    <li>
-                        <template v-if="installGuide.family === 'firefox'">
-                            Click <strong>Load Temporary Add-on</strong> and choose the downloaded
-                            <code>{{ installGuide.fileName }}</code> (or the unzipped <code>manifest.json</code>).
-                        </template>
-                        <template v-else>
-                            Turn on <strong>Developer mode</strong> (top-right toggle).
-                        </template>
-                    </li>
-                    <li v-if="installGuide.family !== 'firefox'">
-                        Drag and drop the downloaded <code>{{ installGuide.fileName }}</code> file from your file manager directly onto the middle of the extensions page.
-                    </li>
-                    <li v-if="installGuide.family !== 'firefox'" style="margin-top: 0.5rem; list-style-type: none;">
+                    <template v-if="installGuide.installType === 'store'">
+                        <li>
+                            Click Firefox above to open Moovie on
+                            <a :href="installGuide.url" rel="noopener" target="_blank">Firefox Add-ons</a>.
+                        </li>
+                        <li>Click <strong>Add to Firefox</strong> and confirm the install prompt.</li>
+                    </template>
+                    <template v-else>
+                        <li>
+                            Click your browser above — your browser will download the
+                            <code>{{ installGuide.fileName }}</code> file.
+                        </li>
+                        <li>Open <code>{{ installGuide.extensionsPage }}</code> in your browser.</li>
+                        <li>Turn on <strong>Developer mode</strong> (top-right toggle).</li>
+                        <li>
+                            Drag and drop the downloaded <code>{{ installGuide.fileName }}</code> file from your
+                            file manager directly onto the middle of the extensions page.
+                        </li>
+                    </template>
+                    <li v-if="installGuide.installType !== 'store'" style="margin-top: 0.5rem; list-style-type: none;">
                         <details style="font-size: 0.76rem; opacity: 0.85; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.35rem;">
                             <summary style="cursor: pointer; color: var(--ember); font-weight: 600;">Alternative: Install via ZIP (Load Unpacked)</summary>
                             <ol style="padding-left: 1.1rem; margin-top: 0.35rem; display: flex; flex-direction: column; gap: 0.25rem; list-style-type: decimal;">
@@ -118,11 +119,22 @@
                     <ul>
                         <li v-for="browser in allBrowsers" :key="`steps-${browser.id}`">
                             <strong>{{ browser.name }}:</strong>
-                            download
-                            <a :href="browser.url" :download="browser.fileName" rel="noopener" target="_blank">
-                                {{ browser.fileName }}
-                            </a>
-                            · open <code>{{ browser.extensionsPage }}</code>
+                            <template v-if="browser.installType === 'store'">
+                                get from
+                                <a :href="browser.url" rel="noopener" target="_blank">Firefox Add-ons</a>
+                            </template>
+                            <template v-else>
+                                download
+                                <a
+                                    :href="browser.url"
+                                    :download="browser.fileName"
+                                    rel="noopener"
+                                    target="_blank"
+                                >
+                                    {{ browser.fileName }}
+                                </a>
+                                · open <code>{{ browser.extensionsPage }}</code>
+                            </template>
                         </li>
                     </ul>
                 </details>
@@ -404,6 +416,15 @@ export default defineComponent({
             font-family: var(--font-mono);
             font-size: 0.78rem;
             color: var(--bone-100);
+        }
+
+        a {
+            color: #8fd0ff;
+            text-decoration: none;
+
+            &:hover {
+                text-decoration: underline;
+            }
         }
     }
 

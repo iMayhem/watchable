@@ -1,5 +1,7 @@
 export const MOOVIE_EXTENSION_VERSION = '1.5.2';
 export const MOOVIE_EXTENSION_RELEASE_TAG = `v${MOOVIE_EXTENSION_VERSION}`;
+export const MOOVIE_FIREFOX_ADDON_URL =
+    'https://addons.mozilla.org/en-GB/firefox/addon/moovie-extension/';
 const RELEASE_BASE = `https://github.com/iMayhem/Moovie-Extension/releases/download/${MOOVIE_EXTENSION_RELEASE_TAG}`;
 
 export type ExtensionBrowserId =
@@ -18,6 +20,7 @@ export interface ExtensionBrowserDownload {
     icon: string;
     extensionsPage: string;
     family: 'chromium' | 'firefox';
+    installType: 'download' | 'store';
 }
 
 export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
@@ -28,7 +31,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
         url: `${RELEASE_BASE}/extension.crx`,
         icon: '/icons/browsers/chrome.svg',
         extensionsPage: 'chrome://extensions',
-        family: 'chromium'
+        family: 'chromium',
+        installType: 'download'
     },
     {
         id: 'edge',
@@ -37,16 +41,18 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
         url: `${RELEASE_BASE}/extension.crx`,
         icon: '/icons/browsers/edge.svg',
         extensionsPage: 'edge://extensions',
-        family: 'chromium'
+        family: 'chromium',
+        installType: 'download'
     },
     {
         id: 'firefox',
         name: 'Firefox',
-        fileName: 'extension.crx',
-        url: `${RELEASE_BASE}/extension.crx`,
+        fileName: 'Firefox Add-ons',
+        url: MOOVIE_FIREFOX_ADDON_URL,
         icon: '/icons/browsers/firefox.svg',
-        extensionsPage: 'about:debugging#/runtime/this-firefox',
-        family: 'firefox'
+        extensionsPage: MOOVIE_FIREFOX_ADDON_URL,
+        family: 'firefox',
+        installType: 'store'
     },
     {
         id: 'opera',
@@ -55,7 +61,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
         url: `${RELEASE_BASE}/extension.crx`,
         icon: '/icons/browsers/opera.svg',
         extensionsPage: 'opera://extensions',
-        family: 'chromium'
+        family: 'chromium',
+        installType: 'download'
     },
     {
         id: 'brave',
@@ -64,7 +71,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
         url: `${RELEASE_BASE}/extension.crx`,
         icon: '/icons/browsers/brave.svg',
         extensionsPage: 'brave://extensions',
-        family: 'chromium'
+        family: 'chromium',
+        installType: 'download'
     },
     {
         id: 'vivaldi',
@@ -73,7 +81,8 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
         url: `${RELEASE_BASE}/extension.crx`,
         icon: '/icons/browsers/vivaldi.svg',
         extensionsPage: 'vivaldi://extensions',
-        family: 'chromium'
+        family: 'chromium',
+        installType: 'download'
     }
 ];
 

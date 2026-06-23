@@ -6,7 +6,7 @@ SUPPORTED BROWSERS
 • Microsoft Edge (Edge Add-ons or Chrome Web Store)
 • Opera (Chrome Web Store or load unpacked)
 • Brave, Vivaldi, and other Chromium MV3 browsers (load unpacked)
-• Mozilla Firefox 109+ (about:debugging → Load Temporary Add-on, or Firefox Add-ons)
+• Mozilla Firefox 109+ (https://addons.mozilla.org/en-GB/firefox/addon/moovie-extension/)
 
 STORE PACKAGES (upload this single ZIP — manifest.json is at ZIP root)
 • All browsers (Chrome, Edge, Firefox, Opera, Brave, Vivaldi): extension.zip
@@ -17,10 +17,18 @@ Rebuild (produces ../extension.zip):
 Only one ZIP file is required in the Moovie-Extension releases.
 
 INSTALL (UNPACKED / DEVELOPER)
-1. Open browser extension page (chrome://extensions, edge://extensions, about:debugging#/runtime/this-firefox, or opera://extensions)
-2. Enable Developer mode (Chromium) or use "Load Temporary Add-on" (Firefox)
+1. Open browser extension page (chrome://extensions, edge://extensions, Firefox Add-ons, or opera://extensions)
+2. Enable Developer mode (Chromium) or click "Add to Firefox" on the Firefox Add-ons listing
 3. Select watchable/extension/manifest.json
 4. Reload after code changes
+
+---
+
+FIREFOX ADD-ONS LISTING
+=======================
+
+LISTING URL
+https://addons.mozilla.org/en-GB/firefox/addon/moovie-extension/
 
 ---
 

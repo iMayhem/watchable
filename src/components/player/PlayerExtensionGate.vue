@@ -43,14 +43,17 @@
                 <a
                     class="nf-ext-gate__download"
                     :href="browser.url"
-                    :download="browser.fileName"
+                    :download="browser.installType === 'download' ? browser.fileName : undefined"
                     rel="noopener"
                     target="_blank"
                     @click="trackDownload"
                 >
                     <ExtensionBrowserIcon :browser="browser.id" />
                     <span class="nf-ext-gate__download-copy">
-                        <strong>Download for {{ browser.name }}</strong>
+                        <strong>
+                            {{ browser.installType === 'store' ? 'Get for' : 'Download for' }}
+                            {{ browser.name }}
+                        </strong>
                         <small>v{{ extensionVersion }} · {{ browser.fileName }}</small>
                     </span>
                 </a>
@@ -72,6 +75,14 @@
                                 </ol>
                             </details>
                         </li>
+                    </template>
+                    <template v-else-if="browser.id === 'firefox'">
+                        <li>
+                            Open
+                            <a :href="browser.url" rel="noopener" target="_blank">Firefox Add-ons</a>
+                            and click <strong>Add to Firefox</strong>.
+                        </li>
+                        <li>Confirm the install prompt, then hard-refresh this page.</li>
                     </template>
                     <template v-else>
                         <li>Unzip the download and load it in <code>{{ browser.extensionsPage }}</code>.</li>

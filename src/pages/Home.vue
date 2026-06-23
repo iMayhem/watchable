@@ -29,6 +29,15 @@
                 :loading="isHomeLoading"
             />
 
+            <TopTenRail
+                class="home__section"
+                :items="topTenAnimeItems"
+                title="Top 10 Anime Today"
+                eyebrow="Anime"
+                description="The most-watched anime blazing up the charts right now."
+                :loading="isAnimeLoading"
+            />
+
             <ContinueShelf class="home__section" />
 
             <CuratedRail
@@ -161,6 +170,7 @@ import { primeGenres } from '../composables/useGenreLookup';
 import { applyGlobalBrowseCuration } from '../composables/useHomepageCuration';
 import { getSettings } from '../composables/useSettings';
 import { getSupabaseClient } from '../lib/supabase';
+import { useAniList } from '../composables/useAniList';
 
 interface UpcomingTvResponse {
     results: TVShowType[];
@@ -190,6 +200,10 @@ export default defineComponent({
         const disneyItems = ref<any[]>([]);
         const universalItems = ref<any[]>([]);
         const isHomeLoading = ref(true);
+
+        const { fetchTrendingAnime } = useAniList();
+        const trendingAnimeRaw = ref<any[]>([]);
+        const isAnimeLoading = ref(true);
 
         const fetch4KMovies = async () => {
             try {
@@ -293,6 +307,15 @@ export default defineComponent({
             }))
         );
 
+        const topTenAnimeItems = computed(() =>
+            trendingAnimeRaw.value.slice(0, 10).map(a => ({
+                id: a.id,
+                title: a.title?.english || a.title?.romaji || '',
+                posterPath: a.coverImage?.large || a.coverImage?.medium || null,
+                type: 'anime' as const
+            }))
+        );
+
         const nowPlayingItems = computed(() =>
             (highLightOptions.new.data ?? []).slice(0, 18).map(m => ({
                 id: m.id,
@@ -374,6 +397,12 @@ export default defineComponent({
 
             try {
                 console.log('[📍 HOME PAGE] Fetching all data from APIs...');
+                // Fetch trending anime in parallel (non-blocking for rest of UI)
+                fetchTrendingAnime(1, 10).then(res => {
+                    trendingAnimeRaw.value = res?.data?.Page?.media ?? [];
+                    isAnimeLoading.value = false;
+                }).catch(() => { isAnimeLoading.value = false; });
+
                 const restPromise = Promise.all([
                     fetchHighlights('popular'),
                     fetchHighlights('new'),
@@ -435,6 +464,8 @@ export default defineComponent({
             spotlightQuote,
             isHomeLoading,
             topTenItems,
+            topTenAnimeItems,
+            isAnimeLoading,
             nowPlayingItems,
             pantheonItems,
             seriesItems,

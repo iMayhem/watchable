@@ -36,6 +36,13 @@
         </MobileSection>
 
         <MobileSection
+            title="Top 10 Anime Today"
+            eyebrow="Anime"
+        >
+            <MobileMediaRail :items="topTenAnimeItems" card-size="md" />
+        </MobileSection>
+
+        <MobileSection
             title="Now Playing"
             eyebrow="New"
             :more-to="movies"
@@ -101,6 +108,7 @@ import { primeGenres } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
 import { useWebImage } from '@/utils/useWebImage';
 import useAxios from '@/composables/useAxios';
+import { useAniList } from '@/composables/useAniList';
 
 const { movie, movies, tvShows } = useAppPaths();
 const { fetchAllHighlights } = useHighlights();
@@ -124,6 +132,19 @@ const topTenItems = computed(() =>
         title: m.title,
         posterPath: m.poster_path,
         type: 'movie' as const
+    }))
+);
+
+const { fetchTrendingAnime } = useAniList();
+const trendingAnimeRaw = ref<any[]>([]);
+const isAnimeLoading = ref(true);
+
+const topTenAnimeItems = computed(() =>
+    trendingAnimeRaw.value.slice(0, 10).map((a: any) => ({
+        id: a.id,
+        title: a.title?.english || a.title?.romaji || '',
+        posterPath: a.coverImage?.large || a.coverImage?.medium || null,
+        type: 'anime' as const
     }))
 );
 
@@ -188,6 +209,11 @@ async function fetchCompanyMovies(companyId: string, targetRef: any) {
 onMounted(async () => {
     document.title = 'Moovie';
     primeGenres();
+    // Fetch trending anime in parallel (non-blocking)
+    fetchTrendingAnime(1, 10).then((res: any) => {
+        trendingAnimeRaw.value = res?.data?.Page?.media ?? [];
+        isAnimeLoading.value = false;
+    }).catch(() => { isAnimeLoading.value = false; });
     await Promise.all([
         fetchAllHighlights(),
         fetchNewShows(),

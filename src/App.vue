@@ -6,7 +6,7 @@
 
         <span v-if="!isPartyEmbed" class="grain" aria-hidden="true" />
 
-        <router-view v-slot="{ Component, route }">
+        <router-view v-if="isContentModeReady || isPartyEmbed" v-slot="{ Component, route }">
             <KeepAlive
                 :include="[
                     'HomeShell',
@@ -35,6 +35,7 @@
 import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
+import { getContentMode } from './composables/useContentMode';
 import ContentModeGate from './components/navigation/ContentModeGate.vue';
 import OpeningSplash from './components/navigation/OpeningSplash.vue';
 
@@ -44,6 +45,11 @@ const isPartyEmbed = computed(
     () => Boolean(route.meta.partyEmbed) || route.query.embed === 'party'
 );
 const { region } = getSettings();
+const { contentMode } = getContentMode();
+
+const isContentModeReady = computed(() => {
+    return contentMode.value === 'global' || contentMode.value === 'netflix';
+});
 
 // Removed: watch(region) redirect that was causing Home.vue component unmount/remount
 // This breaks event listeners during region change. Let each page handle it via movora_settings_change event instead.

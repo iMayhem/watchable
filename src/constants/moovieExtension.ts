@@ -25,6 +25,16 @@ export interface ExtensionBrowserDownload {
 
 export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
     {
+        id: 'firefox',
+        name: 'Firefox',
+        fileName: 'Firefox Add-ons',
+        url: MOOVIE_FIREFOX_ADDON_URL,
+        icon: '/icons/browsers/firefox.svg',
+        extensionsPage: MOOVIE_FIREFOX_ADDON_URL,
+        family: 'firefox',
+        installType: 'store'
+    },
+    {
         id: 'chrome',
         name: 'Chrome',
         fileName: 'extension.crx',
@@ -43,16 +53,6 @@ export const EXTENSION_BROWSER_DOWNLOADS: ExtensionBrowserDownload[] = [
         extensionsPage: 'edge://extensions',
         family: 'chromium',
         installType: 'download'
-    },
-    {
-        id: 'firefox',
-        name: 'Firefox',
-        fileName: 'Firefox Add-ons',
-        url: MOOVIE_FIREFOX_ADDON_URL,
-        icon: '/icons/browsers/firefox.svg',
-        extensionsPage: MOOVIE_FIREFOX_ADDON_URL,
-        family: 'firefox',
-        installType: 'store'
     },
     {
         id: 'opera',
@@ -96,7 +96,7 @@ export function detectExtensionBrowser(): ExtensionBrowserId {
     if (/brave/i.test(ua)) return 'brave';
     if (/chrome|chromium|crios/i.test(ua)) return 'chrome';
 
-    return 'chrome';
+    return 'firefox';
 }
 
 export function getExtensionBrowser(id: ExtensionBrowserId) {

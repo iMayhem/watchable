@@ -7,6 +7,13 @@ import { useSeo } from './composables/useSeo';
 import { enforceMobileGlobalMode, isNetflixPath, mobileSafePath } from './utils/mobileGlobalOnly';
 import { recordDetailReturnPath } from '@/composables/useDetailBackNavigation';
 
+declare module 'vue-router' {
+    interface RouteMeta {
+        title?: string;
+        bareLayout?: boolean;
+    }
+}
+
 const routes: Array<RouteRecordRaw> = [
     {
         path: '/nf/:pathMatch(.*)*',
@@ -150,7 +157,7 @@ const routes: Array<RouteRecordRaw> = [
         path: '/party',
         name: 'Party',
         component: () => import('./pages/Party.vue'),
-        meta: { title: 'Watch Together' }
+        meta: { title: 'Watch Together', bareLayout: true }
     },
     {
         path: '/:pathMatch(.*)*',

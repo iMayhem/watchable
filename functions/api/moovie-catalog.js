@@ -15,6 +15,15 @@ const PLAYER_HOSTS = {
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
+const BOT_UA =
+  /bot|crawler|spider|robot|crawling|lighthouse|headless|phantom|selenium|puppeteer|playwright|bytespider|petalbot|gptbot|claudebot|anthropic|semrush|ahrefs|mj12bot|dotbot|yandexbot|bingbot|slurp|duckduckbot|baiduspider/i;
+
+function isBotRequest(request) {
+  const ua = request.headers.get('User-Agent') || '';
+  if (!ua.trim()) return true;
+  return BOT_UA.test(ua);
+}
+
 const CATALOG_UPSTREAM_HEADERS = {
   'User-Agent': UA,
   Referer: CATALOG_REFERER,
@@ -567,6 +576,10 @@ export async function onRequest(context) {
 
   if (context.request.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
+  }
+
+  if (isBotRequest(context.request)) {
+    return jsonResponse({ error: 'Automated access is not permitted' }, 403);
   }
 
   const { searchParams } = new URL(context.request.url);

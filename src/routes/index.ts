@@ -9,12 +9,14 @@ import StreamAnime from '../pages/StreamAnime.vue'
 import { useSeo } from '../composables/useSeo'
 import { getContentMode, isContentModeChosen } from '../composables/useContentMode'
 import { redirectPathForMode } from '../utils/contentModeRoutes'
+import { isNetflixGuardActive } from '../utils/netflixGuard'
 import { recordDetailReturnPath } from '../composables/useDetailBackNavigation'
 
 declare module 'vue-router' {
     interface RouteMeta {
         showInHeader?: boolean,
-        title?: string
+        title?: string,
+        netflixGuard?: boolean
     }
 }
 
@@ -35,7 +37,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/NetflixSearch.vue'),
         meta: {
             showInHeader: false,
-            title: 'Netflix Search'
+            title: 'Netflix Search',
+            netflixGuard: true
         }
     },
     {
@@ -44,7 +47,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/NetflixCategories.vue'),
         meta: {
             showInHeader: false,
-            title: 'Netflix Categories'
+            title: 'Netflix Categories',
+            netflixGuard: true
         }
     },
     {
@@ -53,7 +57,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/NetflixExplore.vue'),
         meta: {
             showInHeader: false,
-            title: 'Netflix Explore'
+            title: 'Netflix Explore',
+            netflixGuard: true
         }
     },
     {
@@ -70,7 +75,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/NetflixBrowse.vue'),
         meta: {
             showInHeader: false,
-            title: 'Netflix Browse'
+            title: 'Netflix Browse',
+            netflixGuard: true
         }
     },
     {
@@ -79,7 +85,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/NetflixPlayRedirect.vue'),
         meta: {
             showInHeader: false,
-            title: 'Stream'
+            title: 'Stream',
+            netflixGuard: true
         }
     },
     {
@@ -88,7 +95,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/NetflixPlayRedirect.vue'),
         meta: {
             showInHeader: false,
-            title: 'Stream'
+            title: 'Stream',
+            netflixGuard: true
         }
     },
     {
@@ -97,7 +105,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/StreamNetflix.vue'),
         meta: {
             showInHeader: false,
-            title: 'Stream'
+            title: 'Stream',
+            netflixGuard: true
         }
     },
     {
@@ -106,7 +115,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../pages/StreamNetflix.vue'),
         meta: {
             showInHeader: false,
-            title: 'Stream'
+            title: 'Stream',
+            netflixGuard: true
         }
     },
     {
@@ -117,7 +127,8 @@ const routes: Array<RouteRecordRaw> = [
             showInHeader: false,
             title: 'Stream',
             partyEmbed: true,
-            bareLayout: true
+            bareLayout: true,
+            netflixGuard: true
         }
     },
     {
@@ -128,7 +139,8 @@ const routes: Array<RouteRecordRaw> = [
             showInHeader: false,
             title: 'Stream',
             partyEmbed: true,
-            bareLayout: true
+            bareLayout: true,
+            netflixGuard: true
         }
     },
     {
@@ -397,6 +409,10 @@ if (typeof window !== 'undefined') {
 }
 
 router.afterEach((to) => {
+    import('../composables/useBotProtection').then(({ reevaluateBotProtection }) => {
+        reevaluateBotProtection();
+    });
+
     const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode', 'NetflixDetail', 'NetflixAnimeDetail', 'StreamNetflixMovie', 'StreamNetflixTV'];
     if (to.name && dynamicRoutes.includes(to.name as string)) {
         return;
@@ -406,13 +422,16 @@ router.afterEach((to) => {
         return;
     }
 
+    const netflixGuarded =
+        Boolean(to.meta.netflixGuard) || isNetflixGuardActive(to.path);
     const title = to.meta.title ? `${to.meta.title} — Moovie` : 'Moovie — Stream Movies, TV Shows & Anime Free';
     const canonical = `https://moovie.fun${to.path}`;
-    
+
     updateSeo({
         title,
         canonical,
-        image: 'https://moovie.fun/og-image.png'
+        image: 'https://moovie.fun/og-image.png',
+        robots: netflixGuarded ? 'noindex, nofollow' : 'index, follow'
     });
 });
 

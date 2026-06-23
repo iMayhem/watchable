@@ -36,6 +36,7 @@ export function useSeo() {
     image?: string;
     canonical?: string;
     type?: string;
+    robots?: string;
     jsonLd?: Record<string, any> | string;
   }) => {
     document.title = opt.title;
@@ -46,6 +47,10 @@ export function useSeo() {
 
     if (opt.keywords) {
       setMeta('keywords', opt.keywords);
+    }
+
+    if (opt.robots) {
+      setMeta('robots', opt.robots);
     }
 
     // Open Graph

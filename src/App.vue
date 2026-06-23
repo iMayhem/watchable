@@ -100,21 +100,29 @@ const CommandPalette = defineAsyncComponent(() => import('./components/navigatio
 // Lazy refs to cleanup functions — populated after dynamic import resolves
 let _stopReveal: (() => void) | null = null;
 let _uninstallAntiInspect: (() => void) | null = null;
+let _uninstallBotProtection: (() => void) | null = null;
 
 const initIdle = async () => {
-    const [{ bindCommandPaletteHotkey }, { startReveal, stopReveal }, { installAntiInspect, uninstallAntiInspect }] =
-        await Promise.all([
-            import('./composables/useCommandPalette'),
-            import('./composables/useReveal'),
-            import('./composables/useAntiInspect')
-        ]);
+    const [
+        { bindCommandPaletteHotkey },
+        { startReveal, stopReveal },
+        { installAntiInspect, uninstallAntiInspect },
+        { installBotProtection, uninstallBotProtection }
+    ] = await Promise.all([
+        import('./composables/useCommandPalette'),
+        import('./composables/useReveal'),
+        import('./composables/useAntiInspect'),
+        import('./composables/useBotProtection')
+    ]);
 
     bindCommandPaletteHotkey();
     startReveal();
+    installBotProtection();
     installAntiInspect();
 
     _stopReveal = stopReveal;
     _uninstallAntiInspect = uninstallAntiInspect;
+    _uninstallBotProtection = uninstallBotProtection;
 
     // Prefetch main pages in the background
     import('./pages/Movies.vue');
@@ -137,6 +145,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     _stopReveal?.();
+    _uninstallBotProtection?.();
     _uninstallAntiInspect?.();
 });
 </script>

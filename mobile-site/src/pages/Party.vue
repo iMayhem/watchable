@@ -110,19 +110,24 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .party-shell {
+    position: fixed;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    min-height: 100dvh;
-    background: var(--ink-900);
+    width: 100%;
+    height: 100dvh;
+    height: 100svh;
+    background: #0b0a08;
     overflow: hidden;
+    z-index: 1;
 }
 
 .party-shell__frame {
     flex: 1 1 auto;
     width: 100%;
     border: 0;
-    height: 100dvh;
-    min-height: 100dvh;
+    height: 100%;
+    min-height: 0;
     background: #0b0a08;
     opacity: 0;
     transition: opacity 0.2s var(--ease-out, ease-out);

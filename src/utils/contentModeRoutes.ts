@@ -1,7 +1,11 @@
 import type { ContentMode } from '../composables/useContentMode';
 
 export function isNetflixContentPath(path: string): boolean {
-    return path.startsWith('/nf/') || path.startsWith('/stream/nf/');
+    return (
+        path.startsWith('/nf/') ||
+        path.startsWith('/stream/nf/') ||
+        path.startsWith('/embed/nf/')
+    );
 }
 
 export function isNetflixAnimePath(path: string): boolean {

@@ -103,22 +103,6 @@
             alert('This room is private. The host has locked it — no new guests can join.');
         }
 
-        const LOBBY_OBSERVER_PREFIX = 'lobby_observer_';
-
-        function isLobbyObserverKey(key) {
-            return typeof key === 'string' && key.startsWith(LOBBY_OBSERVER_PREFIX);
-        }
-
-        function countPresenceMembers(presenceState) {
-            let count = 0;
-            Object.entries(presenceState || {}).forEach(([key, entries]) => {
-                if (isLobbyObserverKey(key)) return;
-                const present = Array.isArray(entries) ? entries.length > 0 : Boolean(entries);
-                if (present) count += 1;
-            });
-            return count;
-        }
-
         function buildPresencePayload() {
             return {
                 user: currentUserName,
@@ -141,6 +125,24 @@
             updateRoomPrivacyButton();
         }
 
+        function setPartyToolbarValue(baseId, value) {
+            const primary = document.getElementById(baseId);
+            if (primary) primary.textContent = value;
+            const mobile = document.getElementById(`${baseId}-mobile`);
+            if (mobile) mobile.textContent = value;
+        }
+
+        function isPartyMobileToolbar() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function syncPartyRoomToolbar() {
+            const toolbar = document.getElementById('party-room-toolbar');
+            if (!toolbar) return;
+            const inRoom = document.body.classList.contains('room-view-active');
+            toolbar.hidden = !inRoom;
+        }
+
         function updateRoomPrivacyButton() {
             const btn = document.getElementById('room-privacy-btn');
             if (!btn) return;
@@ -152,9 +154,14 @@
 
             btn.hidden = false;
             const locked = isRoomPrivate(activeRoom);
-            btn.textContent = locked ? 'Make public' : 'Make private';
+            const publicLabel = 'Make public';
+            const privateLabel = 'Make private';
+            const label = locked ? publicLabel : privateLabel;
+            const desktopLabel = btn.querySelector('.party-tool-btn__text--desktop');
+            if (desktopLabel) desktopLabel.textContent = label;
             btn.classList.toggle('is-private', locked);
             btn.setAttribute('aria-pressed', locked ? 'true' : 'false');
+            btn.setAttribute('aria-label', label);
             btn.title = locked
                 ? 'Open this room so new guests can join from the lobby'
                 : 'Lock this room so no new guests can join';
@@ -368,6 +375,27 @@
         }
 
         window.navigateParentSite = navigateParentSite;
+
+        const CHAT_SYNC_NOTICE_KEY = 'watchable_party_sync_notice_dismissed';
+
+        function dismissChatSyncNotice(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const notice = document.getElementById('chat-sync-notice');
+            if (notice) notice.classList.add('is-dismissed');
+            safeLocalStorage.setItem(CHAT_SYNC_NOTICE_KEY, '1');
+            return false;
+        }
+
+        function restoreChatSyncNoticeState() {
+            if (safeLocalStorage.getItem(CHAT_SYNC_NOTICE_KEY) !== '1') return;
+            const notice = document.getElementById('chat-sync-notice');
+            if (notice) notice.classList.add('is-dismissed');
+        }
+
+        window.dismissChatSyncNotice = dismissChatSyncNotice;
 
         // Parsing room parameter for custom player URLs
         let isAnime = false;
@@ -617,9 +645,6 @@
 
         function setNetflixPartyStage(active) {
             document.body.classList.toggle('netflix-party-active', Boolean(active));
-            if (active) {
-                document.body.classList.add('cinema-mode');
-            }
             const stage = document.querySelector('.player-stage');
             if (stage) stage.classList.toggle('player-stage--netflix', Boolean(active));
         }
@@ -816,20 +841,39 @@
             const menu = document.getElementById('party-nf-quality-menu');
             const label = document.getElementById('party-nf-quality-label');
             const wrap = document.getElementById('party-nf-quality-wrap');
-            if (!menu || !wrap) return;
+            const toolbarMenu = document.getElementById('party-netflix-quality-menu');
+            const toolbarWrap = document.getElementById('party-netflix-quality-wrap');
+            const qualityValue = netflixStreams[netflixStreamIndex]?.quality || 'Auto';
+
             if (!netflixStreams.length) {
-                wrap.hidden = true;
+                if (wrap) wrap.hidden = true;
+                if (toolbarWrap) toolbarWrap.style.display = 'none';
                 return;
             }
-            wrap.hidden = false;
-            menu.innerHTML = netflixStreams.map((stream, index) => `
-                <li>
-                    <button type="button" class="party-nf-watch__quality-item ${index === netflixStreamIndex ? 'is-active' : ''}" onclick="switchPartyNfQuality(${index})">
-                        ${stream.quality || 'Auto'}
-                    </button>
-                </li>
+
+            const menuMarkup = netflixStreams.map((stream, index) => `
+                <button type="button" class="server-dropdown-item ${index === netflixStreamIndex ? 'active' : ''}" onclick="switchPartyNfQuality(${index})">
+                    ${stream.quality || 'Auto'}
+                </button>
             `).join('');
-            if (label) label.textContent = netflixStreams[netflixStreamIndex]?.quality || 'Quality';
+
+            if (menu && wrap) {
+                wrap.hidden = false;
+                menu.innerHTML = netflixStreams.map((stream, index) => `
+                    <li>
+                        <button type="button" class="party-nf-watch__quality-item ${index === netflixStreamIndex ? 'is-active' : ''}" onclick="switchPartyNfQuality(${index})">
+                            ${stream.quality || 'Auto'}
+                        </button>
+                    </li>
+                `).join('');
+                if (label) label.textContent = qualityValue;
+            }
+
+            if (toolbarMenu && toolbarWrap) {
+                toolbarWrap.style.display = isNetflix ? '' : 'none';
+                toolbarMenu.innerHTML = menuMarkup;
+                setPartyToolbarValue('party-netflix-quality-label', qualityValue);
+            }
         }
 
         function populatePartyNfAudioMenu() {
@@ -1647,6 +1691,7 @@
         }
 
         async function loadNetflixPartyPlayer(opts = {}) {
+            setPlayerStagePending(true);
             const iframe = document.getElementById('video-player-iframe');
             const nativeStage = document.getElementById('party-native-stage');
             if (iframe) {
@@ -1696,6 +1741,7 @@
                 appendChatMessage('System', err.message || 'Could not start Netflix playback.', 'system');
             } finally {
                 setPartyNfLoading(false);
+                setPlayerStagePending(false);
             }
         }
 
@@ -1750,6 +1796,16 @@
         let isHost = false;
 
         let lobbyChannels = [];
+        let lobbyRoomsChannel = null;
+        let lobbyRefreshInterval = null;
+        let loadRoomsTimer = null;
+        let roomActivityHeartbeat = null;
+
+        const PARTY_INACTIVE_HOURS = 12;
+
+        function partyInactiveThresholdIso() {
+            return new Date(Date.now() - PARTY_INACTIVE_HOURS * 60 * 60 * 1000).toISOString();
+        }
 
         const PARTY_SESSION_KEY = 'watchable_party_session_id';
         let presenceSessionId = safeLocalStorage.getItem(PARTY_SESSION_KEY);
@@ -1766,6 +1822,22 @@
             if (presences?.[0]?.user) return presences[0].user;
             if (typeof key === 'string' && key.includes(':')) return key.split(':')[0];
             return key || 'Someone';
+        }
+
+        const LOBBY_OBSERVER_PREFIX = 'lobby_observer_';
+
+        function isLobbyObserverKey(key) {
+            return typeof key === 'string' && key.startsWith(LOBBY_OBSERVER_PREFIX);
+        }
+
+        function countPresenceMembers(presenceState) {
+            let count = 0;
+            Object.entries(presenceState || {}).forEach(([key, entries]) => {
+                if (isLobbyObserverKey(key)) return;
+                const present = Array.isArray(entries) ? entries.length > 0 : Boolean(entries);
+                if (present) count += 1;
+            });
+            return count;
         }
 
         function formatParticipantLabel(count) {
@@ -1797,13 +1869,78 @@
             }
         }
 
+        function teardownLobbyFeed() {
+            if (lobbyRoomsChannel) {
+                supabaseClient.removeChannel(lobbyRoomsChannel);
+                lobbyRoomsChannel = null;
+            }
+            if (lobbyRefreshInterval) {
+                clearInterval(lobbyRefreshInterval);
+                lobbyRefreshInterval = null;
+            }
+            if (loadRoomsTimer) {
+                clearTimeout(loadRoomsTimer);
+                loadRoomsTimer = null;
+            }
+        }
+
+        function scheduleLoadActiveRooms() {
+            clearTimeout(loadRoomsTimer);
+            loadRoomsTimer = setTimeout(() => loadActiveRooms(), 350);
+        }
+
+        function setupLobbyFeed() {
+            if (!lobbyRoomsChannel) {
+                lobbyRoomsChannel = supabaseClient
+                    .channel('lobby_rooms_feed')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
+                        scheduleLoadActiveRooms();
+                    })
+                    .subscribe();
+            }
+
+            if (!lobbyRefreshInterval) {
+                lobbyRefreshInterval = setInterval(() => {
+                    if (document.getElementById('lobby-view')?.classList.contains('active')) {
+                        loadActiveRooms();
+                    }
+                }, 30000);
+            }
+        }
+
+        async function touchRoomActivity(roomId) {
+            if (!roomId) return;
+            try {
+                await supabaseClient
+                    .from('rooms')
+                    .update({ scheduled_start_time: new Date().toISOString() })
+                    .eq('id', roomId);
+            } catch (err) {
+                console.warn('Failed to update room activity:', err);
+            }
+        }
+
+        function startRoomActivityHeartbeat(roomId) {
+            if (roomActivityHeartbeat) {
+                clearInterval(roomActivityHeartbeat);
+            }
+            roomActivityHeartbeat = setInterval(() => touchRoomActivity(roomId), 10 * 60 * 1000);
+        }
+
+        function stopRoomActivityHeartbeat() {
+            if (roomActivityHeartbeat) {
+                clearInterval(roomActivityHeartbeat);
+                roomActivityHeartbeat = null;
+            }
+        }
+
         // Update Header user badge
         function updateHeaderBadge() {
             const container = document.getElementById('header-user');
             container.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <span class="watching-as-badge" style="font-size: 0.875rem; color: var(--bone-200);">👤 Watching as <strong>${currentUserName}</strong></span>
-                    <button class="btn btn-secondary" style="padding: 0.4rem 0.85rem; font-size:0.75rem;" onclick="changeNickname()">Rename</button>
+                <div class="party-header__user-inner">
+                    <span class="watching-as-badge">Watching as <strong>${currentUserName}</strong></span>
+                    <button class="btn btn-secondary party-header__rename" onclick="changeNickname()">Rename</button>
                 </div>
             `;
             document.getElementById('chat-my-name').textContent = currentUserName;
@@ -1826,22 +1963,26 @@
         function bootstrapLobbyView() {
             document.body.classList.remove('room-view-active');
             document.body.classList.remove('cinema-mode');
+            updateCinemaModeButton();
 
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('lobby-view').classList.add('active');
 
             syncParentPartyUrl('/party');
-            loadActiveRooms();
+            scheduleLoadActiveRooms();
+            setupLobbyFeed();
             updateRoomPrivacyButton();
             finishPartyBoot();
         }
 
         function showLobbyView() {
             // Cancel Cinema Mode & active view height locks
+            cancelScheduledEmbedLoad();
+            setPlayerStagePending(false);
             document.body.classList.remove('room-view-active');
             document.body.classList.remove('cinema-mode');
+            updateCinemaModeButton();
 
-            
             const iframe = document.getElementById('video-player-iframe');
             if (iframe) {
                 iframe.src = '';
@@ -1852,6 +1993,7 @@
             destroyNetflixPlayer();
 
             void leaveCurrentPartyRoom({ purgeChatIfLast: true });
+            stopRoomActivityHeartbeat();
 
             // Reset room state
             activeRoom = null;
@@ -1865,12 +2007,14 @@
                 window.history.pushState({}, '', window.location.pathname);
             }
             syncParentPartyUrl('/party');
-            loadActiveRooms();
+            scheduleLoadActiveRooms();
+            setupLobbyFeed();
             updateRoomPrivacyButton();
             finishPartyBoot();
         }
 
         function showCreateView(title = '', embedUrl = '') {
+            teardownLobbyFeed();
             teardownLobbyPresence();
             document.body.classList.remove('room-view-active');
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -1944,64 +2088,106 @@
             return String(rawId);
         }
 
+        let embedLoadFrame = 0;
+
+        function setPlayerStagePending(active) {
+            const stage = document.getElementById('player-stage');
+            if (stage) stage.classList.toggle('player-stage--pending', Boolean(active));
+        }
+
+        function prepareRoomPlayerShell() {
+            const iframe = document.getElementById('video-player-iframe');
+            const nativeStage = document.getElementById('party-native-stage');
+
+            if (iframe) {
+                iframe.style.display = 'block';
+                iframe.removeAttribute('src');
+            }
+            if (nativeStage) nativeStage.style.display = 'none';
+            destroyNetflixPlayer();
+            setPlayerStagePending(true);
+        }
+
+        function cancelScheduledEmbedLoad() {
+            if (!embedLoadFrame) return;
+            cancelAnimationFrame(embedLoadFrame);
+            embedLoadFrame = 0;
+        }
+
+        function scheduleRoomEmbedLoad() {
+            cancelScheduledEmbedLoad();
+            embedLoadFrame = requestAnimationFrame(() => {
+                embedLoadFrame = requestAnimationFrame(() => {
+                    embedLoadFrame = 0;
+                    void loadRoomEmbed();
+                });
+            });
+        }
+
+        async function resolveDefaultStreamProvider() {
+            if (isAnime) {
+                activeProvider = 'animeplay_sub';
+                return;
+            }
+
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'default_provider')
+                    .single();
+                if (data?.value) {
+                    const matched = serversList.find(s => s.id === data.value.toLowerCase());
+                    activeProvider = matched ? data.value.toLowerCase() : 'rasmalai';
+                } else {
+                    activeProvider = 'rasmalai';
+                }
+            } catch (e) {
+                console.warn('Failed to fetch default provider, using rasmalai:', e);
+                activeProvider = 'rasmalai';
+            }
+        }
+
+        async function loadRoomEmbed() {
+            setPlayerStagePending(true);
+
+            try {
+                if (isAnime && !isNetflix) {
+                    const resolvedAnilistId = await resolvePartyAnilistId(mediaId);
+                    if (resolvedAnilistId && resolvedAnilistId !== String(mediaId)) {
+                        mediaId = resolvedAnilistId;
+                    }
+                }
+
+                if (isNetflix) {
+                    await loadNetflixPartyPlayer();
+                    return;
+                }
+
+                await resolveDefaultStreamProvider();
+                populateServerDropdown();
+                switchStreamProvider(activeProvider);
+            } catch (err) {
+                console.error('Failed to load room embed:', err);
+            } finally {
+                setPlayerStagePending(false);
+            }
+        }
+
         async function showRoomView(room) {
+            document.documentElement.classList.remove('party-joining');
+            teardownLobbyFeed();
             teardownLobbyPresence();
             document.body.classList.add('room-view-active');
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('room-view').classList.add('active');
             
-            // Resolve media params and URLs first
             parseMediaParams(room.embed_sources);
 
-            if (isAnime && !isNetflix) {
-                const resolvedAnilistId = await resolvePartyAnilistId(mediaId);
-                if (resolvedAnilistId && resolvedAnilistId !== String(mediaId)) {
-                    mediaId = resolvedAnilistId;
-                }
-            }
-
-            document.body.classList.add('cinema-mode');
-
-            // Update Banner details
+            document.body.classList.remove('cinema-mode');
+            updateCinemaModeButton();
             updateBannerText();
-            
-            if (isNetflix) {
-                await loadNetflixPartyPlayer();
-            } else {
-                const nativeStage = document.getElementById('party-native-stage');
-                if (nativeStage) nativeStage.style.display = 'none';
-                const iframe = document.getElementById('video-player-iframe');
-                if (iframe) iframe.style.display = 'block';
-                destroyNetflixPlayer();
-
-                populateServerDropdown();
-
-                if (isAnime) {
-                    activeProvider = 'animeplay_sub';
-                } else {
-                    try {
-                        const { data, error } = await supabaseClient
-                            .from('app_settings')
-                            .select('value')
-                            .eq('key', 'default_provider')
-                            .single();
-                        if (data && data.value) {
-                            const matched = serversList.find(s => s.id === data.value.toLowerCase());
-                            if (matched) {
-                                activeProvider = data.value.toLowerCase();
-                            } else {
-                                activeProvider = 'rasmalai';
-                            }
-                        } else {
-                            activeProvider = 'rasmalai';
-                        }
-                    } catch (e) {
-                        console.warn('Failed to fetch default provider, using rasmalai:', e);
-                        activeProvider = 'rasmalai';
-                    }
-                }
-                switchStreamProvider(activeProvider);
-            }
+            prepareRoomPlayerShell();
 
             const displayId = uuidToShortCode(room.id) || room.id;
             if (partyEmbedded) {
@@ -2012,25 +2198,41 @@
             const parentRoomParams = new URLSearchParams({ room: displayId });
             if (prefillTitle) parentRoomParams.set('title', prefillTitle);
             syncParentPartyUrl(`/party?${parentRoomParams.toString()}`);
-
+            
             connectToRealtimeRoom(room);
-
             updateControlsVisibility();
             updateRoomPrivacyButton();
             finishPartyBoot();
+            scheduleRoomEmbedLoad();
         }
 
         // Dropdown toggle logic
         function toggleServerDropdown(e) {
             e.stopPropagation();
             document.getElementById('server-dropdown-menu').classList.toggle('active');
+            const nfMenu = document.getElementById('party-netflix-quality-menu');
+            if (nfMenu) nfMenu.classList.remove('active');
         }
+
+        function toggleNetflixQualityDropdown(e) {
+            e.stopPropagation();
+            const nfMenu = document.getElementById('party-netflix-quality-menu');
+            if (nfMenu) nfMenu.classList.toggle('active');
+            const menu = document.getElementById('server-dropdown-menu');
+            if (menu) menu.classList.remove('active');
+        }
+        window.toggleNetflixQualityDropdown = toggleNetflixQualityDropdown;
 
         window.addEventListener('click', () => {
             const menu = document.getElementById('server-dropdown-menu');
             if (menu) menu.classList.remove('active');
             const nfMenu = document.getElementById('party-netflix-quality-menu');
             if (nfMenu) nfMenu.classList.remove('active');
+        });
+
+        window.addEventListener('resize', () => {
+            syncPartyRoomToolbar();
+            updateControlsVisibility();
         });
 
         function populateServerDropdown() {
@@ -2060,6 +2262,7 @@
         }
 
         function showEmbedPlayer(embedUrl) {
+            setPlayerStagePending(false);
             const oldIframe = document.getElementById('video-player-iframe');
             if (oldIframe) {
                 const parent = oldIframe.parentNode;
@@ -2157,7 +2360,7 @@
                         )
                     )
                 );
-                document.getElementById('active-server-name').textContent = matchedName;
+                setPartyToolbarValue('active-server-name', matchedName);
                 populateServerDropdown();
 
                 showEmbedPlayer(getEmbedUrlForServer(null, mediaId, false, 1, episode));
@@ -2166,7 +2369,7 @@
 
             const matched = serversList.find(s => s.id === providerId);
             if (matched) {
-                document.getElementById('active-server-name').textContent = matched.name;
+                setPartyToolbarValue('active-server-name', matched.name);
             }
 
             populateServerDropdown();
@@ -2179,9 +2382,20 @@
             }
         }
 
-        // Cinema Mode toggler
+        // Cinema mode toggler
+        function updateCinemaModeButton() {
+            const btn = document.getElementById('cinema-mode-btn');
+            if (!btn) return;
+            const on = document.body.classList.contains('cinema-mode');
+            btn.classList.toggle('is-active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.setAttribute('aria-label', on ? 'Exit cinema mode' : 'Cinema mode');
+            btn.title = on ? 'Exit cinema mode' : 'Cinema mode';
+        }
+
         function toggleCinemaMode() {
             document.body.classList.toggle('cinema-mode');
+            updateCinemaModeButton();
         }
 
         // Direct Stream Downloader
@@ -2310,15 +2524,23 @@
         function updatePartyNfInviteButton() {
             const btn = document.getElementById('party-nf-invite-btn');
             if (!btn) return;
-            btn.hidden = !(isNetflix && activeRoom);
+            btn.hidden = true;
         }
 
         function updateControlsVisibility() {
-            const controlsBar = document.querySelector('.player-controls-bar');
-            if (!controlsBar) return;
+            syncPartyRoomToolbar();
+
+            const serverDropdown = document.getElementById('party-server-dropdown');
+            const nfQualityWrap = document.getElementById('party-netflix-quality-wrap');
 
             if (isNetflix) {
-                controlsBar.style.display = 'none';
+                if (serverDropdown) serverDropdown.style.display = 'none';
+                if (nfQualityWrap && netflixStreams.length) {
+                    nfQualityWrap.style.display = '';
+                } else if (nfQualityWrap) {
+                    nfQualityWrap.style.display = 'none';
+                }
+                populatePartyNfQualityMenu();
                 updatePartyNfInviteButton();
                 updatePartyNfAutoNextButton();
                 updatePartyNfEpisodesButton();
@@ -2327,16 +2549,8 @@
                 return;
             }
 
-            controlsBar.style.display = 'flex';
-
-            const serverDropdown = document.getElementById('party-server-dropdown');
-            const nfQualityWrap = document.getElementById('party-netflix-quality-wrap');
-            if (serverDropdown) {
-                serverDropdown.style.display = '';
-            }
-            if (nfQualityWrap) {
-                nfQualityWrap.style.display = 'none';
-            }
+            if (serverDropdown) serverDropdown.style.display = '';
+            if (nfQualityWrap) nfQualityWrap.style.display = 'none';
 
             const inviteBtn = document.getElementById('party-nf-invite-btn');
             if (inviteBtn) inviteBtn.hidden = true;
@@ -2378,12 +2592,11 @@
             navigator.clipboard.writeText(shareUrl).then(() => {
                 const btn = document.getElementById(btnId);
                 if (!btn) return;
-                const oldText = btn.innerHTML;
-                btn.innerHTML = '✨ Invite Link Copied!';
-                btn.style.color = '#10b981';
+                btn.classList.add('is-copied');
+                btn.setAttribute('aria-label', 'Invite link copied');
                 setTimeout(() => {
-                    btn.innerHTML = oldText;
-                    btn.style.color = '';
+                    btn.classList.remove('is-copied');
+                    btn.setAttribute('aria-label', 'Invite friends');
                 }, 2500);
             }).catch(err => {
                 alert('Copy this URL to invite friends:\n' + shareUrl);
@@ -2428,11 +2641,15 @@
         // Database Rooms queries
         async function loadActiveRooms() {
             const container = document.getElementById('rooms-container');
-            
+            if (!container) return;
+
             teardownLobbyPresence();
             
             try {
-                const inactiveThreshold = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+                // Only list rooms active in the last 12 hours.
+                // Stale rows are removed server-side (see docs/rooms_cleanup_migration.sql).
+                const inactiveThreshold = partyInactiveThresholdIso();
+
                 const { data: rooms, error } = await supabaseClient
                     .from('rooms')
                     .select('*')
@@ -2444,9 +2661,9 @@
                 if (!rooms || rooms.length === 0) {
                     container.innerHTML = `
                         <div class="empty-state">
-                            <div class="empty-icon">🍿</div>
-                            <h3>No active parties right now.</h3>
-                            <p>Be the first to start a party room and share the link with friends!</p>
+                            <div class="empty-icon" aria-hidden="true">🍿</div>
+                            <h3>No active rooms</h3>
+                            <p>Create a party and share the invite link — your lobby will show up here for others to join.</p>
                         </div>
                     `;
                     return;
@@ -2475,7 +2692,7 @@
                         </div>
                         <div class="room-info">
                             <div class="room-info-item">🎬 <strong>Playing:</strong> ${safeTitle}</div>
-                            <div class="room-info-item">🕒 <strong>Started:</strong> ${startedLabel}</div>
+                            <div class="room-info-item">🕒 <strong>Active:</strong> ${startedLabel}</div>
                             ${privateRoom ? '<div class="room-info-item">🔒 <strong>Access:</strong> Invite only</div>' : ''}
                         </div>
                         <div class="room-footer">
@@ -2519,6 +2736,14 @@
 
             } catch (err) {
                 console.error('Error fetching rooms:', err);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon" aria-hidden="true">⚠️</div>
+                        <h3>Could not load rooms</h3>
+                        <p>${partyEscapeHtml(err.message || 'Please check your connection and try again.')}</p>
+                        <button class="btn btn-primary" type="button" onclick="loadActiveRooms()" style="margin-top: 1rem;">Retry</button>
+                    </div>
+                `;
             }
         }
 
@@ -2635,6 +2860,9 @@
             await leaveCurrentPartyRoom({ purgeChatIfLast: true });
 
             resetChatPanel();
+
+            touchRoomActivity(room.id);
+            startRoomActivityHeartbeat(room.id);
 
             // Chat & User presence channels
             channel = supabaseClient.channel(`party_room_${room.id}`, {
@@ -2946,31 +3174,9 @@
 
         // Page Init logic
         window.addEventListener('DOMContentLoaded', async () => {
+            restoreChatSyncNoticeState();
             updateHeaderBadge();
             bindPartyEpNavButtons();
-
-            // Fast navigation helper when leaving the party page back to home
-            document.querySelectorAll('a[href="/"], a[href="../index.html"]').forEach(link => {
-                if (link.getAttribute('onclick')) return;
-                link.addEventListener('click', (e) => {
-                    if (partyEmbedded) {
-                        navigateParentSite('/', e);
-                        return;
-                    }
-                    e.preventDefault();
-                    const href = link.href;
-                    const iframe = document.getElementById('video-player-iframe');
-                    if (iframe) {
-                        iframe.src = 'about:blank';
-                        try {
-                            iframe.parentNode.removeChild(iframe);
-                        } catch (err) {}
-                    }
-                    setTimeout(() => {
-                        window.location.href = href;
-                    }, 20);
-                });
-            });
 
             // Listen for complete event from iframe players to advance episodes for social host
             window.addEventListener('message', (event) => {
@@ -3020,7 +3226,7 @@
                             showLobbyView();
                         }
                     } else if (isCatalogMediaKey(joinRoomId)) {
-                        // Legacy links used ?room= for catalogue ids.
+                        // Legacy links used ?room=1084244 for the movie — always create a new lounge
                         await createCatalogPartyRoom(joinRoomId);
                     } else {
                         showLobbyView();
@@ -3035,3 +3241,4 @@
                 showLobbyView();
             }
         });
+    

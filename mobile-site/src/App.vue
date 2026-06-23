@@ -1,5 +1,7 @@
 <template>
-    <div class="app-stage">
+    <router-view v-if="isBareLayout" />
+
+    <div v-else class="app-stage">
         <a class="app-skip" href="#main">Skip to content</a>
 
         <span class="grain" aria-hidden="true" />
@@ -14,8 +16,12 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import { useRoute } from 'vue-router';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
+
+const route = useRoute();
+const isBareLayout = computed(() => Boolean(route.meta.bareLayout));
 
 const getRouteKey = (route: RouteLocationNormalizedLoaded) => {
     if (route.name === 'AnimeDetail') {

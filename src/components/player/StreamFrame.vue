@@ -307,7 +307,7 @@ export default defineComponent({
     &__stage {
         position: relative;
         width: 100%;
-        max-width: 1280px;
+        max-width: 100%;
         margin: 0 auto;
         padding: 0 var(--s-4) var(--s-5) var(--s-4);
 

@@ -610,7 +610,7 @@ export default defineComponent({
     }
 
     &__chrome-inner {
-        max-width: 1280px;
+        max-width: var(--container-max);
         margin: 0 auto;
         padding: var(--s-3) var(--s-4);
         display: grid;
@@ -787,7 +787,7 @@ export default defineComponent({
     &__theater {
         display: grid;
         gap: var(--s-5);
-        max-width: 1440px;
+        max-width: var(--container-max);
         width: 100%;
         margin: 0 auto;
         box-sizing: border-box;
@@ -827,8 +827,11 @@ export default defineComponent({
 
         @media (min-width: 1024px) {
             :deep(.stream-frame__player) {
-                aspect-ratio: auto;
-                height: clamp(300px, 38vw, 520px);
+                width: 100%;
+                max-width: calc(80vh * 16 / 9);
+                aspect-ratio: 16 / 9;
+                height: auto;
+                margin: 0 auto;
             }
         }
     }
@@ -957,7 +960,7 @@ export default defineComponent({
     }
 
     &__rack {
-        max-width: 1280px;
+        max-width: var(--container-max);
         width: 100%;
         margin: 0 auto;
         padding: var(--s-5) var(--s-4) calc(var(--s-7) + env(safe-area-inset-bottom, 0px));
@@ -975,7 +978,7 @@ export default defineComponent({
     &__feature {
         display: grid;
         gap: var(--s-6);
-        max-width: 1280px;
+        max-width: var(--container-max);
         margin: 0 auto;
         width: 100%;
         box-sizing: border-box;

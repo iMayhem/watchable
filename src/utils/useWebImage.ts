@@ -52,6 +52,13 @@ const selectSize = (size: WebImageSize, quality: TmdbImageQuality) => {
         hero: 'original',
     };
     if (quality === 'low') return lowQuality[size] || lowQuality.medium;
+    
+    // Dynamic size upgrades for large high-DPI monitors and 4K/8K TVs
+    if (typeof window !== 'undefined' && window.innerWidth >= 2400) {
+        if (size === 'hero' || size === 'xlarge') return 'original';
+        if (size === 'large') return 'w780';
+    }
+
     if (quality === 'high') return highQuality[size] || highQuality.medium;
     return sizeOptions[size] || sizeOptions.medium;
 };

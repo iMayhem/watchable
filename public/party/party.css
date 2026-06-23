@@ -4180,3 +4180,100 @@
 
 
         }
+
+        /* Responsive container widths and root font sizes for wide displays */
+        @media (min-width: 1400px) {
+            :root {
+                --container-max: 1360px;
+            }
+        }
+        @media (min-width: 1500px) {
+            :root {
+                --container-max: 1440px;
+            }
+        }
+        @media (min-width: 1680px) {
+            :root {
+                --container-max: 1600px;
+            }
+        }
+        @media (min-width: 1900px) {
+            :root {
+                --container-max: 1800px;
+            }
+            html {
+                font-size: 16.5px;
+            }
+        }
+        @media (min-width: 2200px) {
+            :root {
+                --container-max: 2100px;
+            }
+            html {
+                font-size: 17px;
+            }
+        }
+        @media (min-width: 2500px) {
+            :root {
+                --container-max: 2400px;
+            }
+            html {
+                font-size: 18px;
+            }
+        }
+        @media (min-width: 3000px) {
+            :root {
+                --container-max: 2840px;
+            }
+            html {
+                font-size: 19px;
+            }
+        }
+        @media (min-width: 3400px) {
+            :root {
+                --container-max: 3240px;
+            }
+            html {
+                font-size: 19.5px;
+            }
+        }
+        @media (min-width: 3800px) {
+            :root {
+                --container-max: 3600px;
+            }
+            html {
+                font-size: 20px;
+            }
+        }
+        @media (min-width: 4400px) {
+            :root {
+                --container-max: 4200px;
+            }
+            html {
+                font-size: 21px;
+            }
+        }
+        @media (min-width: 5000px) {
+            :root {
+                --container-max: 4800px;
+            }
+            html {
+                font-size: 22px;
+            }
+        }
+        @media (min-width: 6000px) {
+            :root {
+                --container-max: 5600px;
+            }
+            html {
+                font-size: 24px;
+            }
+        }
+        @media (min-width: 7500px) {
+            :root {
+                --container-max: 7200px;
+            }
+            html {
+                font-size: 28px;
+            }
+        }

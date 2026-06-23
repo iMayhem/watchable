@@ -128,4 +128,12 @@ export default defineComponent({
         pointer-events: none;
     }
 }
+
+@media (max-width: 640px) {
+    .genre-chips__clear {
+        min-height: 2.25rem;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.72rem;
+    }
+}
 </style>

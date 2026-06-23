@@ -93,11 +93,25 @@ export async function queryAniListApi(query: string, variables: Record<string, u
     })
   });
 
+  const payload = await response.json();
+
   if (!response.ok) {
-    throw new Error(`AniList API error: ${response.statusText}`);
+    throw new Error(`AniList API error: ${response.status} ${response.statusText}`);
   }
 
-  return response.json();
+  if (payload?.errors?.length) {
+    const message = payload.errors
+      .map((entry: { message?: string }) => entry.message)
+      .filter(Boolean)
+      .join('; ');
+    throw new Error(message || 'AniList API returned errors');
+  }
+
+  if (!payload?.data) {
+    throw new Error('AniList API returned no data');
+  }
+
+  return payload;
 }
 
 /** TV anime catalogue pages — series only, no feature films. */
@@ -454,7 +468,8 @@ export function useAniList() {
             genre_in: $genres,
             startDate_greater: $startDateGreater,
             startDate_lesser: $startDateLesser,
-            sort: $sort
+            sort: $sort,
+            format_in: [TV, ONA, SPECIAL, MOVIE]
           ) {
             id
             title {
@@ -503,10 +518,41 @@ export function useAniList() {
     }
 
     try {
-      const response = await queryAniListApi(query, variables);
+      const response = (await queryAniListApi(query, variables)) as AnimeResponse;
+      const media = response.data?.Page?.media ?? [];
+      if (media.length > 0) {
+        loading.value = false;
+        return response;
+      }
+
+      const isDefaultBrowse =
+        (options.page || 1) === 1 &&
+        (!options.genres || options.genres.length === 0) &&
+        (options.sort || 'TRENDING_DESC') === 'TRENDING_DESC';
+
+      if (isDefaultBrowse) {
+        const fallback = await fetchTrendingAnime(options.page || 1, options.perPage || 20);
+        loading.value = false;
+        return fallback;
+      }
+
       loading.value = false;
-      return response as AnimeResponse;
+      return response;
     } catch (err: any) {
+      const isDefaultBrowse =
+        (options.page || 1) === 1 &&
+        (!options.genres || options.genres.length === 0);
+
+      if (isDefaultBrowse) {
+        try {
+          const fallback = await fetchTrendingAnime(options.page || 1, options.perPage || 20);
+          loading.value = false;
+          return fallback;
+        } catch {
+          // Fall through to the original error.
+        }
+      }
+
       error.value = err.message;
       loading.value = false;
       throw err;

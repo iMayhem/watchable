@@ -98,4 +98,20 @@ export default defineComponent({
         flex: 0 0 auto;
     }
 }
+
+@media (max-width: 640px) {
+    .lm-chip {
+        &--sm {
+            min-height: 2.25rem;
+            padding: 0.4rem 0.85rem;
+            font-size: 0.8rem;
+        }
+
+        &--md {
+            min-height: 2.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+    }
+}
 </style>

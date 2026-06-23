@@ -224,6 +224,8 @@ export default defineComponent({
             { code: 'ko', label: 'Korean' },
             { code: 'zh', label: 'Chinese' },
             { code: 'hi', label: 'Hindi' },
+            { code: 'te', label: 'Telugu' },
+            { code: 'ta', label: 'Tamil' },
             { code: 'pt', label: 'Portuguese' },
             { code: 'ru', label: 'Russian' },
             { code: 'ar', label: 'Arabic' }
@@ -582,5 +584,80 @@ export default defineComponent({
 .fade-slide-leave-to {
     opacity: 0;
     transform: translateY(8px);
+}
+
+@media (max-width: 640px) {
+    .filter-panel {
+        position: static;
+        max-height: none;
+        padding: var(--s-4);
+        border-radius: var(--r-md);
+
+        &__head {
+            margin-bottom: var(--s-4);
+            padding-bottom: var(--s-3);
+        }
+
+        &__title {
+            font-size: 1.15rem;
+        }
+
+        &__reset {
+            position: static;
+            justify-self: start;
+            min-height: 2.5rem;
+            padding: 0.45rem 0.9rem;
+            font-size: 0.72rem;
+            margin-top: var(--s-2);
+        }
+
+        &__body {
+            gap: var(--s-4);
+        }
+
+        &__section {
+            gap: var(--s-2);
+            padding-bottom: var(--s-4);
+        }
+
+        &__stepper-btn {
+            min-height: 2.5rem;
+            padding: 0.5rem 0.85rem;
+            font-size: 0.75rem;
+        }
+    }
+
+    .custom-select-trigger {
+        min-height: 2.75rem;
+        padding: 0.65rem 0.9rem;
+        font-size: 16px;
+        border-radius: var(--r-md);
+    }
+
+    .custom-select-dropdown {
+        position: fixed;
+        left: var(--s-3);
+        right: var(--s-3);
+        bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-3));
+        top: auto;
+        width: auto;
+        max-height: min(50vh, 20rem);
+        z-index: 300;
+        border-radius: var(--r-lg);
+        padding: var(--s-2);
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    .custom-select-option {
+        min-height: 2.75rem;
+        padding: 0.75rem 0.9rem;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+    }
+
+    .custom-select-overlay {
+        background: rgba(0, 0, 0, 0.45);
+    }
 }
 </style>

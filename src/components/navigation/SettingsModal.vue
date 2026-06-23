@@ -19,7 +19,7 @@
 
             <div class="settings-modal__body">
                 <p class="settings-modal__desc">
-                    Customize your browsing feed, trending catalog, and display language settings.
+                    Choose your browsing region to tailor trending titles and catalog picks.
                 </p>
 
                 <div class="settings-modal__field">
@@ -28,18 +28,6 @@
                         <select v-model="localRegion" class="settings-modal__select">
                             <option v-for="r in regions" :key="r.code" :value="r.code">
                                 {{ r.name }}
-                            </option>
-                        </select>
-                        <span class="settings-modal__select-arrow"></span>
-                    </div>
-                </div>
-
-                <div class="settings-modal__field">
-                    <label class="settings-modal__label eyebrow">Display Language</label>
-                    <div class="settings-modal__select-wrapper">
-                        <select v-model="localLanguage" class="settings-modal__select">
-                            <option v-for="l in languages" :key="l.code" :value="l.code">
-                                {{ l.name }}
                             </option>
                         </select>
                         <span class="settings-modal__select-arrow"></span>
@@ -61,7 +49,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, watch } from 'vue';
-import { getSettings, REGIONS, LANGUAGES } from '../../composables/useSettings';
+import { getSettings, REGIONS } from '../../composables/useSettings';
 
 export default defineComponent({
     name: 'SettingsModal',
@@ -76,14 +64,12 @@ export default defineComponent({
         const { region, language, updateSettings } = getSettings();
 
         const localRegion = ref(region.value);
-        const localLanguage = ref(language.value);
 
         watch(
             () => props.isOpen,
             (newVal) => {
                 if (newVal) {
                     localRegion.value = region.value;
-                    localLanguage.value = language.value;
                 }
             }
         );
@@ -93,15 +79,13 @@ export default defineComponent({
         };
 
         const save = () => {
-            updateSettings(localRegion.value, localLanguage.value);
+            updateSettings(localRegion.value, language.value);
             close();
         };
 
         return {
             regions: REGIONS,
-            languages: LANGUAGES,
             localRegion,
-            localLanguage,
             close,
             save
         };
@@ -312,6 +296,71 @@ export default defineComponent({
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+@media (max-width: 640px) {
+    .settings-modal {
+        align-items: flex-end;
+        padding: 0;
+
+        &__card {
+            max-width: none;
+            border-radius: var(--r-lg) var(--r-lg) 0 0;
+            animation: slide-up 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        &__header {
+            padding: var(--s-4);
+        }
+
+        &__title {
+            font-size: 1.2rem;
+        }
+
+        &__close {
+            display: grid;
+            place-items: center;
+            width: 2.75rem;
+            height: 2.75rem;
+            padding: 0;
+        }
+
+        &__body {
+            padding: var(--s-4);
+            gap: var(--s-4);
+        }
+
+        &__select {
+            min-height: 2.75rem;
+            padding: 0.65rem var(--s-8) 0.65rem var(--s-4);
+            font-size: 16px;
+            border-radius: var(--r-md);
+        }
+
+        &__footer {
+            padding: var(--s-3) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom, 0px));
+            gap: var(--s-2);
+        }
+
+        &__btn {
+            flex: 1;
+            min-height: 2.75rem;
+            padding: 0.65rem 1rem;
+            font-size: 0.8rem;
+            border-radius: var(--r-md);
+        }
+    }
+}
+
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 </style>

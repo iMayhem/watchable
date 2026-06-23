@@ -64,6 +64,36 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Actors' }
     },
     {
+        path: '/livetv',
+        name: 'LiveTV',
+        component: () => import('./pages/LiveTV.vue'),
+        meta: { title: 'Live TV' }
+    },
+    {
+        path: '/more',
+        name: 'More',
+        component: () => import('./pages/More.vue'),
+        meta: { title: 'More' }
+    },
+    {
+        path: '/discuss',
+        name: 'Discuss',
+        component: () => import('./pages/Discuss.vue'),
+        meta: { title: 'Discuss' }
+    },
+    {
+        path: '/upcoming',
+        name: 'Upcoming',
+        component: () => import('./pages/Upcoming.vue'),
+        meta: { title: 'Upcoming' }
+    },
+    {
+        path: '/help',
+        name: 'Help',
+        component: () => import('./pages/Help.vue'),
+        meta: { title: 'Help' }
+    },
+    {
         path: '/movie/:id',
         name: 'Movie',
         component: Movie,

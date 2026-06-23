@@ -2,12 +2,27 @@
     <MobileShell>
         <div class="m-discover">
             <header class="m-discover__head">
-                <p class="eyebrow">Discover</p>
-                <h1 class="m-discover__title">Movies</h1>
+                <p class="eyebrow m-discover__eyebrow">Discover</p>
+                <div class="m-discover__title-row">
+                    <h1 class="m-discover__title">Movies</h1>
+                    <button
+                        type="button"
+                        class="m-discover__filters-btn"
+                        :class="{ 'is-open': filtersOpen }"
+                        :aria-expanded="filtersOpen"
+                        aria-controls="movies-filters"
+                        @click="filtersOpen = !filtersOpen"
+                    >
+                        Filters &amp; sort
+                    </button>
+                </div>
             </header>
 
-            <details class="m-discover__filters">
-                <summary>Filters &amp; sort</summary>
+            <div
+                v-show="filtersOpen"
+                id="movies-filters"
+                class="m-discover__filters-panel"
+            >
                 <FilterPanel
                     kind="movie"
                     :genres="genres"
@@ -17,7 +32,7 @@
                     @update:filters="onFiltersChange"
                     @reset="resetFilters"
                 />
-            </details>
+            </div>
 
             <p v-if="totalResults" class="m-discover__count meta">{{ totalResults.toLocaleString() }} results</p>
 
@@ -28,10 +43,13 @@
                 <button type="button" @click="resetFilters">Reset filters</button>
             </div>
 
-            <div v-if="hasMore" class="m-discover__more">
-                <button type="button" :disabled="isLoadingMore" @click="loadMore">
-                    {{ isLoadingMore ? 'Loading…' : 'Load more' }}
-                </button>
+            <div
+                v-if="results.length && (hasMore || isLoadingMore)"
+                ref="scrollSentinel"
+                class="m-discover__sentinel"
+                aria-hidden="true"
+            >
+                <div v-if="isLoadingMore" class="m-discover__spinner" />
             </div>
         </div>
     </MobileShell>
@@ -39,6 +57,7 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
+import { usePaginatedInfiniteScroll } from '@/composables/useLazyLoad';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
 import FilterPanel, { DiscoverFilters } from '@/components/discover/FilterPanel.vue';
@@ -76,6 +95,7 @@ const totalResults = ref(0);
 const isLoading = ref(false);
 const isLoadingMore = ref(false);
 const filters = ref<DiscoverFilters>(makeDefaultFilters());
+const filtersOpen = ref(false);
 
 const hasMore = computed(() => page.value < totalPages.value);
 
@@ -136,24 +156,28 @@ async function fetchPage(pageNum: number, append: boolean) {
 
 function onFiltersChange(next: DiscoverFilters) {
     filters.value = next;
-    fetchPage(1, false);
+    void fetchPage(1, false).then(() => drainPagesIfNeeded());
 }
 
 function resetFilters() {
     filters.value = makeDefaultFilters();
-    fetchPage(1, false);
+    void fetchPage(1, false).then(() => drainPagesIfNeeded());
 }
 
-function loadMore() {
-    if (isLoadingMore.value || page.value >= totalPages.value) return;
-    fetchPage(page.value + 1, true);
-}
+const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
+    hasMore,
+    isLoading,
+    isLoadingMore,
+    hasResults: computed(() => results.value.length > 0),
+    loadNextPage: () => fetchPage(page.value + 1, true)
+});
 
 onMounted(async () => {
     document.title = 'Movies — Moovie';
     await primeGenres();
     genres.value = await getGenres('movie');
     await fetchPage(1, false);
+    void drainPagesIfNeeded();
 });
 </script>
 
@@ -165,29 +189,58 @@ onMounted(async () => {
         padding: var(--s-4) var(--s-4) var(--s-3);
     }
 
+    &__eyebrow {
+        margin: 0 0 var(--s-2);
+    }
+
+    &__title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--s-3);
+    }
+
     &__title {
+        flex: 1;
+        min-width: 0;
         font-family: var(--font-display);
         font-size: 1.6rem;
         margin: 0;
     }
 
-    &__filters {
+    &__filters-btn {
+        flex-shrink: 0;
+        min-height: 2.5rem;
+        padding: 0 var(--s-3);
+        border-radius: var(--r-pill);
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-850);
+        color: var(--bone-100);
+        font-family: var(--font-ui);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+        transition:
+            color var(--dur-fast) var(--ease-out),
+            border-color var(--dur-fast) var(--ease-out),
+            background var(--dur-fast) var(--ease-out);
+
+        &.is-open {
+            color: var(--bone-50);
+            border-color: var(--ember);
+            background: rgba(232, 122, 58, 0.12);
+        }
+    }
+
+    &__filters-panel {
         margin: 0 var(--s-4) var(--s-4);
-        padding: var(--s-3);
         border: 1px solid var(--rule);
         border-radius: var(--r-md);
         background: var(--ink-850);
-
-        summary {
-            cursor: pointer;
-            font-weight: 600;
-            font-family: var(--font-ui);
-            list-style: none;
-
-            &::-webkit-details-marker {
-                display: none;
-            }
-        }
+        overflow: hidden;
     }
 
     &__count {
@@ -202,6 +255,18 @@ onMounted(async () => {
         gap: var(--s-3);
         padding: var(--s-8) var(--s-4);
         text-align: center;
+
+        button {
+            min-height: 2.75rem;
+            padding: 0 var(--s-4);
+            border-radius: var(--r-pill);
+            border: 1px solid var(--rule-strong);
+            background: var(--ink-800);
+            color: var(--bone-100);
+            font-family: var(--font-ui);
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
     }
 
     &__spinner {
@@ -213,21 +278,21 @@ onMounted(async () => {
         animation: spin 0.8s linear infinite;
     }
 
-    &__more {
+    &__sentinel {
         display: flex;
         justify-content: center;
         padding: var(--s-5) var(--s-4);
-
-        button {
-            min-height: 2.75rem;
-            padding: 0 var(--s-5);
-            border-radius: var(--r-pill);
-            border: 1px solid var(--rule-strong);
-            background: var(--ink-800);
-            color: var(--bone-100);
-            font-weight: 600;
-        }
+        min-height: 1px;
     }
+}
+
+.m-discover__spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--rule);
+    border-top-color: var(--ember);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {

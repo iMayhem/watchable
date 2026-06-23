@@ -1,5 +1,5 @@
 <template>
-    <div class="m-app">
+    <div class="m-app" :class="{ 'm-app--immersive': immersive }">
         <header class="m-app__header">
             <router-link :to="home" class="m-app__logo" aria-label="moovie home">
                 <span class="m-app__mark">moovie</span>
@@ -17,37 +17,95 @@
                         <path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                     </svg>
                 </router-link>
+                <button
+                    type="button"
+                    class="m-app__icon-btn"
+                    aria-label="Regional settings"
+                    title="Regional settings"
+                    @click="isSettingsOpen = true"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M2 12h20" />
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                </button>
+                <button
+                    v-if="currentUser"
+                    type="button"
+                    class="m-app__user-btn"
+                    title="Sign out"
+                    @click="handleLogout"
+                >
+                    <span class="m-app__user-label">{{ currentUser }}</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                </button>
+                <button
+                    v-else
+                    type="button"
+                    class="m-app__signin-btn"
+                    @click="isAuthOpen = true"
+                >
+                    Sign In
+                </button>
             </div>
         </header>
+
+        <nav
+            v-if="!immersive"
+            class="m-app__modes"
+            aria-label="Browse modes"
+        >
+            <div class="m-app__modes-scroll">
+                <router-link
+                    v-for="mode in modes"
+                    :key="mode.to"
+                    :to="mode.to"
+                    class="m-app__mode"
+                    :class="{ 'is-active': isModeActive(mode) }"
+                >
+                    <span class="m-app__mode-icon" aria-hidden="true">
+                        <component :is="mode.icon" />
+                    </span>
+                    <span class="m-app__mode-label">{{ mode.label }}</span>
+                </router-link>
+            </div>
+        </nav>
 
         <main id="main" class="m-app__main">
             <slot />
         </main>
 
-        <nav class="m-app__tabbar" aria-label="Mobile primary">
-            <router-link
-                v-for="tab in tabs"
-                :key="tab.to"
-                :to="tab.to"
-                class="m-app__tab"
-                :class="{ 'is-active': isTabActive(tab) }"
-            >
-                <span class="m-app__tab-icon" aria-hidden="true">
-                    <component :is="tab.icon" />
-                </span>
-                <span class="m-app__tab-label">{{ tab.label }}</span>
-            </router-link>
-        </nav>
+        <AuthModal :is-open="isAuthOpen" @close="closeAuth" />
+        <SettingsModal :is-open="isSettingsOpen" @close="isSettingsOpen = false" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, defineComponent, h } from 'vue';
+import { computed, defineComponent, h, onMounted, onBeforeUnmount, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAppPaths } from '@/composables/useAppPaths';
+import AuthModal from '@/components/navigation/AuthModal.vue';
+import SettingsModal from '@/components/navigation/SettingsModal.vue';
 
-const { home, movies, tvShows, animeList, actors, watchlist, search } = useAppPaths();
+withDefaults(defineProps<{
+    immersive?: boolean;
+}>(), {
+    immersive: false
+});
+
+const {
+    home, movies, tvShows, animeList, liveTv, more, search, watchlist
+} = useAppPaths();
 const route = useRoute();
+
+const isAuthOpen = ref(false);
+const isSettingsOpen = ref(false);
+const currentUser = ref('');
 
 const iconHome = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
@@ -77,26 +135,71 @@ const iconAnime = defineComponent({
     ])
 });
 
-const iconCast = defineComponent({
+const iconLive = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
-        h('circle', { cx: '9', cy: '8', r: '3.5' }),
-        h('path', { d: 'M3.5 20c.6-3 2.8-5 5.5-5s4.9 2 5.5 5' }),
-        h('circle', { cx: '17.5', cy: '9', r: '2.5' }),
-        h('path', { d: 'M15 20c.4-2 1.6-3.5 3.5-3.5' })
+        h('circle', { cx: '12', cy: '12', r: '2', fill: 'currentColor', stroke: 'none' }),
+        h('path', { d: 'M16.24 7.76a6 6 0 0 1 0 8.49M7.76 7.76a6 6 0 0 0 0 8.49' }),
+        h('path', { d: 'M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14' })
     ])
 });
 
-const tabs = computed(() => [
+const iconMore = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('circle', { cx: '12', cy: '5', r: '1', fill: 'currentColor', stroke: 'none' }),
+        h('circle', { cx: '12', cy: '12', r: '1', fill: 'currentColor', stroke: 'none' }),
+        h('circle', { cx: '12', cy: '19', r: '1', fill: 'currentColor', stroke: 'none' })
+    ])
+});
+
+const modes = computed(() => [
     { to: home.value, label: 'Home', icon: iconHome, match: (p: string) => p === '/' },
     { to: movies.value, label: 'Movies', icon: iconMovies, match: (p: string) => p.startsWith('/movies') || p.startsWith('/movie/') },
-    { to: tvShows.value, label: 'TV', icon: iconTv, match: (p: string) => p.startsWith('/tv') },
+    { to: tvShows.value, label: 'TV', icon: iconTv, match: (p: string) => p === '/tv-shows' || p === '/tv' || p.startsWith('/tv-show/') || (p.startsWith('/tv/') && !p.startsWith('/tv-shows')) },
     { to: animeList.value, label: 'Anime', icon: iconAnime, match: (p: string) => p.startsWith('/anime') },
-    { to: actors.value, label: 'Cast', icon: iconCast, match: (p: string) => p.startsWith('/actor') || p.startsWith('/actors') }
+    { to: liveTv.value, label: 'Live TV', icon: iconLive, match: (p: string) => p.startsWith('/livetv') },
+    { to: more.value, label: 'More', icon: iconMore, match: (p: string) =>
+        p.startsWith('/more')
+        || p.startsWith('/actors')
+        || p.startsWith('/actor/')
+        || p.startsWith('/discuss')
+        || p.startsWith('/upcoming')
+        || p.startsWith('/help')
+        || p.startsWith('/party')
+    }
 ]);
 
-function isTabActive(tab: { match: (p: string) => boolean }) {
-    return tab.match(route.path);
+function isModeActive(mode: { match: (p: string) => boolean }) {
+    return mode.match(route.path);
 }
+
+function syncUser() {
+    currentUser.value = localStorage.getItem('movora_current_user') || '';
+}
+
+function handleLogout() {
+    localStorage.removeItem('movora_current_user');
+    localStorage.removeItem('movora_auth_token');
+    window.dispatchEvent(new Event('movora_auth_change'));
+    syncUser();
+}
+
+function closeAuth() {
+    isAuthOpen.value = false;
+    syncUser();
+}
+
+function onAuthChange() {
+    syncUser();
+}
+
+onMounted(() => {
+    syncUser();
+    window.addEventListener('movora_auth_change', onAuthChange);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('movora_auth_change', onAuthChange);
+});
 </script>
 
 <style lang="scss" scoped>
@@ -106,7 +209,11 @@ function isTabActive(tab: { match: (p: string) => boolean }) {
     flex-direction: column;
     background: var(--ink-900);
     color: var(--bone-50);
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    &--immersive {
+        padding-bottom: 0;
+    }
 
     &__header {
         position: sticky;
@@ -116,8 +223,8 @@ function isTabActive(tab: { match: (p: string) => boolean }) {
         align-items: center;
         justify-content: space-between;
         gap: var(--s-3);
-        padding: max(env(safe-area-inset-top, 0px), var(--s-2)) var(--s-4) var(--s-2);
-        background: rgba(11, 10, 8, 0.92);
+        padding: max(env(safe-area-inset-top, 0px), var(--s-2)) var(--s-3) var(--s-2);
+        background: rgba(11, 10, 8, 0.94);
         backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--rule);
     }
@@ -125,11 +232,12 @@ function isTabActive(tab: { match: (p: string) => boolean }) {
     &__logo {
         color: inherit;
         text-decoration: none;
+        flex-shrink: 0;
     }
 
     &__mark {
         font-family: var(--font-display);
-        font-size: 1.35rem;
+        font-size: 1.25rem;
         font-weight: 500;
         letter-spacing: var(--ls-tight);
         color: var(--bone-50);
@@ -137,7 +245,9 @@ function isTabActive(tab: { match: (p: string) => boolean }) {
 
     &__header-actions {
         display: flex;
-        gap: var(--s-2);
+        align-items: center;
+        gap: var(--s-1);
+        flex-shrink: 0;
     }
 
     &__icon-btn {
@@ -151,78 +261,120 @@ function isTabActive(tab: { match: (p: string) => boolean }) {
         border: 1px solid var(--rule);
 
         svg {
-            width: 1.15rem;
-            height: 1.15rem;
+            width: 1.05rem;
+            height: 1.05rem;
+        }
+    }
+
+    &__signin-btn {
+        min-height: 2.75rem;
+        padding: 0 var(--s-3);
+        border-radius: var(--r-pill);
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-800);
+        color: var(--bone-100);
+        font-family: var(--font-ui);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+
+    &__user-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-2);
+        max-width: 7.5rem;
+        min-height: 2.75rem;
+        padding: 0 var(--s-3);
+        border-radius: var(--r-pill);
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-800);
+        color: var(--bone-100);
+        font-family: var(--font-ui);
+        font-size: 0.72rem;
+        font-weight: 600;
+
+        svg {
+            width: 0.9rem;
+            height: 0.9rem;
+            flex-shrink: 0;
+        }
+    }
+
+    &__user-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__modes {
+        position: sticky;
+        top: calc(max(env(safe-area-inset-top, 0px), var(--s-2)) + 2.85rem);
+        z-index: 45;
+        background: rgba(11, 10, 8, 0.9);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--rule);
+    }
+
+    &__modes-scroll {
+        display: flex;
+        gap: var(--s-2);
+        overflow-x: auto;
+        padding: var(--s-2) var(--s-3);
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+
+    &__mode {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex-shrink: 0;
+        min-height: 2.5rem;
+        padding: 0 var(--s-3);
+        border-radius: var(--r-pill);
+        border: 1px solid var(--rule);
+        background: var(--ink-850);
+        color: var(--bone-300);
+        text-decoration: none;
+        font-family: var(--font-ui);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        transition:
+            color var(--dur-fast) var(--ease-out),
+            border-color var(--dur-fast) var(--ease-out),
+            background var(--dur-fast) var(--ease-out);
+
+        &.is-active {
+            color: var(--bone-50);
+            border-color: var(--ember);
+            background: rgba(232, 122, 58, 0.12);
+            box-shadow: 0 0 0 1px rgba(232, 122, 58, 0.15);
+        }
+    }
+
+    &__mode-icon {
+        display: grid;
+        place-items: center;
+        width: 0.95rem;
+        height: 0.95rem;
+
+        svg {
+            width: 100%;
+            height: 100%;
         }
     }
 
     &__main {
         flex: 1;
         width: 100%;
-    }
-
-    &__tabbar {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 60;
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 0;
-        padding: var(--s-2) var(--s-1) calc(var(--s-2) + env(safe-area-inset-bottom, 0px));
-        background: rgba(11, 10, 8, 0.96);
-        backdrop-filter: blur(16px);
-        border-top: 1px solid var(--rule-strong);
-    }
-
-    &__tab {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 0.2rem;
-        min-height: 3.1rem;
-        padding: 0.25rem;
-        color: var(--bone-400);
-        text-decoration: none;
-        font-family: var(--font-ui);
-        font-size: 0.62rem;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-        border-radius: var(--r-sm);
-        transition: color var(--dur-fast) var(--ease-out);
-
-        &.is-active {
-            color: var(--ember);
-
-            &::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 50%;
-                width: 1.25rem;
-                height: 2px;
-                border-radius: var(--r-pill);
-                background: var(--ember);
-                transform: translateX(-50%);
-                box-shadow: 0 0 10px var(--ember-glow);
-            }
-        }
-    }
-
-    &__tab-icon {
-        display: grid;
-        place-items: center;
-        width: 1.35rem;
-        height: 1.35rem;
-
-        svg {
-            width: 100%;
-            height: 100%;
-        }
+        min-width: 0;
     }
 }
 </style>

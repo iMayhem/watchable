@@ -1100,4 +1100,32 @@ export default defineComponent({
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+@media (max-width: 640px) {
+    .auth-modal {
+        width: min(100%, 22rem);
+        max-height: calc(100dvh - var(--s-6));
+        overflow-y: auto;
+    }
+
+    .form-input {
+        min-height: 2.75rem;
+        padding: 0.65rem var(--s-4) 0.65rem var(--s-10);
+        font-size: 16px;
+        border-radius: var(--r-md);
+    }
+
+    .btn-submit {
+        min-height: 2.75rem;
+        padding: 0.7rem 1rem;
+        font-size: 0.9rem;
+        border-radius: var(--r-md);
+    }
+
+    .toggle-mode-btn {
+        min-height: 2.25rem;
+        padding: 0.25rem 0;
+        font-size: 0.875rem;
+    }
+}
 </style>

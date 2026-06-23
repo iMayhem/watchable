@@ -52,6 +52,10 @@ const initIdle = async () => {
     import('./pages/Anime.vue');
     import('./pages/Search.vue');
     import('./pages/Watchlist.vue');
+    import('./pages/LiveTV.vue');
+    import('./pages/More.vue');
+    import('./pages/Discuss.vue');
+    import('./pages/Upcoming.vue');
 };
 
 onMounted(() => {

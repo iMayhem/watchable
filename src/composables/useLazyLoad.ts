@@ -3,7 +3,7 @@
  * Provides intersection observer-based lazy loading for Vue components
  */
 
-import { ref, onMounted, onUnmounted, watch, type Ref } from 'vue';
+import { computed, nextTick, ref, onMounted, onUnmounted, watch, type Ref } from 'vue';
 
 interface LazyLoadOptions {
   rootMargin?: string;
@@ -235,6 +235,55 @@ export function useInfiniteScroll(
         observer?.disconnect();
         observer = null;
     });
+}
+
+interface PaginatedInfiniteScrollOptions {
+    hasMore: Ref<boolean>;
+    isLoading: Ref<boolean>;
+    isLoadingMore: Ref<boolean>;
+    hasResults: Ref<boolean>;
+    loadNextPage: () => void | Promise<void>;
+}
+
+/** Infinite scroll for paginated grids — replaces Load more buttons. */
+export function usePaginatedInfiniteScroll(options: PaginatedInfiniteScrollOptions) {
+    const scrollSentinel = ref<HTMLElement | null>(null);
+    const scrollEnabled = computed(
+        () => options.hasMore.value && options.hasResults.value
+    );
+
+    const sentinelNearViewport = () => {
+        const el = scrollSentinel.value;
+        if (!el) return false;
+        return el.getBoundingClientRect().top <= window.innerHeight + 640;
+    };
+
+    const loadMore = async () => {
+        if (options.isLoadingMore.value || !options.hasMore.value) return;
+        await options.loadNextPage();
+        void drainPagesIfNeeded();
+    };
+
+    const drainPagesIfNeeded = async () => {
+        await nextTick();
+        if (
+            !options.hasMore.value ||
+            options.isLoadingMore.value ||
+            options.isLoading.value ||
+            !sentinelNearViewport()
+        ) {
+            return;
+        }
+        await loadMore();
+        await drainPagesIfNeeded();
+    };
+
+    useInfiniteScroll(scrollSentinel, loadMore, {
+        enabled: scrollEnabled,
+        busy: options.isLoadingMore
+    });
+
+    return { scrollSentinel, drainPagesIfNeeded };
 }
 
 /**

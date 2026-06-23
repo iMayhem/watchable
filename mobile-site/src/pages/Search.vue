@@ -57,21 +57,28 @@
                     v-else-if="activeTab === 'anime' && animeItems.length"
                     :items="animeItems"
                 />
+                <template v-else-if="activeTab === 'upcoming' && upcomingCount">
+                    <MobileMediaGrid
+                        v-if="upcomingMovieItems.length"
+                        :items="upcomingMovieItems"
+                    />
+                    <MobileMediaGrid
+                        v-if="upcomingAnimeItems.length"
+                        :items="upcomingAnimeItems"
+                    />
+                </template>
 
                 <div v-else class="m-search__empty meta">
                     No {{ emptyLabel }} matched &ldquo;{{ searchTerm.trim() }}&rdquo;.
                 </div>
 
-                <div v-if="hasMore && currentCount" class="m-search__more">
-                    <button type="button" :disabled="isLoadingMore" @click="loadMore">
-                        <span v-if="isLoadingMore">Loading…</span>
-                        <span v-else-if="activeTab === 'anime'">
-                            Load more · page {{ animeMeta.page }}/{{ animeMeta.lastPage }}
-                        </span>
-                        <span v-else>
-                            Load more · page {{ reqMetaData.page }}/{{ reqMetaData.total_pages }}
-                        </span>
-                    </button>
+                <div
+                    v-if="currentCount && (hasMore || isLoadingMore)"
+                    ref="scrollSentinel"
+                    class="m-search__sentinel"
+                    aria-hidden="true"
+                >
+                    <div v-if="isLoadingMore" class="m-search__spinner" />
                 </div>
             </template>
 
@@ -108,6 +115,7 @@
 <script lang="ts" setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { usePaginatedInfiniteScroll } from '@/composables/useLazyLoad';
 import { debounce } from '@/utils/memoization';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
@@ -121,11 +129,15 @@ import {
     discoveredTv,
     discoveredPeople,
     discoveredAnime,
+    discoveredUpcomingMovies,
+    discoveredUpcomingAnime,
     reqMetaData,
-    animeMeta
+    animeMeta,
+    upcomingMoviesMeta,
+    upcomingAnimeMeta
 } from '@/composables/useSearch';
 
-const TAB_KEYS = ['movies', 'shows', 'people', 'anime'] as const;
+const TAB_KEYS = ['movies', 'shows', 'people', 'anime', 'upcoming'] as const;
 type TabKey = typeof TAB_KEYS[number];
 
 const isTabKey = (value: string): value is TabKey =>
@@ -138,7 +150,7 @@ const resolveTab = (tab: string | undefined): TabKey => {
 
 const route = useRoute();
 const router = useRouter();
-const { fetchSearchResults, fetchAnimeSearch, clearSearchResults } = useSearch();
+const { fetchSearchResults, fetchAnimeSearch, fetchUpcomingSearch, clearSearchResults } = useSearch();
 
 const inputEl = ref<HTMLInputElement | null>(null);
 const searchTerm = ref(typeof route.query.search === 'string' ? route.query.search : '');
@@ -147,6 +159,7 @@ const activeTab = ref<TabKey>(resolveTab(
 ));
 const isLoading = ref(false);
 const isLoadingAnime = ref(false);
+const isLoadingUpcoming = ref(false);
 const isLoadingMore = ref(false);
 
 const popularSearches = [
@@ -158,6 +171,9 @@ const movies = computed(() => discoveredMovies.value);
 const shows = computed(() => discoveredTv.value);
 const people = computed(() => discoveredPeople.value);
 const anime = computed(() => discoveredAnime.value);
+const upcomingMovies = computed(() => discoveredUpcomingMovies.value);
+const upcomingAnime = computed(() => discoveredUpcomingAnime.value);
+const upcomingCount = computed(() => upcomingMovies.value.length + upcomingAnime.value.length);
 
 const recentSearches = computed(() =>
     (searchHistory.value || []).filter(Boolean).slice(0, 6)
@@ -167,29 +183,40 @@ const tabs = [
     { value: 'movies', label: 'Movies' },
     { value: 'shows', label: 'TV' },
     { value: 'people', label: 'People' },
-    { value: 'anime', label: 'Anime' }
+    { value: 'anime', label: 'Anime' },
+    { value: 'upcoming', label: 'Upcoming' }
 ];
 
-const tabLoading = computed(() =>
-    activeTab.value === 'anime' ? isLoadingAnime.value : isLoading.value
-);
+const tabLoading = computed(() => {
+    if (activeTab.value === 'anime') return isLoadingAnime.value;
+    if (activeTab.value === 'upcoming') return isLoadingUpcoming.value;
+    return isLoading.value;
+});
 
 const currentCount = computed(() => {
     if (activeTab.value === 'movies') return movies.value.length;
     if (activeTab.value === 'shows') return shows.value.length;
     if (activeTab.value === 'people') return people.value.length;
-    return anime.value.length;
+    if (activeTab.value === 'anime') return anime.value.length;
+    return upcomingCount.value;
 });
 
 const emptyLabel = computed(() => {
     if (activeTab.value === 'movies') return 'films';
     if (activeTab.value === 'shows') return 'series';
     if (activeTab.value === 'people') return 'people';
-    return 'anime';
+    if (activeTab.value === 'anime') return 'anime';
+    return 'upcoming titles';
 });
 
 const hasMore = computed(() => {
     if (activeTab.value === 'anime') return animeMeta.value.hasNextPage;
+    if (activeTab.value === 'upcoming') {
+        return (
+            upcomingMoviesMeta.value.page < upcomingMoviesMeta.value.total_pages
+            || upcomingAnimeMeta.value.hasNextPage
+        );
+    }
     return reqMetaData.value.page > 0 && reqMetaData.value.page < reqMetaData.value.total_pages;
 });
 
@@ -246,6 +273,30 @@ const animeItems = computed(() =>
     }))
 );
 
+const upcomingMovieItems = computed(() =>
+    upcomingMovies.value.map((m) => ({
+        id: m.id,
+        title: m.title || m.original_title || '',
+        posterPath: m.poster_path,
+        rating: m.vote_average || 0,
+        releaseDate: m.release_date || '',
+        genreIds: m.genre_ids || [],
+        adult: m.adult || false,
+        type: 'movie' as const
+    }))
+);
+
+const upcomingAnimeItems = computed(() =>
+    upcomingAnime.value.map((item) => ({
+        id: item.id,
+        title: item.title.english || item.title.romaji || item.title.native,
+        posterPath: animePosterPath(item),
+        rating: item.averageScore ? item.averageScore / 10 : 0,
+        releaseDate: animeReleaseDate(item),
+        type: 'anime' as const
+    }))
+);
+
 const syncRoute = () => {
     const q: Record<string, string> = {};
     if (searchTerm.value.trim()) q.search = searchTerm.value.trim();
@@ -278,6 +329,19 @@ const loadAnimeResults = async (query: string, page = 1) => {
     }
 };
 
+const loadUpcomingResults = async (query: string, page = 1) => {
+    const q = query.trim();
+    if (!q) return;
+    if (page === 1) isLoadingUpcoming.value = true;
+    else isLoadingMore.value = true;
+    try {
+        await fetchUpcomingSearch(q, page, page > 1);
+    } finally {
+        isLoadingUpcoming.value = false;
+        isLoadingMore.value = false;
+    }
+};
+
 const ensureTabResults = async (tab: TabKey) => {
     const q = searchTerm.value.trim();
     if (!q) return;
@@ -299,6 +363,12 @@ const ensureTabResults = async (tab: TabKey) => {
 
     if (tab === 'anime' && !anime.value.length && !isLoadingAnime.value) {
         await loadAnimeResults(q);
+    } else if (
+        tab === 'upcoming'
+        && !upcomingCount.value
+        && !isLoadingUpcoming.value
+    ) {
+        await loadUpcomingResults(q);
     }
 };
 
@@ -309,6 +379,7 @@ const performSearch = async (query: string, page = 1) => {
     if (page === 1) {
         clearSearchResults();
         if (activeTab.value === 'anime') isLoadingAnime.value = true;
+        else if (activeTab.value === 'upcoming') isLoadingUpcoming.value = true;
         else isLoading.value = true;
     } else {
         isLoadingMore.value = true;
@@ -319,13 +390,19 @@ const performSearch = async (query: string, page = 1) => {
             await loadAnimeResults(q, page);
             return;
         }
+        if (activeTab.value === 'upcoming') {
+            await loadUpcomingResults(q, page);
+            return;
+        }
 
         await fetchSearchResults(q, page);
         if (page === 1) chooseDefaultTab();
     } finally {
         isLoading.value = false;
         isLoadingAnime.value = false;
+        isLoadingUpcoming.value = false;
         isLoadingMore.value = false;
+        void drainPagesIfNeeded();
     }
 };
 
@@ -373,8 +450,25 @@ const loadMore = async () => {
         return;
     }
 
+    if (activeTab.value === 'upcoming') {
+        const nextPage = Math.max(
+            upcomingMoviesMeta.value.page,
+            upcomingAnimeMeta.value.page
+        ) + 1;
+        await loadUpcomingResults(searchTerm.value, nextPage);
+        return;
+    }
+
     await performSearch(searchTerm.value, reqMetaData.value.page + 1);
 };
+
+const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
+    hasMore,
+    isLoading: computed(() => tabLoading.value || isLoadingMore.value),
+    isLoadingMore,
+    hasResults: computed(() => currentCount.value > 0),
+    loadNextPage: loadMore
+});
 
 watch(activeTab, (tab) => {
     syncRoute();
@@ -438,7 +532,7 @@ onMounted(() => {
         border: 1px solid var(--rule-strong);
         background: var(--ink-850);
         color: var(--bone-50);
-        font-size: 1rem;
+        font-size: 16px;
     }
 
     &__tabs {
@@ -468,24 +562,11 @@ onMounted(() => {
         padding: 0 var(--s-4);
     }
 
-    &__more {
+    &__sentinel {
         display: flex;
         justify-content: center;
-        padding: var(--s-5);
-
-        button {
-            min-height: 2.75rem;
-            padding: 0 var(--s-5);
-            border-radius: var(--r-pill);
-            border: 1px solid var(--rule-strong);
-            background: var(--ink-800);
-            color: var(--bone-100);
-            font-size: var(--fs-sm);
-        }
-
-        button:disabled {
-            opacity: 0.6;
-        }
+        padding: var(--s-5) var(--s-4);
+        min-height: 1px;
     }
 
     &__idle {
@@ -506,12 +587,13 @@ onMounted(() => {
     }
 
     &__chip {
-        padding: 0.45rem 0.9rem;
+        min-height: 2.5rem;
+        padding: 0.5rem 0.95rem;
         border-radius: var(--r-pill);
         border: 1px solid var(--rule);
         background: var(--ink-800);
         color: var(--bone-200);
-        font-size: var(--fs-sm);
+        font-size: 0.875rem;
 
         &--ember {
             color: var(--ember);

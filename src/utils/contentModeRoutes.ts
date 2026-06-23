@@ -14,6 +14,7 @@ export function isGlobalContentPath(path: string): boolean {
     if (path.startsWith('/tv-shows') || path === '/tv') return true;
     if (path.startsWith('/anime')) return true;
     if (path.startsWith('/actors')) return true;
+    if (path === '/livetv') return true;
     if (path.startsWith('/movie/')) return true;
     if (path.startsWith('/tv-show/')) return true;
     if (/^\/tv\/\d+/.test(path)) return true;

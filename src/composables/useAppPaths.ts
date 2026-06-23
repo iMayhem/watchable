@@ -63,6 +63,12 @@ export function useAppPaths() {
     const search = computed(() => `${prefix.value}/search`);
     const watchlist = computed(() => `${prefix.value}/watchlist`);
     const actors = computed(() => `${prefix.value}/actors`);
+    const liveTv = computed(() => `${prefix.value}/livetv`);
+    const party = computed(() => `${prefix.value}/party`);
+    const discuss = computed(() => `${prefix.value}/discuss`);
+    const upcoming = computed(() => `${prefix.value}/upcoming`);
+    const help = computed(() => `${prefix.value}/help`);
+    const more = computed(() => `${prefix.value}/more`);
 
     const streamMovieRouteName = computed(() => (isMobile.value ? 'm-StreamMovie' : 'StreamMovie'));
     const streamTvRouteName = computed(() => (isMobile.value ? 'm-StreamTVShow' : 'StreamTVShow'));
@@ -81,6 +87,12 @@ export function useAppPaths() {
         search,
         watchlist,
         actors,
+        liveTv,
+        party,
+        discuss,
+        upcoming,
+        help,
+        more,
         movie,
         tvShow,
         anime,

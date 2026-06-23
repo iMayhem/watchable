@@ -114,6 +114,7 @@ import { useHighlights, highLightOptions } from '../composables/useHighlights';
 import { useTvShows, newShows } from '../composables/useTvShows';
 import type { TVShowType } from '../composables/useTvShows';
 import { primeGenres } from '../composables/useGenreLookup';
+import { applyGlobalBrowseCuration } from '../composables/useHomepageCuration';
 import { getSettings } from '../composables/useSettings';
 import { getSupabaseClient } from '../lib/supabase';
 
@@ -136,7 +137,7 @@ export default defineComponent({
     setup() {
         const { fetchHighlights } = useHighlights();
         const { fetchNewShows } = useTvShows();
-        getSettings(); // ensures settings store is initialised (region change fires movora_settings_change event)
+        const { region } = getSettings();
 
         const upcomingTv = ref<TVShowType[]>([]);
         const fourKItems = ref<any[]>([]);
@@ -152,10 +153,11 @@ export default defineComponent({
                     .single();
                 if (data && data.value) {
                     const parsed = JSON.parse(data.value);
-                    fourKItems.value = parsed.map((m: any) => ({
+                    const mapped = parsed.map((m: any) => ({
                         id: m.id,
                         title: m.title,
                         originalTitle: m.originalTitle || m.title,
+                        original_language: m.original_language || m.originalLanguage,
                         posterPath: m.posterPath,
                         rating: m.rating || 0,
                         releaseDate: m.releaseDate || '',
@@ -164,6 +166,10 @@ export default defineComponent({
                         type: 'movie' as const,
                         query: { mode: '4k' }
                     }));
+                    fourKItems.value =
+                        region.value === 'global'
+                            ? applyGlobalBrowseCuration(mapped, { excludeIndian: true })
+                            : mapped;
                 }
             } catch (err) {
                 console.error('[📍 HOME PAGE] Failed to fetch 4K movies today:', err);

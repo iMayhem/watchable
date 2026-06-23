@@ -174,20 +174,27 @@
                         </p>
                     </div>
 
-                    <div v-if="hasMore && currentCount" class="search-page__more">
-                        <button
-                            type="button"
-                            class="search-page__more-btn"
-                            :disabled="isLoadingMore"
-                            @click="loadMore"
-                        >
-                            <span v-if="isLoadingMore">Loading…</span>
-                            <span v-else-if="activeTab === 'anime'">
-                                Load more · page {{ animeMeta.page }}/{{ animeMeta.lastPage }}
-                            </span>
-                            <span v-else-if="activeTab === 'upcoming'">Load more</span>
-                            <span v-else>Load more · page {{ reqMetaData.page }}/{{ reqMetaData.total_pages }}</span>
-                        </button>
+                    <div
+                        v-if="currentCount && (hasMore || isLoadingMore)"
+                        ref="scrollSentinel"
+                        class="search-page__sentinel"
+                        aria-hidden="true"
+                    >
+                        <div v-if="isLoadingMore" class="search-page__grid">
+                            <PosterCard
+                                v-for="n in 8"
+                                :key="`more-${n}`"
+                                loading
+                                id=""
+                                :type="activeTab === 'people' ? 'movie' : (activeTab === 'shows' ? 'tv' : 'movie')"
+                                title=""
+                                poster-path=""
+                                :rating="0"
+                                release-date=""
+                                :genre-ids="[]"
+                                :adult="false"
+                            />
+                        </div>
                     </div>
                 </section>
             </template>
@@ -258,6 +265,7 @@ import {
 } from '../composables/useSearch';
 import type { AnimeMedia } from '../composables/useAniList';
 import { addSearchTerm, searchHistory } from '../composables/useHistory';
+import { usePaginatedInfiniteScroll } from '../composables/useLazyLoad';
 
 const TAB_KEYS = ['movies', 'shows', 'people', 'anime', 'upcoming'] as const;
 type TabKey = typeof TAB_KEYS[number];
@@ -468,6 +476,7 @@ export default defineComponent({
                 isLoadingAnime.value = false;
                 isLoadingUpcoming.value = false;
                 isLoadingMore.value = false;
+                void drainPagesIfNeeded();
             }
         };
 
@@ -519,7 +528,7 @@ export default defineComponent({
         };
 
         const loadMore = async () => {
-            if (!hasMore.value || !searchTerm.value) return;
+            if (!hasMore.value || !searchTerm.value.trim()) return;
 
             if (activeTab.value === 'anime') {
                 await loadAnimeResults(searchTerm.value, animeMeta.value.page + 1);
@@ -537,6 +546,16 @@ export default defineComponent({
 
             await performSearch(searchTerm.value, reqMetaData.value.page + 1);
         };
+
+        const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
+            hasMore,
+            isLoading: computed(
+                () => tabLoading.value || isLoadingMore.value
+            ),
+            isLoadingMore,
+            hasResults: computed(() => currentCount.value > 0),
+            loadNextPage: loadMore
+        });
 
         watch(activeTab, (tab) => {
             syncRoute();
@@ -595,14 +614,14 @@ export default defineComponent({
             currentCount,
             emptyLabel,
             hasMore,
+            scrollSentinel,
             reqMetaData,
             animeMeta,
             animePosterPath,
             animeReleaseDate,
             onSearchInput,
             handleClearSearch,
-            runSearch,
-            loadMore
+            runSearch
         };
     }
 });
@@ -771,37 +790,9 @@ export default defineComponent({
         line-height: 1.55;
     }
 
-    &__more {
-        display: flex;
-        justify-content: center;
-        padding: var(--s-7) 0 var(--s-4);
-    }
-
-    &__more-btn {
-        font-family: var(--font-mono);
-        font-size: var(--fs-xs);
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: var(--bone-100);
-        padding: 0.8rem 1.8rem;
-        border: 1px solid var(--rule-strong);
-        border-radius: var(--r-pill);
-        background: var(--surface-tint);
-        transition:
-            color var(--dur-fast) var(--ease-out),
-            border-color var(--dur-fast) var(--ease-out),
-            background-color var(--dur-fast) var(--ease-out);
-
-        &:hover:not(:disabled), &:focus-visible:not(:disabled) {
-            color: var(--ember);
-            border-color: var(--ember);
-            background: rgba(255, 90, 31, 0.08);
-        }
-
-        &:disabled {
-            opacity: 0.5;
-            cursor: wait;
-        }
+    &__sentinel {
+        margin-top: var(--s-6);
+        min-height: 1px;
     }
 
     &__idle {

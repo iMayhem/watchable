@@ -92,16 +92,27 @@
                         />
                     </div>
 
-                    <div v-if="hasMore" class="discover__more">
-                        <button
-                            type="button"
-                            class="discover__more-btn"
-                            :disabled="isLoadingMore"
-                            @click="loadMore"
-                        >
-                            <span v-if="isLoadingMore">Loading…</span>
-                            <span v-else>Load more · page {{ page }}/{{ totalPages }}</span>
-                        </button>
+                    <div
+                        v-if="results.length && (hasMore || isLoadingMore)"
+                        ref="scrollSentinel"
+                        class="discover__sentinel"
+                        aria-hidden="true"
+                    >
+                        <div v-if="isLoadingMore" class="discover__grid">
+                            <PosterCard
+                                v-for="n in 8"
+                                :key="`more-${n}`"
+                                loading
+                                id=""
+                                type="tv"
+                                title=""
+                                poster-path=""
+                                :rating="0"
+                                release-date=""
+                                :genre-ids="[]"
+                                :adult="false"
+                            />
+                        </div>
                     </div>
                 </div>
             </section>
@@ -113,6 +124,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { usePaginatedInfiniteScroll } from '../composables/useLazyLoad';
 import { useRoute, useRouter, LocationQueryRaw } from 'vue-router';
 import { debounce } from '../utils/memoization';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
@@ -120,6 +132,8 @@ import SiteFooter from '../components/navigation/SiteFooter.vue';
 import FilterPanel, { DiscoverFilters, RuntimeBand } from '../components/discover/FilterPanel.vue';
 import PosterCard from '../components/cards/PosterCard.vue';
 import { useTvShows, TVShowType } from '../composables/useTvShows';
+import { applyGlobalBrowseCuration } from '../composables/useHomepageCuration';
+import { getSettings } from '../composables/useSettings';
 import useAxios from '../composables/useAxios';
 import { addSearchTerm } from '../composables/useHistory';
 import { primeGenres, getGenres, Genre } from '../composables/useGenreLookup';
@@ -159,6 +173,7 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const { fetchDiscoverShows } = useTvShows();
+        const { region } = getSettings();
 
         const genres = ref<Genre[]>([]);
         const results = ref<TVShowType[]>([]);
@@ -258,6 +273,13 @@ export default defineComponent({
             }
         };
 
+        const curateBrowseResults = (items: TVShowType[]) => {
+            if (searchTerm.value) return items;
+            if (region.value !== 'global') return items;
+            if (filters.value.language && filters.value.language !== 'en') return items;
+            return applyGlobalBrowseCuration(items, { excludeIndian: true });
+        };
+
         const fetchPage = async (pageNum: number, append: boolean) => {
             if (append) isLoadingMore.value = true;
             else isLoading.value = true;
@@ -280,7 +302,7 @@ export default defineComponent({
                 } else {
                     const url = buildDiscoverUrl(pageNum);
                     const { data } = await fetchDiscoverShows(url);
-                    const fresh = (data.value?.results ?? []) as TVShowType[];
+                    const fresh = curateBrowseResults((data.value?.results ?? []) as TVShowType[]);
                     totalPages.value = data.value?.total_pages ?? 0;
                     totalResults.value = data.value?.total_results ?? 0;
                     page.value = pageNum;
@@ -299,18 +321,20 @@ export default defineComponent({
             }
         };
 
+        const hasMore = computed(() => page.value < totalPages.value);
+
+        const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
+            hasMore,
+            isLoading,
+            isLoadingMore,
+            hasResults: computed(() => results.value.length > 0),
+            loadNextPage: () => fetchPage(page.value + 1, true)
+        });
+
         const reload = () => {
             page.value = 1;
-            fetchPage(1, false);
+            void fetchPage(1, false).then(() => drainPagesIfNeeded());
         };
-
-        const loadMore = () => {
-            if (isLoadingMore.value) return;
-            if (page.value >= totalPages.value) return;
-            fetchPage(page.value + 1, true);
-        };
-
-        const hasMore = computed(() => page.value < totalPages.value);
 
         const onFiltersChange = (next: DiscoverFilters) => {
             filters.value = next;
@@ -408,6 +432,7 @@ export default defineComponent({
 
             genres.value = await getGenres('tv');
             await fetchPage(1, false);
+            void drainPagesIfNeeded();
 
             window.addEventListener('movora_settings_change', reload);
         });
@@ -435,14 +460,14 @@ export default defineComponent({
             searchTerm,
             yearBounds: YEAR_BOUNDS,
             hasMore,
+            scrollSentinel,
             resultsEyebrow,
             resultsTitle,
             activeChips,
             onFiltersChange,
             resetFilters,
             onSearchInput,
-            clearSearch,
-            loadMore
+            clearSearch
         };
     }
 });
@@ -699,31 +724,9 @@ export default defineComponent({
         padding: var(--s-7) 0 var(--s-4);
     }
 
-    &__more-btn {
-        font-family: var(--font-mono);
-        font-size: var(--fs-xs);
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: var(--bone-100);
-        padding: 0.8rem 1.8rem;
-        border: 1px solid var(--rule-strong);
-        border-radius: var(--r-pill);
-        background: var(--surface-tint);
-        transition:
-            color var(--dur-fast) var(--ease-out),
-            border-color var(--dur-fast) var(--ease-out),
-            background-color var(--dur-fast) var(--ease-out);
-
-        &:hover:not(:disabled), &:focus-visible:not(:disabled) {
-            color: var(--ember);
-            border-color: var(--ember);
-            background: rgba(255, 90, 31, 0.08);
-        }
-
-        &:disabled {
-            opacity: 0.5;
-            cursor: wait;
-        }
+    &__sentinel {
+        margin-top: var(--s-6);
+        min-height: 1px;
     }
 }
 

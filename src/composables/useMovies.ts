@@ -2,6 +2,7 @@ import { ref } from "vue"
 import { Movie } from "./useHighlights"
 import {Actor} from "./useActor"
 import useAxios from "./useAxios"
+import { getSettings } from "./useSettings"
 import { useRouter } from "vue-router"
 
 export interface MovieResponse {
@@ -109,18 +110,20 @@ export const useMovies = () => {
         let loading = ref(false)
         let error = ref("")
         let data = ref<MovieResponse>()
+        const { region } = getSettings();
+        const cacheKey = `${region.value}:${url}`;
         try {
             loading.value = true
-            if (!discoverMoviesCache.has(url)) {
-                discoverMoviesCache.set(url, useAxios().get(url).then(r => r.data));
+            if (!discoverMoviesCache.has(cacheKey)) {
+                discoverMoviesCache.set(cacheKey, useAxios().get(url).then(r => r.data));
             }
-            const res = await discoverMoviesCache.get(url)!;
+            const res = await discoverMoviesCache.get(cacheKey)!;
             if (res.results) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
-            discoverMoviesCache.delete(url);
+            discoverMoviesCache.delete(cacheKey);
         } finally {
             loading.value = false
         }

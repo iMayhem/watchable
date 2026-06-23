@@ -1,5 +1,6 @@
 import { ref } from "vue"
 import useAxios from "./useAxios"
+import { getSettings } from "./useSettings"
 import { MovieCredit, MovieImages, MovieVideo } from "./useMovies"
 export interface TVShowType {
     adult: boolean,
@@ -188,18 +189,20 @@ export const useTvShows = () => {
         let loading = ref(false)
         let error = ref("")
         let data = ref<TVShowResponse>()
+        const { region } = getSettings();
+        const cacheKey = `${region.value}:${url}`;
         try {
             loading.value = true
-            if (!discoverShowsCache.has(url)) {
-                discoverShowsCache.set(url, useAxios().get(url).then(r => r.data));
+            if (!discoverShowsCache.has(cacheKey)) {
+                discoverShowsCache.set(cacheKey, useAxios().get(url).then(r => r.data));
             }
-            const res = await discoverShowsCache.get(url)!;
+            const res = await discoverShowsCache.get(cacheKey)!;
             if (res.results) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
-            discoverShowsCache.delete(url);
+            discoverShowsCache.delete(cacheKey);
         } finally {
             loading.value = false
         }

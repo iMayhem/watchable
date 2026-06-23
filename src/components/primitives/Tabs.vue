@@ -184,4 +184,42 @@ export default defineComponent({
         }
     }
 }
+
+@media (max-width: 640px) {
+    .lm-tabs {
+        width: 100%;
+
+        &__list {
+            display: flex;
+            width: 100%;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+
+            &::-webkit-scrollbar {
+                display: none;
+            }
+        }
+
+        &__tab {
+            flex-shrink: 0;
+            min-height: 2.5rem;
+            padding: var(--s-2) var(--s-3);
+            font-size: 0.8rem;
+        }
+
+        &--pill {
+            .lm-tabs__list {
+                width: max-content;
+                max-width: 100%;
+            }
+
+            .lm-tabs__tab {
+                min-height: 2.35rem;
+                padding: 0.45rem 0.85rem;
+                font-size: 0.78rem;
+            }
+        }
+    }
+}
 </style>

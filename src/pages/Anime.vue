@@ -60,9 +60,15 @@
                                 <circle cx="32" cy="32" r="7"/>
                             </svg>
                         </div>
-                        <h3 class="discover__empty-title display">Nothing found.</h3>
+                        <h3 class="discover__empty-title display">
+                            {{ loadError ? 'Anime feed unavailable.' : 'Nothing found.' }}
+                        </h3>
                         <p class="discover__empty-desc">
-                            No anime match the current filter set. Try adjusting your filters.
+                            {{
+                                loadError
+                                    ? loadError
+                                    : 'No anime match the current filter set. Try adjusting your filters.'
+                            }}
                         </p>
                         <button type="button" class="discover__empty-reset" @click="resetFilters">
                             Reset filters
@@ -85,16 +91,27 @@
                         />
                     </div>
 
-                    <div v-if="hasMore" class="discover__more">
-                        <button
-                            type="button"
-                            class="discover__more-btn"
-                            :disabled="isLoadingMore"
-                            @click="loadMore"
-                        >
-                            <span v-if="isLoadingMore">Loading…</span>
-                            <span v-else>Load more · page {{ currentPage }}/{{ totalPages }}</span>
-                        </button>
+                    <div
+                        v-if="results.length && (hasMore || isLoadingMore)"
+                        ref="scrollSentinel"
+                        class="discover__sentinel"
+                        aria-hidden="true"
+                    >
+                        <div v-if="isLoadingMore" class="discover__grid">
+                            <PosterCard
+                                v-for="n in 8"
+                                :key="`more-${n}`"
+                                loading
+                                id=""
+                                type="anime"
+                                title=""
+                                poster-path=""
+                                :rating="0"
+                                release-date=""
+                                :genre-ids="[]"
+                                :adult="false"
+                            />
+                        </div>
                     </div>
                 </div>
             </section>
@@ -106,6 +123,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { usePaginatedInfiniteScroll } from '../composables/useLazyLoad';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import PosterCard from '../components/cards/PosterCard.vue';
@@ -139,6 +157,7 @@ export default defineComponent({
         const totalResults = ref(0);
         const isLoading = ref(false);
         const isLoadingMore = ref(false);
+        const loadError = ref('');
 
         const animeGenresList = ANIME_GENRES.map(genre => ({ id: genre, name: genre }));
         const yearBounds = YEAR_BOUNDS;
@@ -194,7 +213,7 @@ export default defineComponent({
             };
         };
 
-        const CACHE_KEY = 'anime_initial_discover_cache';
+        const CACHE_KEY = 'anime_initial_discover_cache_v2';
 
         const fetchAnime = async (page = 1, append = false) => {
             const isInitialDefault = page === 1 && 
@@ -230,6 +249,7 @@ export default defineComponent({
             }
 
             try {
+                loadError.value = '';
                 const response = await discoverAnime({
                     page,
                     perPage: 20,
@@ -238,62 +258,69 @@ export default defineComponent({
                     yearEnd: filters.value.yearRange[1] !== CURRENT_YEAR ? filters.value.yearRange[1] : undefined,
                     sort: filters.value.sortBy
                 });
-                
-                if (response.data.Page.media) {
-                    const newResults = response.data.Page.media;
 
-                    if (append) {
-                        const combined = [...results.value, ...newResults];
-                        const seen = new Set();
-                        results.value = combined.filter((item) => {
-                            const uid = String(item.id || '');
-                            if (!uid || seen.has(uid)) return false;
-                            seen.add(uid);
-                            return true;
-                        });
-                    } else {
-                        const seen = new Set();
-                        results.value = newResults.filter((item) => {
-                            const uid = String(item.id || '');
-                            if (!uid || seen.has(uid)) return false;
-                            seen.add(uid);
-                            return true;
-                        });
-                        
-                        if (isInitialDefault) {
-                            localStorage.setItem(CACHE_KEY, JSON.stringify({
-                                results: newResults,
-                                totalPages: response.data.Page.pageInfo.lastPage,
-                                totalResults: response.data.Page.pageInfo.total
-                            }));
-                        }
+                const pageInfo = response.data?.Page?.pageInfo;
+                const newResults = response.data?.Page?.media ?? [];
+
+                if (append) {
+                    const combined = [...results.value, ...newResults];
+                    const seen = new Set();
+                    results.value = combined.filter((item) => {
+                        const uid = String(item.id || '');
+                        if (!uid || seen.has(uid)) return false;
+                        seen.add(uid);
+                        return true;
+                    });
+                } else {
+                    const seen = new Set();
+                    results.value = newResults.filter((item) => {
+                        const uid = String(item.id || '');
+                        if (!uid || seen.has(uid)) return false;
+                        seen.add(uid);
+                        return true;
+                    });
+
+                    if (isInitialDefault && newResults.length > 0) {
+                        localStorage.setItem(CACHE_KEY, JSON.stringify({
+                            results: newResults,
+                            totalPages: pageInfo?.lastPage ?? 1,
+                            totalResults: pageInfo?.total ?? 0
+                        }));
                     }
-
-                    totalPages.value = response.data.Page.pageInfo.lastPage;
-                    totalResults.value = response.data.Page.pageInfo.total;
-                    currentPage.value = page;
                 }
+
+                totalPages.value = pageInfo?.lastPage ?? 1;
+                totalResults.value = pageInfo?.total ?? 0;
+                currentPage.value = page;
             } catch (err) {
                 console.error('Failed to fetch anime:', err);
+                loadError.value =
+                    err instanceof Error ? err.message : 'Could not load anime right now.';
+                if (!append) {
+                    results.value = [];
+                }
             } finally {
                 isLoading.value = false;
                 isLoadingMore.value = false;
             }
         };
 
-        const loadMore = () => {
-            if (!hasMore.value || isLoadingMore.value) return;
-            fetchAnime(currentPage.value + 1, true);
-        };
+        const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
+            hasMore,
+            isLoading,
+            isLoadingMore,
+            hasResults: computed(() => results.value.length > 0),
+            loadNextPage: () => fetchAnime(currentPage.value + 1, true)
+        });
 
         watch(filters, () => {
             currentPage.value = 1;
-            fetchAnime(1, false);
+            void fetchAnime(1, false).then(() => drainPagesIfNeeded());
         }, { deep: true });
 
         onMounted(() => {
             document.title = 'Discover Anime — Moovie';
-            fetchAnime(1, false);
+            void fetchAnime(1, false).then(() => drainPagesIfNeeded());
         });
 
         return {
@@ -304,14 +331,15 @@ export default defineComponent({
             totalResults,
             isLoading,
             isLoadingMore,
+            loadError,
             animeGenresList,
             yearBounds,
             resultsTitle,
             activeChips,
             hasMore,
+            scrollSentinel,
             onFiltersChange,
-            resetFilters,
-            loadMore
+            resetFilters
         };
     }
 });
@@ -491,31 +519,9 @@ export default defineComponent({
         padding: var(--s-7) 0 var(--s-4);
     }
 
-    &__more-btn {
-        font-family: var(--font-mono);
-        font-size: var(--fs-xs);
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        color: var(--bone-100);
-        padding: 0.8rem 1.8rem;
-        border: 1px solid var(--rule-strong);
-        border-radius: var(--r-pill);
-        background: var(--surface-tint);
-        transition:
-            color var(--dur-fast) var(--ease-out),
-            border-color var(--dur-fast) var(--ease-out),
-            background-color var(--dur-fast) var(--ease-out);
-
-        &:hover:not(:disabled), &:focus-visible:not(:disabled) {
-            color: var(--ember);
-            border-color: var(--ember);
-            background: rgba(255, 90, 31, 0.08);
-        }
-
-        &:disabled {
-            opacity: 0.5;
-            cursor: wait;
-        }
+    &__sentinel {
+        margin-top: var(--s-6);
+        min-height: 1px;
     }
 }
 

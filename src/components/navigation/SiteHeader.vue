@@ -69,6 +69,7 @@
                     type="button"
                     class="site-header__search"
                     aria-label="Search"
+                    title="Search"
                     @click="openPalette"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -95,8 +96,8 @@
                     to="/party"
                     class="site-header__party-btn"
                     :class="{ 'is-active': isPartyRoute }"
-                    aria-label="Watch Together"
-                    title="Watch Together Lobby"
+                    aria-label="Together"
+                    title="Together Lobby"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="site-header__party-icon">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -104,7 +105,7 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
-                    <span class="site-header__party-label">Watch Together</span>
+                    <span class="site-header__party-label">Together</span>
                 </router-link>
 
                 <template v-if="!isNetflixMode">
@@ -138,10 +139,15 @@
                             class="site-header__region-toggle"
                             :class="{ 'is-active': isRegionDropdownOpen }"
                             type="button"
+                            aria-label="Select region"
+                            title="Select region"
                             @click="toggleRegionDropdown"
                         >
-                            <span class="site-header__region-flag">{{ getFlagEmoji(currentRegion) }}</span>
-                            Region
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M2 12h20" />
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            </svg>
                         </button>
 
                         <div v-if="isRegionDropdownOpen" class="region-dropdown">
@@ -263,7 +269,7 @@
 
                     <router-link to="/party" class="site-header__drawer-link" :class="{ 'is-active': isPartyRoute }" @click="drawerOpen = false">
                         <span class="eyebrow site-header__drawer-num">✦</span>
-                        <span class="site-header__drawer-label">Watch Together</span>
+                        <span class="site-header__drawer-label">Together</span>
                     </router-link>
 
                     <button class="site-header__drawer-link" @click="isSettingsModalOpen = true; drawerOpen = false">
@@ -404,7 +410,8 @@ const primaryNav: NavItem[] = [
     },
     { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
     { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
-    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 }
+    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 },
+    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 }
 ];
 
 export default defineComponent({
@@ -938,31 +945,30 @@ export default defineComponent({
     &__search {
         display: inline-flex;
         align-items: center;
-        gap: var(--s-2);
-        padding: 0.5rem 0.75rem 0.5rem 0.65rem;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
         background: var(--surface-tint);
         border: 1px solid var(--rule);
         border-radius: var(--r-pill);
         color: var(--bone-300);
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
-        min-width: 120px;
         cursor: pointer;
         transition:
             background-color var(--dur-fast),
             border-color var(--dur-fast),
             color var(--dur-fast);
 
-        svg { width: 16px; height: 16px; flex: 0 0 auto; }
+        svg {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 auto;
+        }
 
         &:hover {
             background: var(--surface-tint-hover);
             border-color: var(--rule-strong);
             color: var(--bone-50);
-        }
-
-        @media (max-width: 1024px) {
-            min-width: 0;
         }
     }
 
@@ -1148,28 +1154,31 @@ export default defineComponent({
     &__region-toggle {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        background: rgba(255, 255, 255, 0.03);
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        background: var(--surface-tint);
         color: var(--bone-200);
-        font-family: var(--font-ui);
-        font-size: var(--fs-xs);
-        font-weight: 600;
-        padding: 6px 14px;
         border: 1px solid var(--rule);
-        border-radius: var(--r-sm);
+        border-radius: var(--r-pill);
         cursor: pointer;
-        transition: background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+        transition:
+            background-color var(--dur-fast),
+            border-color var(--dur-fast),
+            color var(--dur-fast);
 
-        &:hover, &.is-active {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.2);
+        svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        &:hover,
+        &.is-active {
+            background: var(--surface-tint-hover);
+            border-color: var(--rule-strong);
             color: var(--bone-50);
         }
-    }
-
-    &__region-flag {
-        font-size: 1.1rem;
-        line-height: 1;
     }
 
     &__user-badge {
@@ -1347,19 +1356,6 @@ export default defineComponent({
         &:hover,
         &.is-active {
             color: var(--bone-50);
-        }
-    }
-
-    &__search--compact {
-        justify-content: center;
-        min-width: 0;
-        width: 36px;
-        height: 36px;
-        padding: 0;
-
-        svg {
-            width: 17px;
-            height: 17px;
         }
     }
 

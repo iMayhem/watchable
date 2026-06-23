@@ -27,8 +27,13 @@
                 />
             </div>
 
-            <div v-if="hasMore" class="m-discover__more">
-                <button type="button" :disabled="isLoadingMore" @click="loadMore">Load more</button>
+            <div
+                v-if="results.length && (hasMore || isLoadingMore)"
+                ref="scrollSentinel"
+                class="m-discover__sentinel"
+                aria-hidden="true"
+            >
+                <div v-if="isLoadingMore" class="m-discover__spinner" />
             </div>
         </div>
     </MobileShell>
@@ -36,6 +41,7 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue';
+import { usePaginatedInfiniteScroll } from '@/composables/useLazyLoad';
 import { debounce } from '@/utils/memoization';
 import MobileShell from '../layout/MobileShell.vue';
 import PersonCard from '@/components/cards/PersonCard.vue';
@@ -76,18 +82,23 @@ async function fetchPage(pageNum: number, append: boolean) {
     }
 }
 
-const debouncedSearch = debounce(() => fetchPage(1, false), 350);
+const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
+    hasMore,
+    isLoading,
+    isLoadingMore,
+    hasResults: computed(() => results.value.length > 0),
+    loadNextPage: () => fetchPage(page.value + 1, true)
+});
+
+const debouncedSearch = debounce(() => {
+    void fetchPage(1, false).then(() => drainPagesIfNeeded());
+}, 350);
 
 watch(searchTerm, debouncedSearch);
 
-function loadMore() {
-    if (!hasMore.value || isLoadingMore.value) return;
-    fetchPage(page.value + 1, true);
-}
-
 onMounted(() => {
     document.title = 'Cast — Moovie';
-    fetchPage(1, false);
+    void fetchPage(1, false).then(() => drainPagesIfNeeded());
 });
 </script>
 
@@ -129,19 +140,11 @@ onMounted(() => {
     }
 }
 
-.m-discover__more {
+.m-discover__sentinel {
     display: flex;
     justify-content: center;
-    padding: var(--s-5);
-
-    button {
-        min-height: 2.75rem;
-        padding: 0 var(--s-5);
-        border-radius: var(--r-pill);
-        border: 1px solid var(--rule-strong);
-        background: var(--ink-800);
-        color: var(--bone-100);
-    }
+    padding: var(--s-5) var(--s-4);
+    min-height: 1px;
 }
 
 .m-discover__spinner {

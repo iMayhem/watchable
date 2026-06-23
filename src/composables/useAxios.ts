@@ -1,4 +1,10 @@
 import axios from 'axios'
+import {
+    applyGlobalBrowseCuration,
+    GLOBAL_DEFAULT_ORIGINAL_LANGUAGE,
+    shouldApplyGlobalHollywoodBias,
+    shouldCurateGlobalBrowse
+} from './useHomepageCuration'
 import { getSettings } from './useSettings'
 
 // Always call TMDB directly — skip the /api/tmdb Cloudflare proxy.
@@ -62,6 +68,50 @@ const useAxios = () => {
 
         config.params = config.params || {}
         url = config.url || ''
+
+        if (shouldApplyGlobalHollywoodBias(regionVal, url, config.params)) {
+            config.params.with_original_language = GLOBAL_DEFAULT_ORIGINAL_LANGUAGE
+
+            if (url.includes('trending/movie') || url.includes('movie/popular')) {
+                config.url = 'discover/movie'
+                config.params = {
+                    ...config.params,
+                    sort_by: config.params.sort_by || 'popularity.desc',
+                    'primary_release_date.gte': MIN_RELEASE_DATE,
+                    'vote_count.gte': config.params['vote_count.gte'] || 50
+                }
+            } else if (url.includes('movie/now_playing')) {
+                const dates = getRecentDateRange()
+                config.url = 'discover/movie'
+                config.params = {
+                    ...config.params,
+                    sort_by: config.params.sort_by || 'primary_release_date.desc',
+                    'primary_release_date.gte': dates.gte,
+                    'primary_release_date.lte': dates.lte,
+                    'vote_count.gte': config.params['vote_count.gte'] || 20
+                }
+            } else if (url.includes('trending/tv')) {
+                config.url = 'discover/tv'
+                config.params = {
+                    ...config.params,
+                    sort_by: config.params.sort_by || 'popularity.desc',
+                    without_genres: config.params.without_genres || '10767,10763,10766',
+                    'first_air_date.gte': MIN_RELEASE_DATE,
+                    'vote_count.gte': config.params['vote_count.gte'] || 50
+                }
+            } else if (url.includes('tv/on_the_air')) {
+                const dates = getRecentDateRange()
+                config.url = 'discover/tv'
+                config.params = {
+                    ...config.params,
+                    sort_by: config.params.sort_by || 'first_air_date.desc',
+                    without_genres: config.params.without_genres || '10767,10763,10766',
+                    'first_air_date.gte': dates.gte,
+                    'first_air_date.lte': dates.lte,
+                    'vote_count.gte': config.params['vote_count.gte'] || 20
+                }
+            }
+        }
 
         if (regionVal && regionVal !== 'global') {
             console.log('[🌐 API] Region applied to request:', regionVal)
@@ -164,8 +214,18 @@ const useAxios = () => {
         const regionVal = region.value
         const url = response.config.url || ''
         const currentSort = response.config.params?.sort_by
-
         console.log('[🌐 API] Response:', { status: response.status, items: response.data?.results?.length || 0, region: regionVal })
+
+        const requestParams = response.config.params as Record<string, unknown> | undefined
+        if (
+            response.data &&
+            Array.isArray(response.data.results) &&
+            shouldCurateGlobalBrowse(regionVal, url, requestParams)
+        ) {
+            response.data.results = applyGlobalBrowseCuration(response.data.results, {
+                excludeIndian: true
+            })
+        }
 
         const isChronologicalSort = currentSort === 'primary_release_date.desc' || currentSort === 'first_air_date.desc'
 

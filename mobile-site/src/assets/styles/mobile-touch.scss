@@ -1,5 +1,10 @@
 /* Touch-friendly controls for mobile-site (prevents iOS zoom, 44px tap targets) */
 
+.scroll-car-container,
+.auth-canvas {
+    display: none !important;
+}
+
 @media (max-width: 640px) {
     select,
     input[type='search'],

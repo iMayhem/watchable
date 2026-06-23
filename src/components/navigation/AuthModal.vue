@@ -1,8 +1,8 @@
 <template>
     <Teleport to="body">
         <div v-if="isOpen" class="auth-modal-overlay" @click.self="close" ref="overlayRef">
-        <!-- HTML5 Interactive Neon Car & Particles Canvas -->
-        <canvas ref="canvasRef" class="auth-canvas"></canvas>
+        <!-- HTML5 Interactive Neon Car & Particles Canvas (desktop only) -->
+        <canvas v-if="!isMobileUi" ref="canvasRef" class="auth-canvas"></canvas>
 
         <!-- Dynamic 3D Spring-Physics Jelly Login Card -->
         <div 
@@ -131,6 +131,18 @@ export default defineComponent({
     emits: ['close'],
     setup(props, { emit }) {
         const { activeVehicle } = useActiveVehicle();
+
+        const detectMobileUi = () => {
+            if (typeof window === 'undefined') return false;
+            const ua = navigator.userAgent || '';
+            const mobileUa = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+            const touch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+            const narrow = window.matchMedia?.('(max-width: 768px)')?.matches ?? false;
+            return mobileUa || (touch && narrow);
+        };
+
+        const isMobileUi = ref(detectMobileUi());
+
         const mode = ref<'login' | 'signup'>('login');
         const username = ref('');
         const password = ref('');
@@ -722,6 +734,12 @@ export default defineComponent({
             }
 
             loading.value = true;
+
+            if (isMobileUi.value) {
+                await executeAuthRequest();
+                return;
+            }
+
             isCrashing.value = true;
             carState.value = 'REVERSING';
             carTimer.value = 0;
@@ -816,7 +834,9 @@ export default defineComponent({
         watch(() => props.isOpen, (newVal) => {
             if (newVal) {
                 document.body.style.overflow = 'hidden';
-                restartAnimation();
+                if (!isMobileUi.value) {
+                    restartAnimation();
+                }
             } else {
                 document.body.style.overflow = '';
                 stopAnimation();
@@ -826,7 +846,9 @@ export default defineComponent({
         onMounted(() => {
             if (props.isOpen) {
                 document.body.style.overflow = 'hidden';
-                initAnimation();
+                if (!isMobileUi.value) {
+                    initAnimation();
+                }
             }
         });
 
@@ -845,6 +867,7 @@ export default defineComponent({
             close,
             toggleMode,
             handleSubmit,
+            isMobileUi,
 
             // Refs & Visuals
             overlayRef,

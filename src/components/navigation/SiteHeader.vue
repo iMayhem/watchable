@@ -682,7 +682,7 @@ export default defineComponent({
         const showModeSwitch = computed(() => isChosen());
 
         const modeLabel = computed(() =>
-            contentMode.value === 'netflix' ? 'Switch to Global' : 'Netflix'
+            contentMode.value === 'netflix' ? 'Switch to Global' : 'NETFLIX IN'
         );
 
         const toggleContentMode = () => {

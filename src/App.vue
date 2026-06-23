@@ -26,6 +26,8 @@
         <CommandPalette v-if="!isPartyEmbed" />
 
         <Toast v-if="!isPartyEmbed" />
+
+        <OpeningSplash v-if="!isPartyEmbed && !isBareLayout" />
     </div>
 </template>
 
@@ -34,6 +36,7 @@ import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
 import ContentModeGate from './components/navigation/ContentModeGate.vue';
+import OpeningSplash from './components/navigation/OpeningSplash.vue';
 
 const route = useRoute();
 const isBareLayout = computed(() => Boolean(route.meta.bareLayout));

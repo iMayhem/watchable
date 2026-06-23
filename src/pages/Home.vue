@@ -41,6 +41,50 @@
                 default-type="movie"
             />
 
+            <CuratedRail
+                v-if="marvelItems.length > 0"
+                class="home__section"
+                :items="marvelItems"
+                title="Marvel Cinematic Universe"
+                eyebrow="Marvel Studios"
+                description="The legendary franchise — every hero, every battle, every saga."
+                default-type="movie"
+                :more-to="{ name: 'Movies', query: { company: '420', companyName: 'Marvel Studios' } }"
+            />
+
+            <CuratedRail
+                v-if="warnerItems.length > 0"
+                class="home__section"
+                :items="warnerItems"
+                title="Warner Bros. Classics & New Releases"
+                eyebrow="Warner Bros. Pictures"
+                description="A century of iconic storytelling from one of Hollywood's finest."
+                default-type="movie"
+                :more-to="{ name: 'Movies', query: { company: '174', companyName: 'Warner Bros. Pictures' } }"
+            />
+
+            <CuratedRail
+                v-if="disneyItems.length > 0"
+                class="home__section"
+                :items="disneyItems"
+                title="Walt Disney Presents"
+                eyebrow="Walt Disney Pictures"
+                description="Where imagination meets magic — timeless stories for every generation."
+                default-type="movie"
+                :more-to="{ name: 'Movies', query: { company: '2', companyName: 'Walt Disney Pictures' } }"
+            />
+
+            <CuratedRail
+                v-if="universalItems.length > 0"
+                class="home__section"
+                :items="universalItems"
+                title="Universal Studios Collection"
+                eyebrow="Universal Pictures"
+                description="Blockbusters and award-winners from the world's oldest major studio."
+                default-type="movie"
+                :more-to="{ name: 'Movies', query: { company: '33', companyName: 'Universal Pictures' } }"
+            />
+
             <SpotlightModule
                 v-if="spotlight"
                 class="home__section"
@@ -141,6 +185,10 @@ export default defineComponent({
 
         const upcomingTv = ref<TVShowType[]>([]);
         const fourKItems = ref<any[]>([]);
+        const marvelItems = ref<any[]>([]);
+        const warnerItems = ref<any[]>([]);
+        const disneyItems = ref<any[]>([]);
+        const universalItems = ref<any[]>([]);
         const isHomeLoading = ref(true);
 
         const fetch4KMovies = async () => {
@@ -174,6 +222,43 @@ export default defineComponent({
             } catch (err) {
                 console.error('[📍 HOME PAGE] Failed to fetch 4K movies today:', err);
                 fourKItems.value = [];
+            }
+        };
+
+        const COMPANY_IDS = {
+            marvel: '420',
+            warner: '174',
+            disney: '2',
+            universal: '33'
+        };
+
+        const mapDiscoverResult = (m: any) => ({
+            id: m.id,
+            title: m.title,
+            originalTitle: m.original_title,
+            posterPath: m.poster_path,
+            rating: m.vote_average,
+            releaseDate: m.release_date,
+            genreIds: m.genre_ids,
+            adult: m.adult,
+            type: 'movie' as const
+        });
+
+        const fetchCompanyMovies = async (companyId: string, targetRef: any) => {
+            try {
+                const res = await useAxios().get('discover/movie', {
+                    params: {
+                        with_companies: companyId,
+                        sort_by: 'popularity.desc',
+                        'vote_count.gte': 100,
+                        page: 1
+                    }
+                });
+                const results = (res.data?.results ?? []) as any[];
+                targetRef.value = results.slice(0, 20).map(mapDiscoverResult);
+            } catch (err) {
+                console.error(`[📍 HOME PAGE] Failed to fetch company movies (${companyId}):`, err);
+                targetRef.value = [];
             }
         };
 
@@ -294,7 +379,11 @@ export default defineComponent({
                     fetchHighlights('new'),
                     fetchNewShows(),
                     fetchUpcomingTv(),
-                    fetch4KMovies()
+                    fetch4KMovies(),
+                    fetchCompanyMovies(COMPANY_IDS.marvel, marvelItems),
+                    fetchCompanyMovies(COMPANY_IDS.warner, warnerItems),
+                    fetchCompanyMovies(COMPANY_IDS.disney, disneyItems),
+                    fetchCompanyMovies(COMPANY_IDS.universal, universalItems)
                 ]);
                 await fetchHighlights('featured');
                 await restPromise;
@@ -304,7 +393,11 @@ export default defineComponent({
                     new: highLightOptions.new.data.length,
                     newShows: newShows.value.length,
                     upcoming: upcomingTv.value.length,
-                    fourKMoviesToday: fourKItems.value.length
+                    fourKMoviesToday: fourKItems.value.length,
+                    marvel: marvelItems.value.length,
+                    warner: warnerItems.value.length,
+                    disney: disneyItems.value.length,
+                    universal: universalItems.value.length
                 });
             } catch (err) {
                 console.error('[📍 HOME PAGE] Error loading data:', err);
@@ -346,7 +439,11 @@ export default defineComponent({
             pantheonItems,
             seriesItems,
             upcomingItems,
-            fourKItems
+            fourKItems,
+            marvelItems,
+            warnerItems,
+            disneyItems,
+            universalItems
         };
     }
 });

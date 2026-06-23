@@ -179,6 +179,7 @@ export default defineComponent({
 
         const filters = ref<DiscoverFilters>(makeDefaultFilters());
         const searchTerm = ref<string>('');
+        const companyFilter = ref<{ id: string; name: string } | null>(null);
 
         const hydrateFromRoute = () => {
             const q = route.query;
@@ -203,6 +204,16 @@ export default defineComponent({
 
             filters.value = next;
             searchTerm.value = typeof q.q === 'string' ? q.q : '';
+
+            // Production company filter
+            if (typeof q.company === 'string' && q.company) {
+                companyFilter.value = {
+                    id: q.company,
+                    name: typeof q.companyName === 'string' ? q.companyName : q.company
+                };
+            } else {
+                companyFilter.value = null;
+            }
         };
 
         const syncRoute = () => {
@@ -217,6 +228,11 @@ export default defineComponent({
             if (f.language) q.lang = f.language;
             if (f.sortBy !== DEFAULT_SORT) q.sort = f.sortBy;
             if (searchTerm.value) q.q = searchTerm.value;
+            // Preserve company filter in URL
+            if (companyFilter.value) {
+                q.company = companyFilter.value.id;
+                q.companyName = companyFilter.value.name;
+            }
 
             if (JSON.stringify(q) !== JSON.stringify(route.query)) {
                 router.replace({ query: q });
@@ -245,6 +261,10 @@ export default defineComponent({
             if (band?.gte !== undefined) params.set('with_runtime.gte', String(band.gte));
             if (band?.lte !== undefined) params.set('with_runtime.lte', String(band.lte));
             if (f.language) params.set('with_original_language', f.language);
+            // Production company filter
+            if (companyFilter.value?.id) {
+                params.set('with_companies', companyFilter.value.id);
+            }
 
             return `https://api.themoviedb.org/3/discover/movie?${params.toString()}`;
         };
@@ -337,11 +357,13 @@ export default defineComponent({
 
         const resultsEyebrow = computed(() => {
             if (searchTerm.value) return 'Searching';
+            if (companyFilter.value) return companyFilter.value.name;
             return 'The programme';
         });
 
         const resultsTitle = computed(() => {
             if (searchTerm.value) return `"${searchTerm.value}"`;
+            if (companyFilter.value) return `${companyFilter.value.name} Films`;
             const g = filters.value.genres
                 .map(id => genres.value.find(x => x.id === id)?.name)
                 .filter(Boolean)
@@ -398,6 +420,9 @@ export default defineComponent({
             document.title = 'Discover Movies — Moovie';
             primeGenres();
             hydrateFromRoute();
+            if (companyFilter.value) {
+                document.title = `${companyFilter.value.name} — Moovie`;
+            }
 
             genres.value = await getGenres('movie');
             await fetchPage(1, false);
@@ -427,6 +452,7 @@ export default defineComponent({
             isLoadingMore,
             filters,
             searchTerm,
+            companyFilter,
             yearBounds: YEAR_BOUNDS,
             hasMore,
             scrollSentinel,

@@ -178,9 +178,17 @@ export const useSearch = () => {
             const rawMovies = res.filter((movie: any) => movie.media_type === "movie")
             const rawTv = res.filter((tv: any) => tv.media_type === "tv")
             const rawPeople = res.filter((people: any) => people.media_type === "person")
-            discoveredMovies.value = sortByRelevance(rawMovies, query, 'title')
-            discoveredTv.value = sortByRelevance(rawTv, query, 'name')
-            discoveredPeople.value = sortByRelevance(rawPeople, query, 'name')
+            if (pageNumber === 1) {
+                // First page: sort by relevance (exact match → starts-with → popularity desc)
+                discoveredMovies.value = sortByRelevance(rawMovies, query, 'title')
+                discoveredTv.value = sortByRelevance(rawTv, query, 'name')
+                discoveredPeople.value = sortByRelevance(rawPeople, query, 'name')
+            } else {
+                // Subsequent pages: just append without re-sorting
+                discoveredMovies.value = mergeUniqueMovies(discoveredMovies.value, rawMovies)
+                discoveredTv.value = [...discoveredTv.value, ...rawTv.filter((s: SearchShow) => !discoveredTv.value.find(e => e.id === s.id))]
+                discoveredPeople.value = [...discoveredPeople.value, ...rawPeople.filter((p: SearchPerson) => !discoveredPeople.value.find(e => e.id === p.id))]
+            }
         } catch (err: any) {
             error.value = err.message
         } finally {

@@ -294,8 +294,8 @@ export default defineComponent({
                 const { data } = await fetchDiscoverMovies(url);
                 let fresh = curateBrowseResults((data.value?.results ?? []) as Movie[]);
 
-                // When searching, re-rank: exact title match → starts-with → popularity desc
-                if (searchTerm.value) {
+                // When searching, re-rank page 1 only: exact title match → starts-with → popularity desc
+                if (searchTerm.value && !append) {
                     const q = searchTerm.value.trim().toLowerCase();
                     fresh = [...fresh].sort((a, b) => {
                         const ta = (a.title || '').toLowerCase();

@@ -268,16 +268,18 @@ export default defineComponent({
             try {
                 const res = await useAxios().get(buildSearchUrl(pageNum));
                 const data = res.data as TvShowResponse;
-                // Sort: exact name match first, then starts-with, then by popularity desc
-                const q = searchTerm.value.trim().toLowerCase();
-                data.results = [...(data.results ?? [])].sort((a, b) => {
-                    const ta = (a.name || '').toLowerCase();
-                    const tb = (b.name || '').toLowerCase();
-                    const sa = ta === q ? 2 : ta.startsWith(q) ? 1 : 0;
-                    const sb = tb === q ? 2 : tb.startsWith(q) ? 1 : 0;
-                    if (sa !== sb) return sb - sa;
-                    return ((b as any).popularity ?? 0) - ((a as any).popularity ?? 0);
-                });
+                // Sort on first page only: exact name match → starts-with → popularity desc
+                if (pageNum === 1) {
+                    const q = searchTerm.value.trim().toLowerCase();
+                    data.results = [...(data.results ?? [])].sort((a, b) => {
+                        const ta = (a.name || '').toLowerCase();
+                        const tb = (b.name || '').toLowerCase();
+                        const sa = ta === q ? 2 : ta.startsWith(q) ? 1 : 0;
+                        const sb = tb === q ? 2 : tb.startsWith(q) ? 1 : 0;
+                        if (sa !== sb) return sb - sa;
+                        return ((b as any).popularity ?? 0) - ((a as any).popularity ?? 0);
+                    });
+                }
                 return data;
             } catch {
                 return null;

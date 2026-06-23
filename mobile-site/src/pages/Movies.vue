@@ -2,9 +2,9 @@
     <MobileShell>
         <div class="m-discover">
             <header class="m-discover__head">
-                <p class="eyebrow m-discover__eyebrow">Discover</p>
+                <p class="eyebrow m-discover__eyebrow">{{ companyName || 'Discover' }}</p>
                 <div class="m-discover__title-row">
-                    <h1 class="m-discover__title">Movies</h1>
+                    <h1 class="m-discover__title">{{ companyName ? companyName + ' Films' : 'Movies' }}</h1>
                     <button
                         type="button"
                         class="m-discover__filters-btn"
@@ -57,6 +57,7 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { usePaginatedInfiniteScroll } from '@/composables/useLazyLoad';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileMediaGrid from '../components/MobileMediaGrid.vue';
@@ -87,6 +88,7 @@ const MOVIE_RUNTIME_BANDS = [
 ];
 
 const { fetchDiscoverMovies } = useMovies();
+const route = useRoute();
 const genres = ref<Genre[]>([]);
 const results = ref<Movie[]>([]);
 const page = ref(1);
@@ -96,6 +98,9 @@ const isLoading = ref(false);
 const isLoadingMore = ref(false);
 const filters = ref<DiscoverFilters>(makeDefaultFilters());
 const filtersOpen = ref(false);
+
+const companyId = typeof route.query.company === 'string' ? route.query.company : '';
+const companyName = typeof route.query.companyName === 'string' ? route.query.companyName : '';
 
 const hasMore = computed(() => page.value < totalPages.value);
 
@@ -135,6 +140,7 @@ function buildDiscoverUrl(pageNum: number): string {
     if (band && 'gte' in band && band.gte !== undefined) params.set('with_runtime.gte', String(band.gte));
     if (band && 'lte' in band && band.lte !== undefined) params.set('with_runtime.lte', String(band.lte));
     if (f.language) params.set('with_original_language', f.language);
+    if (companyId) params.set('with_companies', companyId);
     return `https://api.themoviedb.org/3/discover/movie?${params.toString()}`;
 }
 
@@ -173,7 +179,7 @@ const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
 });
 
 onMounted(async () => {
-    document.title = 'Movies — Moovie';
+    document.title = companyName ? `${companyName} — Moovie` : 'Movies — Moovie';
     await primeGenres();
     genres.value = await getGenres('movie');
     await fetchPage(1, false);

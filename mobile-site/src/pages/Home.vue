@@ -50,11 +50,47 @@
         >
             <MobileMediaRail :items="seriesItems" />
         </MobileSection>
+
+        <MobileSection
+            v-if="marvelItems.length"
+            title="Marvel Cinematic Universe"
+            eyebrow="Marvel Studios"
+            :more-to="{ path: movies, query: { company: '420', companyName: 'Marvel Studios' } }"
+        >
+            <MobileMediaRail :items="marvelItems" />
+        </MobileSection>
+
+        <MobileSection
+            v-if="warnerItems.length"
+            title="Warner Bros. Classics & New Releases"
+            eyebrow="Warner Bros. Pictures"
+            :more-to="{ path: movies, query: { company: '174', companyName: 'Warner Bros. Pictures' } }"
+        >
+            <MobileMediaRail :items="warnerItems" />
+        </MobileSection>
+
+        <MobileSection
+            v-if="disneyItems.length"
+            title="Walt Disney Presents"
+            eyebrow="Walt Disney Pictures"
+            :more-to="{ path: movies, query: { company: '2', companyName: 'Walt Disney Pictures' } }"
+        >
+            <MobileMediaRail :items="disneyItems" />
+        </MobileSection>
+
+        <MobileSection
+            v-if="universalItems.length"
+            title="Universal Studios Collection"
+            eyebrow="Universal Pictures"
+            :more-to="{ path: movies, query: { company: '33', companyName: 'Universal Pictures' } }"
+        >
+            <MobileMediaRail :items="universalItems" />
+        </MobileSection>
     </MobileShell>
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileSection from '../components/MobileSection.vue';
 import MobileMediaRail from '../components/MobileMediaRail.vue';
@@ -64,6 +100,7 @@ import { useTvShows, newShows } from '@/composables/useTvShows';
 import { primeGenres } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
 import { useWebImage } from '@/utils/useWebImage';
+import useAxios from '@/composables/useAxios';
 
 const { movie, movies, tvShows } = useAppPaths();
 const { fetchAllHighlights } = useHighlights();
@@ -116,10 +153,49 @@ const seriesItems = computed(() =>
     }))
 );
 
+const marvelItems = ref<any[]>([]);
+const warnerItems = ref<any[]>([]);
+const disneyItems = ref<any[]>([]);
+const universalItems = ref<any[]>([]);
+
+const mapItem = (m: any) => ({
+    id: m.id,
+    title: m.title,
+    posterPath: m.poster_path,
+    rating: m.vote_average,
+    releaseDate: m.release_date,
+    genreIds: m.genre_ids,
+    adult: m.adult,
+    type: 'movie' as const
+});
+
+async function fetchCompanyMovies(companyId: string, targetRef: any) {
+    try {
+        const res = await useAxios().get('discover/movie', {
+            params: {
+                with_companies: companyId,
+                sort_by: 'popularity.desc',
+                'vote_count.gte': 100,
+                page: 1
+            }
+        });
+        targetRef.value = (res.data?.results ?? []).slice(0, 16).map(mapItem);
+    } catch {
+        targetRef.value = [];
+    }
+}
+
 onMounted(async () => {
     document.title = 'Moovie';
     primeGenres();
-    await Promise.all([fetchAllHighlights(), fetchNewShows()]);
+    await Promise.all([
+        fetchAllHighlights(),
+        fetchNewShows(),
+        fetchCompanyMovies('420', marvelItems),
+        fetchCompanyMovies('174', warnerItems),
+        fetchCompanyMovies('2', disneyItems),
+        fetchCompanyMovies('33', universalItems)
+    ]);
 });
 </script>
 

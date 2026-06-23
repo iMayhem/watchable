@@ -19,18 +19,6 @@
                 :loading="isHomeLoading && !hero"
             />
 
-            <CuratedRail
-                v-if="fourKItems && fourKItems.length > 0"
-                class="home__section"
-                :items="fourKItems"
-                title="Trending 4K Today"
-                eyebrow="Ultra HD"
-                description="Experience cinema in stunning 4K quality with our dedicated player."
-                default-type="movie"
-            />
-
-            <ContinueShelf class="home__section" />
-
             <TopTenRail
                 class="home__section"
                 :items="topTenItems"
@@ -39,6 +27,18 @@
                 description="What the house is watching right now."
                 :more-to="{ name: 'Movies' }"
                 :loading="isHomeLoading"
+            />
+
+            <ContinueShelf class="home__section" />
+
+            <CuratedRail
+                v-if="fourKItems && fourKItems.length > 0"
+                class="home__section"
+                :items="fourKItems"
+                title="Trending 4K Today"
+                eyebrow="Ultra HD"
+                description="Experience cinema in stunning 4K quality with our dedicated player."
+                default-type="movie"
             />
 
             <SpotlightModule

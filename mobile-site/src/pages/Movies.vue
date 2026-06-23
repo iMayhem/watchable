@@ -162,11 +162,13 @@ async function fetchPage(pageNum: number, append: boolean) {
 
 function onFiltersChange(next: DiscoverFilters) {
     filters.value = next;
+    results.value = [];
     void fetchPage(1, false).then(() => drainPagesIfNeeded());
 }
 
 function resetFilters() {
     filters.value = makeDefaultFilters();
+    results.value = [];
     void fetchPage(1, false).then(() => drainPagesIfNeeded());
 }
 

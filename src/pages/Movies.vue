@@ -292,7 +292,21 @@ export default defineComponent({
             try {
                 const url = searchTerm.value ? buildSearchUrl(pageNum) : buildDiscoverUrl(pageNum);
                 const { data } = await fetchDiscoverMovies(url);
-                const fresh = curateBrowseResults((data.value?.results ?? []) as Movie[]);
+                let fresh = curateBrowseResults((data.value?.results ?? []) as Movie[]);
+
+                // When searching, re-rank: exact title match → starts-with → popularity desc
+                if (searchTerm.value) {
+                    const q = searchTerm.value.trim().toLowerCase();
+                    fresh = [...fresh].sort((a, b) => {
+                        const ta = (a.title || '').toLowerCase();
+                        const tb = (b.title || '').toLowerCase();
+                        const sa = ta === q ? 2 : ta.startsWith(q) ? 1 : 0;
+                        const sb = tb === q ? 2 : tb.startsWith(q) ? 1 : 0;
+                        if (sa !== sb) return sb - sa;
+                        return ((b as any).popularity ?? 0) - ((a as any).popularity ?? 0);
+                    });
+                }
+
                 totalPages.value = data.value?.total_pages ?? 0;
                 totalResults.value = data.value?.total_results ?? 0;
                 page.value = pageNum;
@@ -309,6 +323,7 @@ export default defineComponent({
                 isLoadingMore.value = false;
             }
         };
+
 
         const reload = () => {
             page.value = 1;

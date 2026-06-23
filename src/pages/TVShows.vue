@@ -267,7 +267,18 @@ export default defineComponent({
         const fetchSearchPage = async (pageNum: number): Promise<TvShowResponse | null> => {
             try {
                 const res = await useAxios().get(buildSearchUrl(pageNum));
-                return res.data as TvShowResponse;
+                const data = res.data as TvShowResponse;
+                // Sort: exact name match first, then starts-with, then by popularity desc
+                const q = searchTerm.value.trim().toLowerCase();
+                data.results = [...(data.results ?? [])].sort((a, b) => {
+                    const ta = (a.name || '').toLowerCase();
+                    const tb = (b.name || '').toLowerCase();
+                    const sa = ta === q ? 2 : ta.startsWith(q) ? 1 : 0;
+                    const sb = tb === q ? 2 : tb.startsWith(q) ? 1 : 0;
+                    if (sa !== sb) return sb - sa;
+                    return ((b as any).popularity ?? 0) - ((a as any).popularity ?? 0);
+                });
+                return data;
             } catch {
                 return null;
             }

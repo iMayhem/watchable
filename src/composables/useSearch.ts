@@ -140,6 +140,29 @@ const mergeUniqueMovies = (existing: SearchMovie[], incoming: SearchMovie[]) => 
     return fresh.length ? [...existing, ...fresh] : existing
 }
 
+/**
+ * Re-rank raw TMDB search results so that:
+ *  1. Exact title match  → score 2
+ *  2. Starts-with match  → score 1
+ *  3. Otherwise          → score 0
+ * Within same score bucket, sort by TMDB `popularity` descending.
+ */
+function sortByRelevance<T extends Record<string, any>>(
+    items: T[],
+    query: string,
+    titleKey: keyof T
+): T[] {
+    const q = query.trim().toLowerCase()
+    return [...items].sort((a, b) => {
+        const ta = String(a[titleKey] || '').toLowerCase()
+        const tb = String(b[titleKey] || '').toLowerCase()
+        const sa = ta === q ? 2 : ta.startsWith(q) ? 1 : 0
+        const sb = tb === q ? 2 : tb.startsWith(q) ? 1 : 0
+        if (sa !== sb) return sb - sa
+        return (b.popularity ?? b.vote_count ?? 0) - (a.popularity ?? a.vote_count ?? 0)
+    })
+}
+
 export const useSearch = () => {
     const fetchSearchResults = async (query: string, pageNumber: number =1) => {
         let loading = ref(false)
@@ -152,9 +175,12 @@ export const useSearch = () => {
                 page: req.data.page,
                 total_pages: req.data.total_pages
             }
-            discoveredMovies.value= res.filter((movie: any) => movie.media_type === "movie")
-            discoveredTv.value= res.filter((tv: any) => tv.media_type === "tv")
-            discoveredPeople.value= res.filter((people: any) => people.media_type === "person")
+            const rawMovies = res.filter((movie: any) => movie.media_type === "movie")
+            const rawTv = res.filter((tv: any) => tv.media_type === "tv")
+            const rawPeople = res.filter((people: any) => people.media_type === "person")
+            discoveredMovies.value = sortByRelevance(rawMovies, query, 'title')
+            discoveredTv.value = sortByRelevance(rawTv, query, 'name')
+            discoveredPeople.value = sortByRelevance(rawPeople, query, 'name')
         } catch (err: any) {
             error.value = err.message
         } finally {

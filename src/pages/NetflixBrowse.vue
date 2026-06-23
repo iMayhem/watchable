@@ -588,9 +588,10 @@ export default defineComponent({
                 refreshLanguageMap();
 
                 const railPool = genreRailPlans.value.flatMap((plan) => plan.items);
-                const railAudioCache = await fetchCatalogAudioCacheByIds(
-                    railPool.map((item) => item.id)
-                );
+                const [railAudioCache, railArtworkUrls] = await Promise.all([
+                    fetchCatalogAudioCacheByIds(railPool.map((item) => item.id)),
+                    fetchCatalogArtworkUrlsByIds(railPool.map((item) => item.id))
+                ]);
                 if (loadGeneration.value !== generation) return;
                 const upgraded = genreRailPlans.value.map((plan) => ({
                     id: plan.id,
@@ -603,7 +604,8 @@ export default defineComponent({
                             meta?.genreIds || [],
                             languageMap.value,
                             railAudioCache,
-                            enrichmentFor(item)
+                            enrichmentFor(item),
+                            railArtworkUrls
                         );
                     })
                 }));
@@ -643,7 +645,10 @@ export default defineComponent({
                 if (loadGeneration.value !== generation) return;
                 refreshLanguageMap();
 
-                const audioCache = await fetchCatalogAudioCacheByIds(batch.map((item) => item.id));
+                const [audioCache, artworkUrls] = await Promise.all([
+                    fetchCatalogAudioCacheByIds(batch.map((item) => item.id)),
+                    fetchCatalogArtworkUrlsByIds(batch.map((item) => item.id))
+                ]);
                 if (loadGeneration.value !== generation) return;
                 const curated = batch.map((item) => {
                     const meta = tmdbById.value.get(String(item.id));
@@ -652,7 +657,8 @@ export default defineComponent({
                         meta?.genreIds || [],
                         languageMap.value,
                         audioCache,
-                        enrichmentFor(item)
+                        enrichmentFor(item),
+                        artworkUrls
                     );
                 });
                 if (loadGeneration.value !== generation) return;

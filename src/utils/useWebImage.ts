@@ -166,10 +166,23 @@ function catalogHostSupportsOss(url: string): boolean {
 
 export function buildCatalogCdnImageUrl(url: string, size: WebImageSize = 'medium'): string {
     if (!url || !CATALOG_CDN_PATTERN.test(url)) return url;
-    if (!catalogHostSupportsOss(url)) return url.split('?')[0];
     const quality = getTmdbImageQuality();
     const width = catalogOssResizeWidth(size, quality);
-    return buildCatalogOssImageUrl(url, width, catalogOssQuality(quality));
+    const q = catalogOssQuality(quality);
+
+    if (catalogHostSupportsOss(url)) {
+        return buildCatalogOssImageUrl(url, width, q);
+    }
+
+    // Fallback: Proxy and resize catalog CDN images that don't support OSS natively
+    // to stop browser lag from loading massive 3MB+ raw backdrop files for each card.
+    try {
+        const cleanUrl = url.split('?')[0];
+        const rawUrl = cleanUrl.replace(/^https?:\/\//i, '');
+        return `https://images.weserv.nl/?url=${encodeURIComponent(rawUrl)}&w=${width}&q=${q}&output=webp`;
+    } catch {
+        return url.split('?')[0];
+    }
 }
 
 /**

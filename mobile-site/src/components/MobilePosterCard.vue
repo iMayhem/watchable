@@ -16,6 +16,7 @@
                     class="m-poster-card__img"
                     loading="lazy"
                     decoding="async"
+                    @error="onPosterError"
                 />
                 <div v-else class="m-poster-card__img m-poster-card__img--empty">
                     <span class="display display--italic">{{ initial }}</span>
@@ -45,7 +46,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType } from 'vue';
+import { computed, defineComponent, PropType, ref, watch } from 'vue';
 import { useWebImage } from '@/utils/useWebImage';
 import { genreName } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
@@ -72,16 +73,36 @@ export default defineComponent({
     },
     setup(props) {
         const { detailPath } = useAppPaths();
+        const posterFallback = ref(false);
+
         const imageUrl = computed(() => {
             if (!props.posterPath) return '';
+            const isAnilist = /anilist\.co/i.test(props.posterPath);
+            const isAnime = props.type === 'anime' || isAnilist;
             const size =
                 props.size === 'lg'
                     ? 'large'
                     : props.size === 'sm'
                       ? 'small'
-                      : 'medium';
-            return useWebImage(props.posterPath, size);
+                      : isAnime
+                        ? 'medium'
+                        : 'medium';
+            const resolved = useWebImage(props.posterPath, size);
+            if (posterFallback.value) {
+                return props.posterPath.split('?')[0];
+            }
+            return resolved;
         });
+
+        watch(() => props.posterPath, () => {
+            posterFallback.value = false;
+        });
+
+        const onPosterError = () => {
+            if (!posterFallback.value) {
+                posterFallback.value = true;
+            }
+        };
 
         const initial = computed(() => props.title?.[0]?.toUpperCase() ?? '·');
 
@@ -110,7 +131,8 @@ export default defineComponent({
             ratingLabel,
             year: yearLabel,
             genreLabel,
-            routeTo
+            routeTo,
+            onPosterError
         };
     }
 });

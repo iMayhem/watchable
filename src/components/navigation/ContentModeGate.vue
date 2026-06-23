@@ -118,6 +118,7 @@
 import { computed, defineComponent, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { getContentMode, type ContentMode } from '../../composables/useContentMode';
+import { useOpeningSplash } from '../../composables/useOpeningSplash';
 import { nfDebug } from '../../composables/useNetflixDebug';
 
 export default defineComponent({
@@ -125,9 +126,13 @@ export default defineComponent({
     setup() {
         const router = useRouter();
         const { contentMode, setContentMode } = getContentMode();
+        const { splashActive } = useOpeningSplash();
 
         const visible = computed(
-            () => contentMode.value !== 'global' && contentMode.value !== 'netflix'
+            () =>
+                !splashActive.value &&
+                contentMode.value !== 'global' &&
+                contentMode.value !== 'netflix'
         );
 
         const syncBodyScroll = (locked: boolean) => {

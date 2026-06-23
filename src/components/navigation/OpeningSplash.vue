@@ -1,17 +1,18 @@
 <template>
     <Teleport to="body">
         <div
-            v-if="visible"
+            v-if="mounted"
             class="opening-splash"
             :class="{ 'is-fading': fading }"
             role="presentation"
             aria-hidden="true"
+            @transitionend="onFadeEnd"
         >
             <div class="opening-splash__scene">
                 <span class="opening-splash__bloom" aria-hidden="true" />
                 <span class="opening-splash__grain grain" aria-hidden="true" />
 
-                <div class="opening-splash__brand" :class="{ 'is-settling': settling }">
+                <div class="opening-splash__brand">
                     <div class="opening-splash__wordmark" aria-hidden="true">
                         <span
                             v-for="(letter, index) in letters"
@@ -32,19 +33,22 @@
 <script lang="ts">
 import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import { useOpeningSplash } from '../../composables/useOpeningSplash';
 
 const SPLASH_DURATION_MS = 5200;
+const FADE_MS = 900;
 const LETTERS = ['m', 'o', 'o', 'v', 'i', 'e'] as const;
 
 export default defineComponent({
     name: 'OpeningSplash',
     setup() {
         const route = useRoute();
-        const visible = ref(false);
+        const { setSplashActive, setSplashHandoff } = useOpeningSplash();
+        const mounted = ref(false);
         const fading = ref(false);
-        const settling = ref(false);
         const timers: number[] = [];
         const letters = LETTERS;
+        let scrollPad = 0;
 
         const shouldPlay = () => {
             if (route.meta.bareLayout) return false;
@@ -56,8 +60,30 @@ export default defineComponent({
             return true;
         };
 
+        const setHtmlSplashState = (state: 'idle' | 'active' | 'handoff') => {
+            const root = document.documentElement;
+            root.classList.toggle('moovie-splash-active', state === 'active' || state === 'handoff');
+            root.classList.toggle('moovie-splash-handoff', state === 'handoff');
+        };
+
         const setScrollLock = (locked: boolean) => {
-            document.documentElement.classList.toggle('moovie-splash-lock', locked);
+            const root = document.documentElement;
+            const body = document.body;
+
+            if (locked) {
+                scrollPad = Math.max(0, window.innerWidth - root.clientWidth);
+                root.classList.add('moovie-splash-lock');
+                if (scrollPad > 0) {
+                    root.style.paddingRight = `${scrollPad}px`;
+                    body.style.paddingRight = `${scrollPad}px`;
+                }
+                return;
+            }
+
+            root.classList.remove('moovie-splash-lock');
+            root.style.paddingRight = '';
+            body.style.paddingRight = '';
+            scrollPad = 0;
         };
 
         const clearTimers = () => {
@@ -65,13 +91,26 @@ export default defineComponent({
             timers.length = 0;
         };
 
-        const finish = () => {
-            if (!visible.value) return;
+        const teardown = () => {
             clearTimers();
             fading.value = false;
-            settling.value = false;
-            visible.value = false;
+            mounted.value = false;
+            setSplashHandoff(false);
+            setSplashActive(false);
+            setHtmlSplashState('idle');
             setScrollLock(false);
+        };
+
+        const onFadeEnd = (event: TransitionEvent) => {
+            if (event.propertyName !== 'opacity' || !fading.value) return;
+            teardown();
+        };
+
+        const startFade = () => {
+            if (!mounted.value || fading.value) return;
+            fading.value = true;
+            setSplashHandoff(true);
+            setHtmlSplashState('handoff');
         };
 
         const start = () => {
@@ -79,26 +118,22 @@ export default defineComponent({
 
             clearTimers();
             fading.value = false;
-            settling.value = false;
-            visible.value = true;
+            mounted.value = true;
+            setSplashActive(true);
+            setSplashHandoff(false);
+            setHtmlSplashState('active');
             setScrollLock(true);
 
             timers.push(
                 window.setTimeout(() => {
-                    settling.value = true;
-                }, 2600)
+                    startFade();
+                }, SPLASH_DURATION_MS - FADE_MS)
             );
 
             timers.push(
                 window.setTimeout(() => {
-                    fading.value = true;
-                }, SPLASH_DURATION_MS - 1100)
-            );
-
-            timers.push(
-                window.setTimeout(() => {
-                    finish();
-                }, SPLASH_DURATION_MS)
+                    if (fading.value) teardown();
+                }, SPLASH_DURATION_MS + 120)
             );
         };
 
@@ -107,15 +142,14 @@ export default defineComponent({
         });
 
         onBeforeUnmount(() => {
-            clearTimers();
-            setScrollLock(false);
+            teardown();
         });
 
         return {
-            visible,
+            mounted,
             fading,
-            settling,
-            letters
+            letters,
+            onFadeEnd
         };
     }
 });
@@ -126,6 +160,15 @@ html.moovie-splash-lock,
 html.moovie-splash-lock body {
     overflow: hidden !important;
 }
+
+html.moovie-splash-active .app-stage {
+    opacity: 0;
+}
+
+html.moovie-splash-handoff .app-stage {
+    opacity: 1;
+    transition: opacity 0.9s var(--ease-out);
+}
 </style>
 
 <style lang="scss" scoped>
@@ -135,7 +178,7 @@ html.moovie-splash-lock body {
     z-index: 10000;
     background: var(--ink-900);
     opacity: 1;
-    transition: opacity 1.1s var(--ease-out);
+    transition: opacity 0.9s var(--ease-out);
 
     &.is-fading {
         opacity: 0;
@@ -182,14 +225,6 @@ html.moovie-splash-lock body {
         align-items: center;
         gap: var(--s-3);
         text-align: center;
-        transition:
-            opacity var(--dur-slow) var(--ease-out),
-            transform var(--dur-slow) var(--ease-out);
-
-        &.is-settling {
-            opacity: 0;
-            transform: translateY(-6px);
-        }
     }
 
     &__wordmark {
@@ -239,10 +274,8 @@ html.moovie-splash-lock body {
 
 @media (prefers-reduced-motion: reduce) {
     .opening-splash__letter,
-    .opening-splash__eyebrow,
-    .opening-splash__brand {
+    .opening-splash__eyebrow {
         animation: none !important;
-        transition: none !important;
         opacity: 1 !important;
         transform: none !important;
     }

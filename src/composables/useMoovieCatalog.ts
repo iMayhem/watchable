@@ -216,69 +216,8 @@ export function catalogHasEpisodeGuide(
     return false;
 }
 
-const CATALOG_META_API = 'https://api2.imdb3.shop/api';
-const CATALOG_BROWSE_API = 'https://api2.imdb4.shop/api';
-
-function appendCatalogUpstreamParams(
-    upstream: URLSearchParams,
-    params: URLSearchParams
-) {
-    upstream.set('page', params.get('page') || '0');
-    for (const key of [
-        'dubbing',
-        'country',
-        'type',
-        'genre',
-        'sort_by',
-        'countryNot',
-        'countryNot2',
-        'countryNotParam'
-    ]) {
-        const value = params.get(key);
-        if (value) upstream.set(key, value);
-    }
-    for (const value of params.getAll('title_not[]')) {
-        upstream.append('title_not[]', value);
-    }
-    for (const value of params.getAll('genre_ids[]')) {
-        upstream.append('genre_ids[]', value);
-    }
-    for (const value of params.getAll('genre_id[]')) {
-        upstream.append('genre_id[]', value);
-    }
-}
-
-function buildCatalogListUrl(action: 'browse' | 'search' | 'filter', params: URLSearchParams): string {
-    const upstream = new URLSearchParams();
-    appendCatalogUpstreamParams(upstream, params);
-
-    if (action === 'filter') {
-        return `${CATALOG_BROWSE_API}/movies/filter?${upstream}`;
-    }
-
-    const query =
-        action === 'browse'
-            ? params.get('category') || ''
-            : params.get('q') || '';
-    const encoded = encodeURIComponent(query.trim()).replace(/%20/g, '+');
-    return `${CATALOG_BROWSE_API}/search2/${encoded}?${upstream}`;
-}
-
-async function fetchCatalogList(
-    action: 'browse' | 'search' | 'filter',
-    params: URLSearchParams
-): Promise<MoovieCatalogResponse> {
-    const url = buildCatalogListUrl(action, params);
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if (!resp.ok) {
-        throw new Error(data?.error || `Catalog ${action} failed (${resp.status})`);
-    }
-    return {
-        results: data?.results || [],
-        pager: data?.pager || undefined
-    };
-}
+/** Netflix catalogue browse/search/meta — proxied for browser CORS (resolve stays on same worker). */
+const CATALOG_API = '/api/moovie-catalog';
 
 export interface BrowseCatalogOptions {
     dubbing?: string;
@@ -334,14 +273,18 @@ export async function browseMoovieCatalog(
     const fetchPromise = (async () => {
         nfDebug('catalog:browse:start', { category, page, options });
         try {
-            const data = await fetchCatalogList(action, params);
+            const resp = await fetch(`${CATALOG_API}?${params}`);
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(data.error || `Browse failed (${resp.status})`);
+            }
             nfDebug('catalog:browse:ok', {
                 category,
                 page,
                 count: data.results?.length ?? 0,
                 totalPages: data.pager?.total_pages
             });
-            return data;
+            return data as MoovieCatalogResponse;
         } catch (err) {
             nfDebugError('catalog:browse:fail', { category, page, err });
             catalogCache.delete(cacheKey);
@@ -373,9 +316,13 @@ export async function searchMoovieCatalog(
     const fetchPromise = (async () => {
         nfDebug('catalog:search:start', { query, page });
         try {
-            const data = await fetchCatalogList('search', params);
+            const resp = await fetch(`${CATALOG_API}?${params}`);
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(data.error || `Search failed (${resp.status})`);
+            }
             nfDebug('catalog:search:ok', { query, page, count: data.results?.length ?? 0 });
-            return data;
+            return { results: data.results || [], pager: data.pager };
         } catch (err) {
             nfDebugError('catalog:search:fail', { query, page, err });
             searchCache.delete(cacheKey);
@@ -389,20 +336,15 @@ export async function searchMoovieCatalog(
 
 export async function fetchMoovieCatalogMeta(type: 'movie' | 'tv', id: string) {
     nfDebug('catalog:meta:start', { type, id });
+    const params = new URLSearchParams({ action: 'meta', type, id });
     try {
-        const resp = await fetch(`${CATALOG_META_API}/${type}/${encodeURIComponent(id)}`, {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        const resp = await fetch(`${CATALOG_API}?${params}`);
         const data = await resp.json();
         if (!resp.ok) {
-            throw new Error(data?.error || `Metadata failed (${resp.status})`);
+            throw new Error(data.error || `Metadata failed (${resp.status})`);
         }
-        const meta = data?.results?.[0];
-        if (!meta) {
-            throw new Error('No metadata found for this ID');
-        }
-        nfDebug('catalog:meta:ok', { type, id, title: meta?.title });
-        return meta;
+        nfDebug('catalog:meta:ok', { type, id, title: data.meta?.title });
+        return data.meta;
     } catch (err) {
         nfDebugError('catalog:meta:fail', { type, id, err });
         throw err;

@@ -277,8 +277,8 @@ onBeforeUnmount(() => {
         height: 1.7rem;
         padding: 0 0.55rem;
         border-radius: 999px;
-        border: 1px solid rgba(255, 69, 58, 0.35);
-        background: rgba(255, 69, 58, 0.08);
+        border: 1px solid rgba(255, 90, 31, 0.35);
+        background: rgba(255, 90, 31, 0.08);
         text-decoration: none;
         outline: none;
         margin-right: 0.25rem;
@@ -286,8 +286,8 @@ onBeforeUnmount(() => {
         transition: background 0.2s ease, border-color 0.2s ease;
 
         &:active {
-            background: rgba(255, 69, 58, 0.18);
-            border-color: rgba(255, 69, 58, 0.55);
+            background: rgba(255, 90, 31, 0.18);
+            border-color: rgba(255, 90, 31, 0.55);
         }
     }
 
@@ -295,9 +295,9 @@ onBeforeUnmount(() => {
         flex-shrink: 0;
         width: 5px;
         height: 5px;
-        background-color: #ff453a;
+        background-color: #ff5a1f;
         border-radius: 50%;
-        box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.4);
+        box-shadow: 0 0 0 0 rgba(255, 90, 31, 0.4);
         animation: pulse-live 1.6s infinite;
     }
 
@@ -306,7 +306,7 @@ onBeforeUnmount(() => {
         font-size: 0.6rem;
         font-weight: 700;
         letter-spacing: 0.06em;
-        color: #ff6b63;
+        color: #ff7a45;
         line-height: 1;
     }
 
@@ -425,11 +425,11 @@ onBeforeUnmount(() => {
 @keyframes pulse-live {
     0% {
         transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.4);
+        box-shadow: 0 0 0 0 rgba(255, 90, 31, 0.4);
     }
     70% {
         transform: scale(1);
-        box-shadow: 0 0 0 5px rgba(255, 69, 58, 0);
+        box-shadow: 0 0 0 5px rgba(255, 90, 31, 0);
     }
     100% {
         transform: scale(0.95);

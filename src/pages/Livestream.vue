@@ -325,7 +325,7 @@ function initYoutubePlayer() {
 
     const playerVars: any = {
         autoplay: 1,
-        mute: 0,
+        mute: 1,
         rel: 0,
         modestbranding: 1,
         origin: window.location.origin
@@ -343,6 +343,7 @@ function initYoutubePlayer() {
         playerVars: playerVars,
         events: {
             onReady: (event: any) => {
+                event.target.mute();
                 event.target.playVideo();
                 if (qualityParam !== 'default' && event.target.setPlaybackQuality) {
                     event.target.setPlaybackQuality(qualityParam);
@@ -544,11 +545,11 @@ const playerUrl = computed(() => {
     if (activePlatform.value === 'youtube') {
         const qualityParam = selectedQuality.value !== 'auto' ? `&vq=${selectedQuality.value}` : '';
         if (activeYoutubeId.value.startsWith('UC') && activeYoutubeId.value.length === 24) {
-            return `https://www.youtube.com/embed/live_stream?channel=${activeYoutubeId.value}&autoplay=1&mute=0${qualityParam}`;
+            return `https://www.youtube.com/embed/live_stream?channel=${activeYoutubeId.value}&autoplay=1&mute=1${qualityParam}`;
         }
-        return `https://www.youtube.com/embed/${activeYoutubeId.value}?autoplay=1&mute=0${qualityParam}`;
+        return `https://www.youtube.com/embed/${activeYoutubeId.value}?autoplay=1&mute=1${qualityParam}`;
     }
-    return `https://player.twitch.tv/?channel=${activeChannel.value}&parent=${currentHostname.value}&muted=false`;
+    return `https://player.twitch.tv/?channel=${activeChannel.value}&parent=${currentHostname.value}&muted=true`;
 });
 
 const chatUrl = computed(() => {

@@ -82,8 +82,8 @@ const iconWatchlist = defineComponent({
 
 const links = [
     { to: actors.value, label: 'Cast', desc: 'Browse actors and filmographies', icon: iconCast },
-    { to: discuss.value, label: 'Discuss', desc: 'Lounge chat and title reviews', icon: iconDiscuss },
     { to: upcoming.value, label: 'Upcoming', desc: 'Movies and anime on the horizon', icon: iconUpcoming },
+    { to: discuss.value, label: 'Discuss', desc: 'Lounge chat and title reviews', icon: iconDiscuss },
     { to: party.value, label: 'Together', desc: 'Watch parties with friends', icon: iconParty },
     { to: watchlist.value, label: 'Watchlist', desc: 'Saved titles across devices', icon: iconWatchlist },
     { to: help.value, label: 'Help', desc: 'Playback tips and shortcuts', icon: iconHelp }

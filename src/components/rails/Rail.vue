@@ -133,7 +133,8 @@ export default defineComponent({
                         onScroll();
                     });
                     ro.observe(track.value);
-                    Array.from(track.value.children).forEach(c => ro?.observe(c as Element));
+                    // NOTE: Do NOT observe individual children — with 30+ cards × 8+ rails
+                    // on Netflix Home that's 240+ observations which degrades scroll badly.
                 }
             });
         });
@@ -321,6 +322,10 @@ export default defineComponent({
         padding-left: var(--container-gutter);
         padding-right: var(--container-gutter);
         padding-block: var(--s-2);
+        /* Promote to GPU compositing layer for smooth scroll */
+        will-change: scroll-position;
+        /* Let the browser handle horizontal touch natively (no JS latency) */
+        touch-action: pan-x;
 
         > :deep(*) {
             scroll-snap-align: start;

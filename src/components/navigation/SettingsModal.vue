@@ -33,6 +33,16 @@
                         <span class="settings-modal__select-arrow"></span>
                     </div>
                 </div>
+
+                <div class="settings-modal__field" style="margin-top: var(--s-2);">
+                    <label class="settings-modal__checkbox-label">
+                        <input type="checkbox" v-model="localYoutubeStreams" class="settings-modal__checkbox" />
+                        <span class="settings-modal__checkbox-text">Enable YouTube Streams</span>
+                    </label>
+                    <p class="settings-modal__chk-subdesc">
+                        Include YouTube Live videos in your livestream directory.
+                    </p>
+                </div>
             </div>
 
             <footer class="settings-modal__footer">
@@ -61,15 +71,17 @@ export default defineComponent({
     },
     emits: ['close'],
     setup(props, { emit }) {
-        const { region, language, updateSettings } = getSettings();
+        const { region, language, youtubeStreams, updateSettings } = getSettings();
 
         const localRegion = ref(region.value);
+        const localYoutubeStreams = ref(youtubeStreams.value);
 
         watch(
             () => props.isOpen,
             (newVal) => {
                 if (newVal) {
                     localRegion.value = region.value;
+                    localYoutubeStreams.value = youtubeStreams.value;
                 }
             }
         );
@@ -79,13 +91,14 @@ export default defineComponent({
         };
 
         const save = () => {
-            updateSettings(localRegion.value, language.value);
+            updateSettings(localRegion.value, language.value, localYoutubeStreams.value);
             close();
         };
 
         return {
             regions: REGIONS,
             localRegion,
+            localYoutubeStreams,
             close,
             save
         };
@@ -237,6 +250,32 @@ export default defineComponent({
         border-right: 5px solid transparent;
         border-top: 5px solid var(--bone-400);
         pointer-events: none;
+    }
+
+    &__checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-3);
+        cursor: pointer;
+        color: var(--bone-100);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+    }
+
+    &__checkbox {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--ember);
+        cursor: pointer;
+    }
+
+    &__chk-subdesc {
+        font-family: var(--font-ui);
+        font-size: var(--fs-xs);
+        color: var(--bone-400);
+        margin-top: 2px;
+        margin-left: 28px;
     }
 
     &__footer {

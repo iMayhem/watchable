@@ -441,11 +441,13 @@ export default defineComponent({
     display: flex;
     flex-direction: column;
     --peek-lift: 0;
+    contain: layout style;
     transition: transform var(--dur-base) var(--ease-out);
 
     &.is-peeking {
         z-index: 2;
         --peek-lift: -6px;
+        will-change: transform;
     }
 
     &__link {
@@ -463,6 +465,7 @@ export default defineComponent({
         background: var(--ink-700);
         box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
         transform: translateY(var(--peek-lift));
+        contain: layout paint;
         transition:
             transform var(--dur-base) var(--ease-out),
             box-shadow var(--dur-base) var(--ease-out);
@@ -530,8 +533,8 @@ export default defineComponent({
         align-items: center;
         gap: 0.25rem;
         padding: 0.2rem 0.5rem;
-        background: rgba(11, 10, 8, 0.7);
-        backdrop-filter: blur(6px);
+        /* No backdrop-filter — it's GPU-expensive on every card; plain bg is fine */
+        background: rgba(11, 10, 8, 0.82);
         color: var(--gold-leaf);
         font-family: var(--font-mono);
         font-size: 0.6875rem;
@@ -680,8 +683,11 @@ export default defineComponent({
         justify-content: center;
         width: 36px;
         height: 36px;
-        background: rgba(11, 10, 8, 0.72);
-        backdrop-filter: blur(10px);
+        background: rgba(11, 10, 8, 0.80);
+        /* backdrop-filter only when the peek overlay is visible — saves GPU raster */
+        .is-peeking & {
+            backdrop-filter: blur(8px);
+        }
         border: 1px solid var(--rule-strong);
         border-radius: 50%;
         color: var(--bone-50);

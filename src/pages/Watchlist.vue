@@ -23,6 +23,7 @@
 
                     <div class="watchlist__collection-actions">
                         <button
+                            v-if="activeWatchlistId !== mainWatchlistId && activeWatchlistId !== 'liked'"
                             type="button"
                             class="watchlist__collection-action"
                             aria-label="Rename watchlist"
@@ -31,7 +32,7 @@
                             Rename
                         </button>
                         <button
-                            v-if="activeWatchlistId !== mainWatchlistId"
+                            v-if="activeWatchlistId !== mainWatchlistId && activeWatchlistId !== 'liked'"
                             type="button"
                             class="watchlist__collection-action watchlist__collection-action--danger"
                             aria-label="Delete watchlist"
@@ -258,6 +259,8 @@ import {
 } from '../composables/useWatchlist';
 import { getCurrentUser } from '../lib/auth';
 import { useToast } from '../composables/useToast';
+import { fetchCatalogArtworkUrlsByIds } from '../composables/usePosterCache';
+import { resolveTmdbArtwork } from '../composables/useTmdbArtwork';
 import {
     getCachedAnimeTmdbArtwork,
     resolveAnimeTmdbPosterBatch
@@ -289,11 +292,16 @@ export default defineComponent({
         const sortBy = ref<SortKey>('recent');
         const importInput = ref<HTMLInputElement | null>(null);
         const animeTmdbPosters = ref<Record<string, string>>({});
+        const movieShowTmdbPosters = ref<Record<string, string>>({});
 
         const posterFor = (item: WatchlistItem): string | null => {
+            const key = `${item.type}-${item.id}`;
+            if (movieShowTmdbPosters.value[key]) {
+                return movieShowTmdbPosters.value[key];
+            }
             if (item.type === 'anime') {
-                const key = String(item.id);
-                return animeTmdbPosters.value[key] || item.image;
+                const keyAnime = String(item.id);
+                return item.image || animeTmdbPosters.value[keyAnime] || '';
             }
             return item.image;
         };
@@ -305,7 +313,7 @@ export default defineComponent({
         );
 
         const hydrateAnimePosters = async () => {
-            const animeItems = activeItems.value.filter((item) => item.type === 'anime');
+            const animeItems = activeItems.value.filter((item) => item.type === 'anime' && !item.image);
             if (!animeItems.length) return;
 
             const updates: Record<string, string> = {};
@@ -336,12 +344,73 @@ export default defineComponent({
             }
         };
 
-        onMounted(() => {
+        const hydrateMovieShowPosters = async () => {
+            const movieShowItems = activeItems.value.filter(
+                (item) => item.type === 'movie' || item.type === 'tv'
+            );
+            if (!movieShowItems.length) return;
+
+            const updates: Record<string, string> = {};
+            const catalogIds: string[] = [];
+            const tmdbItems: WatchlistItem[] = [];
+
+            for (const item of movieShowItems) {
+                if (typeof item.id === 'string' && /\D/.test(item.id)) {
+                    catalogIds.push(item.id);
+                } else {
+                    tmdbItems.push(item);
+                }
+            }
+
+            if (catalogIds.length) {
+                try {
+                    const artworkMaps = await fetchCatalogArtworkUrlsByIds(catalogIds);
+                    for (const [id, url] of artworkMaps.posters.entries()) {
+                        if (url) {
+                            updates[`movie-${id}`] = url;
+                            updates[`tv-${id}`] = url;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch catalog posters:', e);
+                }
+            }
+
+            if (tmdbItems.length) {
+                await Promise.all(
+                    tmdbItems.map(async (item) => {
+                        try {
+                            const art = await resolveTmdbArtwork({
+                                title: item.title,
+                                type: item.type === 'tv' ? 'tv' : 'movie',
+                                tmdbId: Number(item.id)
+                            });
+                            if (art.posterPath) {
+                                updates[`${item.type}-${item.id}`] = art.posterPath;
+                            }
+                        } catch (e) {
+                            // ignore resolution errors
+                        }
+                    })
+                );
+            }
+
+            if (Object.keys(updates).length) {
+                movieShowTmdbPosters.value = { ...movieShowTmdbPosters.value, ...updates };
+            }
+        };
+
+        const hydrateAllPosters = () => {
             void hydrateAnimePosters();
+            void hydrateMovieShowPosters();
+        };
+
+        onMounted(() => {
+            hydrateAllPosters();
         });
 
         watch(activeWatchlistId, () => {
-            void hydrateAnimePosters();
+            hydrateAllPosters();
         });
 
         const totalCount = computed(() => activeItems.value.length);

@@ -254,7 +254,7 @@
                         @focus="prefetchPrimaryNav(item)"
                         @click="drawerOpen = false"
                     >
-                        <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
+                        <span class="eyebrow site-header__drawer-num">{{ item.num < 10 ? '0' + item.num : item.num }}</span>
                         <span class="site-header__drawer-label">{{ item.label }}</span>
                     </router-link>
 
@@ -409,9 +409,10 @@ const primaryNav: NavItem[] = [
         num: 5
     },
     { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
-    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
-    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 },
-    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 }
+    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 7 },
+    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 8 },
+    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 },
+    { label: 'Livestream', path: '/livestream', match: p => p === '/livestream' || p.startsWith('/livestream'), num: 10 }
 ];
 
 export default defineComponent({

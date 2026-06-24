@@ -1,6 +1,7 @@
 <template>
     <Teleport to="body">
-        <div v-if="isOpen" class="auth-modal-overlay" @click.self="close" ref="overlayRef">
+        <Transition name="auth-fade">
+            <div v-if="isOpen" class="auth-modal-overlay" @click.self="close" ref="overlayRef">
         <!-- HTML5 Interactive Neon Car & Particles Canvas (desktop only) -->
         <canvas v-if="!isMobileUi" ref="canvasRef" class="auth-canvas"></canvas>
 
@@ -88,7 +89,8 @@
                 </span>
             </footer>
         </div>
-    </div>
+            </div>
+        </Transition>
     </Teleport>
 </template>
 
@@ -1149,6 +1151,25 @@ export default defineComponent({
         min-height: 2.25rem;
         padding: 0.25rem 0;
         font-size: 0.875rem;
+    }
+}
+
+/* Auth modal fade and zoom transition */
+.auth-fade-enter-active,
+.auth-fade-leave-active {
+    transition: opacity 0.25s ease-out;
+    
+    .auth-modal {
+        transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    }
+}
+
+.auth-fade-enter-from,
+.auth-fade-leave-to {
+    opacity: 0;
+    
+    .auth-modal {
+        transform: scale(0.92) translate3d(0, 16px, 0) !important;
     }
 }
 </style>

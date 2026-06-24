@@ -254,6 +254,15 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/livestream',
+        name: 'Livestream',
+        component: () => import('../pages/Livestream.vue'),
+        meta: {
+            showInHeader: true,
+            title: 'Livestream'
+        }
+    },
+    {
         path: '/help',
         name: 'Help',
         component: () => import('../pages/Help.vue'),

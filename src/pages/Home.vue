@@ -44,7 +44,7 @@
                 v-if="fourKItems && fourKItems.length > 0"
                 class="home__section"
                 :items="fourKItems"
-                title="Trending 4K Today"
+                title="Curated 4K"
                 eyebrow="Ultra HD"
                 description="Experience cinema in stunning 4K quality with our dedicated player."
                 default-type="movie"

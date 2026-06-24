@@ -103,6 +103,8 @@ export default defineComponent({
     gap: var(--s-3);
     padding: var(--s-4) var(--s-5);
     padding-left: calc(var(--s-5) + 3px);
+    width: 380px;
+    max-width: 100%;
 
     background: rgba(19, 17, 14, 0.92);
     border: 1px solid var(--rule);
@@ -203,6 +205,10 @@ export default defineComponent({
         transform var(--dur-base) var(--ease-out);
 }
 
+.toast-move {
+    transition: transform var(--dur-base) var(--ease-out);
+}
+
 .toast-enter-from {
     opacity: 0;
     transform: translateX(24px) scale(0.98);
@@ -215,6 +221,8 @@ export default defineComponent({
 
 .toast-leave-active {
     position: absolute;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -240,6 +248,7 @@ export default defineComponent({
         padding: var(--s-3) var(--s-4);
         padding-left: calc(var(--s-4) + 3px);
         font-size: var(--fs-xs);
+        width: auto;
     }
 }
 </style>

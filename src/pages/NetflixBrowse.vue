@@ -1348,6 +1348,13 @@ export default defineComponent({
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: var(--s-5) var(--s-4);
+        contain: paint;
+
+        /* Browsers skip rendering off-screen children — huge win with 40+ cards */
+        :deep(.poster-card) {
+            content-visibility: auto;
+            contain-intrinsic-size: 0 300px;
+        }
 
         @media (min-width: 720px) {
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

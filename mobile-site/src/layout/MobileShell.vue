@@ -99,7 +99,7 @@ withDefaults(defineProps<{
 });
 
 const {
-    home, movies, tvShows, animeList, liveTv, more, search, watchlist, livestream
+    home, movies, tvShows, animeList, liveTv, more, search, watchlist
 } = useAppPaths();
 const route = useRoute();
 

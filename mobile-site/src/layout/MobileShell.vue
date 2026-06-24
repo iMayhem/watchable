@@ -6,6 +6,10 @@
             </router-link>
 
             <div class="m-app__header-actions">
+                <router-link :to="livestream" class="m-app__live-blink-btn" aria-label="Livestream">
+                    <span class="m-app__live-blink-dot"></span>
+                    <span class="m-app__live-blink-label">LIVE</span>
+                </router-link>
                 <router-link :to="search" class="m-app__icon-btn" aria-label="Search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <circle cx="11" cy="11" r="7" />
@@ -99,7 +103,7 @@ withDefaults(defineProps<{
 });
 
 const {
-    home, movies, tvShows, animeList, liveTv, more, search, watchlist
+    home, movies, tvShows, animeList, liveTv, more, search, watchlist, livestream
 } = useAppPaths();
 const route = useRoute();
 
@@ -266,6 +270,46 @@ onBeforeUnmount(() => {
         }
     }
 
+    &__live-blink-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 1.7rem;
+        padding: 0 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 69, 58, 0.35);
+        background: rgba(255, 69, 58, 0.08);
+        text-decoration: none;
+        outline: none;
+        margin-right: 0.25rem;
+        -webkit-tap-highlight-color: transparent;
+        transition: background 0.2s ease, border-color 0.2s ease;
+
+        &:active {
+            background: rgba(255, 69, 58, 0.18);
+            border-color: rgba(255, 69, 58, 0.55);
+        }
+    }
+
+    &__live-blink-dot {
+        flex-shrink: 0;
+        width: 5px;
+        height: 5px;
+        background-color: #ff453a;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.4);
+        animation: pulse-live 1.6s infinite;
+    }
+
+    &__live-blink-label {
+        font-family: var(--font-ui);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: #ff6b63;
+        line-height: 1;
+    }
+
     &__signin-btn {
         min-height: 2.75rem;
         padding: 0 var(--s-3);
@@ -375,6 +419,21 @@ onBeforeUnmount(() => {
         flex: 1;
         width: 100%;
         min-width: 0;
+    }
+}
+
+@keyframes pulse-live {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.4);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 5px rgba(255, 69, 58, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(255, 69, 58, 0);
     }
 }
 </style>

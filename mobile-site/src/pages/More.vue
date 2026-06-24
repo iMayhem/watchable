@@ -34,7 +34,7 @@ import { defineComponent, h } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import { useAppPaths } from '@/composables/useAppPaths';
 
-const { actors, discuss, upcoming, party, help, watchlist } = useAppPaths();
+const { actors, discuss, upcoming, party, help, watchlist, livestream } = useAppPaths();
 
 const iconCast = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
@@ -80,7 +80,15 @@ const iconWatchlist = defineComponent({
     ])
 });
 
+const iconLivestream = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('path', { d: 'm22 8-6 4 6 4V8Z' }),
+        h('rect', { x: '2', y: '6', width: '14', height: '12', rx: '2', ry: '2' })
+    ])
+});
+
 const links = [
+    { to: livestream.value, label: 'Livestream', desc: 'Watch live gaming and channels', icon: iconLivestream },
     { to: actors.value, label: 'Cast', desc: 'Browse actors and filmographies', icon: iconCast },
     { to: upcoming.value, label: 'Upcoming', desc: 'Movies and anime on the horizon', icon: iconUpcoming },
     { to: discuss.value, label: 'Discuss', desc: 'Lounge chat and title reviews', icon: iconDiscuss },

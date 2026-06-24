@@ -5,53 +5,31 @@
                 <h1 class="m-livestream__title">Livestream</h1>
             </header>
 
-            <!-- Theater View (Active Stream Player) -->
+            <!-- Theater View -->
             <div v-if="activeChannel" class="m-livestream__theater">
                 <div class="m-livestream__video-wrapper">
-                    <!-- Twitch Player -->
-                    <iframe
-                        v-if="activePlatform === 'twitch'"
-                        :src="playerUrl"
-                        class="m-livestream__video-frame"
-                        allowfullscreen
-                        scrolling="no"
-                        frameborder="0"
-                    ></iframe>
-
-                    <!-- YouTube Player Container -->
-                    <div
-                        v-else-if="activePlatform === 'youtube'"
-                        id="youtube-player"
-                        class="m-livestream__video-frame"
-                    ></div>
+                    <div id="youtube-player" class="m-livestream__video-frame"></div>
                 </div>
 
                 <!-- Stream Details & Controls -->
                 <div class="m-livestream__meta-bar">
                     <div class="m-livestream__streamer-info">
-                        <div class="m-livestream__avatar" :style="activePlatform === 'youtube' ? { background: 'linear-gradient(135deg, #ff0000, #b30000)' } : {}">
+                        <div class="m-livestream__avatar" style="background: linear-gradient(135deg, #ff0000, #b30000)">
                             {{ activeChannel ? activeChannel.charAt(0).toUpperCase() : '' }}
                         </div>
                         <div class="m-livestream__streamer-details">
                             <div class="m-livestream__streamer-name">
                                 {{ activeChannel }}
-                                <span 
-                                    class="m-livestream__live-badge" 
-                                    :class="{ 'm-livestream__live-badge--offline': activePlatform === 'twitch' && offlineStreamers[activeChannel.toLowerCase()] }"
-                                >
-                                    {{ (activePlatform === 'twitch' && offlineStreamers[activeChannel.toLowerCase()]) ? 'OFFLINE' : 'LIVE' }}
-                                </span>
+                                <span class="m-livestream__live-badge">LIVE</span>
                             </div>
-                            <div class="m-livestream__streamer-sub">
-                                {{ (activePlatform === 'twitch' && offlineStreamers[activeChannel.toLowerCase()]) ? 'Currently offline' : 'Streaming live' }} on {{ activePlatform === 'youtube' ? 'YouTube' : 'Twitch' }}
-                            </div>
+                            <div class="m-livestream__streamer-sub">Streaming live on YouTube</div>
                         </div>
                     </div>
 
                     <div class="m-livestream__controls-row">
                         <!-- Quality selector -->
                         <div class="m-livestream__quality-control">
-                            <select v-model="selectedQuality" class="m-livestream__quality-select" :disabled="activePlatform === 'twitch'" :title="activePlatform === 'twitch' ? 'Twitch manages quality settings inside its own player settings cog' : 'Change quality'">
+                            <select v-model="selectedQuality" class="m-livestream__quality-select" title="Change quality">
                                 <option value="hd1080">1080p</option>
                                 <option value="hd720">720p</option>
                                 <option value="large">480p</option>
@@ -67,7 +45,7 @@
                     </div>
                 </div>
 
-                <!-- Mobile stacked chat container -->
+                <!-- Mobile stacked chat -->
                 <div v-if="showChat && chatUrl" class="m-livestream__chat-wrapper">
                     <iframe
                         :src="chatUrl"
@@ -80,17 +58,17 @@
 
             <!-- Filters & Navigation -->
             <div class="m-livestream__filters">
-                <!-- Game Tabs (horizontal scrollable) -->
+                <!-- Category Tabs -->
                 <div class="m-livestream__games-nav">
                     <button
-                        v-for="game in games"
-                        :key="game.id"
+                        v-for="cat in categories"
+                        :key="cat.id"
                         class="m-livestream__game-tab"
-                        :class="{ 'is-active': selectedGameId === game.id }"
-                        @click="selectGame(game.id)"
+                        :class="{ 'is-active': selectedGameId === cat.id }"
+                        @click="selectGame(cat.id)"
                     >
-                        <img :src="game.boxArt" :alt="game.name" class="m-livestream__game-boxart" />
-                        <span class="m-livestream__game-tab-title">{{ game.name }}</span>
+                        <img :src="cat.boxArt" :alt="cat.name" class="m-livestream__game-boxart" />
+                        <span class="m-livestream__game-tab-title">{{ cat.name }}</span>
                     </button>
                 </div>
 
@@ -101,22 +79,18 @@
                             v-model="searchQuery"
                             type="search"
                             class="m-livestream__input"
-                            placeholder="Search streamers…"
+                            placeholder="Search channels…"
                             aria-label="Search streams"
                         />
                     </div>
 
                     <form @submit.prevent="watchCustomChannel" class="m-livestream__custom-form">
-                        <select v-if="youtubeStreams" v-model="customPlatform" class="m-livestream__platform-select">
-                            <option value="twitch">Twitch</option>
-                            <option value="youtube">YouTube</option>
-                        </select>
                         <input
                             v-model="customChannelInput"
                             type="text"
                             class="m-livestream__input"
-                            :placeholder="customPlatform === 'twitch' ? 'Twitch username' : 'YouTube URL or ID'"
-                            aria-label="Custom Channel"
+                            placeholder="YouTube URL or video ID"
+                            aria-label="YouTube URL or ID"
                         />
                         <button type="submit" class="m-livestream__btn-primary">
                             Watch
@@ -125,7 +99,7 @@
                 </div>
             </div>
 
-            <!-- Streamers Grid -->
+            <!-- Channels Grid -->
             <div class="m-livestream__grid-section">
                 <h2 class="m-livestream__section-title">
                     {{ selectedGameName }} Channels
@@ -135,31 +109,18 @@
                     <div
                         v-for="streamer in filteredStreamers"
                         :key="streamer.username"
-                        class="m-livestream__card"
-                        :class="{ 
-                            'is-playing': activeChannel === streamer.username,
-                            'm-livestream__card--yt': streamer.platform === 'youtube'
-                        }"
+                        class="m-livestream__card m-livestream__card--yt"
+                        :class="{ 'is-playing': activeChannel === streamer.name }"
                         @click="setActiveChannel(streamer.username)"
                     >
-                        <div class="m-livestream__card-preview" :class="{ 'is-offline': offlineStreamers[streamer.username] }">
+                        <div class="m-livestream__card-preview">
                             <img
-                                :src="streamer.platform === 'youtube' 
-                                    ? `https://img.youtube.com/vi/${streamer.youtubeId}/mqdefault.jpg` 
-                                    : (offlineStreamers[streamer.username] 
-                                        ? `https://api.dicebear.com/7.x/identicon/svg?seed=${streamer.username}` 
-                                        : `https://static-cdn.jtvnw.net/previews-ttv/live_user_${streamer.username}-440x248.jpg`)"
+                                :src="`https://img.youtube.com/vi/${streamer.youtubeId}/mqdefault.jpg`"
                                 :alt="streamer.name"
                                 class="m-livestream__card-avatar"
                                 @error="handleAvatarError($event, streamer)"
                             />
-                            <span 
-                                class="m-livestream__card-badge" 
-                                :class="{ 'is-offline-badge': offlineStreamers[streamer.username] }"
-                                :style="streamer.platform === 'youtube' ? { background: '#ff0000' } : {}"
-                            >
-                                {{ offlineStreamers[streamer.username] ? 'OFFLINE' : (streamer.platform === 'youtube' ? 'YT LIVE' : 'LIVE') }}
-                            </span>
+                            <span class="m-livestream__card-badge" style="background:#ff0000">LIVE</span>
                         </div>
 
                         <div class="m-livestream__card-info">
@@ -170,7 +131,7 @@
                 </div>
 
                 <div v-else class="m-livestream__empty meta">
-                    No matching livestreams found.
+                    No matching streams found.
                 </div>
             </div>
         </div>
@@ -189,11 +150,10 @@ interface Streamer {
     game: string;
     gameId: string;
     tags: string[];
-    platform?: 'twitch' | 'youtube';
-    youtubeId?: string;
+    youtubeId: string;
 }
 
-interface Game {
+interface Category {
     id: string;
     name: string;
     boxArt: string;
@@ -201,284 +161,135 @@ interface Game {
 
 // State
 const activeChannel = ref<string>('');
-const activePlatform = ref<'twitch' | 'youtube'>('twitch');
 const activeYoutubeId = ref<string>('');
-const customPlatform = ref<'twitch' | 'youtube'>('twitch');
 const selectedQuality = ref<string>('hd1080');
-const offlineStreamers = ref<Record<string, boolean>>({});
-
 const selectedGameId = ref<string>('all');
 const searchQuery = ref<string>('');
 const customChannelInput = ref<string>('');
-const showChat = ref<boolean>(false); // default to false on mobile to save layout spacing
+const showChat = ref<boolean>(false);
 
 const route = useRoute();
-const { youtubeStreams, defaultYoutubeStream } = getSettings();
+const { defaultYoutubeStream } = getSettings();
 
-// Games list
-const gamesList: Game[] = [
-    {
-        id: 'all',
-        name: 'All Categories',
-        boxArt: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'always-live',
-        name: '24/7 Channels',
-        boxArt: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'youtube',
-        name: 'YouTube Live',
-        boxArt: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'just-chatting',
-        name: 'Just Chatting',
-        boxArt: 'https://static-cdn.jtvnw.net/ttv-boxart/509658-285x380.jpg'
-    },
-    {
-        id: 'league',
-        name: 'League of Legends',
-        boxArt: 'https://static-cdn.jtvnw.net/ttv-boxart/21779-285x380.jpg'
-    },
-    {
-        id: 'valorant',
-        name: 'Valorant',
-        boxArt: 'https://static-cdn.jtvnw.net/ttv-boxart/516575-285x380.jpg'
-    },
-    {
-        id: 'gta-v',
-        name: 'Grand Theft Auto V',
-        boxArt: 'https://static-cdn.jtvnw.net/ttv-boxart/32982_IGDB-285x380.jpg'
-    },
-    {
-        id: 'minecraft',
-        name: 'Minecraft',
-        boxArt: 'https://static-cdn.jtvnw.net/ttv-boxart/27471_IGDB-285x380.jpg'
-    },
-    {
-        id: 'fortnite',
-        name: 'Fortnite',
-        boxArt: 'https://static-cdn.jtvnw.net/ttv-boxart/33214-285x380.jpg'
-    },
-    {
-        id: 'cs2',
-        name: 'Counter-Strike 2',
-        boxArt: 'https://static-cdn.jtvnw.net/ttv-boxart/493057-285x380.jpg'
-    },
-    {
-        id: 'dota2',
-        name: 'Dota 2',
-        boxArt: 'https://static-cdn.jtvnw.net/ttv-boxart/29595-285x380.jpg'
-    }
+let ytPlayer: any = null;
+
+// Categories
+const categories: Category[] = [
+    { id: 'all', name: 'All', boxArt: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=120&h=160&q=80' },
+    { id: 'music', name: '24/7 Music', boxArt: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=120&h=160&q=80' },
+    { id: 'fps', name: 'FPS & BR', boxArt: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?auto=format&fit=crop&w=120&h=160&q=80' },
+    { id: 'moba', name: 'MOBA', boxArt: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=120&h=160&q=80' },
+    { id: 'esports', name: 'Esports', boxArt: 'https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=120&h=160&q=80' },
+    { id: 'variety', name: 'Variety', boxArt: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&w=120&h=160&q=80' },
+    { id: 'news', name: 'Gaming News', boxArt: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=120&h=160&q=80' },
 ];
 
-const games = computed(() => {
-    if (!youtubeStreams.value) {
-        return gamesList.filter(g => g.id !== 'youtube');
-    }
-    return gamesList;
-});
-
-// Curated grid
 const streamers: Streamer[] = [
-    { name: 'Lofi Girl', username: 'lofigirl', game: '24/7 Music & Esports', gameId: 'always-live', tags: ['Lofi Beats', 'Study', 'Relax', '24/7'], platform: 'twitch' },
-    { name: 'Monstercat', username: 'monstercat', game: '24/7 Music & Esports', gameId: 'always-live', tags: ['Electronic', 'Dance', 'Music', '24/7'], platform: 'twitch' },
-    { name: 'NoCopyrightSounds', username: 'nocopyrightsounds', game: '24/7 Music & Esports', gameId: 'always-live', tags: ['NCS', 'Bass', 'Music', '24/7'], platform: 'twitch' },
-    { name: 'ESL CS2', username: 'esl_csgo', game: '24/7 Music & Esports', gameId: 'always-live', tags: ['CS2', 'Esports', 'Reruns', '24/7'], platform: 'twitch' },
-    { name: 'ESL Dota 2', username: 'esl_dota2', game: '24/7 Music & Esports', gameId: 'always-live', tags: ['Dota 2', 'Esports', 'Reruns', '24/7'], platform: 'twitch' },
-    
-    { name: 'Lofi Girl Live (YT)', username: 'lofigirl-yt', game: 'YouTube Live', gameId: 'youtube', tags: ['Music', 'Lofi Beats', 'Chill', 'YouTube'], platform: 'youtube', youtubeId: 'jfKfPfyJRdk' },
-    { name: 'Monstercat Radio (YT)', username: 'monstercat-yt', game: 'YouTube Live', gameId: 'youtube', tags: ['Music', 'Electronic', 'Dance', 'YouTube'], platform: 'youtube', youtubeId: '2b4SItX_q9g' },
-    { name: 'IGN Gaming (YT)', username: 'ign-yt', game: 'YouTube Live', gameId: 'youtube', tags: ['Gaming', 'News', 'Reviews', 'YouTube'], platform: 'youtube', youtubeId: 'e22e5kym970' },
-    { name: 'Space Ambient (YT)', username: 'spaceambient-yt', game: 'YouTube Live', gameId: 'youtube', tags: ['Ambient', 'Chill', 'Space', 'YouTube'], platform: 'youtube', youtubeId: '5wNeQD_dJm4' },
-
-    { name: 'xQc', username: 'xqc', game: 'Just Chatting', gameId: 'just-chatting', tags: ['English', 'IRL', 'Funny'], platform: 'twitch' },
-    { name: 'HasanAbi', username: 'hasanabi', game: 'Just Chatting', gameId: 'just-chatting', tags: ['English', 'Politics', 'News'], platform: 'twitch' },
-    { name: 'Kai Cenat', username: 'kaicenat', game: 'Just Chatting', gameId: 'just-chatting', tags: ['English', 'IRL', 'Collabs'], platform: 'twitch' },
-    { name: 'Pokimane', username: 'pokimane', game: 'Just Chatting', gameId: 'just-chatting', tags: ['English', 'Chilled', 'Reacts'], platform: 'twitch' },
-    { name: 'Faker', username: 'faker', game: 'League of Legends', gameId: 'league', tags: ['Korean', 'Pro Player', 'T1'], platform: 'twitch' },
-    { name: 'Doublelift', username: 'doublelift', game: 'League of Legends', gameId: 'league', tags: ['English', 'Co-Stream', 'Analyst'], platform: 'twitch' },
-    { name: 'Tyler1', username: 'loltyler1', game: 'League of Legends', gameId: 'league', tags: ['English', 'Climb', 'Rage'], platform: 'twitch' },
-    { name: 'OTP LoL', username: 'otplol_', game: 'League of Legends', gameId: 'league', tags: ['French', 'Esports', 'LFL'], platform: 'twitch' },
-    { name: 'Tarik', username: 'tarik', game: 'Valorant', gameId: 'valorant', tags: ['English', 'Watch Party', 'Vct'], platform: 'twitch' },
-    { name: 'Shroud', username: 'shroud', game: 'Valorant', gameId: 'valorant', tags: ['English', 'Aim', 'Chill'], platform: 'twitch' },
-    { name: 'TenZ', username: 'tenz', game: 'Valorant', gameId: 'valorant', tags: ['English', 'Pro', 'Radiant'], platform: 'twitch' },
-    { name: 'Kyedae', username: 'kyedae', game: 'Valorant', gameId: 'valorant', tags: ['English', 'Ranked', 'Friendly'], platform: 'twitch' },
-    { name: 'Buddha', username: 'buddha', game: 'Grand Theft Auto V', gameId: 'gta-v', tags: ['English', 'NoPixel', 'Roleplay'], platform: 'twitch' },
-    { name: 'Sykkuno', username: 'sykkuno', game: 'Grand Theft Auto V', gameId: 'gta-v', tags: ['English', 'Co-op', 'Wholesome'], platform: 'twitch' },
-    { name: 'Lord Kebun', username: 'lord_kebun', game: 'Grand Theft Auto V', gameId: 'gta-v', tags: ['English', 'NoPixel', 'RP'], platform: 'twitch' },
-    { name: 'Tubbo', username: 'tubbo', game: 'Minecraft', gameId: 'minecraft', tags: ['English', 'SMP', 'Multiplayer'], platform: 'twitch' },
-    { name: 'Ranboo', username: 'ranboolive', game: 'Minecraft', gameId: 'minecraft', tags: ['English', 'RP', 'Interactive'], platform: 'twitch' },
-    { name: 'CaptainSparklez', username: 'captainsparklez', game: 'Minecraft', gameId: 'minecraft', tags: ['English', 'Mods', 'Classic'], platform: 'twitch' },
-    { name: 'Ninja', username: 'ninja', game: 'Fortnite', gameId: 'fortnite', tags: ['English', 'Classic', 'FPS'], platform: 'twitch' },
-    { name: 'Clix', username: 'clix', game: 'Fortnite', gameId: 'fortnite', tags: ['English', 'Wagers', 'Ranked'], platform: 'twitch' },
-    { name: 'SypherPK', username: 'sypherpk', game: 'Fortnite', gameId: 'fortnite', tags: ['English', 'Guides', 'Updates'], platform: 'twitch' },
-    { name: 'Gaules', username: 'gaules', game: 'Counter-Strike 2', gameId: 'cs2', tags: ['Portuguese', 'Esports', 'Tribo'], platform: 'twitch' },
-    { name: 'ohnePixel', username: 'ohnepixel', game: 'Counter-Strike 2', gameId: 'cs2', tags: ['English', 'Skins', 'Cases'], platform: 'twitch' },
-    { name: 's1mple', username: 's1mple', game: 'Counter-Strike 2', gameId: 'cs2', tags: ['Ukrainian', 'Pro', 'Aim'], platform: 'twitch' },
-    { name: 'Gorgc', username: 'gorgc', game: 'Dota 2', gameId: 'dota2', tags: ['English', 'Ranked', 'Immortal'], platform: 'twitch' },
-    { name: 'Grubby', username: 'grubby', game: 'Dota 2', gameId: 'dota2', tags: ['English', 'Learning', 'RTS'], platform: 'twitch' },
-    { name: 'Dendi', username: 'dendi', game: 'Dota 2', gameId: 'dota2', tags: ['Ukrainian', 'Pro', 'B8'], platform: 'twitch' }
+    { name: 'Lofi Girl', username: 'lofi-girl', game: '24/7 Music', gameId: 'music', tags: ['Lofi', 'Study', 'Chill', '24/7'], youtubeId: 'jfKfPfyJRdk' },
+    { name: 'Monstercat Radio', username: 'monstercat-radio', game: '24/7 Music', gameId: 'music', tags: ['Electronic', 'Dance', '24/7'], youtubeId: '2b4SItX_q9g' },
+    { name: 'ChilledCow Study', username: 'chilledcow-study', game: '24/7 Music', gameId: 'music', tags: ['Ambient', 'Focus', '24/7'], youtubeId: 'rUxyKA_-grg' },
+    { name: 'DXL Radio', username: 'dxl-radio', game: '24/7 Music', gameId: 'music', tags: ['Gaming OST', 'Retro', '24/7'], youtubeId: '4xDzrJKXOOY' },
+    { name: 'Shroud', username: 'shroud-yt', game: 'Valorant / FPS', gameId: 'fps', tags: ['FPS', 'Pro'], youtubeId: 'UCoz8NrwgL7U' },
+    { name: 'TimTheTatman', username: 'timthetatman-yt', game: 'Fortnite / Variety', gameId: 'fps', tags: ['Fortnite', 'Fun'], youtubeId: 'UCurnxCDF_qUHSMOGAMJjoNg' },
+    { name: 'SypherPK', username: 'sypherpk-yt', game: 'Fortnite', gameId: 'fps', tags: ['Fortnite', 'Tips'], youtubeId: 'UCax2-FkWFXEaAoGAqUexPRQ' },
+    { name: 'DrDisrespect', username: 'drdisrespect-yt', game: 'FPS / BR', gameId: 'fps', tags: ['Warzone', 'Hype'], youtubeId: 'UCnErmqRHFCxLHG5rdBYxGqA' },
+    { name: 'Tyler1', username: 'tyler1-yt', game: 'League of Legends', gameId: 'moba', tags: ['LoL', 'Ranked'], youtubeId: 'UCnHGCQ4kRkA4ThNlFLIY_RQ' },
+    { name: 'Faker', username: 'faker-yt', game: 'League of Legends', gameId: 'moba', tags: ['LoL', 'Pro', 'T1'], youtubeId: 'UCBYncKVGMjfMDscSdShGdnQ' },
+    { name: 'Grubby', username: 'grubby-yt', game: 'Warcraft / Dota 2', gameId: 'moba', tags: ['RTS', 'Pro'], youtubeId: 'UCFOAopFqEjfxXI2R7JqKAeg' },
+    { name: 'ESL Counter-Strike', username: 'esl-cs2', game: 'CS2 Esports', gameId: 'esports', tags: ['CS2', 'Pro'], youtubeId: 'UCPq2ETz4aAGo2Z-8JisDPIA' },
+    { name: 'PGL Esports', username: 'pgl-esports', game: 'Multi-game Esports', gameId: 'esports', tags: ['Major', 'Live'], youtubeId: 'UCbQXBbHW7CvzIhXKw1pMYXA' },
+    { name: 'Riot Games', username: 'riot-games-yt', game: 'Valorant / LoL Esports', gameId: 'esports', tags: ['Valorant', 'VCT'], youtubeId: 'UCfyAQ9KBWP9BFT0bYMu3_yw' },
+    { name: 'Markiplier', username: 'markiplier-yt', game: 'Variety Gaming', gameId: 'variety', tags: ['Horror', 'Indie'], youtubeId: 'UC7_YxT-KID8kRbqZo7MyscQ' },
+    { name: 'Jacksepticeye', username: 'jack-yt', game: 'Variety Gaming', gameId: 'variety', tags: ['Indie', 'Funny'], youtubeId: 'UCYzPXprvl5Y-Sf0g4vX-m6g' },
+    { name: 'Ludwig', username: 'ludwig-yt', game: 'Variety / Chess', gameId: 'variety', tags: ['Variety', 'Chess'], youtubeId: 'UCrPseYLGpNygVi34QpGNqpA' },
+    { name: 'Valkyrae', username: 'valkyrae-yt', game: 'Variety Gaming', gameId: 'variety', tags: ['Variety', 'Collab'], youtubeId: 'UCbs6hSivNMVCGFWbHnHr7Ug' },
+    { name: 'IGN', username: 'ign-yt', game: 'Gaming News & Reviews', gameId: 'news', tags: ['News', 'Reviews'], youtubeId: 'UCKy1dAqELo0zrOtPkf0eTMw' },
+    { name: 'GameSpot', username: 'gamespot-yt', game: 'Gaming News', gameId: 'news', tags: ['News', 'Reviews'], youtubeId: 'UCbu2SsF-Or3Rsn3NxqODImQ' },
+    { name: 'Gameranx', username: 'gameranx-yt', game: 'Gaming Tips & News', gameId: 'news', tags: ['Tips', 'Lists'], youtubeId: 'UCNAz5Ut1Swwg6h6ysBtWFog' },
 ];
 
-const visibleStreamers = computed(() => {
-    if (!youtubeStreams.value) {
-        return streamers.filter(s => s.platform !== 'youtube');
-    }
-    return streamers;
-});
-
-// Computed Hostname
+// Computed
 const currentHostname = computed(() => {
-    if (typeof window !== 'undefined') {
-        return window.location.hostname;
-    }
+    if (typeof window !== 'undefined') return window.location.hostname;
     return 'localhost';
 });
 
-// URLs
-const playerUrl = computed(() => {
-    if (activePlatform.value === 'youtube') {
-        const qualityParam = selectedQuality.value !== 'auto' ? `&vq=${selectedQuality.value}` : '';
-        if (activeYoutubeId.value.startsWith('UC') && activeYoutubeId.value.length === 24) {
-            return `https://www.youtube.com/embed/live_stream?channel=${activeYoutubeId.value}&autoplay=1&mute=1${qualityParam}`;
-        }
-        return `https://www.youtube.com/embed/${activeYoutubeId.value}?autoplay=1&mute=1${qualityParam}`;
-    }
-    return `https://player.twitch.tv/?channel=${activeChannel.value}&parent=${currentHostname.value}&muted=true`;
-});
-
 const chatUrl = computed(() => {
-    if (activePlatform.value === 'youtube') {
-        if (activeYoutubeId.value.startsWith('UC') && activeYoutubeId.value.length === 24) {
-            return '';
-        }
-        return `https://www.youtube.com/live_chat?v=${activeYoutubeId.value}&embed_domain=${currentHostname.value}`;
-    }
-    return `https://www.twitch.tv/embed/${activeChannel.value}/chat?parent=${currentHostname.value}&darkpopout=true`;
+    if (!activeYoutubeId.value) return '';
+    if (activeYoutubeId.value.startsWith('UC') && activeYoutubeId.value.length === 24) return '';
+    return `https://www.youtube.com/live_chat?v=${activeYoutubeId.value}&embed_domain=${currentHostname.value}`;
 });
 
 const selectedGameName = computed(() => {
-    const game = games.value.find(g => g.id === selectedGameId.value);
-    return game ? game.name : 'Curated';
+    const cat = categories.find(c => c.id === selectedGameId.value);
+    return cat ? cat.name : 'All';
 });
 
-// Filtering
 const filteredStreamers = computed(() => {
-    let result = visibleStreamers.value;
-
+    let result = streamers;
     if (selectedGameId.value !== 'all') {
         result = result.filter(s => s.gameId === selectedGameId.value);
     }
-
     const query = searchQuery.value.trim().toLowerCase();
     if (query) {
-        result = result.filter(s => 
-            s.name.toLowerCase().includes(query) || 
+        result = result.filter(s =>
+            s.name.toLowerCase().includes(query) ||
             s.username.toLowerCase().includes(query) ||
             s.game.toLowerCase().includes(query)
         );
     }
-
-    // Sort: Online first
-    return [...result].sort((a, b) => {
-        const aOffline = offlineStreamers.value[a.username] ? 1 : 0;
-        const bOffline = offlineStreamers.value[b.username] ? 1 : 0;
-        return aOffline - bOffline;
-    });
+    return result;
 });
 
-// API checking state
-let checkInterval: any = null;
-let ytPlayer: any = null;
-
+// YouTube player
 function loadYoutubeApi() {
     if (typeof window === 'undefined') return;
     if ((window as any).YT) return;
     const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const first = document.getElementsByTagName('script')[0];
+    first.parentNode?.insertBefore(tag, first);
 }
 
 function initYoutubePlayer() {
     if (typeof window === 'undefined') return;
     loadYoutubeApi();
-
     if (!(window as any).YT || !(window as any).YT.Player) {
         setTimeout(initYoutubePlayer, 100);
         return;
     }
-
     if (ytPlayer) {
-        try {
-            ytPlayer.destroy();
-        } catch (e) {
-            console.error(e);
-        }
+        try { ytPlayer.destroy(); } catch (e) { /* ignore */ }
         ytPlayer = null;
     }
-
     const container = document.getElementById('youtube-player');
     if (!container) return;
 
     const qualityParam = selectedQuality.value !== 'auto' ? selectedQuality.value : 'default';
-
-    let videoId = '';
-    let channelId = '';
-
-    if (activeYoutubeId.value.startsWith('UC') && activeYoutubeId.value.length === 24) {
-        channelId = activeYoutubeId.value;
-    } else {
-        videoId = activeYoutubeId.value;
-    }
-
-    const playerVars: any = {
-        autoplay: 1,
-        mute: 1,
-        rel: 0,
-        modestbranding: 1,
-        origin: window.location.origin
-    };
-
-    if (channelId) {
-        playerVars.channel = channelId;
-        videoId = 'live_stream';
-    }
+    const isChannel = activeYoutubeId.value.startsWith('UC') && activeYoutubeId.value.length === 24;
+    const playerVars: any = { autoplay: 1, mute: 1, rel: 0, modestbranding: 1, origin: window.location.origin };
+    let videoId = activeYoutubeId.value;
+    if (isChannel) { playerVars.channel = activeYoutubeId.value; videoId = 'live_stream'; }
 
     ytPlayer = new (window as any).YT.Player('youtube-player', {
-        height: '100%',
-        width: '100%',
-        videoId: videoId,
-        playerVars: playerVars,
+        height: '100%', width: '100%', videoId, playerVars,
         events: {
             onReady: (event: any) => {
                 event.target.mute();
                 event.target.playVideo();
-                if (qualityParam !== 'default' && event.target.setPlaybackQuality) {
-                    event.target.setPlaybackQuality(qualityParam);
-                }
-                
+                if (qualityParam !== 'default' && event.target.setPlaybackQuality) event.target.setPlaybackQuality(qualityParam);
                 setTimeout(() => {
-                    if (event.target.getDuration) {
-                        const duration = event.target.getDuration();
-                        if (duration > 0) {
-                            event.target.seekTo(duration, true);
-                        }
-                    }
+                    const duration = event.target.getDuration?.();
+                    if (duration > 0) event.target.seekTo(duration, true);
                 }, 1000);
             },
             onStateChange: (event: any) => {
                 if (event.data === (window as any).YT.PlayerState.PLAYING) {
                     const duration = event.target.getDuration();
                     const currentTime = event.target.getCurrentTime();
-                    if (duration > 0 && (duration - currentTime) > 15) {
-                        if (!event.target.hasSeekedToLive) {
-                            event.target.seekTo(duration, true);
-                            event.target.hasSeekedToLive = true;
-                        }
+                    if (duration > 0 && (duration - currentTime) > 15 && !event.target.hasSeekedToLive) {
+                        event.target.seekTo(duration, true);
+                        event.target.hasSeekedToLive = true;
                     }
                 }
             }
@@ -486,237 +297,69 @@ function initYoutubePlayer() {
     });
 }
 
-async function checkSingleTwitchStream(username: string) {
-    const name = username.toLowerCase();
-    try {
-        const url = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${name}-440x248.jpg`;
-        const res = await fetch(url, { method: 'HEAD' });
-        const isOffline = res.redirected || res.url.includes('404_preview') || res.status === 404;
-        offlineStreamers.value[name] = isOffline;
-    } catch (err) {
-        console.error(`Failed to check live status for custom channel ${name}:`, err);
-    }
-}
-
-async function checkAllTwitchStreams() {
-    const twitchStreamers = streamers.filter(s => s.platform === 'twitch' || !s.platform);
-    await Promise.all(
-        twitchStreamers.map(async (streamer) => {
-            try {
-                const url = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${streamer.username}-440x248.jpg`;
-                const res = await fetch(url, { method: 'HEAD' });
-                const isOffline = res.redirected || res.url.includes('404_preview') || res.status === 404;
-                offlineStreamers.value[streamer.username] = isOffline;
-            } catch (err) {
-                console.error(`Failed to check live status for ${streamer.username}:`, err);
-            }
-        })
-    );
-}
-
-// Methods
-function selectGame(gameId: string) {
-    selectedGameId.value = gameId;
-}
+function selectGame(gameId: string) { selectedGameId.value = gameId; }
 
 function setActiveChannel(username: string) {
     const streamer = streamers.find(s => s.username === username);
-    if (streamer) {
-        activeChannel.value = streamer.username;
-        activePlatform.value = streamer.platform || 'twitch';
-        activeYoutubeId.value = streamer.youtubeId || '';
-    } else {
-        activeChannel.value = username;
-        activePlatform.value = 'twitch';
-        activeYoutubeId.value = '';
-    }
-
-    if (activePlatform.value === 'twitch') {
-        void checkSingleTwitchStream(activeChannel.value);
-    }
-
-    // Scroll to player smoothly
+    if (!streamer) return;
+    activeChannel.value = streamer.name;
+    activeYoutubeId.value = streamer.youtubeId;
     nextTick(() => {
         const playerEl = document.querySelector('.m-livestream__theater');
-        if (playerEl) {
-            playerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        if (playerEl) playerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 }
 
 function watchCustomChannel() {
     const input = customChannelInput.value.trim();
     if (!input) return;
-
     const ytVideoReg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/;
     const ytChannelReg = /(?:youtube\.com\/channel\/)(UC[^"&?\/ ]{22})/;
-    const ytShortsReg = /(?:youtube\.com\/shorts\/)([^"&?\/ ]{11})/;
     const ytLiveReg = /(?:youtube\.com\/live\/)([^"&?\/ ]{11})/;
-
     const videoMatch = input.match(ytVideoReg);
     const channelMatch = input.match(ytChannelReg);
-    const shortsMatch = input.match(ytShortsReg);
     const liveMatch = input.match(ytLiveReg);
-
-    if (videoMatch) {
-        activeChannel.value = 'YouTube Live Video';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = videoMatch[1];
-    } else if (shortsMatch) {
-        activeChannel.value = 'YouTube Video';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = shortsMatch[1];
-    } else if (liveMatch) {
-        activeChannel.value = 'YouTube Live';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = liveMatch[1];
-    } else if (channelMatch) {
-        activeChannel.value = 'YouTube Live Channel';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = channelMatch[1];
-    } else {
-        if (customPlatform.value === 'youtube') {
-            if (input.startsWith('UC') && input.length === 24) {
-                activeChannel.value = 'YouTube Live Channel';
-                activePlatform.value = 'youtube';
-                activeYoutubeId.value = input;
-            } else {
-                activeChannel.value = 'YouTube Live Video';
-                activePlatform.value = 'youtube';
-                activeYoutubeId.value = input;
-            }
-        } else {
-            const isYtIdPattern = /^[a-zA-Z0-9_-]{11}$/.test(input);
-            if (isYtIdPattern && youtubeStreams.value) {
-                activeChannel.value = 'YouTube Live Video';
-                activePlatform.value = 'youtube';
-                activeYoutubeId.value = input;
-            } else {
-                activeChannel.value = input.toLowerCase();
-                activePlatform.value = 'twitch';
-                activeYoutubeId.value = '';
-                void checkSingleTwitchStream(activeChannel.value);
-            }
-        }
-    }
-
+    if (videoMatch) { activeChannel.value = 'YouTube Live'; activeYoutubeId.value = videoMatch[1]; }
+    else if (liveMatch) { activeChannel.value = 'YouTube Live'; activeYoutubeId.value = liveMatch[1]; }
+    else if (channelMatch) { activeChannel.value = 'YouTube Channel'; activeYoutubeId.value = channelMatch[1]; }
+    else if (input.startsWith('UC') && input.length === 24) { activeChannel.value = 'YouTube Channel'; activeYoutubeId.value = input; }
+    else if (/^[a-zA-Z0-9_-]{11}$/.test(input)) { activeChannel.value = 'YouTube Live'; activeYoutubeId.value = input; }
+    else return;
     customChannelInput.value = '';
-    
     nextTick(() => {
         const playerEl = document.querySelector('.m-livestream__theater');
-        if (playerEl) {
-            playerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        if (playerEl) playerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 }
 
-function toggleChat() {
-    showChat.value = !showChat.value;
-}
+function toggleChat() { showChat.value = !showChat.value; }
 
 function handleAvatarError(event: Event, streamer: Streamer) {
     const img = event.target as HTMLImageElement;
-    if (streamer.platform === 'youtube') {
-        img.src = `https://api.dicebear.com/7.x/initials/svg?seed=${streamer.name}&backgroundColor=ff5a1f`;
-    } else {
-        offlineStreamers.value[streamer.username] = true;
-        img.src = `https://api.dicebear.com/7.x/identicon/svg?seed=${streamer.username}`;
-    }
+    img.src = `https://api.dicebear.com/7.x/initials/svg?seed=${streamer.name}&backgroundColor=ff0000`;
+}
+
+function parseYoutubeId(input: string): string {
+    const ytVideoReg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/;
+    const ytChannelReg = /(?:youtube\.com\/channel\/)(UC[^"&?\/ ]{22})/;
+    const ytLiveReg = /(?:youtube\.com\/live\/)([^"&?\/ ]{11})/;
+    const v = input.match(ytVideoReg); if (v) return v[1];
+    const l = input.match(ytLiveReg); if (l) return l[1];
+    const c = input.match(ytChannelReg); if (c) return c[1];
+    if (input.startsWith('UC') && input.length === 24) return input;
+    if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+    return '';
 }
 
 function playDefaultYoutubeLink(link: string) {
-    const ytVideoReg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/;
-    const ytChannelReg = /(?:youtube\.com\/channel\/)(UC[^"&?\/ ]{22})/;
-    const ytShortsReg = /(?:youtube\.com\/shorts\/)([^"&?\/ ]{11})/;
-    const ytLiveReg = /(?:youtube\.com\/live\/)([^"&?\/ ]{11})/;
-
-    const videoMatch = link.match(ytVideoReg);
-    const channelMatch = link.match(ytChannelReg);
-    const shortsMatch = link.match(ytShortsReg);
-    const liveMatch = link.match(ytLiveReg);
-
-    if (videoMatch) {
-        activeChannel.value = 'Admin Recommended Live';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = videoMatch[1];
-    } else if (shortsMatch) {
-        activeChannel.value = 'Admin Recommended Video';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = shortsMatch[1];
-    } else if (liveMatch) {
-        activeChannel.value = 'Admin Recommended Live';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = liveMatch[1];
-    } else if (channelMatch) {
-        activeChannel.value = 'Admin Recommended Channel';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = channelMatch[1];
-    } else {
-        if (link.startsWith('UC') && link.length === 24) {
-            activeChannel.value = 'Admin Recommended Channel';
-            activePlatform.value = 'youtube';
-            activeYoutubeId.value = link;
-        } else if (link.length === 11) {
-            activeChannel.value = 'Admin Recommended Live';
-            activePlatform.value = 'youtube';
-            activeYoutubeId.value = link;
-        }
-    }
+    const id = parseYoutubeId(link);
+    if (id) { activeChannel.value = 'Admin Recommended Live'; activeYoutubeId.value = id; }
 }
 
-function loadInitialStream() {
-    if (route.query.channel) {
-        activeChannel.value = String(route.query.channel).toLowerCase();
-        activePlatform.value = 'twitch';
-        activeYoutubeId.value = '';
-    } else if (route.query.platform === 'youtube' && route.query.ytId) {
-        activeChannel.value = 'YouTube Live Video';
-        activePlatform.value = 'youtube';
-        activeYoutubeId.value = String(route.query.ytId);
-    } else {
-        if (youtubeStreams.value && defaultYoutubeStream.value) {
-            playDefaultYoutubeLink(defaultYoutubeStream.value);
-        } else {
-            setActiveChannel(streamers[0].username);
-        }
-    }
-}
-
-// Watchers
-watch(youtubeStreams, (enabled) => {
-    if (!enabled && activePlatform.value === 'youtube') {
-        setActiveChannel(streamers[0].username);
-    }
-});
-
-watch(defaultYoutubeStream, (newVal) => {
-    if (!route.query.channel && !route.query.ytId && youtubeStreams.value) {
-        const isDefaultCurrentlyPlaying = activeChannel.value === streamers[0].username || !activeChannel.value;
-        if (isDefaultCurrentlyPlaying && newVal) {
-            playDefaultYoutubeLink(newVal);
-        }
-    }
-});
-
-watch([activePlatform, activeYoutubeId], () => {
-    if (activePlatform.value === 'youtube') {
-        nextTick(() => {
-            initYoutubePlayer();
-        });
-    } else {
-        if (ytPlayer) {
-            try {
-                ytPlayer.destroy();
-            } catch (e) {
-                console.error(e);
-            }
-            ytPlayer = null;
-        }
-    }
-});
+watch(activeYoutubeId, () => { nextTick(() => { initYoutubePlayer(); }); });
 
 watch(selectedQuality, (newQuality) => {
-    if (activePlatform.value === 'youtube' && ytPlayer && ytPlayer.setPlaybackQuality) {
+    if (ytPlayer && ytPlayer.setPlaybackQuality) {
         ytPlayer.setPlaybackQuality(newQuality === 'auto' ? 'default' : newQuality);
     }
 });
@@ -724,27 +367,22 @@ watch(selectedQuality, (newQuality) => {
 onMounted(async () => {
     document.title = 'Livestream — Moovie';
     await loadGlobalSettings();
-
-    void checkAllTwitchStreams();
-    checkInterval = setInterval(() => {
-        void checkAllTwitchStreams();
-    }, 60000);
-
-    loadInitialStream();
-
-    if (activePlatform.value === 'twitch' && activeChannel.value) {
-        void checkSingleTwitchStream(activeChannel.value);
-    } else if (activePlatform.value === 'youtube' && activeChannel.value) {
-        nextTick(() => {
-            initYoutubePlayer();
-        });
+    if (route.query.ytId) {
+        activeChannel.value = 'YouTube Live';
+        activeYoutubeId.value = String(route.query.ytId);
+    } else if (defaultYoutubeStream.value) {
+        playDefaultYoutubeLink(defaultYoutubeStream.value);
+    } else {
+        setActiveChannel(streamers[0].username);
     }
 });
 
+watch(defaultYoutubeStream, (newVal) => {
+    if (!route.query.ytId && newVal && !activeYoutubeId.value) playDefaultYoutubeLink(newVal);
+});
+
 onUnmounted(() => {
-    if (checkInterval) {
-        clearInterval(checkInterval);
-    }
+    if (ytPlayer) { try { ytPlayer.destroy(); } catch (e) { /* ignore */ } ytPlayer = null; }
 });
 </script>
 
@@ -809,7 +447,7 @@ onUnmounted(() => {
         width: 38px;
         height: 38px;
         border-radius: var(--r-pill);
-        background: linear-gradient(135deg, #a855f7, #6366f1);
+        background: linear-gradient(135deg, #ff0000, #b30000);
         color: #fff;
         font-weight: 700;
         font-size: 0.95rem;
@@ -834,16 +472,10 @@ onUnmounted(() => {
         font-size: 0.55rem;
         font-weight: 800;
         color: #fff;
-        background: var(--danger);
+        background: #ff0000;
         padding: 1px 4px;
         border-radius: var(--r-xs);
         letter-spacing: 0.05em;
-
-        &--offline {
-            background: var(--ink-600) !important;
-            color: var(--bone-300) !important;
-            border: 1px solid var(--rule-strong);
-        }
     }
 
     &__streamer-sub {
@@ -876,10 +508,6 @@ onUnmounted(() => {
         background-repeat: no-repeat;
         background-position: right 0.65rem center;
         outline: none;
-
-        &:disabled {
-            opacity: 0.6;
-        }
     }
 
     &__action-btn {
@@ -941,8 +569,8 @@ onUnmounted(() => {
         cursor: pointer;
 
         &.is-active {
-            background: linear-gradient(135deg, rgba(#a855f7, 0.15) 0%, rgba(#6366f1, 0.15) 100%);
-            border-color: #8b5cf6;
+            background: rgba(255, 0, 0, 0.1);
+            border-color: #ff4444;
             color: var(--bone-50);
         }
     }
@@ -978,7 +606,7 @@ onUnmounted(() => {
 
         &:focus {
             outline: none;
-            border-color: #8b5cf6;
+            border-color: #ff4444;
         }
 
         &::placeholder {
@@ -995,27 +623,17 @@ onUnmounted(() => {
         }
     }
 
-    &__platform-select {
-        min-height: 2.75rem;
-        padding: 0 var(--s-3);
-        border-radius: var(--r-md);
-        border: 1px solid var(--rule-strong);
-        background: var(--ink-850);
-        color: var(--bone-50);
-        font-family: var(--font-ui);
-        font-size: 0.88rem;
-    }
-
     &__btn-primary {
         min-height: 2.75rem;
         padding: 0 var(--s-4);
         border-radius: var(--r-md);
-        background: linear-gradient(135deg, #a855f7, #6366f1);
+        background: #ff0000;
         color: #fff;
         font-family: var(--font-ui);
         font-weight: 600;
         font-size: 0.88rem;
         border: none;
+        cursor: pointer;
     }
 
     // Grid section
@@ -1039,17 +657,16 @@ onUnmounted(() => {
         border-radius: var(--r-md);
         border: 1px solid var(--rule-strong);
         overflow: hidden;
+        cursor: pointer;
 
         &.is-playing {
-            border-color: #8b5cf6;
-            box-shadow: 0 0 0 1px #8b5cf6;
+            border-color: #ff0000;
+            box-shadow: 0 0 0 1px #ff0000;
         }
 
-        &--yt {
-            &.is-playing {
-                border-color: #ff0000;
-                box-shadow: 0 0 0 1px #ff0000;
-            }
+        &--yt.is-playing {
+            border-color: #ff0000;
+            box-shadow: 0 0 0 1px #ff0000;
         }
     }
 
@@ -1058,10 +675,6 @@ onUnmounted(() => {
         aspect-ratio: 16 / 9;
         background: var(--ink-950);
         overflow: hidden;
-
-        &.is-offline {
-            opacity: 0.55;
-        }
     }
 
     &__card-avatar {
@@ -1076,17 +689,11 @@ onUnmounted(() => {
         left: 6px;
         font-size: 0.52rem;
         font-weight: 800;
-        background: var(--danger);
+        background: #ff0000;
         color: #fff;
         padding: 1px 4px;
         border-radius: var(--r-xs);
         letter-spacing: 0.02em;
-
-        &.is-offline-badge {
-            background: var(--ink-600) !important;
-            color: var(--bone-300) !important;
-            border: 1px solid var(--rule-strong);
-        }
     }
 
     &__card-info {

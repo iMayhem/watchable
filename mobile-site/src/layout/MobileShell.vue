@@ -6,6 +6,10 @@
             </router-link>
 
             <div class="m-app__header-actions">
+                <router-link :to="livestream" class="m-app__live-blink-btn" aria-label="Livestream">
+                    <span class="m-app__live-blink-dot"></span>
+                    <span class="m-app__live-blink-label">LIVE</span>
+                </router-link>
                 <router-link :to="search" class="m-app__icon-btn" aria-label="Search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <circle cx="11" cy="11" r="7" />
@@ -99,7 +103,7 @@ withDefaults(defineProps<{
 });
 
 const {
-    home, movies, tvShows, animeList, liveTv, more, search, watchlist
+    home, movies, tvShows, animeList, liveTv, more, search, watchlist, livestream
 } = useAppPaths();
 const route = useRoute();
 

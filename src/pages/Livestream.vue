@@ -6,10 +6,9 @@
             <section class="livestream__body container-lm">
 
                 <!-- Theater View (Active Stream Player) -->
-                <div v-if="activeChannel" class="livestream__theater">
+                <div v-if="activeVideoId" class="livestream__theater">
                     <div class="livestream__theater-container" :class="{ 'chat-collapsed': !showChat }">
                         <div class="livestream__video-wrapper">
-                            <!-- YouTube Player Container -->
                             <div id="youtube-player" class="livestream__video-frame"></div>
                         </div>
                         <div v-if="showChat" class="livestream__chat-wrapper">
@@ -24,7 +23,7 @@
                                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                                 </svg>
-                                <p>Live Chat is not available for channel-based streams.</p>
+                                <p>Chat unavailable for this stream.</p>
                             </div>
                         </div>
                     </div>
@@ -32,51 +31,55 @@
                     <!-- Stream Details -->
                     <div class="livestream__meta-bar">
                         <div class="livestream__streamer-info">
-                            <div class="livestream__avatar" style="background: linear-gradient(135deg, #ff0000, #b30000)">
-                                {{ activeChannel.charAt(0).toUpperCase() }}
+                            <img
+                                v-if="activeStream?.channelThumb"
+                                :src="activeStream.channelThumb"
+                                class="livestream__avatar-img"
+                                :alt="activeStream.channelTitle"
+                            />
+                            <div v-else class="livestream__avatar" style="background: linear-gradient(135deg, #ff0000, #b30000)">
+                                {{ activeStream?.channelTitle?.charAt(0)?.toUpperCase() }}
                             </div>
                             <div>
                                 <div class="livestream__streamer-name">
-                                    {{ activeChannel }}
+                                    {{ activeStream?.channelTitle || 'YouTube Live' }}
                                     <span class="livestream__live-badge">LIVE</span>
                                 </div>
-                                <div class="livestream__streamer-sub">Currently streaming live on YouTube</div>
+                                <div class="livestream__streamer-sub">{{ activeStream?.title }}</div>
                             </div>
                         </div>
 
-                        <!-- Quality Selection Dropdown -->
-                        <div class="livestream__quality-control">
-                            <label class="eyebrow" style="color: var(--bone-400); font-size: 0.65rem; display: block; margin-bottom: 4px;">Graphics Quality</label>
-                            <div class="livestream__quality-select-wrapper">
-                                <select v-model="selectedQuality" class="livestream__quality-select" title="Change stream quality">
-                                    <option value="hd1080">1080p (Max)</option>
-                                    <option value="hd720">720p (High)</option>
-                                    <option value="large">480p (Medium)</option>
-                                    <option value="medium">360p (Low)</option>
-                                    <option value="auto">Auto</option>
-                                </select>
+                        <div class="livestream__meta-right">
+                            <!-- Viewer count -->
+                            <div v-if="activeStream?.viewerCount" class="livestream__viewer-count">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                                {{ formatViewers(activeStream.viewerCount) }} watching
                             </div>
-                        </div>
-                        <div class="livestream__actions">
-                            <button @click="toggleChat" class="livestream__action-btn">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                </svg>
-                                {{ showChat ? 'Hide Chat' : 'Show Chat' }}
-                            </button>
-                            <button @click="copyStreamLink" class="livestream__action-btn">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                </svg>
-                                {{ copied ? 'Copied!' : 'Copy Link' }}
-                            </button>
-                            <a :href="activeYoutubeId.startsWith('UC') ? `https://youtube.com/channel/${activeYoutubeId}` : `https://youtube.com/watch?v=${activeYoutubeId}`" target="_blank" rel="noopener noreferrer" class="livestream__action-btn livestream__action-btn--youtube">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                                    <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.517 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.871.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                                </svg>
-                                Open on YouTube
-                            </a>
+
+                            <!-- Quality -->
+                            <div class="livestream__quality-control">
+                                <label style="color: var(--bone-400); font-size: 0.65rem; display: block; margin-bottom: 4px;">Quality</label>
+                                <div class="livestream__quality-select-wrapper">
+                                    <select v-model="selectedQuality" class="livestream__quality-select" title="Change stream quality">
+                                        <option value="hd1080">1080p</option>
+                                        <option value="hd720">720p</option>
+                                        <option value="large">480p</option>
+                                        <option value="medium">360p</option>
+                                        <option value="auto">Auto</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="livestream__actions">
+                                <button @click="toggleChat" class="livestream__action-btn">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                                    {{ showChat ? 'Hide Chat' : 'Show Chat' }}
+                                </button>
+                                <a :href="`https://youtube.com/watch?v=${activeVideoId}`" target="_blank" rel="noopener noreferrer" class="livestream__action-btn livestream__action-btn--youtube">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.517 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.871.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                    Open on YouTube
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -89,17 +92,15 @@
                             v-for="cat in categories"
                             :key="cat.id"
                             class="livestream__game-tab"
-                            :class="{ 'is-active': selectedGameId === cat.id }"
-                            @click="selectGame(cat.id)"
+                            :class="{ 'is-active': selectedCategory === cat.id }"
+                            @click="selectCategory(cat.id)"
                         >
-                            <img :src="cat.boxArt" :alt="cat.name" class="livestream__game-boxart" />
-                            <div class="livestream__game-tab-info">
-                                <span class="livestream__game-tab-title">{{ cat.name }}</span>
-                            </div>
+                            <span class="livestream__game-tab-emoji">{{ cat.emoji }}</span>
+                            <span class="livestream__game-tab-title">{{ cat.name }}</span>
                         </button>
                     </div>
 
-                    <!-- Search and custom stream block -->
+                    <!-- Search and custom stream -->
                     <div class="livestream__search-row">
                         <div class="livestream__search-field">
                             <svg class="livestream__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -110,7 +111,7 @@
                                 v-model="searchQuery"
                                 type="search"
                                 class="livestream__input"
-                                placeholder="Search channels..."
+                                placeholder="Search live streams..."
                                 aria-label="Search streams"
                             />
                         </div>
@@ -123,62 +124,88 @@
                                 placeholder="Paste YouTube URL or video ID..."
                                 aria-label="YouTube URL or video ID"
                             />
-                            <button type="submit" class="livestream__btn-primary">
-                                Watch
-                            </button>
+                            <button type="submit" class="livestream__btn-primary">Watch</button>
                         </form>
                     </div>
                 </div>
 
                 <!-- Channels Grid -->
                 <div class="livestream__grid-section">
-                    <h2 class="livestream__section-title">
-                        {{ selectedGameName }} Channels
-                    </h2>
+                    <div class="livestream__section-header">
+                        <h2 class="livestream__section-title">
+                            {{ selectedCategoryName }} Live Streams
+                            <span class="livestream__count" v-if="!loading && streams.length">{{ filteredStreams.length }} live</span>
+                        </h2>
+                        <button @click="fetchStreams" class="livestream__refresh-btn" :class="{ 'is-loading': loading }" title="Refresh streams">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
 
-                    <div v-if="filteredStreamers.length" class="livestream__grid">
-                        <div
-                            v-for="streamer in filteredStreamers"
-                            :key="streamer.username"
-                            class="livestream__card livestream__card--yt"
-                            :class="{ 'is-playing': activeChannel === streamer.username }"
-                            @click="setActiveChannel(streamer.username)"
-                        >
-                            <div class="livestream__card-preview">
-                                <img
-                                    :src="`https://img.youtube.com/vi/${streamer.youtubeId}/mqdefault.jpg`"
-                                    :alt="streamer.name"
-                                    class="livestream__card-avatar"
-                                    @error="handleAvatarError($event, streamer)"
-                                />
-                                <div class="livestream__card-overlay">
-                                    <div class="livestream__play-btn-circle" style="background: rgba(255,0,0,0.9)">
-                                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                                            <path d="M8 5v14l11-7z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <span class="livestream__card-badge" style="background:#ff0000">LIVE</span>
-                            </div>
-
+                    <!-- Loading skeleton -->
+                    <div v-if="loading" class="livestream__grid">
+                        <div v-for="i in 12" :key="i" class="livestream__card livestream__card--skeleton">
+                            <div class="livestream__card-preview skeleton-box"></div>
                             <div class="livestream__card-info">
-                                <h3 class="livestream__card-name">{{ streamer.name }}</h3>
-                                <p class="livestream__card-game">{{ streamer.game }}</p>
-                                <div class="livestream__card-tags">
-                                    <span v-for="tag in streamer.tags" :key="tag" class="livestream__tag">
-                                        {{ tag }}
-                                    </span>
-                                </div>
+                                <div class="skeleton-line" style="width:80%"></div>
+                                <div class="skeleton-line" style="width:55%; margin-top:6px"></div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Error -->
+                    <div v-else-if="error" class="livestream__empty">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <p>{{ error }}</p>
+                        <button @click="fetchStreams" class="livestream__btn-primary">Try Again</button>
+                    </div>
+
+                    <!-- Streams grid -->
+                    <div v-else-if="filteredStreams.length" class="livestream__grid">
+                        <div
+                            v-for="stream in filteredStreams"
+                            :key="stream.videoId"
+                            class="livestream__card livestream__card--yt"
+                            :class="{ 'is-playing': activeVideoId === stream.videoId }"
+                            @click="playStream(stream)"
+                        >
+                            <div class="livestream__card-preview">
+                                <img
+                                    :src="stream.thumbnail"
+                                    :alt="stream.title"
+                                    class="livestream__card-avatar"
+                                    loading="lazy"
+                                />
+                                <div class="livestream__card-overlay">
+                                    <div class="livestream__play-btn-circle" style="background: rgba(255,0,0,0.9)">
+                                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                                    </div>
+                                </div>
+                                <span class="livestream__card-badge" style="background:#ff0000">LIVE</span>
+                                <span v-if="stream.viewerCount" class="livestream__card-viewers">
+                                    <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                                    {{ formatViewers(stream.viewerCount) }}
+                                </span>
+                            </div>
+
+                            <div class="livestream__card-info">
+                                <h3 class="livestream__card-name">{{ stream.title }}</h3>
+                                <p class="livestream__card-game">{{ stream.channelTitle }}</p>
+                                <p v-if="stream.gameName" class="livestream__card-category">{{ stream.gameName }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty -->
                     <div v-else class="livestream__empty">
                         <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                            <path d="M12 22V12" /><path d="M12 12L3.3 7" /><path d="M12 12l8.7-5" />
                         </svg>
-                        <p>No streams found. Try a different category or paste a YouTube URL above.</p>
+                        <p>No live streams found for this category right now.</p>
+                        <button @click="fetchStreams" class="livestream__btn-primary">Refresh</button>
                     </div>
                 </div>
             </section>
@@ -195,234 +222,229 @@ import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import { getSettings, loadGlobalSettings } from '../composables/useSettings';
 
-interface Streamer {
-    name: string;
-    username: string;
-    game: string;
-    gameId: string;
-    tags: string[];
-    youtubeId: string;
+const YT_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY as string;
+
+interface LiveStream {
+    videoId: string;
+    title: string;
+    channelTitle: string;
+    channelId: string;
+    channelThumb?: string;
+    thumbnail: string;
+    viewerCount?: string;
+    gameName?: string;
+    categoryId?: string;
 }
 
 interface Category {
     id: string;
     name: string;
-    boxArt: string;
+    emoji: string;
+    query: string;
 }
 
 // State
-const activeChannel = ref<string>('');
-const activeYoutubeId = ref<string>('');
-const selectedQuality = ref<string>('hd1080');
-const selectedGameId = ref<string>('all');
-const searchQuery = ref<string>('');
-const customChannelInput = ref<string>('');
-const showChat = ref<boolean>(true);
-const copied = ref<boolean>(false);
+const activeVideoId = ref<string>('');
+const activeStream = ref<LiveStream | null>(null);
+const streams = ref<LiveStream[]>([]);
+const loading = ref(false);
+const error = ref('');
+const selectedCategory = ref('gaming');
+const searchQuery = ref('');
+const customChannelInput = ref('');
+const showChat = ref(true);
+const selectedQuality = ref('hd1080');
 
 let ytPlayer: any = null;
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const route = useRoute();
 const { defaultYoutubeStream } = getSettings();
 
 // Categories
 const categories: Category[] = [
-    {
-        id: 'all',
-        name: 'All',
-        boxArt: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'music',
-        name: '24/7 Music',
-        boxArt: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'fps',
-        name: 'FPS & Battle Royale',
-        boxArt: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'moba',
-        name: 'MOBA & Strategy',
-        boxArt: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'esports',
-        name: 'Esports',
-        boxArt: 'https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'variety',
-        name: 'Variety Gaming',
-        boxArt: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&w=120&h=160&q=80'
-    },
-    {
-        id: 'news',
-        name: 'Gaming News',
-        boxArt: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=120&h=160&q=80'
-    }
-];
-
-// YouTube Gaming live channels — all with real channel IDs (UC...) or known 24/7 video IDs
-const streamers: Streamer[] = [
-    // 24/7 Music
-    { name: 'Lofi Girl', username: 'lofi-girl', game: '24/7 Music', gameId: 'music', tags: ['Lofi', 'Study', 'Chill', '24/7'], youtubeId: 'jfKfPfyJRdk' },
-    { name: 'Monstercat Radio', username: 'monstercat-radio', game: '24/7 Music', gameId: 'music', tags: ['Electronic', 'Dance', 'Music', '24/7'], youtubeId: '2b4SItX_q9g' },
-    { name: 'ChilledCow Study', username: 'chilledcow-study', game: '24/7 Music', gameId: 'music', tags: ['Ambient', 'Focus', 'Beats', '24/7'], youtubeId: 'rUxyKA_-grg' },
-    { name: 'DXL Radio', username: 'dxl-radio', game: '24/7 Music', gameId: 'music', tags: ['Gaming OST', 'Retro', 'Chillwave', '24/7'], youtubeId: '4xDzrJKXOOY' },
-
-    // FPS & Battle Royale
-    { name: 'Shroud', username: 'shroud-yt', game: 'Valorant / FPS', gameId: 'fps', tags: ['FPS', 'Aim', 'Pro'], youtubeId: 'UCoz8NrwgL7U' },
-    { name: 'TimTheTatman', username: 'timthetatman-yt', game: 'Fortnite / Variety', gameId: 'fps', tags: ['Fortnite', 'Fun', 'Variety'], youtubeId: 'UCurnxCDF_qUHSMOGAMJjoNg' },
-    { name: 'SypherPK', username: 'sypherpk-yt', game: 'Fortnite', gameId: 'fps', tags: ['Fortnite', 'Tips', 'Pro'], youtubeId: 'UCax2-FkWFXEaAoGAqUexPRQ' },
-    { name: 'DrDisrespect', username: 'drdisrespect-yt', game: 'FPS / BR', gameId: 'fps', tags: ['Warzone', 'BR', 'Hype'], youtubeId: 'UCnErmqRHFCxLHG5rdBYxGqA' },
-
-    // MOBA & Strategy
-    { name: 'Tyler1', username: 'tyler1-yt', game: 'League of Legends', gameId: 'moba', tags: ['LoL', 'Ranked', 'Rage'], youtubeId: 'UCnHGCQ4kRkA4ThNlFLIY_RQ' },
-    { name: 'Faker', username: 'faker-yt', game: 'League of Legends', gameId: 'moba', tags: ['LoL', 'Pro', 'T1'], youtubeId: 'UCBYncKVGMjfMDscSdShGdnQ' },
-    { name: 'Grubby', username: 'grubby-yt', game: 'Warcraft / Dota 2', gameId: 'moba', tags: ['RTS', 'Pro', 'Learning'], youtubeId: 'UCFOAopFqEjfxXI2R7JqKAeg' },
-
-    // Esports
-    { name: 'ESL Counter-Strike', username: 'esl-cs2', game: 'CS2 Esports', gameId: 'esports', tags: ['CS2', 'Pro', 'Tournament'], youtubeId: 'UCPq2ETz4aAGo2Z-8JisDPIA' },
-    { name: 'PGL Esports', username: 'pgl-esports', game: 'Multi-game Esports', gameId: 'esports', tags: ['Esports', 'Major', 'Live'], youtubeId: 'UCbQXBbHW7CvzIhXKw1pMYXA' },
-    { name: 'Riot Games', username: 'riot-games-yt', game: 'Valorant / LoL Esports', gameId: 'esports', tags: ['Valorant', 'VCT', 'Worlds'], youtubeId: 'UCfyAQ9KBWP9BFT0bYMu3_yw' },
-
-    // Variety Gaming
-    { name: 'Markiplier', username: 'markiplier-yt', game: 'Variety Gaming', gameId: 'variety', tags: ['Horror', 'Fun', 'Indie'], youtubeId: 'UC7_YxT-KID8kRbqZo7MyscQ' },
-    { name: 'Jacksepticeye', username: 'jack-yt', game: 'Variety Gaming', gameId: 'variety', tags: ['Indie', 'Positive', 'Funny'], youtubeId: 'UCYzPXprvl5Y-Sf0g4vX-m6g' },
-    { name: 'Ludwig', username: 'ludwig-yt', game: 'Variety / Chess', gameId: 'variety', tags: ['Variety', 'Reactions', 'Chess'], youtubeId: 'UCrPseYLGpNygVi34QpGNqpA' },
-    { name: 'Valkyrae', username: 'valkyrae-yt', game: 'Variety Gaming', gameId: 'variety', tags: ['Variety', 'Collab', 'Gaming'], youtubeId: 'UCbs6hSivNMVCGFWbHnHr7Ug' },
-
-    // Gaming News
-    { name: 'IGN', username: 'ign-yt', game: 'Gaming News & Reviews', gameId: 'news', tags: ['News', 'Reviews', 'Previews'], youtubeId: 'UCKy1dAqELo0zrOtPkf0eTMw' },
-    { name: 'GameSpot', username: 'gamespot-yt', game: 'Gaming News', gameId: 'news', tags: ['News', 'Reviews', 'Events'], youtubeId: 'UCbu2SsF-Or3Rsn3NxqODImQ' },
-    { name: 'Gameranx', username: 'gameranx-yt', game: 'Gaming Tips & News', gameId: 'news', tags: ['Tips', 'News', 'Lists'], youtubeId: 'UCNAz5Ut1Swwg6h6ysBtWFog' },
+    { id: 'gaming',       name: 'All Gaming',      emoji: '🎮', query: 'pc gaming live stream english' },
+    { id: 'fps',          name: 'CS2 / Valorant',  emoji: '🔫', query: 'cs2 counter strike valorant fps live stream english' },
+    { id: 'battle_royale',name: 'Battle Royale',   emoji: '🪂', query: 'warzone apex legends pubg battlegrounds pc live stream' },
+    { id: 'openworld',    name: 'Open World / RPG',emoji: '🗺️',  query: 'elden ring cyberpunk gta red dead redemption witcher pc live stream' },
+    { id: 'moba',         name: 'MOBA',            emoji: '⚔️',  query: 'league of legends dota 2 live stream english pro' },
+    { id: 'esports',      name: 'Esports',         emoji: '🏆', query: 'cs2 valorant esports tournament championship live english' },
+    { id: 'simulation',   name: 'Sim / Strategy',  emoji: '🏙️',  query: 'cities skylines factorio total war civilization 6 pc live stream' },
+    { id: 'music',        name: '24/7 Music',      emoji: '🎵', query: 'lofi hip hop music 24/7 live radio chill' },
 ];
 
 // Computed
+const selectedCategoryName = computed(() => {
+    return categories.find(c => c.id === selectedCategory.value)?.name ?? 'Gaming';
+});
+
 const currentHostname = computed(() => {
     if (typeof window !== 'undefined') return window.location.hostname;
     return 'localhost';
 });
 
 const chatUrl = computed(() => {
-    if (!activeYoutubeId.value) return '';
-    if (activeYoutubeId.value.startsWith('UC') && activeYoutubeId.value.length === 24) return '';
-    return `https://www.youtube.com/live_chat?v=${activeYoutubeId.value}&embed_domain=${currentHostname.value}`;
+    if (!activeVideoId.value) return '';
+    return `https://www.youtube.com/live_chat?v=${activeVideoId.value}&embed_domain=${currentHostname.value}`;
 });
 
-const selectedGameName = computed(() => {
-    const cat = categories.find(c => c.id === selectedGameId.value);
-    return cat ? cat.name : 'All';
+const filteredStreams = computed(() => {
+    const q = searchQuery.value.trim().toLowerCase();
+    if (!q) return streams.value;
+    return streams.value.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        s.channelTitle.toLowerCase().includes(q) ||
+        (s.gameName ?? '').toLowerCase().includes(q)
+    );
 });
 
-const filteredStreamers = computed(() => {
-    let result = streamers;
-    if (selectedGameId.value !== 'all') {
-        result = result.filter(s => s.gameId === selectedGameId.value);
-    }
-    const query = searchQuery.value.trim().toLowerCase();
-    if (query) {
-        result = result.filter(s =>
-            s.name.toLowerCase().includes(query) ||
-            s.username.toLowerCase().includes(query) ||
-            s.game.toLowerCase().includes(query)
+// YouTube Data API v3 fetch
+async function fetchStreams() {
+    loading.value = true;
+    error.value = '';
+
+    const cat = categories.find(c => c.id === selectedCategory.value);
+    const q = encodeURIComponent(cat?.query ?? 'gaming live stream');
+
+    try {
+        // Search for live streams
+        const searchRes = await fetch(
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&q=${q}&maxResults=24&relevanceLanguage=en&regionCode=US&order=viewCount&key=${YT_API_KEY}`
         );
-    }
-    return result;
-});
+        if (!searchRes.ok) {
+            const errBody = await searchRes.json();
+            throw new Error(errBody?.error?.message ?? 'YouTube API error');
+        }
+        const searchData = await searchRes.json();
+        const items = searchData.items ?? [];
 
-// YouTube player
+        if (!items.length) {
+            streams.value = [];
+            loading.value = false;
+            return;
+        }
+
+        const videoIds = items.map((i: any) => i.id.videoId).join(',');
+
+        // Fetch video details for concurrent viewer counts
+        const detailsRes = await fetch(
+            `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails,snippet&id=${videoIds}&key=${YT_API_KEY}`
+        );
+        const detailsData = await detailsRes.json();
+        const detailsMap: Record<string, any> = {};
+        for (const v of (detailsData.items ?? [])) {
+            detailsMap[v.id] = v;
+        }
+
+        const mapped: LiveStream[] = items.map((item: any) => {
+            const videoId = item.id.videoId;
+            const snippet = item.snippet;
+            const details = detailsMap[videoId];
+            const viewerCount = details?.liveStreamingDetails?.concurrentViewers ?? '';
+            const thumb =
+                snippet.thumbnails?.maxres?.url ||
+                snippet.thumbnails?.high?.url ||
+                snippet.thumbnails?.medium?.url ||
+                `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
+            return {
+                videoId,
+                title: snippet.title,
+                channelTitle: snippet.channelTitle,
+                channelId: snippet.channelId,
+                thumbnail: thumb,
+                viewerCount,
+                gameName: '',
+            } as LiveStream;
+        });
+
+        // Sort by concurrent viewers descending (most popular first)
+        streams.value = mapped.sort((a, b) => {
+            const va = parseInt(String(a.viewerCount || '0'), 10);
+            const vb = parseInt(String(b.viewerCount || '0'), 10);
+            return vb - va;
+        });
+
+        // Auto-play first if none active
+        if (!activeVideoId.value && streams.value.length) {
+            playStream(streams.value[0]);
+        }
+    } catch (e: any) {
+        console.error(e);
+        error.value = e?.message ?? 'Failed to load live streams. Check your API key.';
+    } finally {
+        loading.value = false;
+    }
+}
+
+function selectCategory(id: string) {
+    selectedCategory.value = id;
+    streams.value = [];
+    activeVideoId.value = '';
+    activeStream.value = null;
+    fetchStreams();
+}
+
+function playStream(stream: LiveStream) {
+    activeVideoId.value = stream.videoId;
+    activeStream.value = stream;
+    nextTick(() => {
+        initYoutubePlayer(stream.videoId);
+        const el = document.querySelector('.livestream__theater');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+}
+
+// YouTube IFrame Player
 function loadYoutubeApi() {
     if (typeof window === 'undefined') return;
-    if ((window as any).YT) return;
+    if ((window as any).YT && (window as any).YT.Player) return;
+    if (document.querySelector('script[src*="youtube.com/iframe_api"]')) return;
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
-    const first = document.getElementsByTagName('script')[0];
-    first.parentNode?.insertBefore(tag, first);
+    document.head.appendChild(tag);
 }
 
-function initYoutubePlayer() {
+function initYoutubePlayer(videoId: string) {
     if (typeof window === 'undefined') return;
-    loadYoutubeApi();
 
-    if (!(window as any).YT || !(window as any).YT.Player) {
-        setTimeout(initYoutubePlayer, 100);
-        return;
-    }
+    const tryInit = () => {
+        if (!(window as any).YT?.Player) {
+            setTimeout(tryInit, 100);
+            return;
+        }
 
-    if (ytPlayer) {
-        try { ytPlayer.destroy(); } catch (e) { /* ignore */ }
-        ytPlayer = null;
-    }
+        if (ytPlayer) {
+            try { ytPlayer.loadVideoById(videoId); return; } catch {}
+        }
 
-    const container = document.getElementById('youtube-player');
-    if (!container) return;
+        const el = document.getElementById('youtube-player');
+        if (!el) return;
 
-    const qualityParam = selectedQuality.value !== 'auto' ? selectedQuality.value : 'default';
-    const isChannel = activeYoutubeId.value.startsWith('UC') && activeYoutubeId.value.length === 24;
-
-    const playerVars: any = {
-        autoplay: 1,
-        mute: 1,
-        rel: 0,
-        modestbranding: 1,
-        origin: window.location.origin
+        ytPlayer = new (window as any).YT.Player('youtube-player', {
+            height: '100%',
+            width: '100%',
+            videoId,
+            playerVars: {
+                autoplay: 1,
+                mute: 1,
+                rel: 0,
+                modestbranding: 1,
+                origin: window.location.origin,
+            },
+            events: {
+                onReady: (event: any) => {
+                    event.target.mute();
+                    event.target.playVideo();
+                    if (selectedQuality.value !== 'auto') {
+                        event.target.setPlaybackQuality?.(selectedQuality.value);
+                    }
+                },
+            },
+        });
     };
 
-    let videoId = activeYoutubeId.value;
-    if (isChannel) {
-        playerVars.channel = activeYoutubeId.value;
-        videoId = 'live_stream';
-    }
-
-    ytPlayer = new (window as any).YT.Player('youtube-player', {
-        height: '100%',
-        width: '100%',
-        videoId,
-        playerVars,
-        events: {
-            onReady: (event: any) => {
-                event.target.mute();
-                event.target.playVideo();
-                if (qualityParam !== 'default' && event.target.setPlaybackQuality) {
-                    event.target.setPlaybackQuality(qualityParam);
-                }
-                setTimeout(() => {
-                    const duration = event.target.getDuration?.();
-                    if (duration > 0) event.target.seekTo(duration, true);
-                }, 1000);
-            },
-            onStateChange: (event: any) => {
-                if (event.data === (window as any).YT.PlayerState.PLAYING) {
-                    const duration = event.target.getDuration();
-                    const currentTime = event.target.getCurrentTime();
-                    if (duration > 0 && (duration - currentTime) > 15 && !event.target.hasSeekedToLive) {
-                        event.target.seekTo(duration, true);
-                        event.target.hasSeekedToLive = true;
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Methods
-function selectGame(gameId: string) {
-    selectedGameId.value = gameId;
-}
-
-function setActiveChannel(username: string) {
-    const streamer = streamers.find(s => s.username === username);
-    if (streamer) {
-        activeChannel.value = streamer.name;
-        activeYoutubeId.value = streamer.youtubeId;
-    }
-    nextTick(() => {
-        const playerEl = document.querySelector('.livestream__theater');
-        if (playerEl) playerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+    tryInit();
 }
 
 function watchCustomChannel() {
@@ -430,119 +452,659 @@ function watchCustomChannel() {
     if (!input) return;
 
     const ytVideoReg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/;
-    const ytChannelReg = /(?:youtube\.com\/channel\/)(UC[^"&?\/ ]{22})/;
     const ytLiveReg = /(?:youtube\.com\/live\/)([^"&?\/ ]{11})/;
 
     const videoMatch = input.match(ytVideoReg);
-    const channelMatch = input.match(ytChannelReg);
     const liveMatch = input.match(ytLiveReg);
+    const rawId = /^[a-zA-Z0-9_-]{11}$/.test(input) ? input : null;
 
-    if (videoMatch) {
-        activeChannel.value = 'YouTube Live';
-        activeYoutubeId.value = videoMatch[1];
-    } else if (liveMatch) {
-        activeChannel.value = 'YouTube Live';
-        activeYoutubeId.value = liveMatch[1];
-    } else if (channelMatch) {
-        activeChannel.value = 'YouTube Channel';
-        activeYoutubeId.value = channelMatch[1];
-    } else if (input.startsWith('UC') && input.length === 24) {
-        activeChannel.value = 'YouTube Channel';
-        activeYoutubeId.value = input;
-    } else if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
-        activeChannel.value = 'YouTube Live';
-        activeYoutubeId.value = input;
-    } else {
-        return;
-    }
+    const videoId = videoMatch?.[1] ?? liveMatch?.[1] ?? rawId;
+    if (!videoId) return;
 
+    const fakeStream: LiveStream = {
+        videoId,
+        title: 'Custom Stream',
+        channelTitle: 'YouTube Live',
+        channelId: '',
+        thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    };
     customChannelInput.value = '';
-    setTimeout(() => {
-        const playerEl = document.querySelector('.livestream__theater');
-        if (playerEl) playerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
+    playStream(fakeStream);
 }
 
 function toggleChat() {
     showChat.value = !showChat.value;
 }
 
-function copyStreamLink() {
-    if (typeof window !== 'undefined') {
-        const link = `${window.location.origin}/livestream?platform=youtube&ytId=${activeYoutubeId.value}`;
-        navigator.clipboard.writeText(link).then(() => {
-            copied.value = true;
-            setTimeout(() => { copied.value = false; }, 2000);
-        });
-    }
-}
-
-function handleAvatarError(event: Event, streamer: Streamer) {
-    const img = event.target as HTMLImageElement;
-    img.src = `https://api.dicebear.com/7.x/initials/svg?seed=${streamer.name}&backgroundColor=ff0000`;
+function formatViewers(count: string | number): string {
+    const n = typeof count === 'string' ? parseInt(count, 10) : count;
+    if (isNaN(n)) return '';
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toLocaleString();
 }
 
 function parseYoutubeId(input: string): string {
     const ytVideoReg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/;
-    const ytChannelReg = /(?:youtube\.com\/channel\/)(UC[^"&?\/ ]{22})/;
     const ytLiveReg = /(?:youtube\.com\/live\/)([^"&?\/ ]{11})/;
-
     const v = input.match(ytVideoReg);
     if (v) return v[1];
     const l = input.match(ytLiveReg);
     if (l) return l[1];
-    const c = input.match(ytChannelReg);
-    if (c) return c[1];
-    if (input.startsWith('UC') && input.length === 24) return input;
     if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
     return '';
 }
 
-function playDefaultYoutubeLink(link: string) {
-    const id = parseYoutubeId(link);
-    if (id) {
-        activeChannel.value = 'Admin Recommended Live';
-        activeYoutubeId.value = id;
-    }
-}
-
-// Watch YouTube ID changes to reinit player
-watch(activeYoutubeId, () => {
-    nextTick(() => { initYoutubePlayer(); });
-});
-
-watch(selectedQuality, (newQuality) => {
-    if (ytPlayer && ytPlayer.setPlaybackQuality) {
-        ytPlayer.setPlaybackQuality(newQuality === 'auto' ? 'default' : newQuality);
+watch(selectedQuality, (q) => {
+    if (ytPlayer?.setPlaybackQuality) {
+        ytPlayer.setPlaybackQuality(q === 'auto' ? 'default' : q);
     }
 });
 
 onMounted(async () => {
     document.title = 'Livestream — Moovie';
     await loadGlobalSettings();
+    loadYoutubeApi();
 
-    // Handle query params (e.g. shared links)
     if (route.query.ytId) {
-        activeChannel.value = 'YouTube Live';
-        activeYoutubeId.value = String(route.query.ytId);
+        const videoId = String(route.query.ytId);
+        const fakeStream: LiveStream = {
+            videoId,
+            title: 'YouTube Live',
+            channelTitle: 'YouTube Live',
+            channelId: '',
+            thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+        };
+        playStream(fakeStream);
     } else if (defaultYoutubeStream.value) {
-        playDefaultYoutubeLink(defaultYoutubeStream.value);
-    } else {
-        // Auto-play first stream (Lofi Girl)
-        setActiveChannel(streamers[0].username);
+        const id = parseYoutubeId(defaultYoutubeStream.value);
+        if (id) {
+            const fakeStream: LiveStream = {
+                videoId: id,
+                title: 'Admin Recommended',
+                channelTitle: 'YouTube Live',
+                channelId: '',
+                thumbnail: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+            };
+            playStream(fakeStream);
+        }
     }
-});
 
-watch(defaultYoutubeStream, (newVal) => {
-    if (!route.query.ytId && newVal && !activeYoutubeId.value) {
-        playDefaultYoutubeLink(newVal);
-    }
+    await fetchStreams();
+
+    // Auto-refresh every 3 minutes
+    refreshTimer = setInterval(fetchStreams, 3 * 60 * 1000);
 });
 
 onUnmounted(() => {
     if (ytPlayer) {
-        try { ytPlayer.destroy(); } catch (e) { /* ignore */ }
+        try { ytPlayer.destroy(); } catch {}
         ytPlayer = null;
     }
+    if (refreshTimer) clearInterval(refreshTimer);
 });
 </script>
+
+<style scoped lang="scss">
+.livestream {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--ink-950);
+
+    &__main {
+        flex: 1;
+        padding-top: var(--header-h, 64px);
+    }
+
+    &__body {
+        padding: var(--s-6) var(--s-4);
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    // ── Theater ────────────────────────────────────────────────────────────
+    &__theater {
+        margin-bottom: var(--s-6);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-950);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+
+    &__theater-container {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        height: clamp(360px, 52vw, 600px);
+
+        &.chat-collapsed {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    &__video-wrapper {
+        position: relative;
+        background: #000;
+        min-width: 0;
+    }
+
+    &__video-frame {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    &__chat-wrapper {
+        border-left: 1px solid var(--rule-strong);
+        background: #0c0b0a;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    &__chat-frame {
+        width: 100%;
+        height: 100%;
+        border: none;
+        flex: 1;
+    }
+
+    &__chat-placeholder {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--s-3);
+        color: var(--bone-500);
+        font-size: 0.82rem;
+        text-align: center;
+        padding: var(--s-4);
+    }
+
+    // ── Meta bar ───────────────────────────────────────────────────────────
+    &__meta-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--s-3);
+        padding: var(--s-3) var(--s-5);
+        background: var(--ink-850);
+        border-top: 1px solid var(--rule-strong);
+    }
+
+    &__streamer-info {
+        display: flex;
+        align-items: center;
+        gap: var(--s-3);
+        min-width: 0;
+        flex: 1;
+    }
+
+    &__avatar-img {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--r-pill);
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    &__avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: var(--r-pill);
+        color: #fff;
+        font-weight: 700;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+
+    &__streamer-name {
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--bone-50);
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+    }
+
+    &__live-badge {
+        font-size: 0.55rem;
+        font-weight: 800;
+        color: #fff;
+        background: #ff0000;
+        padding: 2px 5px;
+        border-radius: var(--r-xs);
+        letter-spacing: 0.06em;
+    }
+
+    &__streamer-sub {
+        font-size: 0.73rem;
+        color: var(--bone-400);
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 400px;
+    }
+
+    &__meta-right {
+        display: flex;
+        align-items: center;
+        gap: var(--s-4);
+        flex-shrink: 0;
+        flex-wrap: wrap;
+    }
+
+    &__viewer-count {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.78rem;
+        color: var(--bone-300);
+        font-weight: 500;
+    }
+
+    &__quality-control {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__quality-select-wrapper {
+        position: relative;
+    }
+
+    &__quality-select {
+        min-height: 2.25rem;
+        padding: 0 var(--s-7) 0 var(--s-3);
+        border-radius: var(--r-md);
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-800);
+        color: var(--bone-50);
+        font-family: var(--font-ui);
+        font-size: 0.8rem;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23a79f8d' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.65rem center;
+        outline: none;
+
+        &:focus { border-color: #ff4444; }
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+    }
+
+    &__action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-2);
+        min-height: 2.25rem;
+        padding: 0 var(--s-4);
+        border-radius: var(--r-md);
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-800);
+        color: var(--bone-200);
+        font-family: var(--font-ui);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s;
+
+        &:hover { background: var(--ink-700); border-color: var(--bone-500); }
+
+        &--youtube {
+            border-color: rgba(255, 0, 0, 0.4);
+            color: #ff4444;
+            &:hover { background: rgba(255, 0, 0, 0.1); border-color: #ff0000; }
+        }
+    }
+
+    // ── Filters ────────────────────────────────────────────────────────────
+    &__filters {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-3);
+        margin-bottom: var(--s-6);
+    }
+
+    &__games-nav {
+        display: flex;
+        gap: var(--s-2);
+        overflow-x: auto;
+        padding-bottom: var(--s-2);
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        &::-webkit-scrollbar { display: none; }
+    }
+
+    &__game-tab {
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+        flex-shrink: 0;
+        padding: 7px 14px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-800);
+        color: var(--bone-300);
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+
+        &:hover { background: var(--ink-700); }
+
+        &.is-active {
+            background: rgba(255, 0, 0, 0.12);
+            border-color: #ff4444;
+            color: var(--bone-50);
+        }
+    }
+
+    &__game-tab-emoji { font-size: 1rem; }
+
+    &__game-tab-title {
+        font-family: var(--font-ui);
+        font-weight: 600;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    &__search-row {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr;
+        gap: var(--s-3);
+    }
+
+    &__search-field {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    &__search-icon {
+        position: absolute;
+        left: 12px;
+        color: var(--bone-500);
+        pointer-events: none;
+        width: 16px;
+        height: 16px;
+    }
+
+    &__input {
+        width: 100%;
+        min-height: 2.5rem;
+        padding: 0 var(--s-4);
+        border-radius: var(--r-md);
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-850);
+        color: var(--bone-50);
+        font-family: var(--font-ui);
+        font-size: 0.88rem;
+        transition: border-color 0.15s;
+
+        .livestream__search-field & { padding-left: 2.2rem; }
+
+        &:focus { outline: none; border-color: #ff4444; }
+        &::placeholder { color: var(--bone-500); }
+    }
+
+    &__custom-form {
+        display: flex;
+        gap: var(--s-2);
+        .livestream__input { flex: 1; min-width: 0; }
+    }
+
+    &__btn-primary {
+        min-height: 2.5rem;
+        padding: 0 var(--s-5);
+        border-radius: var(--r-md);
+        background: #ff0000;
+        color: #fff;
+        font-family: var(--font-ui);
+        font-weight: 600;
+        font-size: 0.88rem;
+        border: none;
+        cursor: pointer;
+        transition: background 0.15s;
+        white-space: nowrap;
+        &:hover { background: #cc0000; }
+    }
+
+    // ── Grid section ───────────────────────────────────────────────────────
+    &__grid-section {
+        padding-bottom: var(--s-10);
+    }
+
+    &__section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--s-4);
+    }
+
+    &__section-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--bone-300);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+    }
+
+    &__count {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: var(--r-pill);
+        background: rgba(255, 0, 0, 0.15);
+        color: #ff6666;
+        border: 1px solid rgba(255, 0, 0, 0.3);
+    }
+
+    &__refresh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s-2);
+        min-height: 2rem;
+        padding: 0 var(--s-3);
+        border-radius: var(--r-md);
+        border: 1px solid var(--rule-strong);
+        background: var(--ink-800);
+        color: var(--bone-300);
+        font-family: var(--font-ui);
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+
+        &:hover { background: var(--ink-700); }
+
+        &.is-loading svg {
+            animation: spin 1s linear infinite;
+        }
+    }
+
+    // ── Grid ───────────────────────────────────────────────────────────────
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: var(--s-4);
+    }
+
+    &__card {
+        background: var(--ink-850);
+        border-radius: var(--r-md);
+        border: 1px solid var(--rule-strong);
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+
+        &:hover {
+            transform: translateY(-2px);
+            border-color: var(--bone-600);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        &.is-playing {
+            border-color: #ff0000;
+            box-shadow: 0 0 0 2px rgba(255, 0, 0, 0.3);
+        }
+
+        &--skeleton {
+            pointer-events: none;
+        }
+    }
+
+    &__card-preview {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        background: var(--ink-950);
+        overflow: hidden;
+    }
+
+    &__card-avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.2s;
+        .livestream__card:hover & { transform: scale(1.04); }
+    }
+
+    &__card-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.15s;
+        .livestream__card:hover & { opacity: 1; }
+    }
+
+    &__play-btn-circle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    &__card-badge {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 0.52rem;
+        font-weight: 800;
+        color: #fff;
+        padding: 2px 5px;
+        border-radius: var(--r-xs);
+        letter-spacing: 0.04em;
+    }
+
+    &__card-viewers {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.75);
+        padding: 2px 6px;
+        border-radius: var(--r-xs);
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+
+    &__card-info {
+        padding: var(--s-3) var(--s-4);
+    }
+
+    &__card-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--bone-50);
+        margin-bottom: 3px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.35;
+    }
+
+    &__card-game {
+        font-size: 0.72rem;
+        color: var(--bone-400);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__card-category {
+        font-size: 0.68rem;
+        color: #ff6666;
+        margin-top: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    // ── Skeleton ───────────────────────────────────────────────────────────
+    .skeleton-box {
+        background: linear-gradient(90deg, var(--ink-800) 25%, var(--ink-700) 50%, var(--ink-800) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.4s infinite;
+    }
+
+    .skeleton-line {
+        height: 12px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, var(--ink-800) 25%, var(--ink-700) 50%, var(--ink-800) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.4s infinite;
+    }
+
+    // ── Empty ──────────────────────────────────────────────────────────────
+    &__empty {
+        padding: var(--s-12) var(--s-6);
+        text-align: center;
+        border-radius: var(--r-md);
+        border: 1px dashed var(--rule);
+        background: var(--ink-850);
+        color: var(--bone-500);
+        font-size: 0.88rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--s-3);
+    }
+}
+
+@keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+</style>

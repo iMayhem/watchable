@@ -65,11 +65,6 @@
             </nav>
 
             <div class="site-header__actions">
-                <router-link to="/livestream" class="site-header__live-btn" aria-label="Livestream">
-                    <span class="site-header__live-dot"></span>
-                    <span class="site-header__live-label">LIVE</span>
-                </router-link>
-
                 <button
                     type="button"
                     class="site-header__search"

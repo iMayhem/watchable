@@ -65,7 +65,8 @@ export const movieServers = ref<Server[]>([
   { name: 'Kulfi', urlTemplate: 'https://player.autoembed.app/embed/movie/{tmdbId}' },
   { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/movie/{tmdbId}' },
   { name: 'Imarti', urlTemplate: 'https://111movies.com/movie/{tmdbId}' },
-  { name: 'Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' }
+  { name: 'Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' },
+  { name: 'Dedicated', urlTemplate: 'https://moovie.fun/api/dedicated?action=player&type=movie&id={tmdbId}' }
 ]);
 
 export const tvServers = ref<Server[]>([
@@ -84,7 +85,8 @@ export const tvServers = ref<Server[]>([
   { name: 'Kulfi', urlTemplate: 'https://player.autoembed.app/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/tv/{externalId}/{season}/{episode}' },
   { name: 'Imarti', urlTemplate: 'https://111movies.com/tv/{externalId}/{season}/{episode}' },
-  { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' }
+  { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' },
+  { name: 'Dedicated', urlTemplate: 'https://moovie.fun/api/dedicated?action=player&type=tv&id={externalId}&season={season}&episode={episode}' }
 ]);
 
 const idToNameMap: Record<string, string> = {

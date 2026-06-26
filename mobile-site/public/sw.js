@@ -1,4 +1,6 @@
 const CACHE_NAME = 'moovie-mobile-cache-v2';
+const API_TTL = 24 * 60 * 60 * 1000;
+const IMAGE_TTL = 7 * 24 * 60 * 60 * 1000;
 const PRECACHE_ASSETS = [
   '/',
   '/favicon.svg',
@@ -6,7 +8,6 @@ const PRECACHE_ASSETS = [
   '/artplayer-compact.css'
 ];
 
-// Install event: cache core assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -16,7 +17,6 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event: clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -32,14 +32,27 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event: serve from cache or network
+function isFresh(timestamp, ttl) {
+  return Date.now() - timestamp < ttl;
+}
+
+function cacheWithTimestamp(cache, request, response) {
+  const headers = new Headers(response.headers);
+  headers.append('x-sw-cache-time', String(Date.now()));
+  const cached = new Response(response.clone().body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+  cache.put(request, cached);
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Bypass service worker for video streams and range requests
-  const isVideo = 
+  const isVideo =
     url.pathname.match(/\.(mp4|webm|m3u8|ts|mp3|m4a|aac|wav|ogg)$/i) ||
     event.request.headers.get('range') ||
     url.hostname.includes('animeplay') ||
@@ -49,25 +62,21 @@ self.addEventListener('fetch', (event) => {
 
   if (isVideo) return;
 
-  // Handle navigation requests
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const responseClone = response.clone();
+          const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put('/', responseClone);
+            cache.put('/', clone);
           });
           return response;
         })
-        .catch(() => {
-          return caches.match('/');
-        })
+        .catch(() => caches.match('/'))
     );
     return;
   }
 
-  // Same-origin static assets (JS, CSS, fonts, local images)
   const isStaticAsset =
     url.origin === self.location.origin &&
     (url.pathname.includes('/assets/') ||
@@ -89,17 +98,15 @@ self.addEventListener('fetch', (event) => {
               });
             }
           }).catch(() => {});
-          
           return cachedResponse;
         }
-
         return fetch(event.request).then((networkResponse) => {
           if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
             return networkResponse;
           }
-          const responseToCache = networkResponse.clone();
+          const clone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+            cache.put(event.request, clone);
           });
           return networkResponse;
         });
@@ -108,48 +115,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // TMDB / AniList / other API/artwork assets: cache them to allow quick loads
-  const isTmdbImage =
-    url.hostname.includes('image.tmdb.org');
+  const isTmdbImage = url.hostname.includes('image.tmdb.org');
   const isExternalApi =
     url.hostname.includes('graphql.anilist.co') ||
     url.hostname.includes('api.themoviedb.org');
 
-  if (isTmdbImage) {
-    // Stale-while-revalidate: serve cached image instantly, fetch fresh in background
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
+  if (!isTmdbImage && !isExternalApi) return;
+
+  const ttl = isTmdbImage ? IMAGE_TTL : API_TTL;
+
+  event.respondWith(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((cachedResponse) => {
+        const cacheTime = cachedResponse?.headers?.get('x-sw-cache-time');
+        if (cachedResponse && cacheTime && isFresh(Number(cacheTime), ttl)) {
+          return cachedResponse;
+        }
+
+        return fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+            cacheWithTimestamp(cache, event.request, networkResponse);
           }
           return networkResponse;
         }).catch(() => cachedResponse);
-
-        return cachedResponse || fetchPromise;
-      })
-    );
-    return;
-  }
-
-  if (isExternalApi) {
-    // Network-first: always fetch fresh API data, fall back to cache when offline
-    event.respondWith(
-      fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => {
-        return caches.match(event.request);
-      })
-    );
-    return;
-  }
+      });
+    })
+  );
 });

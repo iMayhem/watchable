@@ -98,32 +98,19 @@ const router = useRouter()
 export const handleMovieClick = (id: number) => {
     router.push({name: "Movie", params: {id: id.toString()}})
 }
-const discoverMoviesCache = new Map<string, Promise<any>>();
-const movieDetailsCache = new Map<string, Promise<any>>();
-const movieCreditsCache = new Map<string, Promise<any>>();
-const movieImagesCache = new Map<string, Promise<any>>();
-const similarMoviesCache = new Map<string, Promise<any>>();
-const movieVideosCache = new Map<string, Promise<any>>();
-
 export const useMovies = () => {
     const fetchDiscoverMovies = async (url: string = "https://api.themoviedb.org/3/discover/movie" ) => {
         let loading = ref(false)
         let error = ref("")
         let data = ref<MovieResponse>()
-        const { region } = getSettings();
-        const cacheKey = `${region.value}:${url}`;
         try {
             loading.value = true
-            if (!discoverMoviesCache.has(cacheKey)) {
-                discoverMoviesCache.set(cacheKey, useAxios().get(url).then(r => r.data));
-            }
-            const res = await discoverMoviesCache.get(cacheKey)!;
+            const res = (await useAxios().get(url)).data
             if (res.results) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
-            discoverMoviesCache.delete(cacheKey);
         } finally {
             loading.value = false
         }
@@ -139,16 +126,12 @@ export const useMovies = () => {
         let data = ref<MovieDetails>()
         try {
             loading.value = true
-            if (!movieDetailsCache.has(id)) {
-                movieDetailsCache.set(id, useAxios().get(`https://api.themoviedb.org/3/movie/${id}`).then(r => r.data));
-            }
-            const res = await movieDetailsCache.get(id)!;
+            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}`)).data
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
-            movieDetailsCache.delete(id);
         } finally {
             loading.value = false
         }
@@ -164,16 +147,12 @@ export const useMovies = () => {
         let data = ref<MovieCredit>()
         try {
             loading.value = true
-            if (!movieCreditsCache.has(id)) {
-                movieCreditsCache.set(id, useAxios().get(`https://api.themoviedb.org/3/movie/${id}/credits`).then(r => r.data));
-            }
-            const res = await movieCreditsCache.get(id)!;
+            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}/credits`)).data
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
-            movieCreditsCache.delete(id);
         } finally {
             loading.value = false
         }
@@ -189,18 +168,12 @@ export const useMovies = () => {
         let data = ref<MovieImages>()
         try {
             loading.value = true
-            const url = `https://api.themoviedb.org/3/movie/${id}/images?include_image_language=en`;
-            if (!movieImagesCache.has(url)) {
-                movieImagesCache.set(url, useAxios().get(url).then(r => r.data));
-            }
-            const res = await movieImagesCache.get(url)!;
+            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}/images?include_image_language=en`)).data
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
-            const url = `https://api.themoviedb.org/3/movie/${id}/images?include_image_language=en`;
-            movieImagesCache.delete(url);
         } finally {
             loading.value = false
         }
@@ -216,18 +189,12 @@ export const useMovies = () => {
         let data = ref<MovieResponse>()
         try {
             loading.value = true
-            const url = `https://api.themoviedb.org/3/movie/${id}/similar?language=en-US&page=1`;
-            if (!similarMoviesCache.has(url)) {
-                similarMoviesCache.set(url, useAxios().get(url).then(r => r.data));
-            }
-            const res = await similarMoviesCache.get(url)!;
+            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}/similar?language=en-US&page=1`)).data
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
-            const url = `https://api.themoviedb.org/3/movie/${id}/similar?language=en-US&page=1`;
-            similarMoviesCache.delete(url);
         } finally {
             loading.value = false
         }
@@ -246,18 +213,12 @@ export const useMovies = () => {
         }>()
         try {
             loading.value = true
-            const url = `https://api.themoviedb.org/3/movie/${id}/videos?language=en-US`;
-            if (!movieVideosCache.has(url)) {
-                movieVideosCache.set(url, useAxios().get(url).then(r => r.data));
-            }
-            const res = await movieVideosCache.get(url)!;
+            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}/videos?language=en-US`)).data
             if (res) {
                 data.value = res
             }
         } catch (err: any) {
             error.value = err.message
-            const url = `https://api.themoviedb.org/3/movie/${id}/videos?language=en-US`;
-            movieVideosCache.delete(url);
         } finally {
             loading.value = false
         }

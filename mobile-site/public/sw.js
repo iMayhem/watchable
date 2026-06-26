@@ -1,6 +1,4 @@
-const CACHE_NAME = 'moovie-mobile-cache-v3';
-const API_TTL = 24 * 60 * 60 * 1000;
-const IMAGE_TTL = 7 * 24 * 60 * 60 * 1000;
+const CACHE_NAME = 'moovie-mobile-cache-v4';
 const PRECACHE_ASSETS = [
   '/',
   '/favicon.svg',
@@ -71,33 +69,4 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-
-  const isExternal = url.hostname.includes('image.tmdb.org') ||
-    url.hostname.includes('graphql.anilist.co') ||
-    url.hostname.includes('api.themoviedb.org');
-  if (!isExternal) return;
-
-  const ttl = url.hostname.includes('image.tmdb.org') ? IMAGE_TTL : API_TTL;
-
-  event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((hit) => {
-        if (hit) {
-          const cachedAt = Number(hit.headers.get('x-sw-cache') || 0);
-          if (Date.now() - cachedAt < ttl) return hit;
-        }
-        return fetch(event.request).then((net) => {
-          if (net && net.status === 200) {
-            const withTs = new Response(net.clone().body, {
-              status: net.status,
-              statusText: net.statusText,
-              headers: { ...Object.fromEntries(net.headers), 'x-sw-cache': String(Date.now()) }
-            });
-            cache.put(event.request, withTs);
-          }
-          return net;
-        }).catch(() => hit);
-      });
-    })
-  );
 });

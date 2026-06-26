@@ -43,46 +43,6 @@ export async function registerUser(username: string, password: string): Promise<
             return { success: false, error: 'Username is already taken.' };
         }
 
-        // Retrieve local guest session data
-        let localWatchlist = createDefaultCollection();
-        let localLikedList: any[] = [];
-        let localWatchHistory: any[] = [];
-        let localSearchHistory: any[] = [];
-
-        if (typeof window !== 'undefined') {
-            try {
-                const watchlistStr = localStorage.getItem('watchlist');
-                if (watchlistStr) {
-                    const parsed = JSON.parse(watchlistStr);
-                    localWatchlist = normalizeWatchlistStorage(parsed);
-                    const likedList = localWatchlist.lists.find(l => l.id === 'liked');
-                    if (likedList) {
-                        localLikedList = likedList.items;
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to parse local watchlist for signup:', e);
-            }
-
-            try {
-                const viewHistoryStr = localStorage.getItem('viewHistory');
-                if (viewHistoryStr) {
-                    localWatchHistory = JSON.parse(viewHistoryStr);
-                }
-            } catch (e) {
-                console.error('Failed to parse local watch history for signup:', e);
-            }
-
-            try {
-                const searchHistoryStr = localStorage.getItem('searchHistory');
-                if (searchHistoryStr) {
-                    localSearchHistory = JSON.parse(searchHistoryStr);
-                }
-            } catch (e) {
-                console.error('Failed to parse local search history for signup:', e);
-            }
-        }
-
         const passwordHash = await hashPassword(password);
 
         // Insert new user record
@@ -91,10 +51,10 @@ export async function registerUser(username: string, password: string): Promise<
             .insert([{ 
                 username: cleanUsername, 
                 password_hash: passwordHash, 
-                liked_list: localLikedList, 
-                watchlist: localWatchlist,
-                watch_history: localWatchHistory,
-                search_history: localSearchHistory
+                liked_list: [], 
+                watchlist: createDefaultCollection(),
+                watch_history: [],
+                search_history: []
             }]);
 
         if (insertError) {
@@ -105,13 +65,7 @@ export async function registerUser(username: string, password: string): Promise<
         // Auto-login after registration
         localStorage.setItem('movora_current_user', cleanUsername);
         localStorage.setItem('watch_username', cleanUsername);
-        localStorage.setItem('watchlist', JSON.stringify(localWatchlist));
-        if (localWatchHistory.length > 0) {
-            localStorage.setItem('viewHistory', JSON.stringify(localWatchHistory));
-        }
-        if (localSearchHistory.length > 0) {
-            localStorage.setItem('searchHistory', JSON.stringify(localSearchHistory));
-        }
+        localStorage.setItem('watchlist', JSON.stringify(createDefaultCollection()));
 
         window.dispatchEvent(new Event('movora_auth_change'));
         return { success: true };
@@ -197,13 +151,7 @@ export async function pushUserDataToSupabase(
         const updateData: Record<string, unknown> = {};
 
         if (watchlist !== undefined) {
-            const normalized = normalizeWatchlistStorage(watchlist);
-            updateData.watchlist = normalized;
-            
-            const likedList = normalized.lists.find(list => list.id === 'liked');
-            if (likedList) {
-                updateData.liked_list = likedList.items;
-            }
+            updateData.watchlist = normalizeWatchlistStorage(watchlist);
         }
         if (watchHistory !== undefined) {
             updateData.watch_history = watchHistory;

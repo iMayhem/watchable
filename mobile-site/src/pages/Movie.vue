@@ -18,7 +18,6 @@
                 :play-label="playLabel"
                 :show-trailer="hasTrailer"
                 :loading="loading"
-                :hide-likes="true"
                 @trailer="trailerOpen = true"
             />
 

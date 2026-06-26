@@ -77,12 +77,6 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Live TV' }
     },
     {
-        path: '/livestream',
-        name: 'Livestream',
-        component: () => import('./pages/Livestream.vue'),
-        meta: { title: 'Livestream' }
-    },
-    {
         path: '/more',
         name: 'More',
         component: () => import('./pages/More.vue'),

@@ -148,22 +148,6 @@
                         </template>
                         Watch Together
                     </LmButton>
-
-                    <!-- Quick Reactions -->
-                    <div v-if="partySource !== 'netflix'" class="billboard__reactions" ref="reactionsContainer">
-                        <button
-                            type="button"
-                            class="billboard__reaction-btn billboard__reaction-btn--heart"
-                            :class="{ 'is-active': isLiked }"
-                            @click="handleLikeClick"
-                            aria-label="Like"
-                        >
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" class="reaction-icon">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                            </svg>
-                            <span class="reaction-count">{{ displayLikes }}</span>
-                        </button>
-                    </div>
                 </div>
             </div>
         </template>
@@ -171,7 +155,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, PropType, ref, toRef, watch } from 'vue';
+import { computed, defineComponent, onMounted, PropType, ref, toRef } from 'vue';
 import LmButton from '../primitives/Button.vue';
 import {
     catalogDisplayImageSize,
@@ -185,8 +169,6 @@ import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { useAppPaths } from '../../composables/useAppPaths';
 import { useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
-import { useWatchlist } from '../../composables/useWatchlist';
-import { getSupabaseClient } from '../../lib/supabase';
 
 export default defineComponent({
     name: 'BillboardHero',
@@ -309,153 +291,8 @@ export default defineComponent({
             iframeRef.value = el;
         };
 
-        const { isItemLiked, addToLiked, removeFromLiked } = useWatchlist();
-        const globalLikesCount = ref(0);
-        const isLiked = ref(false);
-        const reactionsContainer = ref<HTMLElement | null>(null);
-
-        const fetchGlobalLikes = async () => {
-            if (props.partySource === 'netflix') return;
-            try {
-                const supabase = await getSupabaseClient();
-                const { data, error } = await supabase
-                    .from('media_likes')
-                    .select('likes_count')
-                    .eq('item_id', String(props.id))
-                    .eq('item_type', props.type)
-                    .maybeSingle();
-                
-
-                
-                if (error) {
-                    console.error('[Likes] Supabase error:', error);
-                    return;
-                }
-                if (data) {
-                    globalLikesCount.value = data.likes_count ?? 0;
-                }
-            } catch (e) {
-                console.error('[Likes] Failed to fetch global likes count:', e);
-            }
-        };
-
-        const spawnHearts = () => {
-            if (!reactionsContainer.value) return;
-            const count = 4 + Math.floor(Math.random() * 3);
-            for (let i = 0; i < count; i++) {
-                const heart = document.createElement('div');
-                heart.className = 'floating-heart';
-                
-                const emojis = ['❤️', '💖', '💝', '💕', '💗', '💓'];
-                heart.innerText = emojis[Math.floor(Math.random() * emojis.length)];
-                
-                const size = 16 + Math.random() * 16;
-                const leftOffset = -15 + Math.random() * 30;
-                const duration = 1.5 + Math.random() * 1.0;
-                const delay = Math.random() * 0.2;
-                
-                const sway1 = -20 + Math.random() * 40;
-                const sway2 = -40 + Math.random() * 80;
-                const sway3 = -60 + Math.random() * 120;
-                
-                heart.style.fontSize = `${size}px`;
-                heart.style.left = `calc(50% + ${leftOffset}px)`;
-                heart.style.bottom = `10px`;
-                heart.style.animationDuration = `${duration}s`;
-                heart.style.animationDelay = `${delay}s`;
-                
-                heart.style.setProperty('--sway-1', `${sway1}px`);
-                heart.style.setProperty('--sway-2', `${sway2}px`);
-                heart.style.setProperty('--sway-3', `${sway3}px`);
-                
-                reactionsContainer.value.appendChild(heart);
-                
-                setTimeout(() => {
-                    heart.remove();
-                }, (duration + delay) * 1000 + 100);
-            }
-        };
-
-        const handleLikeClick = async () => {
-            if (props.partySource === 'netflix') return;
-            isLiked.value = !isLiked.value;
-            const item = {
-                id: props.id,
-                title: props.title,
-                image: props.posterPath || props.backdropPath,
-                rating: props.rating,
-                categories: props.genreIds || [],
-                adult: props.adult,
-                type: props.type
-            };
-
-            const itemIdStr = String(props.id);
-            const itemTypeStr = props.type;
-
-            if (isLiked.value) {
-                localStorage.setItem(`like_${props.type}_${props.id}`, 'true');
-                addToLiked(item);
-                spawnHearts();
-                globalLikesCount.value++;
-                // fire-and-forget — never block the UI
-                getSupabaseClient().then(supabase =>
-                    supabase.rpc('increment_media_likes', {
-                        item_id_val: itemIdStr,
-                        item_type_val: itemTypeStr
-                    })
-                ).catch(e => console.error('Failed to increment global likes:', e));
-            } else {
-                localStorage.removeItem(`like_${props.type}_${props.id}`);
-                removeFromLiked(props.id, props.type);
-                globalLikesCount.value = Math.max(0, globalLikesCount.value - 1);
-                // fire-and-forget — never block the UI
-                getSupabaseClient().then(supabase =>
-                    supabase.rpc('decrement_media_likes', {
-                        item_id_val: itemIdStr,
-                        item_type_val: itemTypeStr
-                    })
-                ).catch(e => console.error('Failed to decrement global likes:', e));
-            }
-        };
-
-        const displayLikes = computed(() => globalLikesCount.value);
-
         onMounted(() => {
             primeGenres();
-            if (props.partySource === 'netflix') return;
-            // fire-and-forget — don't stall mount
-            fetchGlobalLikes();
-
-            if (typeof window !== 'undefined') {
-                if (isItemLiked(props.id, props.type)) {
-                    isLiked.value = true;
-                } else {
-                    const savedLike = localStorage.getItem(`like_${props.type}_${props.id}`);
-                    const savedVote = localStorage.getItem(`vote_${props.type}_${props.id}`);
-                    if (savedLike === 'true' || savedVote === 'up') {
-                        isLiked.value = true;
-                    }
-                }
-            }
-        });
-
-        // Re-fetch when the hero id changes (home page loads hero asynchronously)
-        watch(() => props.id, (newId) => {
-            if (props.partySource === 'netflix') return;
-            if (!newId || newId === '') return;
-            // fire-and-forget — don't block the watcher
-            fetchGlobalLikes();
-            if (typeof window !== 'undefined') {
-                if (isItemLiked(newId, props.type)) {
-                    isLiked.value = true;
-                } else {
-                    const savedLike = localStorage.getItem(`like_${props.type}_${newId}`);
-                    const savedVote = localStorage.getItem(`vote_${props.type}_${newId}`);
-                    if (savedLike === 'true' || savedVote === 'up') {
-                        isLiked.value = true;
-                    }
-                }
-            }
         });
 
         return {
@@ -477,11 +314,7 @@ export default defineComponent({
             userMuted,
             onIframeLoad,
             togglePause,
-            toggleMute,
-            isLiked,
-            handleLikeClick,
-            displayLikes,
-            reactionsContainer
+            toggleMute
         };
     }
 });
@@ -700,89 +533,6 @@ export default defineComponent({
         margin-top: var(--s-6);
     }
 
-    &__reactions {
-        position: relative;
-        display: flex;
-        align-items: center;
-        margin-inline-start: 0.5rem;
-        
-        @media (max-width: 480px) {
-            margin-inline-start: 0;
-            width: fit-content;
-            justify-content: flex-start;
-        }
-    }
-
-    &__reaction-btn {
-        position: relative;
-        z-index: 2;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        color: rgba(245, 239, 228, 0.6);
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.6rem 1.0rem;
-        border-radius: 9999px;
-        font-family: var(--font-ui, system-ui);
-        font-size: 0.825rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        min-height: 40px;
-
-        .reaction-icon {
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2px;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            opacity: 0.5;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        &:hover {
-            color: var(--bone-50, #f5efe4);
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.25);
-
-            .reaction-icon {
-                transform: scale(1.1);
-                opacity: 0.85;
-            }
-        }
-
-        &:active .reaction-icon {
-            transform: scale(0.85);
-        }
-
-        &--heart {
-            &.is-active {
-                color: #ff4757;
-                background: rgba(255, 71, 87, 0.15);
-                border-color: rgba(255, 71, 87, 0.35);
-                
-                .reaction-icon {
-                    fill: #ff4757;
-                    stroke: #ff4757;
-                    opacity: 1;
-                    filter: drop-shadow(0 0 6px rgba(255, 71, 87, 0.5));
-                }
-            }
-        }
-    }
-
-    :deep(.floating-heart) {
-        position: absolute;
-        pointer-events: none;
-        z-index: 1;
-        user-select: none;
-        will-change: transform, opacity;
-        animation-name: floatUp;
-        animation-timing-function: cubic-bezier(0.08, 0.77, 0.45, 0.94);
-        animation-fill-mode: forwards;
-    }
-
     @media (max-width: 720px) {
         min-height: clamp(460px, 70vh, 680px);
         align-items: flex-end;
@@ -832,28 +582,6 @@ export default defineComponent({
 @keyframes billboard-skeleton-shimmer-anim {
     100% {
         transform: translateX(100%);
-    }
-}
-
-@keyframes floatUp {
-    0% {
-        transform: translateY(0) translateX(0) scale(0.4);
-        opacity: 0;
-    }
-    10% {
-        opacity: 0.9;
-        transform: translateY(-15px) translateX(var(--sway-1)) scale(1.1);
-    }
-    45% {
-        opacity: 0.9;
-        transform: translateY(-70px) translateX(var(--sway-2)) scale(1);
-    }
-    90% {
-        opacity: 0.4;
-    }
-    100% {
-        transform: translateY(-160px) translateX(var(--sway-3)) scale(0.6);
-        opacity: 0;
     }
 }
 </style>

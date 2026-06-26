@@ -254,7 +254,7 @@
                         @focus="prefetchPrimaryNav(item)"
                         @click="drawerOpen = false"
                     >
-                        <span class="eyebrow site-header__drawer-num">{{ item.num < 10 ? '0' + item.num : item.num }}</span>
+                        <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
                         <span class="site-header__drawer-label">{{ item.label }}</span>
                     </router-link>
 
@@ -409,10 +409,9 @@ const primaryNav: NavItem[] = [
         num: 5
     },
     { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
-    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 7 },
-    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 8 },
-    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 },
-    { label: 'Livestream', path: '/livestream', match: p => p === '/livestream' || p.startsWith('/livestream'), num: 10 }
+    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
+    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 },
+    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 }
 ];
 
 export default defineComponent({
@@ -941,44 +940,6 @@ export default defineComponent({
         display: flex;
         align-items: center;
         gap: var(--s-1);
-    }
-
-    &__live-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        height: 1.75rem;
-        padding: 0 0.6rem;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 69, 58, 0.35);
-        background: rgba(255, 69, 58, 0.08);
-        text-decoration: none;
-        outline: none;
-        transition: background 0.2s ease, border-color 0.2s ease;
-
-        &:hover {
-            background: rgba(255, 69, 58, 0.15);
-            border-color: rgba(255, 69, 58, 0.5);
-        }
-    }
-
-    &__live-dot {
-        flex-shrink: 0;
-        width: 5px;
-        height: 5px;
-        background-color: #ff453a;
-        border-radius: 50%;
-        box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.4);
-        animation: site-pulse-live 1.6s infinite;
-    }
-
-    &__live-label {
-        font-family: var(--font-ui);
-        font-size: 0.6rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        color: #ff6b63;
-        line-height: 1;
     }
 
     &__search {
@@ -1557,21 +1518,6 @@ export default defineComponent({
     to {
         opacity: 1;
         transform: translateY(0);
-    }
-}
-
-@keyframes site-pulse-live {
-    0% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.4);
-    }
-    70% {
-        transform: scale(1);
-        box-shadow: 0 0 0 5px rgba(255, 69, 58, 0);
-    }
-    100% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(255, 69, 58, 0);
     }
 }
 </style>

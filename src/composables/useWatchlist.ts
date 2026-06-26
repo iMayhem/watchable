@@ -39,22 +39,13 @@ export function createDefaultCollection(): WatchlistCollection {
   return {
     version: 2,
     activeListId: MAIN_WATCHLIST_ID,
-    lists: [
-      {
-        id: MAIN_WATCHLIST_ID,
-        name: 'Watchlist',
-        items: [],
-        createdAt: now,
-        updatedAt: now
-      },
-      {
-        id: 'liked',
-        name: 'Liked',
-        items: [],
-        createdAt: now,
-        updatedAt: now
-      }
-    ]
+    lists: [{
+      id: MAIN_WATCHLIST_ID,
+      name: 'Watchlist',
+      items: [],
+      createdAt: now,
+      updatedAt: now
+    }]
   };
 }
 
@@ -74,19 +65,6 @@ export function normalizeWatchlistStorage(raw: unknown): WatchlistCollection {
     const obj = raw as Partial<WatchlistCollection>;
     if (Array.isArray(obj.lists) && obj.lists.length > 0) {
       const lists = obj.lists.map(normalizeList);
-      
-      // Ensure 'liked' list always exists
-      if (!lists.some(list => list.id === 'liked')) {
-        const now = Date.now();
-        lists.push({
-          id: 'liked',
-          name: 'Liked',
-          items: [],
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-
       const activeListId = lists.some(list => list.id === obj.activeListId)
         ? (obj.activeListId as string)
         : lists[0].id;
@@ -103,22 +81,13 @@ export function normalizeWatchlistStorage(raw: unknown): WatchlistCollection {
     return {
       version: 2,
       activeListId: MAIN_WATCHLIST_ID,
-      lists: [
-        {
-          id: MAIN_WATCHLIST_ID,
-          name: 'Watchlist',
-          items: raw as WatchlistItem[],
-          createdAt: now,
-          updatedAt: now
-        },
-        {
-          id: 'liked',
-          name: 'Liked',
-          items: [],
-          createdAt: now,
-          updatedAt: now
-        }
-      ]
+      lists: [{
+        id: MAIN_WATCHLIST_ID,
+        name: 'Watchlist',
+        items: raw as WatchlistItem[],
+        createdAt: now,
+        updatedAt: now
+      }]
     };
   }
 
@@ -348,7 +317,7 @@ export function importWatchlistAsNewList(items: WatchlistItem[]): string {
 }
 
 export function deleteWatchlistList(listId: string): boolean {
-  if (listId === MAIN_WATCHLIST_ID || listId === 'liked') return false;
+  if (listId === MAIN_WATCHLIST_ID) return false;
   const lists = watchlistCollection.value.lists.filter(list => list.id !== listId);
   if (lists.length === watchlistCollection.value.lists.length) return false;
 
@@ -362,34 +331,6 @@ export function deleteWatchlistList(listId: string): boolean {
     lists
   };
   return true;
-}
-
-export function isItemLiked(id: number | string, type: 'movie' | 'tv' | 'anime'): boolean {
-  const likedList = watchlistCollection.value.lists.find(list => list.id === 'liked');
-  return likedList ? likedList.items.some(item => String(item.id) === String(id) && item.type === type) : false;
-}
-
-export function addToLiked(item: WatchlistItem): void {
-  if (!isItemLiked(item.id, item.type)) {
-    updateList('liked', list => ({
-      ...list,
-      items: [{
-        ...item,
-        addedAt: item.addedAt ?? Date.now()
-      }, ...list.items]
-    }));
-    showSyncReminder();
-  }
-}
-
-export function removeFromLiked(
-  id: number | string,
-  type: 'movie' | 'tv' | 'anime'
-): void {
-  updateList('liked', list => ({
-    ...list,
-    items: list.items.filter(item => !(String(item.id) === String(id) && item.type === type))
-  }));
 }
 
 export function isInWatchlist(id: number | string, type: 'movie' | 'tv' | 'anime'): boolean {
@@ -484,9 +425,6 @@ export function useWatchlist() {
     setWatched,
     isWatched,
     clearWatchlist,
-    syncWatchlistToSupabase,
-    isItemLiked,
-    addToLiked,
-    removeFromLiked
+    syncWatchlistToSupabase
   };
 }

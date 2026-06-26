@@ -66,9 +66,7 @@ export const LANGUAGES: LanguageOption[] = [
 
 const selectedRegion = useStorage<string>('movora_user_region', 'global');
 const selectedLanguage = useStorage<string>('movora_user_language', 'en-US');
-const selectedYoutubeStreams = useStorage<boolean>('movora_enable_youtube_streams', true);
 const selectedTmdbImageQuality = ref<'low' | 'medium' | 'high'>('medium');
-const defaultYoutubeStream = ref<string>('');
 let _globalSettingsLoaded = false;
 let _globalSettingsInterval: number | null = null;
 
@@ -78,17 +76,12 @@ export async function refreshGlobalSettings() {
         const { data } = await supabase
             .from('app_settings')
             .select('key, value')
-            .in('key', ['tmdb_image_quality', 'default_youtube_stream']);
+            .in('key', ['tmdb_image_quality']);
 
         const rows = Array.isArray(data) ? data : [];
         const quality = rows.find((row: any) => row.key === 'tmdb_image_quality')?.value;
         if (quality === 'low' || quality === 'medium' || quality === 'high') {
             selectedTmdbImageQuality.value = quality;
-        }
-
-        const ytStream = rows.find((row: any) => row.key === 'default_youtube_stream')?.value;
-        if (ytStream !== undefined) {
-            defaultYoutubeStream.value = ytStream || '';
         }
     } catch (err) {
         console.warn('[settings] Failed to load global settings:', err);
@@ -107,14 +100,11 @@ export async function loadGlobalSettings() {
 }
 
 export const getSettings = () => {
-    const updateSettings = (region: string, language: string, enableYoutube?: boolean) => {
+    const updateSettings = (region: string, language: string) => {
         selectedRegion.value = region;
         selectedLanguage.value = language;
-        if (enableYoutube !== undefined) {
-            selectedYoutubeStreams.value = enableYoutube;
-        }
         window.dispatchEvent(new CustomEvent('movora_settings_change', {
-            detail: { region, language, enableYoutube }
+            detail: { region, language }
         }));
     };
 
@@ -122,8 +112,6 @@ export const getSettings = () => {
         region: readonly(selectedRegion),
         language: readonly(selectedLanguage),
         tmdbImageQuality: readonly(selectedTmdbImageQuality),
-        youtubeStreams: readonly(selectedYoutubeStreams),
-        defaultYoutubeStream: readonly(defaultYoutubeStream),
         updateSettings
     };
 };

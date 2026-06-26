@@ -17,7 +17,6 @@
                 :play-route="playRoute"
                 play-label="Play"
                 :loading="loading"
-                :hide-likes="true"
             />
 
             <section class="m-detail__section container-lm">

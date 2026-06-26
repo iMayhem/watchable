@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moovie · Settings Dashboard</title>
+    <title>MovieAce · Settings Dashboard</title>
         <!-- Google Fonts & Fontshare -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -290,6 +290,9 @@
 
         /* 4K Curation Panel Styles */
         .curation-section {
+            margin-top: 2.5rem;
+            border-top: 1px solid var(--rule);
+            padding-top: 2rem;
             text-align: left;
         }
 
@@ -318,14 +321,11 @@
 
         .search-results {
             list-style: none;
-            background: rgba(245, 239, 228, 0.03);
-            border: 1px solid var(--rule-strong);
+            background: rgba(245, 239, 228, 0.02);
+            border: 1px solid var(--rule);
             border-radius: var(--r-md);
             margin-bottom: 1.5rem;
             padding: 0.25rem 0;
-            max-height: 250px;
-            overflow-y: auto;
-            box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.25);
         }
 
         .search-item, .curation-item {
@@ -375,8 +375,6 @@
             border: 1px solid var(--rule);
             border-radius: var(--r-md);
             margin-bottom: 1.5rem;
-            max-height: 400px;
-            overflow-y: auto;
         }
 
         .curation-item {
@@ -418,45 +416,6 @@
             color: #ff8a80;
             background: rgba(197, 78, 61, 0.15);
         }
-
-        /* Modern Dashboard System Overhaul */
-        .container.dashboard-active {
-            max-width: 1040px;
-            width: 95%;
-            padding: 2.75rem;
-            transition: max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 3.5rem;
-            margin-top: 1.5rem;
-        }
-
-        .dashboard-col {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        .dashboard-header {
-            border-bottom: 1px solid var(--rule);
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.5rem;
-            text-align: left;
-        }
-
-        @media (max-width: 850px) {
-            .container.dashboard-active {
-                max-width: 480px;
-                padding: 2rem;
-            }
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-                gap: 2.5rem;
-            }
-        }
     </style>
 </head>
 <body>
@@ -482,96 +441,82 @@
 
         <!-- DASHBOARD VIEW -->
         <section id="dashboard-view" class="view-section">
-            <header class="dashboard-header">
-                <h1>Site Settings</h1>
-                <p class="subtitle">Configure and curate Moovie platform parameters instantly.</p>
-            </header>
+            <h1>Site Settings</h1>
+            <p class="subtitle">Update default videoplayer instantly without rebuilding.</p>
             
-            <div class="dashboard-grid">
-                <!-- Column 1: Core Configuration -->
-                <div class="dashboard-col">
-                    <form onsubmit="handleSaveSettings(event)">
-                        <div class="form-group">
-                            <label class="form-label" for="default-provider-select">Default Stream Player</label>
-                            <select id="default-provider-select" class="form-select">
-                                <option value="rasmalai">Rasmalai (sweet server)</option>
-                                <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
-                                <option value="smashy">Jalebi (SmashyStream)</option>
-                                <option value="mappletv">Kaju Katli (MappleTV)</option>
-                                <option value="vidking">Kheer (VidKing)</option>
-                                <option value="videasy">Barfi (VidEasy)</option>
-                                <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
-                                <option value="vidsrc_su">Peda (VidSrc.su)</option>
-                                <option value="vidsrcme">Gajar Ka Halwa (VidSrcMe)</option>
-                                <option value="multiembed">Soan Papdi (MultiEmbed)</option>
-                                <option value="vsrc">Sandesh (vsrc.su)</option>
-                                <option value="vidlink">Cham Cham (VidLink)</option>
-                                <option value="autoembed">Kulfi (AutoEmbed)</option>
-                                <option value="vidfast">Mysore Pak (VidFast)</option>
-                                <option value="movies111">Imarti (111Movies)</option>
-                                <option value="vidora">Ghevar (Vidora)</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" style="margin-top: 1.5rem;">
-                            <label class="form-label" for="tmdb-quality-select">TMDB Image Quality</label>
-                            <select id="tmdb-quality-select" class="form-select">
-                                <option value="low">Low - faster, smaller poster and backdrop images</option>
-                                <option value="medium" selected>Medium - balanced image quality</option>
-                                <option value="high">High - sharpest images, heavier bandwidth</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" style="margin-top: 1.5rem;">
-                            <label class="form-label" for="default-yt-stream-input">Default YouTube Stream Link / ID</label>
-                            <input type="text" id="default-yt-stream-input" class="form-input" placeholder="e.g. https://www.youtube.com/watch?v=jfKfPfyJRdk">
-                        </div>
-
-                        <div class="form-group" style="margin-top: 1.5rem;">
-                            <label class="form-label" for="new-passcode-input">Change Passcode (Optional)</label>
-                            <input type="password" id="new-passcode-input" class="form-input" placeholder="Enter new passcode to update">
-                        </div>
-
-                        <button type="submit" class="btn" id="save-btn" style="margin-top: 1.5rem;">
-                            <span>Save Changes</span>
-                        </button>
-                    </form>
-
-                    <div class="server-grid">
-                        <div class="server-grid-item"><strong>ID</strong><strong>Sweet Name</strong></div>
-                        <div class="server-grid-item"><span>rasmalai</span><span>Rasmalai</span></div>
-                        <div class="server-grid-item"><span>cinemaos</span><span>Gulab Jamun</span></div>
-                        <div class="server-grid-item"><span>smashy</span><span>Jalebi</span></div>
-                        <div class="server-grid-item"><span>videasy</span><span>Barfi</span></div>
-                        <div class="server-grid-item"><span>vidlink</span><span>Cham Cham</span></div>
-                    </div>
+            <form onsubmit="handleSaveSettings(event)">
+                <div class="form-group">
+                    <label class="form-label" for="default-provider-select">Default Stream Player</label>
+                    <select id="default-provider-select" class="form-select">
+                        <option value="rasmalai">Rasmalai (sweet server)</option>
+                        <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
+                        <option value="smashy">Jalebi (SmashyStream)</option>
+                        <option value="mappletv">Kaju Katli (MappleTV)</option>
+                        <option value="vidking">Kheer (VidKing)</option>
+                        <option value="videasy">Barfi (VidEasy)</option>
+                        <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
+                        <option value="vidsrc_su">Peda (VidSrc.su)</option>
+                        <option value="vidsrcme">Gajar Ka Halwa (VidSrcMe)</option>
+                        <option value="multiembed">Soan Papdi (MultiEmbed)</option>
+                        <option value="vsrc">Sandesh (vsrc.su)</option>
+                        <option value="vidlink">Cham Cham (VidLink)</option>
+                        <option value="autoembed">Kulfi (AutoEmbed)</option>
+                        <option value="vidfast">Mysore Pak (VidFast)</option>
+                        <option value="movies111">Imarti (111Movies)</option>
+                        <option value="vidora">Ghevar (Vidora)</option>
+                    </select>
                 </div>
 
-                <!-- Column 2: Curated 4K Selection -->
-                <div class="dashboard-col">
-                    <div class="curation-section">
-                        <h2 class="section-title">Curated 4K Selection <span id="curation-count">(0/10)</span></h2>
-                        
-                        <!-- Search panel to query TMDB -->
-                        <form onsubmit="handleSearch4K(event)" class="search-container">
-                            <input type="text" id="search-4k-input" class="form-input" placeholder="Search movies to add..." autocomplete="off">
-                            <button type="submit" class="btn btn-sm" style="width: auto;">Search</button>
-                        </form>
-
-                        <!-- Search Results Box -->
-                        <ul id="search-4k-results" class="search-results" style="display: none; max-height: 220px; overflow-y: auto; list-style: none; margin-bottom: 1rem;">
-                        </ul>
-
-                        <!-- Selected Curation List -->
-                        <ul id="curation-4k-list" class="curation-list">
-                            <li style="padding: 1.5rem; text-align: center; color: var(--bone-400); font-size: 0.9rem;">No 4K movies selected yet</li>
-                        </ul>
-
-                        <button type="button" class="btn" id="save-4k-btn" onclick="handleSave4K(event)">
-                            <span>Save Curated 4K</span>
-                        </button>
-                    </div>
+                <div class="form-group" style="margin-top: 2rem;">
+                    <label class="form-label" for="tmdb-quality-select">TMDB Image Quality</label>
+                    <select id="tmdb-quality-select" class="form-select">
+                        <option value="low">Low - faster, smaller poster and backdrop images</option>
+                        <option value="medium" selected>Medium - balanced image quality</option>
+                        <option value="high">High - sharpest images, heavier bandwidth</option>
+                    </select>
                 </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
+                    <label class="form-label" for="new-passcode-input">Change Passcode (Optional)</label>
+                    <input type="password" id="new-passcode-input" class="form-input" placeholder="Enter new passcode to update">
+                </div>
+
+                <button type="submit" class="btn" id="save-btn" style="margin-top: 1.5rem;">
+                    <span>Save Changes</span>
+                </button>
+            </form>
+
+            <!-- 4K Curation Section -->
+            <div class="curation-section">
+                <h2 class="section-title">4K Selection Curation <span id="curation-count">(0/10)</span></h2>
+                
+                <!-- Search panel to query TMDB -->
+                <form onsubmit="handleSearch4K(event)" class="search-container">
+                    <input type="text" id="search-4k-input" class="form-input" placeholder="Search movies to add..." autocomplete="off">
+                    <button type="submit" class="btn btn-sm" style="width: auto;">Search</button>
+                </form>
+
+                <!-- Search Results Box -->
+                <ul id="search-4k-results" class="search-results" style="display: none; max-height: 160px; list-style: none; margin-bottom: 1rem;">
+                </ul>
+
+                <!-- Selected Curation List -->
+                <ul id="curation-4k-list" class="curation-list">
+                    <li style="padding: 1.5rem; text-align: center; color: var(--bone-400); font-size: 0.9rem;">No 4K movies selected yet</li>
+                </ul>
+
+                <button type="button" class="btn" id="save-4k-btn" onclick="handleSave4K(event)">
+                    <span>Save 4K Curation</span>
+                </button>
+            </div>
+
+            <div class="server-grid">
+                <div class="server-grid-item"><strong>ID</strong><strong>Sweet Name</strong></div>
+                <div class="server-grid-item"><span>rasmalai</span><span>Rasmalai</span></div>
+                <div class="server-grid-item"><span>cinemaos</span><span>Gulab Jamun</span></div>
+                <div class="server-grid-item"><span>smashy</span><span>Jalebi</span></div>
+                <div class="server-grid-item"><span>videasy</span><span>Barfi</span></div>
+                <div class="server-grid-item"><span>vidlink</span><span>Cham Cham</span></div>
             </div>
         </section>
     </div>
@@ -633,7 +578,6 @@
                     showToast('Access Granted!');
                     document.getElementById('auth-view').classList.remove('active');
                     document.getElementById('dashboard-view').classList.add('active');
-                    document.getElementById('widget-container').classList.add('dashboard-active');
                     loadDashboardSettings();
                 } else {
                     showToast('Invalid passcode', false);
@@ -645,7 +589,6 @@
                     showToast('Unlocked (using offline fallback)');
                     document.getElementById('auth-view').classList.remove('active');
                     document.getElementById('dashboard-view').classList.add('active');
-                    document.getElementById('widget-container').classList.add('dashboard-active');
                     loadDashboardSettings();
                 } else {
                     showToast('Auth error. Make sure migrations are run.', false);
@@ -676,13 +619,13 @@
                 const { data } = await supabaseClient
                     .from('app_settings')
                     .select('value')
-                    .eq('key', 'default_youtube_stream')
+                    .eq('key', 'tmdb_image_quality')
                     .single();
                 if (data && data.value) {
-                    document.getElementById('default-yt-stream-input').value = data.value;
+                    document.getElementById('tmdb-quality-select').value = data.value;
                 }
             } catch (err) {
-                console.warn('Could not retrieve default YouTube stream:', err);
+                console.warn('Could not retrieve current TMDB image quality:', err);
             }
             
             // Load 4K curation
@@ -905,7 +848,6 @@
             const saveBtn = document.getElementById('save-btn');
             const defaultProvider = document.getElementById('default-provider-select').value;
             const tmdbImageQuality = document.getElementById('tmdb-quality-select').value;
-            const defaultYtStream = document.getElementById('default-yt-stream-input').value.trim();
             const newPasscode = document.getElementById('new-passcode-input').value.trim();
 
             saveBtn.disabled = true;
@@ -924,13 +866,6 @@
                     .upsert({ key: 'tmdb_image_quality', value: tmdbImageQuality, updated_at: new Date() }, { onConflict: 'key' });
 
                 if (qualityError) throw qualityError;
-
-                // Save default youtube stream link
-                const { error: ytError } = await supabaseClient
-                    .from('app_settings')
-                    .upsert({ key: 'default_youtube_stream', value: defaultYtStream, updated_at: new Date() }, { onConflict: 'key' });
-
-                if (ytError) throw ytError;
 
                 // Save new passcode if provided
                 if (newPasscode) {

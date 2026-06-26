@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moovie-cache-v1';
+const CACHE_NAME = 'moovie-cache-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/favicon.svg',
@@ -117,18 +117,17 @@ self.addEventListener('fetch', (event) => {
   }
 
   // TMDB / AniList / other API/artwork assets: cache them to allow quick loads
-  const isCachableExternal =
-    url.hostname.includes('image.tmdb.org') ||
+  const isTmdbImage =
+    url.hostname.includes('image.tmdb.org');
+  const isExternalApi =
     url.hostname.includes('graphql.anilist.co') ||
     url.hostname.includes('api.themoviedb.org');
 
-  if (isCachableExternal) {
+  if (isTmdbImage) {
+    // Stale-while-revalidate: serve cached image instantly, fetch fresh in background
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(event.request).then((networkResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -136,10 +135,27 @@ self.addEventListener('fetch', (event) => {
             });
           }
           return networkResponse;
-        }).catch(() => {
-          // If offline and request is an image, we can return a transparent pixel or local placeholder
-          return null;
-        });
+        }).catch(() => cachedResponse);
+
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  if (isExternalApi) {
+    // Network-first: always fetch fresh API data, fall back to cache when offline
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        return caches.match(event.request);
       })
     );
     return;

@@ -440,15 +440,20 @@ export default defineComponent({
             loadData();
         };
 
+        const REFRESH_INTERVAL = 30 * 60 * 1000;
+        let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
         onMounted(() => {
             document.title = 'Moovie — Stream Movies, TV Shows & Anime Free';
             primeGenres();
             loadData();
             window.addEventListener('movora_settings_change', handleSettingsChange);
+            refreshTimer = setInterval(loadData, REFRESH_INTERVAL);
         });
 
         onBeforeUnmount(() => {
             window.removeEventListener('movora_settings_change', handleSettingsChange);
+            if (refreshTimer) clearInterval(refreshTimer);
         });
 
         // NOTE: We rely solely on the movora_settings_change window event to reload

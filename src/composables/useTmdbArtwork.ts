@@ -6,12 +6,15 @@ import {
 } from './useMoovieCatalog';
 import { nfDebugError } from './useNetflixDebug';
 
+const CACHE_TTL = 6 * 60 * 60 * 1000;
+
 export interface TmdbArtwork {
     posterPath: string | null;
     backdropPath: string | null;
     tmdbId?: number;
     genreIds?: number[];
     overview?: string;
+    _cachedAt?: number;
 }
 
 export interface CatalogArtworkPaths {
@@ -29,6 +32,11 @@ export function pickCatalogArtwork(art: TmdbArtwork): CatalogArtworkPaths {
 
 function hasUsableCatalogArt(art: TmdbArtwork | null | undefined): boolean {
     return Boolean(art?.posterPath || art?.backdropPath);
+}
+
+function isCacheFresh(art: TmdbArtwork | null | undefined): boolean {
+    if (!art?._cachedAt) return false;
+    return Date.now() - art._cachedAt < CACHE_TTL;
 }
 
 function cacheMatchesTrustedTmdbId(
@@ -86,6 +94,7 @@ function persistArtworkCache(): void {
 }
 
 function setArtworkCache(key: string, art: TmdbArtwork): void {
+    art._cachedAt = Date.now();
     artworkCache.set(key, art);
     persistArtworkCache();
 }
@@ -220,7 +229,7 @@ async function fetchTmdbArtworkById(
     cacheKey: string
 ): Promise<TmdbArtwork | null> {
     const cached = artworkCache.get(cacheKey);
-    if (hasUsableCatalogArt(cached) && cacheMatchesTrustedTmdbId(cached, tmdbId)) {
+    if (hasUsableCatalogArt(cached) && isCacheFresh(cached) && cacheMatchesTrustedTmdbId(cached, tmdbId)) {
         return cached!;
     }
 
@@ -271,6 +280,7 @@ export async function resolveTmdbArtwork(opts: {
         const cached = artworkCache.get(cacheId);
         if (
             hasUsableCatalogArt(cached) &&
+            isCacheFresh(cached) &&
             cacheMatchesTrustedTmdbId(cached, opts.tmdbId)
         ) {
             return cached!;

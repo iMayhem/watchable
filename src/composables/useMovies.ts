@@ -2,7 +2,6 @@ import { ref } from "vue"
 import { Movie } from "./useHighlights"
 import {Actor} from "./useActor"
 import useAxios from "./useAxios"
-import { getSettings } from "./useSettings"
 import { useRouter } from "vue-router"
 
 export interface MovieResponse {

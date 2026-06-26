@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moovie-mobile-cache-v2';
+const CACHE_NAME = 'moovie-mobile-cache-v3';
 const API_TTL = 24 * 60 * 60 * 1000;
 const IMAGE_TTL = 7 * 24 * 60 * 60 * 1000;
 const PRECACHE_ASSETS = [
@@ -11,7 +11,6 @@ const PRECACHE_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Pre-caching offline mobile assets');
       return cache.addAll(PRECACHE_ASSETS);
     }).then(() => self.skipWaiting())
   );
@@ -19,39 +18,16 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[Service Worker] Deleting old mobile cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
+    caches.keys().then((keys) => {
+      return Promise.all(keys.map((k) => caches.delete(k)));
     }).then(() => self.clients.claim())
   );
 });
-
-function isFresh(timestamp, ttl) {
-  return Date.now() - timestamp < ttl;
-}
-
-function cacheWithTimestamp(cache, request, response) {
-  const headers = new Headers(response.headers);
-  headers.append('x-sw-cache-time', String(Date.now()));
-  const cached = new Response(response.clone().body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers
-  });
-  cache.put(request, cached);
-}
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-
   const isVideo =
     url.pathname.match(/\.(mp4|webm|m3u8|ts|mp3|m4a|aac|wav|ogg)$/i) ||
     event.request.headers.get('range') ||
@@ -59,19 +35,12 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('cinestream') ||
     url.pathname.includes('/stream/') ||
     url.pathname.includes('/api/stream');
-
   if (isVideo) return;
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put('/', clone);
-          });
-          return response;
-        })
+        .then((r) => { caches.open(CACHE_NAME).then((c) => c.put('/', r.clone())); return r; })
         .catch(() => caches.match('/'))
     );
     return;
@@ -89,55 +58,45 @@ self.addEventListener('fetch', (event) => {
 
   if (isStaticAsset) {
     event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          fetch(event.request).then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
-            }
-          }).catch(() => {});
-          return cachedResponse;
+      caches.match(event.request).then((hit) => {
+        if (hit) {
+          fetch(event.request).then((net) => { if (net.status === 200) caches.open(CACHE_NAME).then((c) => c.put(event.request, net)); }).catch(() => {});
+          return hit;
         }
-        return fetch(event.request).then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
-          }
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-          return networkResponse;
+        return fetch(event.request).then((net) => {
+          if (net && net.status === 200 && net.type === 'basic') caches.open(CACHE_NAME).then((c) => c.put(event.request, net.clone()));
+          return net;
         });
       })
     );
     return;
   }
 
-  const isTmdbImage = url.hostname.includes('image.tmdb.org');
-  const isExternalApi =
+  const isExternal = url.hostname.includes('image.tmdb.org') ||
     url.hostname.includes('graphql.anilist.co') ||
     url.hostname.includes('api.themoviedb.org');
+  if (!isExternal) return;
 
-  if (!isTmdbImage && !isExternalApi) return;
-
-  const ttl = isTmdbImage ? IMAGE_TTL : API_TTL;
+  const ttl = url.hostname.includes('image.tmdb.org') ? IMAGE_TTL : API_TTL;
 
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((cachedResponse) => {
-        const cacheTime = cachedResponse?.headers?.get('x-sw-cache-time');
-        if (cachedResponse && cacheTime && isFresh(Number(cacheTime), ttl)) {
-          return cachedResponse;
+      return cache.match(event.request).then((hit) => {
+        if (hit) {
+          const cachedAt = Number(hit.headers.get('x-sw-cache') || 0);
+          if (Date.now() - cachedAt < ttl) return hit;
         }
-
-        return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            cacheWithTimestamp(cache, event.request, networkResponse);
+        return fetch(event.request).then((net) => {
+          if (net && net.status === 200) {
+            const withTs = new Response(net.clone().body, {
+              status: net.status,
+              statusText: net.statusText,
+              headers: { ...Object.fromEntries(net.headers), 'x-sw-cache': String(Date.now()) }
+            });
+            cache.put(event.request, withTs);
           }
-          return networkResponse;
-        }).catch(() => cachedResponse);
+          return net;
+        }).catch(() => hit);
       });
     })
   );

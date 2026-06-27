@@ -208,12 +208,12 @@ function extractJson(text: string): string {
 async function logSearchToSupabase(query: string) {
     try {
         const supabase = await getSupabaseClient();
-        await supabase.from('movora_searches').insert([{
+        await supabase.from('movora_ai_searches').insert([{
             query: query.trim(),
             created_at: new Date().toISOString()
         }]);
     } catch (e) {
-        console.error("Failed to log search query to Supabase:", e);
+        console.error("Failed to log AI search query to Supabase:", e);
     }
 }
 

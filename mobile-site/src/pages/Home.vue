@@ -97,7 +97,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileSection from '../components/MobileSection.vue';
 import MobileMediaRail from '../components/MobileMediaRail.vue';
@@ -206,14 +206,21 @@ async function fetchCompanyMovies(companyId: string, targetRef: any) {
     }
 }
 
-onMounted(async () => {
-    document.title = 'Moovie';
-    primeGenres();
-    // Fetch trending anime in parallel (non-blocking)
+const loadData = async () => {
+    highLightOptions.featured.data = [];
+    highLightOptions.popular.data = [];
+    highLightOptions.new.data = [];
+    newShows.value = [];
+    marvelItems.value = [];
+    warnerItems.value = [];
+    disneyItems.value = [];
+    universalItems.value = [];
+
     fetchTrendingAnime(1, 10).then((res: any) => {
         trendingAnimeRaw.value = res?.data?.Page?.media ?? [];
         isAnimeLoading.value = false;
     }).catch(() => { isAnimeLoading.value = false; });
+
     await Promise.all([
         fetchAllHighlights(),
         fetchNewShows(),
@@ -222,6 +229,21 @@ onMounted(async () => {
         fetchCompanyMovies('2', disneyItems),
         fetchCompanyMovies('33', universalItems)
     ]);
+};
+
+const handleSettingsChange = () => {
+    loadData();
+};
+
+onMounted(() => {
+    document.title = 'Moovie';
+    primeGenres();
+    loadData();
+    window.addEventListener('movora_settings_change', handleSettingsChange);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('movora_settings_change', handleSettingsChange);
 });
 </script>
 

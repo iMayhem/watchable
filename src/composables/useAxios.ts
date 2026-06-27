@@ -136,57 +136,55 @@ const useAxios = () => {
                 return currentSort
             }
 
-            if (!NATIVE_ENDPOINTS.has(url)) {
-                if (url.includes('trending/movie') || url.includes('movie/popular')) {
-                    config.url = 'discover/movie'
-                    config.params = {
-                        ...config.params,
-                        sort_by: getOverriddenSort(defaultMovieSort),
-                        with_origin_country: regionVal,
-                        watch_region: regionVal,
-                        region: regionVal,
-                        'primary_release_date.gte': MIN_RELEASE_DATE,
-                        'vote_count.gte': 7
-                    }
-                } else if (url.includes('movie/now_playing')) {
-                    const dates = getRecentDateRange()
-                    config.url = 'discover/movie'
-                    config.params = {
-                        ...config.params,
-                        sort_by: getOverriddenSort(defaultMovieSort),
-                        with_origin_country: regionVal,
-                        watch_region: regionVal,
-                        region: regionVal,
-                        'primary_release_date.gte': dates.gte,
-                        'primary_release_date.lte': dates.lte,
-                        'vote_count.gte': 7
-                    }
-                } else if (url.includes('trending/tv') || url.includes('tv/popular')) {
-                    config.url = 'discover/tv'
-                    config.params = {
-                        ...config.params,
-                        sort_by: getOverriddenSort(defaultTVSort),
-                        with_origin_country: regionVal,
-                        watch_region: regionVal,
-                        region: regionVal,
-                        without_genres: '10767,10763,10766',
-                        'first_air_date.gte': MIN_RELEASE_DATE,
-                        'vote_count.gte': 7
-                    }
-                } else if (url.includes('tv/on_the_air')) {
-                    const dates = getRecentDateRange()
-                    config.url = 'discover/tv'
-                    config.params = {
-                        ...config.params,
-                        sort_by: getOverriddenSort(defaultTVSort),
-                        with_origin_country: regionVal,
-                        watch_region: regionVal,
-                        region: regionVal,
-                        without_genres: '10767,10763,10766',
-                        'first_air_date.gte': dates.gte,
-                        'first_air_date.lte': dates.lte,
-                        'vote_count.gte': 7
-                    }
+            if (url.includes('trending/movie') || url.includes('movie/popular')) {
+                config.url = 'discover/movie'
+                config.params = {
+                    ...config.params,
+                    sort_by: getOverriddenSort(defaultMovieSort),
+                    with_origin_country: regionVal,
+                    watch_region: regionVal,
+                    region: regionVal,
+                    'primary_release_date.gte': MIN_RELEASE_DATE,
+                    'vote_count.gte': 7
+                }
+            } else if (url.includes('movie/now_playing')) {
+                const dates = getRecentDateRange()
+                config.url = 'discover/movie'
+                config.params = {
+                    ...config.params,
+                    sort_by: getOverriddenSort(defaultMovieSort),
+                    with_origin_country: regionVal,
+                    watch_region: regionVal,
+                    region: regionVal,
+                    'primary_release_date.gte': dates.gte,
+                    'primary_release_date.lte': dates.lte,
+                    'vote_count.gte': 7
+                }
+            } else if (url.includes('trending/tv') || url.includes('tv/popular')) {
+                config.url = 'discover/tv'
+                config.params = {
+                    ...config.params,
+                    sort_by: getOverriddenSort(defaultTVSort),
+                    with_origin_country: regionVal,
+                    watch_region: regionVal,
+                    region: regionVal,
+                    without_genres: '10767,10763,10766',
+                    'first_air_date.gte': MIN_RELEASE_DATE,
+                    'vote_count.gte': 7
+                }
+            } else if (url.includes('tv/on_the_air')) {
+                const dates = getRecentDateRange()
+                config.url = 'discover/tv'
+                config.params = {
+                    ...config.params,
+                    sort_by: getOverriddenSort(defaultTVSort),
+                    with_origin_country: regionVal,
+                    watch_region: regionVal,
+                    region: regionVal,
+                    without_genres: '10767,10763,10766',
+                    'first_air_date.gte': dates.gte,
+                    'first_air_date.lte': dates.lte,
+                    'vote_count.gte': 7
                 }
             }
 

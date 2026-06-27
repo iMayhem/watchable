@@ -1,10 +1,28 @@
 const CACHE_NAME = 'moovie-cache-v4';
+const IMAGE_CACHE = 'moovie-image-cache-v1';
 const PRECACHE_ASSETS = [
   '/',
   '/favicon.svg',
   '/manifest.json',
   '/artplayer-compact.css'
 ];
+
+const IMAGE_HOSTS = [
+  'image.tmdb.org',
+  'aoneroom.com',
+  'hakunaymatata.com',
+  'watch21.shop',
+  'watch22.shop',
+  'anilist.co'
+];
+
+function isImageRequest(url) {
+  return IMAGE_HOSTS.some(host => url.hostname.includes(host)) &&
+    (url.pathname.match(/\.(jpg|jpeg|png|webp|avif|gif|svg|bmp)$/i) ||
+     url.pathname.includes('/t/p/') ||
+     url.pathname.includes('/static/') ||
+     url.pathname.includes('/resize'));
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -64,6 +82,28 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request).then((net) => {
           if (net && net.status === 200 && net.type === 'basic') caches.open(CACHE_NAME).then((c) => c.put(event.request, net.clone()));
           return net;
+        });
+      })
+    );
+    return;
+  }
+
+  if (isImageRequest(url)) {
+    event.respondWith(
+      caches.open(IMAGE_CACHE).then((cache) => {
+        return cache.match(event.request).then((hit) => {
+          if (hit) {
+            fetch(event.request).then((net) => {
+              if (net && net.ok) cache.put(event.request, net);
+            }).catch(() => {});
+            return hit;
+          }
+          return fetch(event.request).then((net) => {
+            if (net && net.ok) cache.put(event.request, net.clone());
+            return net;
+          }).catch(() => {
+            return new Response('', { status: 503, statusText: 'Offline' });
+          });
         });
       })
     );

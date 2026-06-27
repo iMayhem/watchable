@@ -203,7 +203,17 @@ function mergeCuratedItems(
     existing: CuratedItem[],
     byId: Map<string, CuratedItem>
 ): CuratedItem[] {
-    return existing.map((item) => byId.get(String(item.id)) || item);
+    let changed = false;
+    const next = existing.map((item) => {
+        const upgraded = byId.get(String(item.id));
+        if (!upgraded) return item;
+        if (upgraded.posterPath !== item.posterPath || upgraded.title !== item.title || upgraded.rating !== item.rating) {
+            changed = true;
+            return upgraded;
+        }
+        return item;
+    });
+    return changed ? next : existing;
 }
 
 function prefetchVisibleHomePosters(
@@ -349,13 +359,26 @@ export default defineComponent({
             };
 
             const upgradeHomeSectionsInPlace = (byId: Map<string, CuratedItem>) => {
-                trendingItems.value = mergeCuratedItems(trendingItems.value, byId);
-                top10Movies.value = mergeCuratedItems(top10Movies.value, byId);
-                top10Tv.value = mergeCuratedItems(top10Tv.value, byId);
-                catalogueRails.value = catalogueRails.value.map((rail) => ({
-                    ...rail,
-                    items: mergeCuratedItems(rail.items, byId)
-                }));
+                const newTrending = mergeCuratedItems(trendingItems.value, byId);
+                if (newTrending !== trendingItems.value) trendingItems.value = newTrending;
+
+                const newTop10 = mergeCuratedItems(top10Movies.value, byId);
+                if (newTop10 !== top10Movies.value) top10Movies.value = newTop10;
+
+                const newTop10Tv = mergeCuratedItems(top10Tv.value, byId);
+                if (newTop10Tv !== top10Tv.value) top10Tv.value = newTop10Tv;
+
+                let railsChanged = false;
+                const newRails = catalogueRails.value.map((rail) => {
+                    const newItems = mergeCuratedItems(rail.items, byId);
+                    if (newItems !== rail.items) {
+                        railsChanged = true;
+                        return { ...rail, items: newItems };
+                    }
+                    return rail;
+                });
+                if (railsChanged) catalogueRails.value = newRails;
+
                 if (pinnedHero.value) {
                     const upgraded = byId.get(String(pinnedHero.value.id));
                     if (upgraded) {

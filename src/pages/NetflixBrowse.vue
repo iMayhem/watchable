@@ -610,7 +610,29 @@ export default defineComponent({
                     })
                 }));
                 if (loadGeneration.value !== generation) return;
-                genreRails.value = upgraded;
+                let railsChanged = false;
+                const newRails = upgraded.map((rail, ri) => {
+                    const existing = genreRails.value[ri];
+                    if (!existing || rail.title !== existing.title) {
+                        railsChanged = true;
+                        return rail;
+                    }
+                    let itemsChanged = false;
+                    const newItems = rail.items.map((item, ii) => {
+                        const old = existing.items[ii];
+                        if (!old || item.posterPath !== old.posterPath || item.title !== old.title) {
+                            itemsChanged = true;
+                            return item;
+                        }
+                        return old;
+                    });
+                    if (itemsChanged) {
+                        railsChanged = true;
+                        return { ...rail, items: newItems };
+                    }
+                    return existing;
+                });
+                if (railsChanged) genreRails.value = newRails;
             } catch (err) {
                 nfDebugError('browse:genre-rails:artwork:fail', { err });
             }
@@ -630,11 +652,18 @@ export default defineComponent({
 
         const patchResultRange = (start: number, curated: CuratedItem[]) => {
             if (!curated.length) return;
+            let changed = false;
             const next = [...results.value];
             for (let i = 0; i < curated.length; i += 1) {
-                next[start + i] = curated[i];
+                const idx = start + i;
+                const existing = results.value[idx];
+                const incoming = curated[i];
+                if (!existing || incoming.posterPath !== existing.posterPath || incoming.title !== existing.title) {
+                    next[idx] = incoming;
+                    changed = true;
+                }
             }
-            results.value = next;
+            if (changed) results.value = next;
         };
 
         const upgradeBatchArtwork = async (batch: MoovieCatalogItem[], startIndex: number, generation: number) => {

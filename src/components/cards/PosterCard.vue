@@ -22,6 +22,7 @@
                     :src="imageUrl"
                     :alt="title"
                     class="poster-card__img"
+                    :class="{ 'poster-card__img--loaded': imgLoaded }"
                     :loading="priorityLoad ? 'eager' : 'lazy'"
                     decoding="async"
                     :fetchpriority="priorityLoad ? 'high' : 'auto'"
@@ -166,6 +167,7 @@ export default defineComponent({
     setup(props) {
         const imgRef = ref<HTMLImageElement | null>(null);
         const posterFallback = ref(false);
+        const imgLoaded = ref(false);
         const router = useRouter();
         const { detailPath } = useAppPaths();
         const peeking = ref(false);
@@ -209,6 +211,7 @@ export default defineComponent({
             const img = imgRef.value;
             if (img?.complete && img.naturalWidth > 0) {
                 markCachedPoster();
+                imgLoaded.value = true;
             }
         };
 
@@ -222,6 +225,7 @@ export default defineComponent({
 
         const onPosterLoad = () => {
             markCachedPoster();
+            imgLoaded.value = true;
         };
 
         const onPosterError = () => {
@@ -416,6 +420,7 @@ export default defineComponent({
             peeking,
             imageUrl,
             initial,
+            imgLoaded,
             ratingLabel,
             year: yearLabel,
             genreLabel,
@@ -479,7 +484,12 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center;
-        transition: transform var(--dur-slow) var(--ease-out);
+        opacity: 0;
+        transition: opacity 0.3s ease, transform var(--dur-slow) var(--ease-out);
+
+        &--loaded {
+            opacity: 1;
+        }
 
         .is-peeking & {
             transform: scale(1.04);

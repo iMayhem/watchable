@@ -902,6 +902,11 @@ export default defineComponent({
         display: grid;
         place-items: center;
         background: #000;
+        /* Contain Artplayer's internal z-index within this layer.
+           Nothing inside this div can ever paint over sibling elements
+           like the controls bar or language dropdown, no matter what
+           z-index Artplayer sets via inline styles. */
+        isolation: isolate;
     }
 
     &__stage {
@@ -1077,7 +1082,7 @@ export default defineComponent({
         position: absolute;
         left: 0;
         right: 0;
-        z-index: 9999 !important;
+        z-index: 40;
         pointer-events: auto;
         transition: opacity 0.25s ease, transform 0.25s ease;
     }
@@ -1314,11 +1319,11 @@ export default defineComponent({
 
     &__quality {
         position: relative;
-        z-index: 10000 !important;
+        z-index: 10;
     }
 
     &__language {
-        z-index: 10001 !important;
+        z-index: 11;
     }
 
     &__quality-btn {
@@ -1359,7 +1364,7 @@ export default defineComponent({
         position: absolute;
         right: 0;
         bottom: calc(100% + 8px);
-        z-index: 10002 !important;
+        z-index: 60;
         pointer-events: auto;
         min-width: 120px;
         margin: 0;

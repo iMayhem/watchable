@@ -37,7 +37,7 @@ import { defineComponent, h } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import { useAppPaths } from '@/composables/useAppPaths';
 
-const { actors, discuss, upcoming, party, help, watchlist } = useAppPaths();
+const { actors, discuss, upcoming, party, help, watchlist, liveTv } = useAppPaths();
 
 const iconCast = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
@@ -89,12 +89,20 @@ const iconWatchlist = defineComponent({
     ])
 });
 
+const iconLiveTv = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('rect', { x: '2', y: '7', width: '20', height: '13', rx: '2', ry: '2' }),
+        h('path', { d: 'm17 2-5 5-5-5' })
+    ])
+});
+
 const links = [
     { to: actors.value, label: 'Cast', desc: 'Browse actors and filmographies', icon: iconCast },
     { to: discuss.value, label: 'Discuss', desc: 'Lounge chat and title reviews', icon: iconDiscuss },
     { to: upcoming.value, label: 'Upcoming', desc: 'Movies and anime on the horizon', icon: iconUpcoming },
     { to: party.value, label: 'Together', desc: 'Watch parties with friends', icon: iconParty },
     { to: watchlist.value, label: 'Watchlist', desc: 'Saved titles across devices', icon: iconWatchlist },
+    { to: liveTv.value, label: 'Live TV', desc: 'Free IPTV channels from around the world', icon: iconLiveTv },
     { to: help.value, label: 'Help', desc: 'Playback tips and shortcuts', icon: iconHelp },
     { to: '/status', label: 'Status', desc: 'Realtime node failover and rate limits', icon: iconStatus }
 ];

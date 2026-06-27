@@ -441,7 +441,8 @@ const othersNav: NavItem[] = [
     },
     { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
     { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
-    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 }
+    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 },
+    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 }
 ];
 
 const primaryNav: NavItem[] = [

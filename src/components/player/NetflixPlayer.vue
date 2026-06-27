@@ -1077,7 +1077,7 @@ export default defineComponent({
         position: absolute;
         left: 0;
         right: 0;
-        z-index: 40;
+        z-index: 9999 !important;
         pointer-events: auto;
         transition: opacity 0.25s ease, transform 0.25s ease;
     }
@@ -1314,11 +1314,11 @@ export default defineComponent({
 
     &__quality {
         position: relative;
-        z-index: 1;
+        z-index: 10000 !important;
     }
 
     &__language {
-        z-index: 2;
+        z-index: 10001 !important;
     }
 
     &__quality-btn {
@@ -1359,7 +1359,7 @@ export default defineComponent({
         position: absolute;
         right: 0;
         bottom: calc(100% + 8px);
-        z-index: 60;
+        z-index: 10002 !important;
         pointer-events: auto;
         min-width: 120px;
         margin: 0;

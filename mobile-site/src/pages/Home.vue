@@ -93,6 +93,13 @@
         >
             <MobileMediaRail :items="universalItems" />
         </MobileSection>
+
+        <SuggestionRail
+            :suggestion="geminiSuggestion"
+            :loading="geminiLoading"
+            :error="geminiError"
+            @suggest="getGeminiSuggestion"
+        />
     </MobileShell>
 </template>
 
@@ -109,10 +116,13 @@ import { useAppPaths } from '@/composables/useAppPaths';
 import { useWebImage } from '@/utils/useWebImage';
 import useAxios from '@/composables/useAxios';
 import { useAniList } from '@/composables/useAniList';
+import SuggestionRail from '@/components/rails/SuggestionRail.vue';
+import { useGemini } from '@/composables/useGemini';
 
 const { movie, movies, tvShows } = useAppPaths();
 const { fetchAllHighlights } = useHighlights();
 const { fetchNewShows } = useTvShows();
+const { suggestion: geminiSuggestion, loading: geminiLoading, error: geminiError, getSuggestion: getGeminiSuggestion } = useGemini();
 
 const hero = computed(() => highLightOptions.featured.data?.[0] ?? null);
 

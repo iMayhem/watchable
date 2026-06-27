@@ -146,6 +146,14 @@
                 description="Titles our audience returns to, time after time."
                 :more-to="{ name: 'Movies' }"
             />
+
+            <SuggestionRail
+                class="home__section"
+                :suggestion="geminiSuggestion"
+                :loading="geminiLoading"
+                :error="geminiError"
+                @suggest="getGeminiSuggestion"
+            />
         </main>
 
         <SiteFooter />
@@ -162,6 +170,7 @@ import ContinueShelf from '../components/rails/ContinueShelf.vue';
 import TopTenRail from '../components/rails/TopTenRail.vue';
 import CuratedRail from '../components/rails/CuratedRail.vue';
 import UpcomingRail from '../components/rails/UpcomingRail.vue';
+import SuggestionRail from '../components/rails/SuggestionRail.vue';
 import useAxios from '../composables/useAxios';
 import { useHighlights, highLightOptions } from '../composables/useHighlights';
 import { useTvShows, newShows } from '../composables/useTvShows';
@@ -171,6 +180,7 @@ import { applyGlobalBrowseCuration } from '../composables/useHomepageCuration';
 import { getSettings } from '../composables/useSettings';
 import { getSupabaseClient } from '../lib/supabase';
 import { useAniList } from '../composables/useAniList';
+import { useGemini } from '../composables/useGemini';
 
 interface UpcomingTvResponse {
     results: TVShowType[];
@@ -186,12 +196,14 @@ export default defineComponent({
         ContinueShelf,
         TopTenRail,
         CuratedRail,
-        UpcomingRail
+        UpcomingRail,
+        SuggestionRail
     },
     setup() {
         const { fetchHighlights } = useHighlights();
         const { fetchNewShows } = useTvShows();
         const { region } = getSettings();
+        const { suggestion: geminiSuggestion, loading: geminiLoading, error: geminiError, getSuggestion: getGeminiSuggestion } = useGemini();
 
         const upcomingTv = ref<TVShowType[]>([]);
         const fourKItems = ref<any[]>([]);
@@ -479,7 +491,11 @@ export default defineComponent({
             marvelItems,
             warnerItems,
             disneyItems,
-            universalItems
+            universalItems,
+            geminiSuggestion,
+            geminiLoading,
+            geminiError,
+            getGeminiSuggestion
         };
     }
 });

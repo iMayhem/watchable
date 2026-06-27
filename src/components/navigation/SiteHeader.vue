@@ -51,17 +51,48 @@
             </nav>
 
             <nav v-else class="site-header__nav" aria-label="Primary">
-                <router-link
-                    v-for="item in primaryNav"
-                    :key="item.path"
-                    :to="item.path"
-                    class="site-header__link"
-                    :class="{ 'is-active': isActive(item) }"
-                    @mouseenter="prefetchPrimaryNav(item)"
-                    @focus="prefetchPrimaryNav(item)"
-                >
-                    {{ item.label }}
-                </router-link>
+                <template v-for="item in primaryNav" :key="item.path">
+                    <router-link
+                        v-if="item.label !== 'Others'"
+                        :to="item.path"
+                        class="site-header__link"
+                        :class="{ 'is-active': isActive(item) }"
+                        @mouseenter="prefetchPrimaryNav(item)"
+                        @focus="prefetchPrimaryNav(item)"
+                    >
+                        {{ item.label }}
+                        <span v-if="item.label === 'Discover'" class="site-header__new-badge">NEW</span>
+                    </router-link>
+                    <div
+                        v-else
+                        :ref="(el) => { if (el) othersContainer = el as HTMLElement }"
+                        class="site-header__others"
+                    >
+                        <button
+                            type="button"
+                            class="site-header__link site-header__others-btn"
+                            :class="{ 'is-active': isActive(item) }"
+                            @click="toggleOthersDropdown"
+                        >
+                            {{ item.label }}
+                            <svg class="site-header__others-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" :class="{ 'is-open': isOthersDropdownOpen }">
+                                <path d="M6 9l6 6 6-6"/>
+                            </svg>
+                        </button>
+                        <div v-if="isOthersDropdownOpen" class="others-dropdown">
+                            <router-link
+                                v-for="sub in othersNav"
+                                :key="sub.path"
+                                :to="sub.path"
+                                class="others-dropdown__item"
+                                :class="{ 'is-active': isActive(sub) }"
+                                @click="closeOthersDropdown"
+                            >
+                                {{ sub.label }}
+                            </router-link>
+                        </div>
+                    </div>
+                </template>
             </nav>
 
             <div class="site-header__actions">
@@ -244,19 +275,38 @@
                 </template>
 
                 <template v-else>
-                    <router-link
-                        v-for="item in primaryNav"
-                        :key="item.path"
-                        :to="item.path"
-                        class="site-header__drawer-link"
-                        :class="{ 'is-active': isActive(item) }"
-                        @mouseenter="prefetchPrimaryNav(item)"
-                        @focus="prefetchPrimaryNav(item)"
-                        @click="drawerOpen = false"
-                    >
-                        <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
-                        <span class="site-header__drawer-label">{{ item.label }}</span>
-                    </router-link>
+                    <template v-for="item in primaryNav" :key="item.path">
+                        <router-link
+                            v-if="item.label !== 'Others'"
+                            :to="item.path"
+                            class="site-header__drawer-link"
+                            :class="{ 'is-active': isActive(item) }"
+                            @mouseenter="prefetchPrimaryNav(item)"
+                            @focus="prefetchPrimaryNav(item)"
+                            @click="drawerOpen = false"
+                        >
+                            <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
+                            <span class="site-header__drawer-label">
+                                {{ item.label }}
+                                <span v-if="item.label === 'Discover'" class="site-header__new-badge">NEW</span>
+                            </span>
+                        </router-link>
+                        <template v-else>
+                            <router-link
+                                v-for="sub in othersNav"
+                                :key="sub.path"
+                                :to="sub.path"
+                                class="site-header__drawer-link"
+                                :class="{ 'is-active': isActive(sub) }"
+                                @mouseenter="prefetchPrimaryNav(sub)"
+                                @focus="prefetchPrimaryNav(sub)"
+                                @click="drawerOpen = false"
+                            >
+                                <span class="eyebrow site-header__drawer-num">0{{ sub.num }}</span>
+                                <span class="site-header__drawer-label">{{ sub.label }}</span>
+                            </router-link>
+                        </template>
+                    </template>
 
                     <button
                         type="button"
@@ -382,8 +432,21 @@ function parseNavDestination(path: string) {
     };
 }
 
+const othersNav: NavItem[] = [
+    {
+        label: 'Actors',
+        path: '/actors',
+        match: p => p === '/actors' || p.startsWith('/actor/'),
+        num: 5
+    },
+    { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
+    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
+    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 }
+];
+
 const primaryNav: NavItem[] = [
     { label: 'Home', path: '/', match: p => p === '/', num: 1 },
+    { label: 'Discover', path: '/discover', match: p => p === '/discover', num: 1.5 },
     {
         label: 'Movies',
         path: '/movies',
@@ -403,15 +466,11 @@ const primaryNav: NavItem[] = [
         num: 4
     },
     {
-        label: 'Actors',
-        path: '/actors',
-        match: p => p === '/actors' || p.startsWith('/actor/'),
+        label: 'Others',
+        path: '',
+        match: p => othersNav.some(n => n.match(p)),
         num: 5
-    },
-    { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
-    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
-    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 },
-    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 }
+    }
 ];
 
 export default defineComponent({
@@ -525,6 +584,17 @@ export default defineComponent({
                 case 'CL': return '🇨🇱';
                 default: return '🌐';
             }
+        };
+
+        const isOthersDropdownOpen = ref(false);
+        const othersContainer = ref<HTMLElement | null>(null);
+
+        const toggleOthersDropdown = () => {
+            isOthersDropdownOpen.value = !isOthersDropdownOpen.value;
+        };
+
+        const closeOthersDropdown = () => {
+            isOthersDropdownOpen.value = false;
         };
 
         const scrollNavToTop = () => {
@@ -677,6 +747,10 @@ export default defineComponent({
             if (regionContainer.value && !regionContainer.value.contains(target)) {
                 closeRegionDropdown();
             }
+
+            if (othersContainer.value && !othersContainer.value.contains(target)) {
+                closeOthersDropdown();
+            }
         };
 
         const showModeSwitch = computed(() => isChosen());
@@ -716,6 +790,7 @@ export default defineComponent({
 
         return {
             primaryNav,
+            othersNav,
             scrolled,
             onDetailPage,
             drawerOpen,
@@ -737,6 +812,12 @@ export default defineComponent({
             toggleRegionDropdown,
             selectRegion,
             getFlagEmoji,
+
+            // Others dropdown
+            isOthersDropdownOpen,
+            othersContainer,
+            toggleOthersDropdown,
+            closeOthersDropdown,
 
             showModeSwitch,
             modeLabel,
@@ -933,6 +1014,22 @@ export default defineComponent({
                 box-shadow: 0 0 12px var(--ember-glow);
             }
         }
+    }
+
+    &__new-badge {
+        background: var(--ember);
+        color: var(--ink-950) !important;
+        font-size: 0.55rem;
+        font-weight: 850;
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
+        margin-left: 0.25rem;
+        vertical-align: middle;
+        letter-spacing: 0.05em;
+        display: inline-block;
+        line-height: 1;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(255, 90, 31, 0.4);
     }
 
     // ── Actions ──────────────────────────────────────────────────────────
@@ -1507,6 +1604,60 @@ export default defineComponent({
         width: 14px;
         height: 14px;
         color: var(--ember);
+    }
+}
+
+.others-dropdown {
+    position: absolute;
+    top: calc(100% + var(--s-2));
+    left: 0;
+    min-width: 180px;
+    background: rgba(26, 24, 21, 0.95);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-md);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(16px);
+    overflow: hidden;
+    z-index: 100;
+    animation: dropdown-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &__item {
+        display: block;
+        padding: 10px var(--s-4);
+        color: var(--bone-200);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        text-decoration: none;
+        transition: background-color var(--dur-fast), color var(--dur-fast);
+
+        &:hover {
+            background: var(--surface-tint);
+            color: var(--bone-50);
+        }
+
+        &.is-active {
+            background: rgba(255, 90, 31, 0.08);
+            color: var(--ember);
+        }
+    }
+}
+
+.site-header__others {
+    position: relative;
+
+    &-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    &-chevron {
+        transition: transform 0.2s;
+
+        &.is-open {
+            transform: rotate(180deg);
+        }
     }
 }
 

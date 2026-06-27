@@ -477,6 +477,14 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 2rem;">
+                    <label class="form-label">Groq API Keys (3 Slots for Auto-Failover)</label>
+                    <input type="password" id="groq-key-1" class="form-input" placeholder="Groq API Key Slot 1" style="margin-bottom: 0.5rem;">
+                    <input type="password" id="groq-key-2" class="form-input" placeholder="Groq API Key Slot 2" style="margin-bottom: 0.5rem;">
+                    <input type="password" id="groq-key-3" class="form-input" placeholder="Groq API Key Slot 3" style="margin-bottom: 0.5rem;">
+                    <p class="subtitle" style="font-size: 0.75rem; margin-top: 0.25rem;">Enter up to 3 keys. If key 1 hits rate limits or quota issues, the recommendation engine will failover to key 2, then key 3 automatically.</p>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
                     <label class="form-label" for="new-passcode-input">Change Passcode (Optional)</label>
                     <input type="password" id="new-passcode-input" class="form-input" placeholder="Enter new passcode to update">
                 </div>
@@ -626,6 +634,24 @@
                 }
             } catch (err) {
                 console.warn('Could not retrieve current TMDB image quality:', err);
+            }
+
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'groq_keys')
+                    .single();
+                if (data && data.value) {
+                    const keys = JSON.parse(data.value);
+                    if (Array.isArray(keys)) {
+                        if (keys[0]) document.getElementById('groq-key-1').value = keys[0];
+                        if (keys[1]) document.getElementById('groq-key-2').value = keys[1];
+                        if (keys[2]) document.getElementById('groq-key-3').value = keys[2];
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not retrieve current Groq keys:', err);
             }
             
             // Load 4K curation
@@ -866,6 +892,18 @@
                     .upsert({ key: 'tmdb_image_quality', value: tmdbImageQuality, updated_at: new Date() }, { onConflict: 'key' });
 
                 if (qualityError) throw qualityError;
+
+                // Save Groq API Keys
+                const key1 = document.getElementById('groq-key-1').value.trim();
+                const key2 = document.getElementById('groq-key-2').value.trim();
+                const key3 = document.getElementById('groq-key-3').value.trim();
+                const groqKeys = [key1, key2, key3].filter(Boolean);
+
+                const { error: groqKeysError } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'groq_keys', value: JSON.stringify(groqKeys), updated_at: new Date() }, { onConflict: 'key' });
+
+                if (groqKeysError) throw groqKeysError;
 
                 // Save new passcode if provided
                 if (newPasscode) {

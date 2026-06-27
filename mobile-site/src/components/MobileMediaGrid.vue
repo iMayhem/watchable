@@ -1,5 +1,5 @@
 <template>
-    <div class="m-grid" :class="{ 'm-grid--compact': compact }">
+    <div class="m-grid" :class="{ 'm-grid--compact': compact, 'm-grid--dense': dense }">
         <MobilePosterCard
             v-for="item in displayItems"
             :key="item.isMock ? `mock-m-${item.id}` : `m-${item.type}-${item.id}`"
@@ -12,6 +12,7 @@
             :genre-ids="item.genreIds ?? []"
             :adult="item.adult ?? false"
             :loading="item.isMock"
+            :size="size"
         />
     </div>
 </template>
@@ -35,6 +36,8 @@ export interface MobileGridItem {
 const props = defineProps<{
     items: MobileGridItem[];
     compact?: boolean;
+    dense?: boolean;
+    size?: 'sm' | 'md' | 'lg';
 }>();
 
 const displayItems = computed(() => {
@@ -66,6 +69,11 @@ const displayItems = computed(() => {
 
     @media (min-width: 480px) {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    &--dense {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--s-2);
     }
 }
 </style>

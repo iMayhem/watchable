@@ -36,7 +36,7 @@
 
             <p v-if="totalResults" class="m-discover__count meta">{{ totalResults.toLocaleString() }} results</p>
 
-            <MobileMediaGrid v-if="results.length || (isLoading && !results.length)" :items="isLoading && !results.length ? [] : gridItems" />
+            <MobileMediaGrid v-if="results.length || (isLoading && !results.length)" :items="isLoading && !results.length ? [] : gridItems" dense size="sm" />
 
             <div v-else class="m-discover__empty">
                 <p class="meta">No movies match these filters.</p>

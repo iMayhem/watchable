@@ -144,6 +144,8 @@ export default defineComponent({
     display: flex;
     flex-direction: column;
     width: 100%;
+    content-visibility: auto;
+    contain-intrinsic-size: 260px;
 
     &__link {
         display: block;
@@ -224,7 +226,6 @@ export default defineComponent({
     }
 
     &__adult {
-        margin-left: auto;
         padding: 0.15rem 0.35rem;
         background: rgba(201, 78, 61, 0.92);
         color: var(--bone-50);
@@ -233,6 +234,35 @@ export default defineComponent({
         font-weight: 700;
         border-radius: var(--r-sm);
         letter-spacing: 0.02em;
+    }
+
+    &__type-icon {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: var(--r-sm);
+        background: rgba(11, 10, 8, 0.7);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        color: var(--bone-300);
+
+        svg {
+            width: 12px;
+            height: 12px;
+        }
+    }
+
+    &--sm &__type-icon {
+        width: 16px;
+        height: 16px;
+
+        svg {
+            width: 10px;
+            height: 10px;
+        }
     }
 
     // ── Caption ───────────────────────────────────────────────────────────

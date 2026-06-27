@@ -1,42 +1,57 @@
 <template>
-    <LmRail
-        :title="title"
-        :eyebrow="eyebrow"
-        :description="description"
-        :more-to="moreTo"
-        density="free"
-        :peek-room="false"
-        :columns="{ base: 1.4, sm: 2.2, md: 3.2, lg: 4.2, xl: 5.2 }"
-    >
-        <article
-            v-for="(item, idx) in displayItems"
-            :key="item.isMock ? `mock-top-${item.id}` : `top-${item.id}`"
-            class="topten"
-            :class="{ 'is-loading': item.isMock }"
-        >
-            <span class="topten__numeral" aria-hidden="true">{{ idx + 1 }}</span>
-            <div v-if="item.isMock" class="topten__poster topten__skeleton-shimmer" />
-            <router-link
-                v-else
-                :to="routeFor(item)"
-                class="topten__poster"
-                :aria-label="`${idx + 1}. ${item.title}`"
+    <div class="toptenrail">
+        <div v-if="categoryGroups" class="toptenrail__tabs">
+            <button
+                v-for="group in categoryGroups"
+                :key="group.key"
+                type="button"
+                class="toptenrail__tab"
+                :class="{ 'is-active': activeCategoryKey === group.key }"
+                @click="activeCategoryKey = group.key"
             >
-                <img
-                    v-if="posterFor(item)"
-                    :src="posterFor(item)"
-                    :alt="item.title"
-                    :loading="idx < 6 ? 'eager' : 'lazy'"
-                    decoding="async"
-                    :fetchpriority="idx < 3 ? 'high' : 'low'"
-                    class="topten__img"
-                />
-                <div v-else class="topten__placeholder" aria-hidden="true">
-                    <span>{{ (item.title?.[0] || '·').toUpperCase() }}</span>
-                </div>
-            </router-link>
-        </article>
-    </LmRail>
+                {{ group.label }}
+            </button>
+        </div>
+
+        <LmRail
+            :title="resolvedTitle"
+            :eyebrow="resolvedEyebrow"
+            :description="resolvedDescription"
+            :more-to="resolvedMoreTo"
+            density="free"
+            :peek-room="false"
+            :columns="{ base: 1.4, sm: 2.2, md: 3.2, lg: 4.2, xl: 5.2 }"
+        >
+            <article
+                v-for="(item, idx) in displayItems"
+                :key="item.isMock ? `mock-top-${item.id}` : `top-${item.id}`"
+                class="topten"
+                :class="{ 'is-loading': item.isMock }"
+            >
+                <span class="topten__numeral" aria-hidden="true">{{ idx + 1 }}</span>
+                <div v-if="item.isMock" class="topten__poster topten__skeleton-shimmer" />
+                <router-link
+                    v-else
+                    :to="routeFor(item)"
+                    class="topten__poster"
+                    :aria-label="`${idx + 1}. ${item.title}`"
+                >
+                    <img
+                        v-if="posterFor(item)"
+                        :src="posterFor(item)"
+                        :alt="item.title"
+                        :loading="idx < 6 ? 'eager' : 'lazy'"
+                        decoding="async"
+                        :fetchpriority="idx < 3 ? 'high' : 'low'"
+                        class="topten__img"
+                    />
+                    <div v-else class="topten__placeholder" aria-hidden="true">
+                        <span>{{ (item.title?.[0] || '·').toUpperCase() }}</span>
+                    </div>
+                </router-link>
+            </article>
+        </LmRail>
+    </div>
 </template>
 
 <script lang="ts">
@@ -57,6 +72,18 @@ export interface TopItem {
     isMock?: boolean;
 }
 
+export interface CategoryGroup {
+    key: string;
+    label: string;
+    items: TopItem[];
+    title?: string;
+    eyebrow?: string;
+    description?: string;
+    loading?: boolean;
+    catalog?: 'tmdb' | 'netflix';
+    moreTo?: string | Record<string, unknown> | null;
+}
+
 export default defineComponent({
     name: 'TopTenRail',
     components: { LmRail },
@@ -65,15 +92,40 @@ export default defineComponent({
         title: { type: String, default: 'Top 10 Today' },
         eyebrow: { type: String, default: 'The Marquee' },
         description: { type: String, default: '' },
-        moreTo: { type: [String, Object], default: null },
+        moreTo: { type: [String, Object] as PropType<string | Record<string, unknown> | null>, default: null },
         loading: { type: Boolean, default: false },
-        catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' }
+        catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' },
+        categoryGroups: { type: Array as PropType<CategoryGroup[]>, default: null }
     },
     setup(props) {
         const { detailPath } = useAppPaths();
         const loadedImages = ref<Record<string | number, boolean>>({});
 
+        const activeCategoryKey = ref<string | null>(null);
+
+        if (props.categoryGroups && props.categoryGroups.length > 0) {
+            activeCategoryKey.value = props.categoryGroups[0].key;
+        }
+
+        const activeGroup = computed(() => {
+            if (!props.categoryGroups || !activeCategoryKey.value) return null;
+            return props.categoryGroups.find(g => g.key === activeCategoryKey.value) || null;
+        });
+
         const displayItems = computed(() => {
+            if (activeGroup.value) {
+                const group = activeGroup.value;
+                if (group.items.length > 0) return group.items.slice(0, 10);
+                if (group.loading) {
+                    return Array.from({ length: 10 }, (_, i) => ({
+                        id: i,
+                        title: '',
+                        posterPath: null,
+                        isMock: true
+                    }));
+                }
+                return [];
+            }
             if (props.items.length > 0) {
                 return props.items.slice(0, 10);
             }
@@ -88,11 +140,27 @@ export default defineComponent({
             }));
         });
 
+        const resolvedTitle = computed(() => activeGroup.value?.title || props.title);
+        const resolvedEyebrow = computed(() => activeGroup.value?.eyebrow || props.eyebrow);
+        const resolvedDescription = computed(() => activeGroup.value?.description || props.description);
+        const resolvedMoreTo = computed(() => {
+            if (activeGroup.value && activeGroup.value.moreTo !== undefined) return activeGroup.value.moreTo;
+            return props.moreTo ?? null;
+        });
+        const resolvedCatalog = computed(() => {
+            if (activeGroup.value?.catalog) return activeGroup.value.catalog;
+            return props.catalog;
+        });
+        const resolvedLoading = computed(() => {
+            if (activeGroup.value && activeGroup.value.loading !== undefined) return activeGroup.value.loading;
+            return props.loading;
+        });
+
         const posterFor = (item: TopItem) =>
             item.posterPath ? useWebImage(item.posterPath, 'medium') : '';
 
         const routeFor = (item: TopItem) => {
-            if (props.catalog === 'netflix') {
+            if (resolvedCatalog.value === 'netflix') {
                 return netflixCatalogPlayPath({
                     id: item.id,
                     moovieCatalogId: item.moovieCatalogId,
@@ -107,7 +175,19 @@ export default defineComponent({
             return detailPath(kind, item.id);
         };
 
-        return { displayItems, posterFor, routeFor, loadedImages };
+        return {
+            displayItems,
+            resolvedTitle,
+            resolvedEyebrow,
+            resolvedDescription,
+            resolvedMoreTo,
+            resolvedLoading,
+            posterFor,
+            routeFor,
+            loadedImages,
+            activeCategoryKey,
+            categoryGroups: computed(() => props.categoryGroups)
+        };
     }
 });
 </script>
@@ -229,6 +309,41 @@ export default defineComponent({
     .topten__poster, .topten__img {
         transition: none;
         transform: none !important;
+    }
+}
+
+.toptenrail {
+    &__tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: var(--s-4) var(--s-4) 0;
+        max-width: var(--max-content);
+        margin: 0 auto;
+    }
+
+    &__tab {
+        padding: 0.4rem 0.9rem;
+        border: 1px solid var(--ink-600);
+        border-radius: var(--r-pill);
+        background: transparent;
+        color: var(--bone-400);
+        font-family: var(--font-ui);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s, background 0.2s;
+
+        &:hover {
+            border-color: var(--bone-300);
+            color: var(--bone-100);
+        }
+
+        &.is-active {
+            border-color: var(--ember);
+            background: rgba(255, 90, 31, 0.1);
+            color: var(--ember);
+        }
     }
 }
 </style>

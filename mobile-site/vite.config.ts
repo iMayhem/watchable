@@ -30,6 +30,12 @@ export default defineConfig({
         resolve(__dirname),
         resolve(__dirname, '..')
       ]
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5173',
+        changeOrigin: true
+      }
     }
   },
 

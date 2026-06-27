@@ -1,6 +1,7 @@
 import { ref } from "vue"
 import useAxios from "./useAxios"
 import { queryAniListApi, type AnimeMedia, type AnimeResponse } from "./useAniList"
+import { getSupabaseClient } from "../lib/supabase"
 
 export interface SearchMovie {
     id: number;
@@ -163,12 +164,27 @@ function sortByRelevance<T extends Record<string, any>>(
     })
 }
 
+async function logSearchToSupabase(query: string) {
+    try {
+        const supabase = await getSupabaseClient();
+        await supabase.from('movora_searches').insert([{
+            query: query.trim(),
+            created_at: new Date().toISOString()
+        }]);
+    } catch (e) {
+        console.error("Failed to log search query to Supabase:", e);
+    }
+}
+
 export const useSearch = () => {
     const fetchSearchResults = async (query: string, pageNumber: number =1) => {
         let loading = ref(false)
         let error = ref("")
         try {
             loading.value = true
+            if (pageNumber === 1 && query && query.trim()) {
+                void logSearchToSupabase(query);
+            }
             const req = await useAxios().get(`https://api.themoviedb.org/3/search/multi?query=${query}&page=${pageNumber}`)
             const res = req.data.results
             reqMetaData.value = {

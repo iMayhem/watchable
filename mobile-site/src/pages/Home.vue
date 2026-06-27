@@ -25,104 +25,98 @@
             </router-link>
         </section>
 
+        <MobileSection
+            title="Trending Top 10"
+            eyebrow="Popular Today"
+            :more-to="{ name: 'Movies' }"
+            class="m-home__section"
+        >
+            <MobileMediaRail :items="trendingItems" />
+        </MobileSection>
+
         <MobileContinueShelf class="m-home__continue" />
 
-        <MobileSection
-            title="Top 10 Today"
-            eyebrow="Trending"
-            :more-to="movies"
-        >
-            <MobileMediaRail :items="topTenItems" card-size="md" />
-        </MobileSection>
-
-        <MobileSection
-            title="Top 10 Anime Today"
-            eyebrow="Anime"
-        >
-            <MobileMediaRail :items="topTenAnimeItems" card-size="md" />
-        </MobileSection>
-
-        <MobileSection
-            title="Now Playing"
-            eyebrow="New"
-            :more-to="movies"
-        >
-            <MobileMediaRail :items="nowPlayingItems" />
-        </MobileSection>
-
-        <MobileSection
-            title="Series in rotation"
-            eyebrow="TV"
-            :more-to="tvShows"
-        >
-            <MobileMediaRail :items="seriesItems" />
-        </MobileSection>
-
-        <MobileSection
-            v-if="marvelItems.length"
-            title="Marvel Cinematic Universe"
-            eyebrow="Marvel Studios"
-            :more-to="{ path: movies, query: { company: '420', companyName: 'Marvel Studios' } }"
-        >
-            <MobileMediaRail :items="marvelItems" />
-        </MobileSection>
-
-        <MobileSection
-            v-if="warnerItems.length"
-            title="Warner Bros. Classics & New Releases"
-            eyebrow="Warner Bros. Pictures"
-            :more-to="{ path: movies, query: { company: '174', companyName: 'Warner Bros. Pictures' } }"
-        >
-            <MobileMediaRail :items="warnerItems" />
-        </MobileSection>
-
-        <MobileSection
-            v-if="disneyItems.length"
-            title="Walt Disney Presents"
-            eyebrow="Walt Disney Pictures"
-            :more-to="{ path: movies, query: { company: '2', companyName: 'Walt Disney Pictures' } }"
-        >
-            <MobileMediaRail :items="disneyItems" />
-        </MobileSection>
-
-        <MobileSection
-            v-if="universalItems.length"
-            title="Universal Studios Collection"
-            eyebrow="Universal Pictures"
-            :more-to="{ path: movies, query: { company: '33', companyName: 'Universal Pictures' } }"
-        >
-            <MobileMediaRail :items="universalItems" />
-        </MobileSection>
-
-        <SuggestionRail
-            :suggestion="geminiSuggestion"
-            :loading="geminiLoading"
-            :error="geminiError"
-            @suggest="getGeminiSuggestion"
+        <SpotlightModule
+            v-if="spotlight"
+            class="m-home__section"
+            :id="spotlight.id"
+            type="movie"
+            :title="spotlight.title"
+            :overview="spotlight.overview"
+            :backdrop-path="spotlight.backdrop_path"
+            :poster-path="spotlight.poster_path"
+            :rating="spotlight.vote_average"
+            :release-date="spotlight.release_date"
+            eyebrow="The Feature"
+            :pull-quote="spotlightQuote"
+            attribution="Movieace Review"
         />
+
+        <MobileSection
+            title="The Pantheon"
+            eyebrow="Reader Favorites"
+            :more-to="{ name: 'Movies' }"
+            class="m-home__section"
+        >
+            <MobileMediaRail :items="pantheonItems" />
+        </MobileSection>
     </MobileShell>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
-import MobileSection from '../components/MobileSection.vue';
-import MobileMediaRail from '../components/MobileMediaRail.vue';
 import MobileContinueShelf from '../components/MobileContinueShelf.vue';
 import { useHighlights, highLightOptions } from '@/composables/useHighlights';
-import { useTvShows, newShows } from '@/composables/useTvShows';
 import { primeGenres } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
 import { useWebImage } from '@/utils/useWebImage';
-import useAxios from '@/composables/useAxios';
-import { useAniList } from '@/composables/useAniList';
-import SuggestionRail from '@/components/rails/SuggestionRail.vue';
-import { useGemini } from '@/composables/useGemini';
+import SpotlightModule from '@/components/hero/SpotlightModule.vue';
+import MobileSection from '../components/MobileSection.vue';
+import MobileMediaRail from '../components/MobileMediaRail.vue';
 
-const { movie, movies, tvShows } = useAppPaths();
+const { movie } = useAppPaths();
 const { fetchAllHighlights } = useHighlights();
-const { fetchNewShows } = useTvShows();
-const { suggestion: geminiSuggestion, loading: geminiLoading, error: geminiError, getSuggestion: getGeminiSuggestion } = useGemini();
+
+const pantheonItems = computed(() =>
+    (highLightOptions.popular.data ?? []).slice(10, 28).map(m => ({
+        id: m.id,
+        type: 'movie' as const,
+        title: m.title,
+        posterPath: m.poster_path,
+        rating: m.vote_average,
+        releaseDate: m.release_date,
+        genreIds: m.genre_ids,
+        adult: m.adult
+    }))
+);
+
+const trendingItems = computed(() =>
+    (highLightOptions.featured.data ?? []).slice(0, 10).map(m => ({
+        id: m.id,
+        type: 'movie' as const,
+        title: m.title,
+        posterPath: m.poster_path,
+        rating: m.vote_average,
+        releaseDate: m.release_date,
+        genreIds: m.genre_ids,
+        adult: m.adult
+    }))
+);
+
+const spotlight = computed(() => {
+    const pool = highLightOptions.featured.data ?? [];
+    return pool[1] ?? pool[0] ?? null;
+});
+
+const spotlightQuote = computed(() => {
+    const overview = spotlight.value?.overview ?? '';
+    if (!overview) return '';
+    const firstSentence = overview.split(/(?<=[.!?])\s/)[0] ?? overview;
+    return firstSentence.length > 220
+        ? `${firstSentence.slice(0, 217).trim()}…`
+        : firstSentence;
+});
 
 const hero = computed(() => highLightOptions.featured.data?.[0] ?? null);
 
@@ -136,109 +130,12 @@ const heroOverview = computed(() => {
     return text.length > 140 ? `${text.slice(0, 137).trim()}…` : text;
 });
 
-const topTenItems = computed(() =>
-    (highLightOptions.popular.data ?? []).slice(0, 10).map((m: any) => ({
-        id: m.id,
-        title: m.title,
-        posterPath: m.poster_path,
-        type: 'movie' as const
-    }))
-);
-
-const { fetchTrendingAnime } = useAniList();
-const trendingAnimeRaw = ref<any[]>([]);
-const isAnimeLoading = ref(true);
-
-const topTenAnimeItems = computed(() =>
-    trendingAnimeRaw.value.slice(0, 10).map((a: any) => ({
-        id: a.id,
-        title: a.title?.english || a.title?.romaji || '',
-        posterPath: a.coverImage?.large || a.coverImage?.medium || null,
-        type: 'anime' as const
-    }))
-);
-
-const nowPlayingItems = computed(() =>
-    (highLightOptions.new.data ?? []).slice(0, 12).map((m: any) => ({
-        id: m.id,
-        title: m.title,
-        posterPath: m.poster_path,
-        rating: m.vote_average,
-        releaseDate: m.release_date,
-        genreIds: m.genre_ids,
-        adult: m.adult,
-        type: 'movie' as const
-    }))
-);
-
-const seriesItems = computed(() =>
-    (newShows.value ?? []).slice(0, 12).map((s: any) => ({
-        id: s.id,
-        title: s.name,
-        posterPath: s.poster_path,
-        rating: s.vote_average,
-        releaseDate: s.release_date,
-        genreIds: s.genre_ids,
-        adult: s.adult,
-        type: 'tv' as const
-    }))
-);
-
-const marvelItems = ref<any[]>([]);
-const warnerItems = ref<any[]>([]);
-const disneyItems = ref<any[]>([]);
-const universalItems = ref<any[]>([]);
-
-const mapItem = (m: any) => ({
-    id: m.id,
-    title: m.title,
-    posterPath: m.poster_path,
-    rating: m.vote_average,
-    releaseDate: m.release_date,
-    genreIds: m.genre_ids,
-    adult: m.adult,
-    type: 'movie' as const
-});
-
-async function fetchCompanyMovies(companyId: string, targetRef: any) {
-    try {
-        const res = await useAxios().get('discover/movie', {
-            params: {
-                with_companies: companyId,
-                sort_by: 'popularity.desc',
-                'vote_count.gte': 100,
-                page: 1
-            }
-        });
-        targetRef.value = (res.data?.results ?? []).slice(0, 16).map(mapItem);
-    } catch {
-        targetRef.value = [];
-    }
-}
-
 const loadData = async () => {
     highLightOptions.featured.data = [];
     highLightOptions.popular.data = [];
     highLightOptions.new.data = [];
-    newShows.value = [];
-    marvelItems.value = [];
-    warnerItems.value = [];
-    disneyItems.value = [];
-    universalItems.value = [];
 
-    fetchTrendingAnime(1, 10).then((res: any) => {
-        trendingAnimeRaw.value = res?.data?.Page?.media ?? [];
-        isAnimeLoading.value = false;
-    }).catch(() => { isAnimeLoading.value = false; });
-
-    await Promise.all([
-        fetchAllHighlights(),
-        fetchNewShows(),
-        fetchCompanyMovies('420', marvelItems),
-        fetchCompanyMovies('174', warnerItems),
-        fetchCompanyMovies('2', disneyItems),
-        fetchCompanyMovies('33', universalItems)
-    ]);
+    await fetchAllHighlights();
 };
 
 const handleSettingsChange = () => {
@@ -357,6 +254,14 @@ onBeforeUnmount(() => {
 
     &__continue {
         margin: 0 var(--s-4) var(--s-2);
+    }
+
+    &__section {
+        margin: var(--s-4) var(--s-4) var(--s-4);
+        
+        :deep(.spotlight__grid) {
+            grid-template-columns: minmax(0, 1fr) !important;
+        }
     }
 }
 

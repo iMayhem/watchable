@@ -32,6 +32,15 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/discover',
+        name: 'Discover',
+        component: () => import('../pages/Discover.vue'),
+        meta: {
+            showInHeader: true,
+            title: 'Discover'
+        }
+    },
+    {
         path: '/nf/search',
         name: 'NetflixSearch',
         component: () => import('../pages/NetflixSearch.vue'),
@@ -245,21 +254,21 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
-        path: '/livetv',
-        name: 'LiveTV',
-        component: () => import('../pages/LiveTV.vue'),
-        meta: {
-            showInHeader: true,
-            title: 'Live TV'
-        }
-    },
-    {
         path: '/help',
         name: 'Help',
         component: () => import('../pages/Help.vue'),
         meta: {
             showInHeader: true,
             title: 'Help'
+        }
+    },
+    {
+        path: '/status',
+        name: 'Status',
+        component: () => import('../pages/Status.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Status'
         }
     },
     {

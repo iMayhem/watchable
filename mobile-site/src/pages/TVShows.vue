@@ -34,7 +34,7 @@
                 />
             </div>
 
-            <MobileMediaGrid v-if="results.length || (isLoading && !results.length)" :items="isLoading && !results.length ? [] : gridItems" />
+            <MobileMediaGrid v-if="results.length || (isLoading && !results.length)" :items="isLoading && !results.length ? [] : gridItems" dense size="sm" />
 
             <div
                 v-if="results.length && (hasMore || isLoadingMore)"

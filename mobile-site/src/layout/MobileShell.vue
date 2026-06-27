@@ -71,7 +71,10 @@
                     <span class="m-app__mode-icon" aria-hidden="true">
                         <component :is="mode.icon" />
                     </span>
-                    <span class="m-app__mode-label">{{ mode.label }}</span>
+                    <span class="m-app__mode-label">
+                        {{ mode.label }}
+                        <span v-if="mode.label === 'Discover'" class="m-app__new-badge">NEW</span>
+                    </span>
                 </router-link>
             </div>
         </nav>
@@ -99,7 +102,7 @@ withDefaults(defineProps<{
 });
 
 const {
-    home, movies, tvShows, animeList, liveTv, more, search, watchlist
+    home, movies, tvShows, animeList, more, search, watchlist
 } = useAppPaths();
 const route = useRoute();
 
@@ -110,6 +113,13 @@ const currentUser = ref('');
 const iconHome = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
         h('path', { d: 'M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z', 'stroke-linejoin': 'round' })
+    ])
+});
+
+const iconDiscover = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('circle', { cx: '12', cy: '12', r: '9' }),
+        h('path', { d: 'M16 8l-3 5-5 3 3-5z' })
     ])
 });
 
@@ -135,14 +145,6 @@ const iconAnime = defineComponent({
     ])
 });
 
-const iconLive = defineComponent({
-    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
-        h('circle', { cx: '12', cy: '12', r: '2', fill: 'currentColor', stroke: 'none' }),
-        h('path', { d: 'M16.24 7.76a6 6 0 0 1 0 8.49M7.76 7.76a6 6 0 0 0 0 8.49' }),
-        h('path', { d: 'M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14' })
-    ])
-});
-
 const iconMore = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
         h('circle', { cx: '12', cy: '5', r: '1', fill: 'currentColor', stroke: 'none' }),
@@ -153,10 +155,10 @@ const iconMore = defineComponent({
 
 const modes = computed(() => [
     { to: home.value, label: 'Home', icon: iconHome, match: (p: string) => p === '/' },
+    { to: '/discover', label: 'Discover', icon: iconDiscover, match: (p: string) => p.startsWith('/discover') },
     { to: movies.value, label: 'Movies', icon: iconMovies, match: (p: string) => p.startsWith('/movies') || p.startsWith('/movie/') },
     { to: tvShows.value, label: 'TV', icon: iconTv, match: (p: string) => p === '/tv-shows' || p === '/tv' || p.startsWith('/tv-show/') || (p.startsWith('/tv/') && !p.startsWith('/tv-shows')) },
     { to: animeList.value, label: 'Anime', icon: iconAnime, match: (p: string) => p.startsWith('/anime') },
-    { to: liveTv.value, label: 'Live TV', icon: iconLive, match: (p: string) => p.startsWith('/livetv') },
     { to: more.value, label: 'More', icon: iconMore, match: (p: string) =>
         p.startsWith('/more')
         || p.startsWith('/actors')
@@ -357,6 +359,22 @@ onBeforeUnmount(() => {
             background: rgba(232, 122, 58, 0.12);
             box-shadow: 0 0 0 1px rgba(232, 122, 58, 0.15);
         }
+    }
+
+    &__new-badge {
+        background: var(--ember);
+        color: var(--ink-950);
+        font-size: 0.5rem;
+        font-weight: 900;
+        padding: 0.05rem 0.2rem;
+        border-radius: 2px;
+        margin-left: 0.15rem;
+        letter-spacing: 0;
+        display: inline-block;
+        line-height: 1;
+        vertical-align: top;
+        transform: translateY(-1px);
+        text-transform: none;
     }
 
     &__mode-icon {

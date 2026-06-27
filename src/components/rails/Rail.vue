@@ -62,7 +62,7 @@ export default defineComponent({
         title: { type: String, default: '' },
         eyebrow: { type: String, default: '' },
         description: { type: String, default: '' },
-        moreTo: { type: [String, Object], default: null },
+        moreTo: { type: [String, Object] as PropType<string | Record<string, any> | null>, default: null },
         moreLabel: { type: String, default: 'See all' },
         density: { type: String as PropType<Density>, default: 'poster' },
         /** Adds vertical room above the track so hover-peek cards aren't clipped. */

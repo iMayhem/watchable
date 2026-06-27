@@ -11,6 +11,70 @@ import { getSettings } from './useSettings'
 const BASE_URL = 'https://api.themoviedb.org/3/'
 const API_KEY = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672'
 
+const CACHE_NAME = 'tmdb-api-cache-v1';
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function getCachedResponse(config: any): Promise<any | null> {
+    if (config.method !== 'get' && config.method !== 'GET') return null;
+    try {
+        const cache = await caches.open(CACHE_NAME);
+        const url = new URL(config.url || '', config.baseURL || 'https://api.themoviedb.org/3/');
+        if (config.params) {
+            Object.entries(config.params).forEach(([k, v]) => {
+                url.searchParams.set(k, String(v));
+            });
+        }
+        const cacheKey = url.toString();
+        const cachedRes = await cache.match(cacheKey);
+        if (cachedRes) {
+            const dateHeader = cachedRes.headers.get('X-Cached-At');
+            if (dateHeader) {
+                const cachedTime = new Date(dateHeader).getTime();
+                const now = Date.now();
+                if (now - cachedTime < ONE_WEEK_MS) {
+                    const data = await cachedRes.json();
+                    return {
+                        data,
+                        status: 200,
+                        statusText: 'OK',
+                        headers: {},
+                        config,
+                        request: {}
+                    };
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[🌐 CACHE] Cache read error:', e);
+    }
+    return null;
+}
+
+async function setCachedResponse(config: any, data: any): Promise<void> {
+    if (config.method !== 'get' && config.method !== 'GET') return;
+    try {
+        const cache = await caches.open(CACHE_NAME);
+        const url = new URL(config.url || '', config.baseURL || 'https://api.themoviedb.org/3/');
+        if (config.params) {
+            Object.entries(config.params).forEach(([k, v]) => {
+                url.searchParams.set(k, String(v));
+            });
+        }
+        const cacheKey = url.toString();
+        const customHeaders = new Headers({
+            'Content-Type': 'application/json',
+            'X-Cached-At': new Date().toISOString()
+        });
+        const responseToCache = new Response(JSON.stringify(data), {
+            headers: customHeaders
+        });
+        await cache.put(cacheKey, responseToCache);
+        console.log('[🌐 CACHE] Cached request:', cacheKey);
+    } catch (e) {
+        console.warn('[🌐 CACHE] Cache write error:', e);
+    }
+}
+
 const useAxios = () => {
     const { region, language } = getSettings()
     const params: Record<string, string> = {
@@ -26,6 +90,42 @@ const useAxios = () => {
         params,
         headers: {
             'Content-Type': 'application/json',
+        },
+        adapter: async (config) => {
+            const cached = await getCachedResponse(config);
+            if (cached) {
+                console.log('[🌐 CACHE] Cache HIT:', config.url);
+                return cached;
+            }
+            
+            const url = new URL(config.url || '', config.baseURL || 'https://api.themoviedb.org/3/');
+            if (config.params) {
+                Object.entries(config.params).forEach(([k, v]) => {
+                    url.searchParams.set(k, String(v));
+                });
+            }
+            
+            const res = await fetch(url.toString(), {
+                method: config.method || 'GET',
+                headers: config.headers as any
+            });
+            
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`TMDB fetch error: ${res.status} ${errText}`);
+            }
+            
+            const data = await res.json();
+            await setCachedResponse(config, data);
+            
+            return {
+                data,
+                status: res.status,
+                statusText: res.statusText,
+                headers: Object.fromEntries(res.headers.entries()),
+                config,
+                request: {}
+            };
         }
     })
 

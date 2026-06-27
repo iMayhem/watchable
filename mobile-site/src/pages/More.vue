@@ -17,7 +17,10 @@
                         <component :is="item.icon" />
                     </span>
                     <span class="m-more__copy">
-                        <span class="m-more__label">{{ item.label }}</span>
+                        <span class="m-more__label">
+                            {{ item.label }}
+                            <span v-if="item.label === 'Status'" class="m-more__new-badge">NEW</span>
+                        </span>
                         <span class="m-more__desc meta">{{ item.desc }}</span>
                     </span>
                     <svg class="m-more__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -74,6 +77,12 @@ const iconHelp = defineComponent({
     ])
 });
 
+const iconStatus = defineComponent({
+    render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
+        h('path', { d: 'M22 12h-4l-3 9L9 3l-3 9H2' })
+    ])
+});
+
 const iconWatchlist = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
         h('path', { d: 'M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' })
@@ -86,7 +95,8 @@ const links = [
     { to: upcoming.value, label: 'Upcoming', desc: 'Movies and anime on the horizon', icon: iconUpcoming },
     { to: party.value, label: 'Together', desc: 'Watch parties with friends', icon: iconParty },
     { to: watchlist.value, label: 'Watchlist', desc: 'Saved titles across devices', icon: iconWatchlist },
-    { to: help.value, label: 'Help', desc: 'Playback tips and shortcuts', icon: iconHelp }
+    { to: help.value, label: 'Help', desc: 'Playback tips and shortcuts', icon: iconHelp },
+    { to: '/status', label: 'Status', desc: 'Realtime node failover and rate limits', icon: iconStatus }
 ];
 </script>
 
@@ -153,6 +163,21 @@ const links = [
         font-family: var(--font-ui);
         font-size: 0.95rem;
         font-weight: 600;
+        display: flex;
+        align-items: center;
+    }
+
+    &__new-badge {
+        background: var(--ember);
+        color: var(--ink-950) !important;
+        font-size: 0.55rem;
+        font-weight: 850;
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
+        margin-left: 0.25rem;
+        letter-spacing: 0.05em;
+        line-height: 1;
+        display: inline-block;
     }
 
     &__desc {

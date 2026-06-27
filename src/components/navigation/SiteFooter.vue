@@ -43,6 +43,7 @@
                                 class="site-footer__link"
                             >
                                 {{ link.label }}
+                                <span v-if="link.label === 'Status'" class="site-footer__new-badge">NEW</span>
                             </component>
                         </li>
                     </ul>
@@ -140,8 +141,8 @@ const columns: FooterCol[] = [
         links: [
             {
                 label: 'Status',
-                href: 'https://status.moovie.fun',
-                external: true
+                href: '/status',
+                external: false
             }
         ]
     }
@@ -330,6 +331,20 @@ export default defineComponent({
         &:hover {
             color: var(--ember);
         }
+    }
+
+    &__new-badge {
+        background: var(--ember);
+        color: var(--ink-950) !important;
+        font-size: 0.55rem;
+        font-weight: 850;
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
+        margin-left: 0.25rem;
+        vertical-align: middle;
+        letter-spacing: 0.05em;
+        display: inline-block;
+        line-height: 1;
     }
 
     &__colophon {

@@ -41,6 +41,7 @@
                 <span class="m-discover__ai-new-badge">NEW</span>
             </button>
 
+            <div v-if="showSuggestion" class="m-discover__ai-backdrop" />
             <div v-if="showSuggestion" class="m-discover__ai-wrapper">
                 <!-- If loading -->
                 <div v-if="geminiLoading" class="m-discover__ai-loading-pill">
@@ -699,6 +700,15 @@ void fetchPage(initialCat, 1, false);
             width: 18px;
             height: 18px;
         }
+    }
+
+    &__ai-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        backdrop-filter: blur(3px);
+        pointer-events: none;
+        animation: ai-fade-in 0.2s ease-out;
     }
 
     &__ai-wrapper {

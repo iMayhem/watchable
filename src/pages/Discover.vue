@@ -28,6 +28,7 @@
                 <span class="discover-page__ai-new-badge">NEW</span>
             </button>
 
+            <div v-if="showSuggestion" class="discover-page__ai-backdrop" />
             <div v-if="showSuggestion" class="discover-page__ai-wrapper">
                 <!-- If loading -->
                 <div v-if="geminiLoading" class="discover-page__ai-loading-pill">
@@ -788,6 +789,15 @@ export default defineComponent({
         letter-spacing: 0.05em;
         line-height: 1;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+    }
+
+    &__ai-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        backdrop-filter: blur(3px);
+        pointer-events: none;
+        animation: ai-fade-in 0.2s ease-out;
     }
 
     &__ai-wrapper {

@@ -66,7 +66,7 @@ export const movieServers = ref<Server[]>([
   { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/movie/{tmdbId}' },
   { name: 'Imarti', urlTemplate: 'https://111movies.com/movie/{tmdbId}' },
   { name: 'Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' },
-  { name: 'Motichoor Ladoo', urlTemplate: 'https://vidsuper.net/movie/{tmdbId}' }
+  { name: 'Vidsuper', urlTemplate: 'https://vidsuper.net/movie/{tmdbId}' }
 ]);
 
 export const tvServers = ref<Server[]>([
@@ -86,7 +86,7 @@ export const tvServers = ref<Server[]>([
   { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/tv/{externalId}/{season}/{episode}' },
   { name: 'Imarti', urlTemplate: 'https://111movies.com/tv/{externalId}/{season}/{episode}' },
   { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Motichoor Ladoo', urlTemplate: 'https://vidsuper.net/tv/{externalId}/{season}/{episode}' }
+  { name: 'Vidsuper', urlTemplate: 'https://vidsuper.net/tv/{externalId}/{season}/{episode}' }
 ]);
 
 const idToNameMap: Record<string, string> = {
@@ -106,7 +106,7 @@ const idToNameMap: Record<string, string> = {
   vidfast: 'Mysore Pak',
   movies111: 'Imarti',
   vidora: 'Ghevar',
-  vidsuper: 'Motichoor Ladoo'
+  vidsuper: 'Vidsuper'
 };
 
 export const isDefaultServerLoaded = ref(false);

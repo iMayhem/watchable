@@ -1,0 +1,616 @@
+<template>
+    <div class="admin-page">
+        <div class="admin-page__orb orb-left" />
+        <div class="admin-page__orb orb-right" />
+
+        <div class="admin-page__container">
+            <section v-if="!authenticated" class="admin-page__view">
+                <h1 class="admin-page__title">Admin Gateway</h1>
+                <p class="admin-page__subtitle">Access settings dashboard to configure defaults.</p>
+                <form @submit.prevent="handleAuthenticate">
+                    <div class="admin-page__field">
+                        <label class="admin-page__label" for="passcode">Passcode</label>
+                        <input
+                            id="passcode"
+                            v-model="passcode"
+                            type="password"
+                            class="admin-page__input"
+                            placeholder="••••••••"
+                            required
+                            autocomplete="current-password"
+                        >
+                    </div>
+                    <button type="submit" class="admin-page__btn" :disabled="authLoading">
+                        <span>{{ authLoading ? 'Verifying...' : 'Unlock Dashboard' }}</span>
+                    </button>
+                </form>
+            </section>
+
+            <section v-else class="admin-page__view">
+                <h1 class="admin-page__title">Site Settings</h1>
+                <p class="admin-page__subtitle">Update default videoplayer instantly without rebuilding.</p>
+
+                <form @submit.prevent="handleSaveSettings">
+                    <div class="admin-page__field">
+                        <label class="admin-page__label" for="default-provider">Default Stream Player</label>
+                        <select id="default-provider" v-model="settings.defaultProvider" class="admin-page__select">
+                            <option value="rasmalai">Rasmalai (sweet server)</option>
+                            <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
+                            <option value="smashy">Jalebi (SmashyStream)</option>
+                            <option value="mappletv">Kaju Katli (MappleTV)</option>
+                            <option value="vidking">Kheer (VidKing)</option>
+                            <option value="videasy">Barfi (VidEasy)</option>
+                            <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
+                            <option value="vidsrc_su">Peda (VidSrc.su)</option>
+                            <option value="vidsrcme">Gajar Ka Halwa (VidSrcMe)</option>
+                            <option value="multiembed">Soan Papdi (MultiEmbed)</option>
+                            <option value="vsrc">Sandesh (vsrc.su)</option>
+                            <option value="vidlink">Cham Cham (VidLink)</option>
+                            <option value="autoembed">Kulfi (AutoEmbed)</option>
+                            <option value="vidfast">Mysore Pak (VidFast)</option>
+                            <option value="movies111">Imarti (111Movies)</option>
+                            <option value="vidora">Ghevar (Vidora)</option>
+                            <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
+                        </select>
+                    </div>
+
+                    <div class="admin-page__field">
+                        <label class="admin-page__label" for="tmdb-quality">TMDB Image Quality</label>
+                        <select id="tmdb-quality" v-model="settings.tmdbQuality" class="admin-page__select">
+                            <option value="low">Low - faster, smaller poster and backdrop images</option>
+                            <option value="medium">Medium - balanced image quality</option>
+                            <option value="high">High - sharpest images, heavier bandwidth</option>
+                        </select>
+                    </div>
+
+                    <div class="admin-page__field">
+                        <label class="admin-page__label">Groq API Keys (3 Slots for Auto-Failover)</label>
+                        <input v-model="settings.groqKeys[0]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 1">
+                        <input v-model="settings.groqKeys[1]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 2">
+                        <input v-model="settings.groqKeys[2]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 3">
+                        <p class="admin-page__hint">Enter up to 3 keys. If key 1 hits rate limits or quota issues, the recommendation engine will failover to key 2, then key 3 automatically.</p>
+                    </div>
+
+                    <div class="admin-page__field">
+                        <label class="admin-page__label" for="new-passcode">Change Passcode (Optional)</label>
+                        <input id="new-passcode" v-model="newPasscode" type="password" class="admin-page__input" placeholder="Enter new passcode to update">
+                    </div>
+
+                    <button type="submit" class="admin-page__btn" :disabled="saveLoading">
+                        <span>{{ saveLoading ? 'Saving...' : 'Save Changes' }}</span>
+                    </button>
+                </form>
+
+                <div class="admin-page__curation">
+                    <h2 class="admin-page__section-title">
+                        4K Selection Curation
+                        <span class="admin-page__curation-count">({{ selectedMovies.length }}/10)</span>
+                    </h2>
+
+                    <form @submit.prevent="handleSearch4K" class="admin-page__search-row">
+                        <input v-model="searchQuery" type="text" class="admin-page__input" placeholder="Search movies to add..." autocomplete="off">
+                        <button type="submit" class="admin-page__btn admin-page__btn--sm">Search</button>
+                    </form>
+
+                    <ul v-if="searchResults.length" class="admin-page__list">
+                        <li v-for="movie in searchResults" :key="movie.id" class="admin-page__list-item">
+                            <div class="admin-page__item-details">
+                                <div class="admin-page__item-title">{{ movie.title }}</div>
+                                <div class="admin-page__item-meta">{{ movie.release_date ? movie.release_date.split('-')[0] : 'N/A' }}</div>
+                            </div>
+                            <button
+                                type="button"
+                                class="admin-page__btn admin-page__btn--sm"
+                                :disabled="isAlreadyAdded(movie.id) || selectedMovies.length >= 10"
+                                @click="addMovie(movie)"
+                            >
+                                {{ isAlreadyAdded(movie.id) ? 'Added' : 'Add' }}
+                            </button>
+                        </li>
+                    </ul>
+
+                    <ul class="admin-page__list">
+                        <li v-if="!selectedMovies.length" class="admin-page__empty">No 4K movies selected yet</li>
+                        <li v-for="(movie, index) in selectedMovies" :key="movie.id" class="admin-page__list-item">
+                            <div class="admin-page__item-details">
+                                <div class="admin-page__item-title">{{ index + 1 }}. {{ movie.title }}</div>
+                                <div class="admin-page__item-meta">{{ movie.releaseDate ? movie.releaseDate.split('-')[0] : 'N/A' }}</div>
+                            </div>
+                            <div class="admin-page__item-actions">
+                                <button type="button" class="admin-page__icon-btn" :disabled="index === 0" @click="moveItem(index, -1)">↑</button>
+                                <button type="button" class="admin-page__icon-btn" :disabled="index === selectedMovies.length - 1" @click="moveItem(index, 1)">↓</button>
+                                <button type="button" class="admin-page__icon-btn admin-page__icon-btn--danger" @click="removeMovie(movie.id)">✕</button>
+                            </div>
+                        </li>
+                    </ul>
+
+                    <button type="button" class="admin-page__btn" :disabled="save4kLoading" @click="handleSave4K">
+                        <span>{{ save4kLoading ? 'Saving curation...' : 'Save 4K Curation' }}</span>
+                    </button>
+                </div>
+
+                <div class="admin-page__server-grid">
+                    <div class="admin-page__server-row"><strong>ID</strong><strong>Sweet Name</strong></div>
+                    <div class="admin-page__server-row"><span>rasmalai</span><span>Rasmalai</span></div>
+                    <div class="admin-page__server-row"><span>cinemaos</span><span>Gulab Jamun</span></div>
+                    <div class="admin-page__server-row"><span>smashy</span><span>Jalebi</span></div>
+                    <div class="admin-page__server-row"><span>videasy</span><span>Barfi</span></div>
+                    <div class="admin-page__server-row"><span>vidlink</span><span>Cham Cham</span></div>
+                    <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
+                </div>
+            </section>
+        </div>
+
+        <div class="admin-page__toast" :class="{ 'is-show': toast, 'is-success': toastType === 'success', 'is-error': toastType === 'error' }">
+            {{ toast }}
+        </div>
+    </div>
+</template>
+
+<script lang="ts" setup>
+import { ref, reactive, onMounted } from 'vue'
+import { getSupabaseClient } from '../lib/supabase'
+
+let supabase: any = null
+const DEFAULT_PASSCODE = 'admin123'
+
+const authenticated = ref(false)
+const authLoading = ref(false)
+const saveLoading = ref(false)
+const save4kLoading = ref(false)
+const passcode = ref('')
+const newPasscode = ref('')
+const toast = ref('')
+const toastType = ref<'success' | 'error'>('success')
+const searchQuery = ref('')
+const searchResults = ref<any[]>([])
+const selectedMovies = ref<any[]>([])
+let adminPasscode = DEFAULT_PASSCODE
+
+const settings = reactive({
+    defaultProvider: 'rasmalai',
+    tmdbQuality: 'medium',
+    groqKeys: ['', '', '']
+})
+
+function showToast(message: string, isSuccess = true) {
+    toast.value = message
+    toastType.value = isSuccess ? 'success' : 'error'
+    setTimeout(() => { toast.value = '' }, 3000)
+}
+
+async function handleAuthenticate() {
+    authLoading.value = true
+    try {
+        const client = await getSupabaseClient()
+        supabase = client
+        const { data } = await client.from('app_settings').select('value').eq('key', 'admin_passcode').single()
+        if (data?.value) adminPasscode = data.value
+
+        if (passcode.value === adminPasscode) {
+            showToast('Access Granted!')
+            authenticated.value = true
+            await loadDashboardSettings()
+        } else {
+            showToast('Invalid passcode', false)
+        }
+    } catch {
+        if (passcode.value === DEFAULT_PASSCODE) {
+            showToast('Unlocked (using offline fallback)')
+            authenticated.value = true
+            await loadDashboardSettings()
+        } else {
+            showToast('Auth error. Make sure migrations are run.', false)
+        }
+    } finally {
+        authLoading.value = false
+    }
+}
+
+async function loadDashboardSettings() {
+    const client = supabase || await getSupabaseClient()
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'default_provider').single()
+        if (data?.value) settings.defaultProvider = data.value.toLowerCase()
+    } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'tmdb_image_quality').single()
+        if (data?.value) settings.tmdbQuality = data.value
+    } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'groq_keys').single()
+        if (data?.value) {
+            const keys = JSON.parse(data.value)
+            if (Array.isArray(keys)) {
+                if (keys[0]) settings.groqKeys[0] = keys[0]
+                if (keys[1]) settings.groqKeys[1] = keys[1]
+                if (keys[2]) settings.groqKeys[2] = keys[2]
+            }
+        }
+    } catch { /* ignore */ }
+
+    await load4KCuration()
+}
+
+async function handleSaveSettings() {
+    saveLoading.value = true
+    const client = supabase || await getSupabaseClient()
+    try {
+        await client.from('app_settings').upsert({ key: 'default_provider', value: settings.defaultProvider, updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'tmdb_image_quality', value: settings.tmdbQuality, updated_at: new Date() }, { onConflict: 'key' })
+
+        const keys = settings.groqKeys.filter(Boolean)
+        await client.from('app_settings').upsert({ key: 'groq_keys', value: JSON.stringify(keys), updated_at: new Date() }, { onConflict: 'key' })
+
+        if (newPasscode.value) {
+            await client.from('app_settings').upsert({ key: 'admin_passcode', value: newPasscode.value, updated_at: new Date() }, { onConflict: 'key' })
+            adminPasscode = newPasscode.value
+            newPasscode.value = ''
+        }
+
+        showToast('Settings updated successfully!')
+    } catch {
+        showToast('Failed to update settings in Supabase', false)
+    } finally {
+        saveLoading.value = false
+    }
+}
+
+async function load4KCuration() {
+    const client = supabase || await getSupabaseClient()
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', '4k_movies_today').single()
+        if (data?.value) selectedMovies.value = JSON.parse(data.value)
+        else selectedMovies.value = []
+    } catch {
+        selectedMovies.value = []
+    }
+}
+
+async function handleSearch4K() {
+    if (!searchQuery.value.trim()) return
+    try {
+        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(searchQuery.value)}&language=en-US&page=1`)
+        const data = await res.json()
+        searchResults.value = data.results || []
+    } catch {
+        searchResults.value = []
+        showToast('Error searching movies', false)
+    }
+}
+
+function isAlreadyAdded(id: number) {
+    return selectedMovies.value.some((m: any) => m.id === id)
+}
+
+function addMovie(movie: any) {
+    if (selectedMovies.value.length >= 10) return
+    selectedMovies.value.push({
+        id: movie.id,
+        title: movie.title || movie.original_title,
+        originalTitle: movie.original_title,
+        posterPath: movie.poster_path,
+        rating: movie.vote_average,
+        releaseDate: movie.release_date,
+        genreIds: movie.genre_ids,
+        adult: movie.adult,
+        type: 'movie'
+    })
+}
+
+function removeMovie(id: number) {
+    selectedMovies.value = selectedMovies.value.filter((m: any) => m.id !== id)
+}
+
+function moveItem(index: number, direction: number) {
+    const newIndex = index + direction
+    if (newIndex < 0 || newIndex >= selectedMovies.value.length) return
+    const arr = selectedMovies.value
+    const temp = arr[index]
+    arr[index] = arr[newIndex]
+    arr[newIndex] = temp
+}
+
+async function handleSave4K() {
+    save4kLoading.value = true
+    const client = supabase || await getSupabaseClient()
+    try {
+        await client.from('app_settings').upsert({ key: '4k_movies_today', value: JSON.stringify(selectedMovies.value), updated_at: new Date() }, { onConflict: 'key' })
+        showToast('4K curation saved successfully!')
+    } catch {
+        showToast('Failed to save 4K curation in Supabase', false)
+    } finally {
+        save4kLoading.value = false
+    }
+}
+
+onMounted(() => {
+    getSupabaseClient().then(client => { supabase = client })
+})
+</script>
+
+<style scoped>
+.admin-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0b0a08;
+    color: #e8e1d3;
+    font-family: 'General Sans', system-ui, sans-serif;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.admin-page__orb {
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 90, 31, 0.3) 0%, rgba(11, 10, 8, 0) 70%);
+    pointer-events: none;
+    filter: blur(60px);
+}
+
+.orb-left { top: -15%; left: -15%; }
+.orb-right { bottom: -15%; right: -15%; }
+
+.admin-page__container {
+    width: 100%;
+    max-width: 480px;
+    padding: 2.75rem;
+    background: rgba(19, 17, 14, 0.7);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255, 90, 31, 0.08);
+    z-index: 10;
+}
+
+.admin-page__title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 2.25rem;
+    letter-spacing: -0.02em;
+    color: #f5efe4;
+    margin-bottom: 0.5rem;
+}
+
+.admin-page__subtitle {
+    color: #a79f8d;
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+
+.admin-page__field {
+    margin-bottom: 1.5rem;
+}
+
+.admin-page__label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8a8270;
+    margin-bottom: 0.5rem;
+}
+
+.admin-page__input,
+.admin-page__select {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: rgba(245, 239, 228, 0.03);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    color: #e8e1d3;
+    font-family: inherit;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    box-sizing: border-box;
+}
+
+.admin-page__input + .admin-page__input {
+    margin-top: 0.5rem;
+}
+
+.admin-page__select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7bfb0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+    padding-right: 2.5rem;
+}
+
+.admin-page__input:focus,
+.admin-page__select:focus {
+    border-color: #ff5a1f;
+    box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.15);
+    background: rgba(245, 239, 228, 0.05);
+}
+
+.admin-page__btn {
+    width: 100%;
+    padding: 0.875rem;
+    background: #ff5a1f;
+    color: #0b0a08;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(255, 90, 31, 0.25);
+    font-family: inherit;
+}
+
+.admin-page__btn:hover { background: #e84817; box-shadow: 0 6px 16px rgba(255, 90, 31, 0.4); transform: translateY(-1px); }
+.admin-page__btn:active { transform: translateY(0); }
+.admin-page__btn:disabled { background: #8a8270; color: #0b0a08; cursor: not-allowed; box-shadow: none; }
+.admin-page__btn--sm { width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; box-shadow: none; }
+
+.admin-page__hint {
+    font-size: 0.75rem;
+    color: #a79f8d;
+    margin-top: 0.25rem;
+    line-height: 1.5;
+}
+
+.admin-page__curation {
+    margin-top: 2.5rem;
+    border-top: 1px solid rgba(245, 239, 228, 0.08);
+    padding-top: 2rem;
+}
+
+.admin-page__section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.5rem;
+    color: #f5efe4;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-page__curation-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: #8a8270;
+}
+
+.admin-page__search-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.admin-page__list {
+    list-style: none;
+    background: rgba(245, 239, 228, 0.02);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    padding: 0.25rem 0;
+}
+
+.admin-page__list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(245, 239, 228, 0.08);
+    gap: 1rem;
+}
+
+.admin-page__list-item:last-child { border-bottom: none; }
+
+.admin-page__item-details {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+
+.admin-page__item-title {
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #e8e1d3;
+}
+
+.admin-page__item-meta {
+    font-size: 0.75rem;
+    color: #8a8270;
+    margin-top: 0.15rem;
+}
+
+.admin-page__item-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.admin-page__icon-btn {
+    background: transparent;
+    border: none;
+    color: #a79f8d;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    width: 28px;
+    height: 28px;
+    transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    font-family: inherit;
+}
+
+.admin-page__icon-btn:hover:not(:disabled) { background: rgba(255,255,255,0.08); color: #f5efe4; }
+.admin-page__icon-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.admin-page__icon-btn--danger:hover { color: #ff8a80; background: rgba(197,78,61,0.15); }
+
+.admin-page__empty {
+    padding: 1.5rem;
+    text-align: center;
+    color: #8a8270;
+    font-size: 0.9rem;
+}
+
+.admin-page__server-grid {
+    background: rgba(245, 239, 228, 0.02);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.775rem;
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.admin-page__server-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.35rem 0;
+    color: #a79f8d;
+    border-bottom: 1px solid rgba(245, 239, 228, 0.04);
+}
+
+.admin-page__server-row:last-child { border-bottom: none; }
+.admin-page__server-row strong { color: #e8e1d3; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; }
+.admin-page__server-row span:first-child { color: #ff5a1f; }
+
+.admin-page__toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    background: rgba(19, 17, 14, 0.7);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    color: #e8e1d3;
+    font-size: 0.9rem;
+    font-weight: 500;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 100;
+}
+
+.admin-page__toast.is-show { transform: translateY(0); opacity: 1; }
+.admin-page__toast.is-success { border-left: 4px solid #6ba368; }
+.admin-page__toast.is-error { border-left: 4px solid #c94e3d; }
+</style>

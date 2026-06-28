@@ -349,6 +349,16 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/admin',
+        name: 'Admin',
+        component: () => import('../pages/Admin.vue'),
+        meta: {
+            showInHeader: false,
+            title: 'Admin',
+            bareLayout: true
+        }
+    },
+    {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: () => import('../pages/NotFound.vue'),

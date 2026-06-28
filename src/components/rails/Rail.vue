@@ -39,14 +39,14 @@
         </header>
 
         <div class="rail__viewport">
-            <div
-                ref="track"
-                class="rail__track no-scrollbar"
-                :style="trackStyle"
-                @scroll.passive="onScroll"
-            >
-                <slot />
-            </div>
+        <div
+            ref="track"
+            class="rail__track no-scrollbar"
+            :style="trackStyle"
+            @scroll.passive="onScroll"
+        >
+            <slot />
+        </div>
         </div>
     </section>
 </template>

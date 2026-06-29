@@ -40,6 +40,7 @@ const show = ref(false)
 async function checkPoll() {
     await fetchActivePoll()
     if (!activePoll.value) return
+    if (!activePoll.value.is_active) return
     const id = activePoll.value.id
     if (hasVoted(id) || hasDismissed(id)) return
     show.value = true

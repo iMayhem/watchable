@@ -401,7 +401,7 @@ const categories: Category[] = [
 const gridItems = computed<MobileGridItem[]>(() =>
     results.value.map(r => ({
         id: r.id,
-        type: (r.type as 'movie' | 'tv') || 'movie',
+        type: (r.type as 'movie' | 'tv' | 'anime') || 'movie',
         title: r.title,
         posterPath: r.poster_path,
         rating: r.vote_average,
@@ -454,13 +454,14 @@ const fetchPage = async (cat: Category, p: number, append: boolean) => {
                     }
                 })
             );
+            const isCrunchyroll = cat.key === 'crunchyroll';
             items = validTitles.map((t: WatchmodeTitle, i: number) => ({
                 id: t.tmdb_id || t.id,
                 title: t.title,
                 poster_path: posterPaths[i],
                 vote_average: t.rating || 0,
                 release_date: t.year ? String(t.year) : '',
-                type: t.type === 'movie' ? 'movie' : 'tv'
+                type: isCrunchyroll ? 'anime' : (t.type === 'movie' ? 'movie' as const : 'tv' as const)
             }));
             total = totalPages;
         } else {

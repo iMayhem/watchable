@@ -78,7 +78,7 @@ import { useNotifications } from '../../composables/useNotifications'
 import { usePolls } from '../../composables/usePolls'
 
 const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
-const { activePoll, pollResults, totalVotes, fetchActivePoll, fetchPollResults } = usePolls()
+const { activePoll, pollResults, totalVotes, fetchActivePoll } = usePolls()
 
 const isOpen = ref(false)
 const containerRef = ref<HTMLElement | null>(null)

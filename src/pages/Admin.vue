@@ -312,6 +312,15 @@ const saveLoading = ref(false)
 const save4kLoading = ref(false)
 const passcode = ref('')
 const newPasscode = ref('')
+const activeTab = ref('settings')
+
+const tabs = [
+    { key: 'settings', icon: '⚙️', label: 'Settings' },
+    { key: '4k', icon: '🎬', label: '4K Curation' },
+    { key: 'notifications', icon: '🔔', label: 'Notifications' },
+    { key: 'banner', icon: '🏴', label: 'Banner' },
+    { key: 'polls', icon: '📊', label: 'Polls' }
+]
 const toast = ref('')
 const toastType = ref<'success' | 'error'>('success')
 const searchQuery = ref('')

@@ -12,7 +12,7 @@
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
-            <span v-if="unreadCount > 0" class="notification-bell__badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+            <span v-if="unreadCount > 0" class="notification-bell__dot" />
         </button>
 
         <Teleport to="body">
@@ -102,6 +102,7 @@ function toggleDropdown() {
     if (isOpen.value) {
         fetchNotifications()
         loadPollData()
+        handleMarkAllRead()
     }
 }
 
@@ -184,20 +185,15 @@ onBeforeUnmount(() => {
     color: var(--bone-50);
 }
 
-.notification-bell__badge {
+.notification-bell__dot {
     position: absolute;
-    top: -2px;
-    right: -2px;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
+    top: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
     background: var(--ember);
-    color: var(--ink-950);
-    font-size: 0.625rem;
-    font-weight: 800;
-    line-height: 16px;
-    text-align: center;
-    border-radius: 8px;
+    border: 2px solid var(--surface-tint);
+    border-radius: 50%;
     pointer-events: none;
 }
 

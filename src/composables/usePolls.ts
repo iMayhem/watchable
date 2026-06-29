@@ -33,7 +33,6 @@ export function usePolls() {
             const { data } = await supabase
                 .from('polls')
                 .select('*')
-                .eq('is_active', true)
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle()

@@ -621,17 +621,21 @@ export default defineComponent({
 
                 let tmdbId = resolvedTmdbId;
                 animeId.value = tmdbId;
-                anilistIdRef.value = anilistId || parseAnilistIdFromRoute();
+                anilistIdRef.value = anilistId;
+
+                if (!anilistIdRef.value) {
+                    anilistIdRef.value = await resolveAnilistIdForPlayback(tmdbId);
+                }
+
+                if (!anilistIdRef.value) {
+                    anilistIdRef.value = parseAnilistIdFromRoute();
+                }
 
                 if (tmdbId !== routeId) {
                     suppressRouteReload.value = true;
                     await router.replace(
                         paths.streamAnime(tmdbId, currentEpisode.value, anilistIdRef.value)
                     );
-                }
-
-                if (!anilistIdRef.value) {
-                    anilistIdRef.value = await resolveAnilistIdForPlayback(tmdbId);
                 }
                 if (generation !== loadGeneration) return;
 

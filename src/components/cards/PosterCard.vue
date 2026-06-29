@@ -298,8 +298,8 @@ export default defineComponent({
 
         const warmAnimeDetailPrefetch = () => {
             if (props.type !== 'anime' || props.catalog !== 'tmdb' || props.loading) return;
-            const anilistId = Number(props.id);
-            if (!Number.isFinite(anilistId) || anilistId <= 0) return;
+            const anilistId = props.anilistId || 0;
+            if (!anilistId) return;
 
             const yearFromRelease = props.releaseDate
                 ? parseInt(props.releaseDate.slice(0, 4), 10)
@@ -362,7 +362,7 @@ export default defineComponent({
             if (props.type === 'anime') {
                 router.push({
                     path: `/stream/anime/${props.id}`,
-                    query: { ...query, ani: String(props.id) }
+                    query: props.anilistId ? { ...query, ani: String(props.anilistId) } : query
                 });
             } else if (props.type === 'tv') {
                 router.push({ path: `/stream/tv-show/${props.id}/season/1/episode/1`, query });

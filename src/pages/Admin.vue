@@ -290,6 +290,52 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ── Donations Tab ────────────────────────────────────── -->
+                <div v-if="activeTab === 'donations'" class="admin-page__tab-content">
+                    <h2 class="admin-page__section-title">Donations Tracker</h2>
+
+                    <div class="admin-page__balance-card">
+                        <h3 class="admin-page__subsection-title">Live Wallet Balance</h3>
+                        <div v-if="cryptoLoading" class="admin-page__empty">Checking wallets...</div>
+                        <template v-else>
+                            <div class="admin-page__balance-row">
+                                <span>BTC</span>
+                                <span>${{ cryptoBtcUsd.toFixed(2) }}</span>
+                            </div>
+                            <div class="admin-page__balance-row">
+                                <span>LTC</span>
+                                <span>${{ cryptoLtcUsd.toFixed(2) }}</span>
+                            </div>
+                            <div class="admin-page__balance-row">
+                                <span>USDT (TRC20)</span>
+                                <span>${{ cryptoUsdtUsd.toFixed(2) }}</span>
+                            </div>
+                            <div class="admin-page__balance-row admin-page__balance-row--total">
+                                <span>Total</span>
+                                <span>${{ cryptoTotal.toFixed(2) }}</span>
+                            </div>
+                        </template>
+                        <button type="button" class="admin-page__btn admin-page__btn--sm" :disabled="cryptoLoading" @click="refreshCryptoBalance">
+                            {{ cryptoLoading ? 'Refreshing...' : 'Refresh Balance' }}
+                        </button>
+                    </div>
+
+                    <form @submit.prevent="handleSaveDonations">
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="donation-raised">Manual Override Amount ($)</label>
+                            <input id="donation-raised" v-model.number="donationRaised" type="number" class="admin-page__input" min="0" step="0.01" placeholder="0">
+                            <p class="admin-page__hint">Only use if you want to override the auto-detected balance.</p>
+                        </div>
+                        <button type="submit" class="admin-page__btn" :disabled="donationLoading">
+                            <span>{{ donationLoading ? 'Saving...' : 'Save Override' }}</span>
+                        </button>
+                    </form>
+
+                    <button type="button" class="admin-page__btn admin-page__btn--donation" :disabled="donationNotifLoading" @click="handleDonationNotif">
+                        <span>{{ donationNotifLoading ? 'Sending...' : '❤️ Notify everyone — donation received!' }}</span>
+                    </button>
+                </div>
             </section>
         </div>
 
@@ -300,7 +346,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { getSupabaseClient } from '../lib/supabase'
 
 let supabase: any = null
@@ -319,7 +365,8 @@ const tabs = [
     { key: '4k', icon: '🎬', label: '4K Curation' },
     { key: 'notifications', icon: '🔔', label: 'Notifications' },
     { key: 'banner', icon: '🏴', label: 'Banner' },
-    { key: 'polls', icon: '📊', label: 'Polls' }
+    { key: 'polls', icon: '📊', label: 'Polls' },
+    { key: 'donations', icon: '💰', label: 'Donations' }
 ]
 const toast = ref('')
 const toastType = ref<'success' | 'error'>('success')
@@ -356,6 +403,47 @@ const pollLoading = ref(false)
 const existingPolls = ref<any[]>([])
 const pollResultsMap = ref<Record<number, any[]>>({})
 const pollVoteCounts = ref<Record<number, number>>({})
+
+// ── Donations ────────────────────────────────────────────────────────────────────
+const donationRaised = ref(0)
+const donationLoading = ref(false)
+const donationNotifLoading = ref(false)
+const cryptoBtcUsd = ref(0)
+const cryptoLtcUsd = ref(0)
+const cryptoUsdtUsd = ref(0)
+const cryptoTotal = ref(0)
+const cryptoLoading = ref(false)
+
+async function refreshCryptoBalance() {
+    cryptoLoading.value = true
+    const BTC_ADDR = 'bc1qkk0yyu8efu2gep5y59ev7s4j0wxnpxsfh4ympk'
+    const LTC_ADDR = 'ltc1qpnurrqnv466wa4uh6urh0ul5n4wu0rf8k5l25z'
+    const USDT_ADDR = 'TKfaywHdffM1iYdiSP3xFPajxgXwq2jmDG'
+    const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+    try {
+        const [btcRes, ltcRes, usdtRes, priceRes] = await Promise.all([
+            fetch(`https://api.blockchair.com/bitcoin/address/${BTC_ADDR}?limit=0,1`).then(r => r.json()).catch(() => ({})),
+            fetch(`https://api.blockchair.com/litecoin/address/${LTC_ADDR}?limit=0,1`).then(r => r.json()).catch(() => ({})),
+            fetch(`https://api.trongrid.io/v1/accounts/${USDT_ADDR}?only_confirmed=true`).then(r => r.json()).catch(() => ({})),
+            fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,litecoin,tether&vs_currencies=usd').then(r => r.json()).catch(() => ({}))
+        ])
+        const btcBal = (btcRes?.data?.[BTC_ADDR]?.balance ?? 0) / 1e8
+        const ltcBal = (ltcRes?.data?.[LTC_ADDR]?.balance ?? 0) / 1e8
+        let usdtBal = 0
+        const tokens = usdtRes?.data?.[0]?.trc20 ?? []
+        for (const t of tokens) {
+            if (t[USDT_CONTRACT]) { usdtBal = Number(t[USDT_CONTRACT]) / 1e6; break }
+        }
+        const btcPrice = priceRes?.bitcoin?.usd ?? 0
+        const ltcPrice = priceRes?.litecoin?.usd ?? 0
+        cryptoBtcUsd.value = btcBal * btcPrice
+        cryptoLtcUsd.value = ltcBal * ltcPrice
+        cryptoUsdtUsd.value = usdtBal
+        cryptoTotal.value = cryptoBtcUsd.value + cryptoLtcUsd.value + cryptoUsdtUsd.value
+    } catch { /* ignore */ } finally {
+        cryptoLoading.value = false
+    }
+}
 
 function showToast(message: string, isSuccess = true) {
     toast.value = message
@@ -416,6 +504,11 @@ async function loadDashboardSettings() {
     } catch { /* ignore */ }
 
     await load4KCuration()
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'donation_raised').single()
+        if (data?.value) donationRaised.value = Number(data.value)
+    } catch { /* ignore */ }
 }
 
 async function handleSaveSettings() {
@@ -507,6 +600,40 @@ async function handleSave4K() {
         showToast('Failed to save 4K curation in Supabase', false)
     } finally {
         save4kLoading.value = false
+    }
+}
+
+// ── Donation Functions ──────────────────────────────────────────────────────────
+async function handleSaveDonations() {
+    donationLoading.value = true
+    const client = supabase || await getSupabaseClient()
+    try {
+        await client.from('app_settings').upsert({ key: 'donation_raised', value: String(donationRaised.value), updated_at: new Date() }, { onConflict: 'key' })
+        showToast('Donation amount saved!')
+    } catch {
+        showToast('Failed to save donation amount', false)
+    } finally {
+        donationLoading.value = false
+    }
+}
+
+async function handleDonationNotif() {
+    donationNotifLoading.value = true
+    const client = supabase || await getSupabaseClient()
+    try {
+        const amount = cryptoTotal.value > 0 ? `$${cryptoTotal.value.toFixed(2)}` : 'a donation'
+        await client.from('notifications').insert({
+            title: `❤️ Someone just donated ${amount}!`,
+            message: 'Thank you for keeping this thing running. 💛',
+            type: 'success',
+            created_by: 'admin',
+            created_at: new Date().toISOString()
+        })
+        showToast('Donation notification sent!')
+    } catch {
+        showToast('Failed to send notification', false)
+    } finally {
+        donationNotifLoading.value = false
     }
 }
 
@@ -698,6 +825,10 @@ onMounted(() => {
         loadBannerSettings()
         loadExistingPolls()
     })
+})
+
+watch(activeTab, (tab) => {
+    if (tab === 'donations') void refreshCryptoBalance()
 })
 </script>
 
@@ -1091,4 +1222,42 @@ onMounted(() => {
 .admin-page__toast.is-show { transform: translateY(0); opacity: 1; }
 .admin-page__toast.is-success { border-left: 4px solid #6ba368; }
 .admin-page__toast.is-error { border-left: 4px solid #c94e3d; }
+
+.admin-page__balance-card {
+    background: rgba(19, 17, 14, 0.7);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.admin-page__balance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
+    color: #c4bda8;
+}
+
+.admin-page__balance-row--total {
+    border-top: 1px solid rgba(245, 239, 228, 0.1);
+    margin-top: 0.4rem;
+    padding-top: 0.6rem;
+    font-weight: 700;
+    color: #ff5a1f;
+    font-size: 1rem;
+}
+
+.admin-page__btn--donation {
+    margin-top: 1rem;
+    width: 100%;
+    background: #ff5a1f;
+    color: #fff;
+    border: none;
+}
+
+.admin-page__btn--donation:hover:not(:disabled) {
+    background: #e04e1a;
+}
 </style>

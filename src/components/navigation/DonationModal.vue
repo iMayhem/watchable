@@ -15,6 +15,13 @@
                     I can survive on a $1 instant noodle... but the server can't. Even a few bucks helps me keep this thing running on a decent VPS. 🍜
                 </p>
 
+                <p class="donation-modal__goal">
+                    <span class="donation-modal__goal-text">${{ raised.toFixed(2) }} raised out of $30</span>
+                    <span class="donation-modal__goal-bar">
+                        <span class="donation-modal__goal-fill" :style="{ width: Math.min((raised / 30) * 100, 100) + '%' }" />
+                    </span>
+                </p>
+
                 <div class="donation-modal__addresses">
                     <div class="donation-modal__row donation-modal__row--featured">
                         <div class="donation-modal__row-head">
@@ -88,8 +95,9 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, onMounted } from 'vue';
 import { useToast } from '../../composables/useToast';
+import { useCryptoBalance } from '../../composables/useCryptoBalance';
 
 const ADDRESSES: Record<string, string> = {
     usdt: 'TKfaywHdffM1iYdiSP3xFPajxgXwq2jmDG',
@@ -116,6 +124,8 @@ export default defineComponent({
         const { addToast } = useToast();
         const copied = ref<string | null>(null);
         const qrId = ref<string | null>(null);
+        const { totalUsd, loading: balanceLoading, refreshBalances } = useCryptoBalance();
+        const raised = totalUsd;
         const qrLabels: Record<string, string> = {
             usdt: 'USDT (TRC20 / TRON)',
             btc: 'Bitcoin (BTC)',
@@ -129,6 +139,10 @@ export default defineComponent({
         const showQr = (id: string) => {
             qrId.value = id;
         };
+
+        onMounted(() => {
+            void refreshBalances();
+        });
 
         const copy = async (id: string) => {
             try {
@@ -160,6 +174,8 @@ export default defineComponent({
             copied,
             qrId,
             qrLabels,
+            raised,
+            balanceLoading,
             close,
             showQr,
             copy
@@ -246,8 +262,39 @@ export default defineComponent({
     font-size: var(--fs-sm);
     color: var(--bone-100);
     line-height: var(--lh-base);
-    margin: 0 0 var(--s-3);
+    margin: 0 0 var(--s-2);
     font-weight: 500;
+}
+
+.donation-modal__goal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-1);
+    margin: 0 0 var(--s-3);
+    text-align: center;
+}
+
+.donation-modal__goal-text {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--ember);
+}
+
+.donation-modal__goal-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--ink-600);
+    border-radius: var(--r-pill);
+    overflow: hidden;
+}
+
+.donation-modal__goal-fill {
+    display: block;
+    height: 100%;
+    background: var(--ember);
+    border-radius: var(--r-pill);
+    transition: width 0.4s ease;
 }
 
 .donation-modal__desc {

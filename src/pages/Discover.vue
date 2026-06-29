@@ -121,7 +121,7 @@
             </button>
 
             <section class="discover-page__results">
-                <div v-if="isLoading && !results.length" class="discover-page__grid">
+                <div v-if="!results.length" class="discover-page__grid">
                     <PosterCard
                         v-for="n in 20"
                         :key="n"
@@ -300,7 +300,7 @@ export default defineComponent({
         const router = useRouter();
         const activeCategory = ref((router.currentRoute.value.query.category as string) || 'highest-grossing');
         const results = ref<MovieResult[]>([]);
-        const isLoading = ref(false);
+        const isLoading = ref(true);
         const isLoadingMore = ref(false);
         const page = ref(1);
         const totalPages = ref(1);

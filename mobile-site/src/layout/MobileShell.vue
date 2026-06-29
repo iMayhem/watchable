@@ -13,6 +13,13 @@
                 @touchend="onTouchEnd"
                 @click="expandActions"
             >
+                <button
+                    type="button"
+                    class="m-app__support-btn"
+                    @click="isDonationOpen = true"
+                >
+                    Support
+                </button>
                 <NotificationBell :compact="isCompact" />
                 <router-link :to="search" class="m-app__icon-btn" aria-label="Search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -20,46 +27,61 @@
                         <path d="m20 20-3.5-3.5" />
                     </svg>
                 </router-link>
-                <router-link :to="watchlist" class="m-app__icon-btn" aria-label="Watchlist">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                        <path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                    </svg>
-                </router-link>
-                <button
-                    type="button"
-                    class="m-app__icon-btn"
-                    aria-label="Regional settings"
-                    title="Regional settings"
-                    @click="isSettingsOpen = true"
-                >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M2 12h20" />
-                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                    </svg>
-                </button>
-                <button
-                    v-if="currentUser"
-                    type="button"
-                    class="m-app__user-btn"
-                    title="Sign out"
-                    @click="handleLogout"
-                >
-                    <span class="m-app__user-label">{{ currentUser }}</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                        <polyline points="16 17 21 12 16 7" />
-                        <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                </button>
-                <button
-                    v-else
-                    type="button"
-                    class="m-app__signin-btn"
-                    @click="isAuthOpen = true"
-                >
-                    Sign In
-                </button>
+                <div ref="moreMenuRef" class="m-app__more-wrap">
+                    <button
+                        type="button"
+                        class="m-app__icon-btn m-app__more-btn"
+                        aria-label="More options"
+                        @click="moreOpen = !moreOpen"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" />
+                            <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                            <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
+                        </svg>
+                    </button>
+                    <div v-if="moreOpen" class="m-app__more-dropdown">
+                        <router-link :to="watchlist" class="m-app__more-item" @click="moreOpen = false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                            </svg>
+                            Watchlist
+                        </router-link>
+                        <button type="button" class="m-app__more-item" @click="isSettingsOpen = true; moreOpen = false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M2 12h20" />
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            </svg>
+                            Region
+                        </button>
+                        <button
+                            v-if="currentUser"
+                            type="button"
+                            class="m-app__more-item"
+                            @click="handleLogout; moreOpen = false"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                <polyline points="16 17 21 12 16 7" />
+                                <line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                            {{ currentUser }} (Sign out)
+                        </button>
+                        <button
+                            v-else
+                            type="button"
+                            class="m-app__more-item"
+                            @click="isAuthOpen = true; moreOpen = false"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                            </svg>
+                            Sign In
+                        </button>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -93,6 +115,7 @@
 
         <AuthModal :is-open="isAuthOpen" @close="closeAuth" />
         <SettingsModal :is-open="isSettingsOpen" @close="isSettingsOpen = false" />
+        <DonationModal :is-open="isDonationOpen" @close="isDonationOpen = false" />
     </div>
 </template>
 
@@ -102,6 +125,7 @@ import { useRoute } from 'vue-router';
 import { useAppPaths } from '@/composables/useAppPaths';
 import AuthModal from '@/components/navigation/AuthModal.vue';
 import SettingsModal from '@/components/navigation/SettingsModal.vue';
+import DonationModal from '@/components/navigation/DonationModal.vue';
 import NotificationBell from '../components/navigation/NotificationBell.vue';
 
 withDefaults(defineProps<{
@@ -117,7 +141,17 @@ const route = useRoute();
 
 const isAuthOpen = ref(false);
 const isSettingsOpen = ref(false);
+const isDonationOpen = ref(false);
 const currentUser = ref('');
+
+const moreOpen = ref(false);
+const moreMenuRef = ref<HTMLElement | null>(null);
+
+function onDocumentClick(e: MouseEvent) {
+    if (moreMenuRef.value && !moreMenuRef.value.contains(e.target as Node)) {
+        moreOpen.value = false;
+    }
+}
 
 // ── Swipe-to-compact header actions ─────────────────────────────────────────
 const isCompact = ref(false);
@@ -236,10 +270,16 @@ function onAuthChange() {
 onMounted(() => {
     syncUser();
     window.addEventListener('movora_auth_change', onAuthChange);
+    document.addEventListener('click', onDocumentClick);
+    if (!localStorage.getItem('moovie_donation_seen')) {
+        isDonationOpen.value = true;
+        localStorage.setItem('moovie_donation_seen', '1');
+    }
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener('movora_auth_change', onAuthChange);
+    document.removeEventListener('click', onDocumentClick);
 });
 </script>
 
@@ -301,8 +341,13 @@ onBeforeUnmount(() => {
         height: 2.25rem;
     }
 
+    &__header-actions.is-compact &__more-dropdown {
+        right: -1rem;
+    }
+
     &__header-actions.is-compact &__user-btn,
-    &__header-actions.is-compact &__signin-btn {
+    &__header-actions.is-compact &__signin-btn,
+    &__header-actions.is-compact &__support-btn {
         padding: 0 var(--s-2);
         min-height: 2.25rem;
         font-size: 0.65rem;
@@ -322,6 +367,25 @@ onBeforeUnmount(() => {
             width: 1.05rem;
             height: 1.05rem;
         }
+    }
+
+    &__support-btn {
+        min-height: 2.75rem;
+        padding: 0 var(--s-3);
+        border-radius: var(--r-pill);
+        border: 1px solid var(--ember);
+        background: rgba(255, 90, 31, 0.1);
+        color: var(--ember);
+        font-family: var(--font-ui);
+        font-size: 0.7rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background var(--dur-fast), border-color var(--dur-fast);
+    }
+
+    &__support-btn:hover {
+        background: rgba(255, 90, 31, 0.18);
+        border-color: var(--ember-600);
     }
 
     &__signin-btn {
@@ -449,6 +513,54 @@ onBeforeUnmount(() => {
         flex: 1;
         width: 100%;
         min-width: 0;
+    }
+
+    &__more-wrap {
+        position: relative;
+    }
+
+    &__more-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        z-index: 60;
+        min-width: 160px;
+        background: var(--ink-800);
+        border: 1px solid var(--rule-strong);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-lg);
+        padding: var(--s-1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    &__more-item {
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+        padding: var(--s-2) var(--s-3);
+        background: none;
+        border: none;
+        border-radius: var(--r-md);
+        color: var(--bone-200);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background var(--dur-fast), color var(--dur-fast);
+
+        svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+    }
+
+    &__more-item:hover {
+        background: var(--surface-tint);
+        color: var(--bone-50);
     }
 }
 </style>

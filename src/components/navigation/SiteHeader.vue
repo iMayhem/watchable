@@ -97,6 +97,15 @@
 
             <div class="site-header__actions">
                 <button
+                    v-if="!isNetflixMode"
+                    type="button"
+                    class="site-header__support-btn"
+                    @click="isDonationModalOpen = true"
+                >
+                    Support us
+                </button>
+
+                <button
                     type="button"
                     class="site-header__search"
                     aria-label="Search"
@@ -367,6 +376,7 @@
         <!-- Regional Settings Modal -->
         <SettingsModal :is-open="isSettingsModalOpen" @close="isSettingsModalOpen = false" />
         
+        <DonationModal :is-open="isDonationModalOpen" @close="isDonationModalOpen = false" />
 
     </header>
 </template>
@@ -386,6 +396,7 @@ import AuthModal from './AuthModal.vue';
 import SettingsModal from './SettingsModal.vue';
 import ExtensionPrompt from './ExtensionPrompt.vue';
 import NotificationBell from './NotificationBell.vue';
+import DonationModal from './DonationModal.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
 import { useOpeningSplash } from '../../composables/useOpeningSplash';
@@ -492,7 +503,7 @@ const primaryNav: NavItem[] = [
 
 export default defineComponent({
     name: 'SiteHeader',
-    components: { LmDrawer, AuthModal, SettingsModal, ExtensionPrompt, NotificationBell },
+    components: { LmDrawer, AuthModal, SettingsModal, ExtensionPrompt, NotificationBell, DonationModal },
     setup() {
         const route = useRoute();
         const router = useRouter();
@@ -520,6 +531,7 @@ export default defineComponent({
 
         const isAuthModalOpen = ref(false);
         const isSettingsModalOpen = ref(false);
+        const isDonationModalOpen = ref(false);
 
         const currentUser = ref<string | null>(null);
         const { unreadCount } = useNotifications();
@@ -792,6 +804,10 @@ export default defineComponent({
             updateCurrentUser();
             window.addEventListener('movora_auth_change', updateCurrentUser);
             document.addEventListener('click', handleClickOutside);
+            if (!localStorage.getItem('moovie_donation_seen')) {
+                isDonationModalOpen.value = true;
+                localStorage.setItem('moovie_donation_seen', '1');
+            }
         });
 
         watch(splashActive, (active, wasActive) => {
@@ -818,6 +834,7 @@ export default defineComponent({
             openFromDrawer,
             isAuthModalOpen,
             isSettingsModalOpen,
+            isDonationModalOpen,
 
             currentUser,
             handleLogout,
@@ -1694,6 +1711,28 @@ export default defineComponent({
             transform: rotate(180deg);
         }
     }
+}
+
+.site-header__support-btn {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 var(--s-3);
+    background: rgba(255, 90, 31, 0.1);
+    border: 1px solid var(--ember);
+    border-radius: var(--r-md);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--ember);
+    cursor: pointer;
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+    white-space: nowrap;
+}
+
+.site-header__support-btn:hover {
+    background: rgba(255, 90, 31, 0.18);
+    border-color: var(--ember-600);
 }
 
 @keyframes dropdown-fade-in {

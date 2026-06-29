@@ -6,6 +6,10 @@
 
         <span v-if="!isPartyEmbed" class="grain" aria-hidden="true" />
 
+        <BannerBar v-if="!isPartyEmbed" />
+
+        <PollPopup v-if="!isPartyEmbed" />
+
         <router-view v-if="isContentModeReady || isPartyEmbed" v-slot="{ Component, route }">
             <KeepAlive
                 :include="[
@@ -38,6 +42,8 @@ import { getSettings, loadGlobalSettings } from './composables/useSettings';
 import { getContentMode } from './composables/useContentMode';
 import ContentModeGate from './components/navigation/ContentModeGate.vue';
 import OpeningSplash from './components/navigation/OpeningSplash.vue';
+import BannerBar from './components/navigation/BannerBar.vue';
+import PollPopup from './components/navigation/PollPopup.vue';
 
 const route = useRoute();
 const isBareLayout = computed(() => Boolean(route.meta.bareLayout));

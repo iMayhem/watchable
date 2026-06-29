@@ -290,7 +290,7 @@ interface MovieResult {
     poster_path: string | null;
     vote_average: number;
     release_date: string;
-    type: 'movie' | 'tv';
+    type: 'movie' | 'tv' | 'anime';
 }
 
 export default defineComponent({
@@ -498,13 +498,14 @@ export default defineComponent({
                             }
                         })
                     );
+                    const isCrunchyroll = cat.key === 'crunchyroll';
                     items = validTitles.map((t: WatchmodeTitle, i: number) => ({
                         id: t.tmdb_id || t.id,
                         title: t.title,
                         poster_path: posterPaths[i],
                         vote_average: t.rating || 0,
                         release_date: t.year ? String(t.year) : '',
-                        type: t.type === 'movie' ? 'movie' : 'tv'
+                        type: isCrunchyroll ? 'anime' : (t.type === 'movie' ? 'movie' as const : 'tv' as const)
                     }));
                     total = totalPages;
                 } else {

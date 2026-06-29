@@ -5,7 +5,15 @@
                 <span class="m-app__mark">moovie</span>
             </router-link>
 
-            <div class="m-app__header-actions">
+            <div
+                class="m-app__header-actions"
+                :class="{ 'is-compact': isCompact }"
+                @touchstart="onTouchStart"
+                @touchmove="onTouchMove"
+                @touchend="onTouchEnd"
+                @click="expandActions"
+            >
+                <NotificationBell :compact="isCompact" />
                 <router-link :to="search" class="m-app__icon-btn" aria-label="Search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <circle cx="11" cy="11" r="7" />
@@ -94,6 +102,7 @@ import { useRoute } from 'vue-router';
 import { useAppPaths } from '@/composables/useAppPaths';
 import AuthModal from '@/components/navigation/AuthModal.vue';
 import SettingsModal from '@/components/navigation/SettingsModal.vue';
+import NotificationBell from '../components/navigation/NotificationBell.vue';
 
 withDefaults(defineProps<{
     immersive?: boolean;
@@ -109,6 +118,36 @@ const route = useRoute();
 const isAuthOpen = ref(false);
 const isSettingsOpen = ref(false);
 const currentUser = ref('');
+
+// ── Swipe-to-compact header actions ─────────────────────────────────────────
+const isCompact = ref(false);
+let touchStartX = 0;
+let compactTimer: ReturnType<typeof setTimeout> | null = null;
+
+function onTouchStart(e: TouchEvent) {
+    touchStartX = e.touches[0].clientX;
+}
+
+function onTouchMove(e: TouchEvent) {
+    if (isCompact.value) return;
+    const deltaX = e.touches[0].clientX - touchStartX;
+    if (deltaX > 30) {
+        isCompact.value = true;
+    }
+}
+
+function onTouchEnd() {
+    if (isCompact.value) {
+        compactTimer = setTimeout(() => {
+            isCompact.value = false;
+        }, 2500);
+    }
+}
+
+function expandActions() {
+    if (compactTimer) clearTimeout(compactTimer);
+    isCompact.value = false;
+}
 
 const iconHome = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
@@ -250,6 +289,23 @@ onBeforeUnmount(() => {
         align-items: center;
         gap: var(--s-1);
         flex-shrink: 0;
+        transition: gap 0.25s ease;
+    }
+
+    &__header-actions.is-compact {
+        gap: 2px;
+    }
+
+    &__header-actions.is-compact &__icon-btn {
+        width: 2.25rem;
+        height: 2.25rem;
+    }
+
+    &__header-actions.is-compact &__user-btn,
+    &__header-actions.is-compact &__signin-btn {
+        padding: 0 var(--s-2);
+        min-height: 2.25rem;
+        font-size: 0.65rem;
     }
 
     &__icon-btn {

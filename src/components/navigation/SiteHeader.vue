@@ -109,6 +109,8 @@
                     </svg>
                 </button>
 
+                <NotificationBell v-if="!isNetflixMode" />
+
                 <ExtensionPrompt v-if="isNetflixMode" />
 
                 <button
@@ -317,6 +319,18 @@
                         <span class="site-header__drawer-label">Search</span>
                     </button>
 
+                    <button
+                        type="button"
+                        class="site-header__drawer-link"
+                        @click="openPalette"
+                    >
+                        <span class="eyebrow site-header__drawer-num">🔔</span>
+                        <span class="site-header__drawer-label">
+                            Notifications
+                            <span v-if="unreadCount > 0" class="site-header__drawer-badge">{{ unreadCount }}</span>
+                        </span>
+                    </button>
+
                     <router-link to="/party" class="site-header__drawer-link" :class="{ 'is-active': isPartyRoute }" @click="drawerOpen = false">
                         <span class="eyebrow site-header__drawer-num">✦</span>
                         <span class="site-header__drawer-label">Together</span>
@@ -371,6 +385,7 @@ import LmDrawer from '../primitives/Drawer.vue';
 import AuthModal from './AuthModal.vue';
 import SettingsModal from './SettingsModal.vue';
 import ExtensionPrompt from './ExtensionPrompt.vue';
+import NotificationBell from './NotificationBell.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
 import { useOpeningSplash } from '../../composables/useOpeningSplash';
@@ -387,6 +402,7 @@ import { prefetchNetflixBrowseRoute } from '../../composables/useNetflixBrowsePr
 import { prefetchPopularActors } from '../../composables/useActorsPrefetch';
 import { prefetchDiscussFeed } from '../../composables/useDiscussPrefetch';
 import { nfDebug } from '../../composables/useNetflixDebug';
+import { useNotifications } from '../../composables/useNotifications';
 import {
     NETFLIX_ANIMATED_EXPLORE_PATH,
     NETFLIX_MOVIE_EXPLORE_PATH,
@@ -476,7 +492,7 @@ const primaryNav: NavItem[] = [
 
 export default defineComponent({
     name: 'SiteHeader',
-    components: { LmDrawer, AuthModal, SettingsModal, ExtensionPrompt },
+    components: { LmDrawer, AuthModal, SettingsModal, ExtensionPrompt, NotificationBell },
     setup() {
         const route = useRoute();
         const router = useRouter();
@@ -506,6 +522,7 @@ export default defineComponent({
         const isSettingsModalOpen = ref(false);
 
         const currentUser = ref<string | null>(null);
+        const { unreadCount } = useNotifications();
 
         const updateCurrentUser = () => {
             currentUser.value = getCurrentUser();
@@ -832,7 +849,9 @@ export default defineComponent({
             navigateToMovies,
             navigateNetflixNav,
             prefetchNetflixNav,
-            prefetchPrimaryNav
+            prefetchPrimaryNav,
+
+            unreadCount
         };
     }
 });
@@ -1169,6 +1188,21 @@ export default defineComponent({
 
     &__drawer-search {
         color: var(--bone-50);
+    }
+
+    &__drawer-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        background: var(--ember);
+        color: var(--ink-950);
+        font-size: 0.65rem;
+        font-weight: 800;
+        border-radius: 10px;
+        line-height: 1;
     }
 
     &__party-btn {

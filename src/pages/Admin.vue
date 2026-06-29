@@ -27,61 +27,91 @@
             </section>
 
             <section v-else class="admin-page__view">
-                <h1 class="admin-page__title">Site Settings</h1>
-                <p class="admin-page__subtitle">Update default videoplayer instantly without rebuilding.</p>
-
-                <form @submit.prevent="handleSaveSettings">
-                    <div class="admin-page__field">
-                        <label class="admin-page__label" for="default-provider">Default Stream Player</label>
-                        <select id="default-provider" v-model="settings.defaultProvider" class="admin-page__select">
-                            <option value="rasmalai">Rasmalai (sweet server)</option>
-                            <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
-                            <option value="smashy">Jalebi (SmashyStream)</option>
-                            <option value="mappletv">Kaju Katli (MappleTV)</option>
-                            <option value="vidking">Kheer (VidKing)</option>
-                            <option value="videasy">Barfi (VidEasy)</option>
-                            <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
-                            <option value="vidsrc_su">Peda (VidSrc.su)</option>
-                            <option value="vidsrcme">Gajar Ka Halwa (VidSrcMe)</option>
-                            <option value="multiembed">Soan Papdi (MultiEmbed)</option>
-                            <option value="vsrc">Sandesh (vsrc.su)</option>
-                            <option value="vidlink">Cham Cham (VidLink)</option>
-                            <option value="autoembed">Kulfi (AutoEmbed)</option>
-                            <option value="vidfast">Mysore Pak (VidFast)</option>
-                            <option value="movies111">Imarti (111Movies)</option>
-                            <option value="vidora">Ghevar (Vidora)</option>
-                            <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
-                        </select>
+                <div class="admin-page__header">
+                    <h1 class="admin-page__title">Admin</h1>
+                    <p class="admin-page__subtitle">Configure your site settings, send notifications, manage banners and polls.</p>
+                    <div class="admin-page__tabs">
+                        <button
+                            v-for="tab in tabs"
+                            :key="tab.key"
+                            type="button"
+                            class="admin-page__tab"
+                            :class="{ 'is-active': activeTab === tab.key }"
+                            @click="activeTab = tab.key"
+                        >
+                            <span class="admin-page__tab-icon">{{ tab.icon }}</span>
+                            <span class="admin-page__tab-label">{{ tab.label }}</span>
+                        </button>
                     </div>
+                </div>
 
-                    <div class="admin-page__field">
-                        <label class="admin-page__label" for="tmdb-quality">TMDB Image Quality</label>
-                        <select id="tmdb-quality" v-model="settings.tmdbQuality" class="admin-page__select">
-                            <option value="low">Low - faster, smaller poster and backdrop images</option>
-                            <option value="medium">Medium - balanced image quality</option>
-                            <option value="high">High - sharpest images, heavier bandwidth</option>
-                        </select>
+                <!-- ── Settings Tab ─────────────────────────────────────── -->
+                <div v-if="activeTab === 'settings'" class="admin-page__tab-content">
+                    <h2 class="admin-page__section-title">Settings</h2>
+                    <form @submit.prevent="handleSaveSettings">
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="default-provider">Default Stream Player</label>
+                            <select id="default-provider" v-model="settings.defaultProvider" class="admin-page__select">
+                                <option value="rasmalai">Rasmalai (sweet server)</option>
+                                <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
+                                <option value="smashy">Jalebi (SmashyStream)</option>
+                                <option value="mappletv">Kaju Katli (MappleTV)</option>
+                                <option value="vidking">Kheer (VidKing)</option>
+                                <option value="videasy">Barfi (VidEasy)</option>
+                                <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
+                                <option value="vidsrc_su">Peda (VidSrc.su)</option>
+                                <option value="vidsrcme">Gajar Ka Halwa (VidSrcMe)</option>
+                                <option value="multiembed">Soan Papdi (MultiEmbed)</option>
+                                <option value="vsrc">Sandesh (vsrc.su)</option>
+                                <option value="vidlink">Cham Cham (VidLink)</option>
+                                <option value="autoembed">Kulfi (AutoEmbed)</option>
+                                <option value="vidfast">Mysore Pak (VidFast)</option>
+                                <option value="movies111">Imarti (111Movies)</option>
+                                <option value="vidora">Ghevar (Vidora)</option>
+                                <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
+                            </select>
+                        </div>
+
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="tmdb-quality">TMDB Image Quality</label>
+                            <select id="tmdb-quality" v-model="settings.tmdbQuality" class="admin-page__select">
+                                <option value="low">Low - faster, smaller poster and backdrop images</option>
+                                <option value="medium">Medium - balanced image quality</option>
+                                <option value="high">High - sharpest images, heavier bandwidth</option>
+                            </select>
+                        </div>
+
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">Groq API Keys (3 Slots for Auto-Failover)</label>
+                            <input v-model="settings.groqKeys[0]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 1">
+                            <input v-model="settings.groqKeys[1]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 2">
+                            <input v-model="settings.groqKeys[2]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 3">
+                            <p class="admin-page__hint">Enter up to 3 keys. If key 1 hits rate limits or quota issues, the recommendation engine will failover to key 2, then key 3 automatically.</p>
+                        </div>
+
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="new-passcode">Change Passcode (Optional)</label>
+                            <input id="new-passcode" v-model="newPasscode" type="password" class="admin-page__input" placeholder="Enter new passcode to update">
+                        </div>
+
+                        <button type="submit" class="admin-page__btn" :disabled="saveLoading">
+                            <span>{{ saveLoading ? 'Saving...' : 'Save Changes' }}</span>
+                        </button>
+                    </form>
+
+                    <div class="admin-page__server-grid" style="margin-top: 2rem;">
+                        <div class="admin-page__server-row"><strong>ID</strong><strong>Sweet Name</strong></div>
+                        <div class="admin-page__server-row"><span>rasmalai</span><span>Rasmalai</span></div>
+                        <div class="admin-page__server-row"><span>cinemaos</span><span>Gulab Jamun</span></div>
+                        <div class="admin-page__server-row"><span>smashy</span><span>Jalebi</span></div>
+                        <div class="admin-page__server-row"><span>videasy</span><span>Barfi</span></div>
+                        <div class="admin-page__server-row"><span>vidlink</span><span>Cham Cham</span></div>
+                        <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
                     </div>
+                </div>
 
-                    <div class="admin-page__field">
-                        <label class="admin-page__label">Groq API Keys (3 Slots for Auto-Failover)</label>
-                        <input v-model="settings.groqKeys[0]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 1">
-                        <input v-model="settings.groqKeys[1]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 2">
-                        <input v-model="settings.groqKeys[2]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 3">
-                        <p class="admin-page__hint">Enter up to 3 keys. If key 1 hits rate limits or quota issues, the recommendation engine will failover to key 2, then key 3 automatically.</p>
-                    </div>
-
-                    <div class="admin-page__field">
-                        <label class="admin-page__label" for="new-passcode">Change Passcode (Optional)</label>
-                        <input id="new-passcode" v-model="newPasscode" type="password" class="admin-page__input" placeholder="Enter new passcode to update">
-                    </div>
-
-                    <button type="submit" class="admin-page__btn" :disabled="saveLoading">
-                        <span>{{ saveLoading ? 'Saving...' : 'Save Changes' }}</span>
-                    </button>
-                </form>
-
-                <div class="admin-page__curation">
+                <!-- ── 4K Curation Tab ──────────────────────────────────── -->
+                <div v-if="activeTab === '4k'" class="admin-page__tab-content">
                     <h2 class="admin-page__section-title">
                         4K Selection Curation
                         <span class="admin-page__curation-count">({{ selectedMovies.length }}/10)</span>
@@ -129,14 +159,136 @@
                     </button>
                 </div>
 
-                <div class="admin-page__server-grid">
-                    <div class="admin-page__server-row"><strong>ID</strong><strong>Sweet Name</strong></div>
-                    <div class="admin-page__server-row"><span>rasmalai</span><span>Rasmalai</span></div>
-                    <div class="admin-page__server-row"><span>cinemaos</span><span>Gulab Jamun</span></div>
-                    <div class="admin-page__server-row"><span>smashy</span><span>Jalebi</span></div>
-                    <div class="admin-page__server-row"><span>videasy</span><span>Barfi</span></div>
-                    <div class="admin-page__server-row"><span>vidlink</span><span>Cham Cham</span></div>
-                    <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
+                <!-- ── Notifications Tab ────────────────────────────────── -->
+                <div v-if="activeTab === 'notifications'" class="admin-page__tab-content">
+                    <h2 class="admin-page__section-title">Send Notification</h2>
+                    <form @submit.prevent="handleSendNotification">
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="notif-title">Title</label>
+                            <input id="notif-title" v-model="notifTitle" type="text" class="admin-page__input" placeholder="Notification title" required>
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="notif-message">Message (optional)</label>
+                            <textarea id="notif-message" v-model="notifMessage" class="admin-page__input admin-page__textarea" placeholder="Notification message" rows="2"></textarea>
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="notif-type">Type</label>
+                            <select id="notif-type" v-model="notifType" class="admin-page__select">
+                                <option value="info">Info</option>
+                                <option value="success">Success</option>
+                                <option value="warning">Warning</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="admin-page__btn" :disabled="notifLoading">
+                            <span>{{ notifLoading ? 'Sending...' : 'Send to All Users' }}</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- ── Banner Tab ───────────────────────────────────────── -->
+                <div v-if="activeTab === 'banner'" class="admin-page__tab-content">
+                    <h2 class="admin-page__section-title">Banner</h2>
+                    <form @submit.prevent="handleSaveBanner">
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="banner-message">Message</label>
+                            <textarea id="banner-message" v-model="bannerMessage" class="admin-page__input admin-page__textarea" placeholder="Banner text (leave empty to hide)" rows="2"></textarea>
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="banner-link">Link (optional)</label>
+                            <input id="banner-link" v-model="bannerLink" type="url" class="admin-page__input" placeholder="https://...">
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="banner-bg">Background Color</label>
+                            <input id="banner-bg" v-model="bannerBgColor" type="text" class="admin-page__input" placeholder="#ff5a1f">
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="banner-text-color">Text Color</label>
+                            <input id="banner-text-color" v-model="bannerTextColor" type="text" class="admin-page__input" placeholder="#ffffff">
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">
+                                <input v-model="bannerActive" type="checkbox" style="margin-right: 0.5rem;">
+                                Active
+                            </label>
+                        </div>
+                        <button type="submit" class="admin-page__btn" :disabled="bannerLoading">
+                            <span>{{ bannerLoading ? 'Saving...' : 'Save Banner' }}</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- ── Polls Tab ────────────────────────────────────────── -->
+                <div v-if="activeTab === 'polls'" class="admin-page__tab-content">
+                    <h2 class="admin-page__section-title">Polls</h2>
+
+                    <h3 class="admin-page__subsection-title">Create Poll</h3>
+                    <form @submit.prevent="handleCreatePoll">
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="poll-question">Question</label>
+                            <input id="poll-question" v-model="pollQuestion" type="text" class="admin-page__input" placeholder="Should we put ads on the site?" required>
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">Options (one per line)</label>
+                            <textarea v-model="pollOptionsText" class="admin-page__input admin-page__textarea" placeholder="Yes&#10;No&#10;Maybe" rows="3" required></textarea>
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">
+                                <input v-model="pollActive" type="checkbox" style="margin-right: 0.5rem;">
+                                Activate immediately
+                            </label>
+                        </div>
+                        <button type="submit" class="admin-page__btn" :disabled="pollLoading">
+                            <span>{{ pollLoading ? 'Creating...' : 'Create Poll' }}</span>
+                        </button>
+                    </form>
+
+                    <h3 class="admin-page__subsection-title" style="margin-top: 2rem;">Existing Polls &amp; Results</h3>
+                    <div v-if="existingPolls.length === 0" class="admin-page__empty">No polls created yet</div>
+                    <div v-for="poll in existingPolls" :key="poll.id" class="admin-page__poll-card">
+                        <div class="admin-page__poll-card-header">
+                            <span class="admin-page__poll-question">{{ poll.question }}</span>
+                            <span class="admin-page__poll-status" :class="{ 'is-active': poll.is_active }">
+                                {{ poll.is_active ? 'Active' : 'Inactive' }}
+                            </span>
+                        </div>
+                        <div v-if="pollResultsMap[poll.id]" class="admin-page__poll-results">
+                            <div v-for="(r, i) in pollResultsMap[poll.id]" :key="i" class="admin-page__poll-result-row">
+                                <div class="admin-page__poll-result-label">
+                                    <span>{{ r.option }}</span>
+                                    <span>{{ r.count }} votes ({{ r.percentage }}%)</span>
+                                </div>
+                                <div class="admin-page__poll-bar-bg">
+                                    <div class="admin-page__poll-bar-fill" :style="{ width: r.percentage + '%' }" />
+                                </div>
+                            </div>
+                            <div class="admin-page__poll-total">{{ pollVoteCounts[poll.id] || 0 }} total votes</div>
+                        </div>
+                        <div v-else class="admin-page__empty">Loading results...</div>
+                        <div class="admin-page__poll-actions">
+                            <button
+                                type="button"
+                                class="admin-page__btn admin-page__btn--sm"
+                                @click="handleTogglePoll(poll)"
+                            >
+                                {{ poll.is_active ? 'Deactivate' : 'Activate' }}
+                            </button>
+                            <button
+                                type="button"
+                                class="admin-page__btn admin-page__btn--sm"
+                                @click="handleNotifyPoll(poll)"
+                            >
+                                Notify All
+                            </button>
+                            <button
+                                type="button"
+                                class="admin-page__btn admin-page__btn--sm admin-page__btn--danger"
+                                @click="handleDeletePoll(poll)"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -172,6 +324,29 @@ const settings = reactive({
     tmdbQuality: 'medium',
     groqKeys: ['', '', '']
 })
+
+// ── Notifications ──────────────────────────────────────────────────────────────
+const notifTitle = ref('')
+const notifMessage = ref('')
+const notifType = ref('info')
+const notifLoading = ref(false)
+
+// ── Banner ─────────────────────────────────────────────────────────────────────
+const bannerMessage = ref('')
+const bannerLink = ref('')
+const bannerBgColor = ref('#ff5a1f')
+const bannerTextColor = ref('#ffffff')
+const bannerActive = ref(false)
+const bannerLoading = ref(false)
+
+// ── Polls ──────────────────────────────────────────────────────────────────────
+const pollQuestion = ref('')
+const pollOptionsText = ref('')
+const pollActive = ref(false)
+const pollLoading = ref(false)
+const existingPolls = ref<any[]>([])
+const pollResultsMap = ref<Record<number, any[]>>({})
+const pollVoteCounts = ref<Record<number, number>>({})
 
 function showToast(message: string, isSuccess = true) {
     toast.value = message
@@ -326,8 +501,194 @@ async function handleSave4K() {
     }
 }
 
+// ── Notification Functions ─────────────────────────────────────────────────────
+async function handleSendNotification() {
+    if (!notifTitle.value.trim()) return
+    notifLoading.value = true
+    const client = supabase || await getSupabaseClient()
+    try {
+        await client.from('notifications').insert({
+            title: notifTitle.value.trim(),
+            message: notifMessage.value.trim(),
+            type: notifType.value,
+            created_by: 'admin',
+            created_at: new Date().toISOString()
+        })
+        showToast('Notification sent to all users!')
+        notifTitle.value = ''
+        notifMessage.value = ''
+        notifType.value = 'info'
+    } catch {
+        showToast('Failed to send notification', false)
+    } finally {
+        notifLoading.value = false
+    }
+}
+
+// ── Banner Functions ───────────────────────────────────────────────────────────
+async function loadBannerSettings() {
+    const client = supabase || await getSupabaseClient()
+    try {
+        const { data } = await client.from('banners').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle()
+        if (data) {
+            bannerMessage.value = data.message || ''
+            bannerLink.value = data.link || ''
+            bannerBgColor.value = data.bg_color || '#ff5a1f'
+            bannerTextColor.value = data.text_color || '#ffffff'
+            bannerActive.value = data.is_active || false
+        }
+    } catch { /* ignore */ }
+}
+
+async function handleSaveBanner() {
+    bannerLoading.value = true
+    const client = supabase || await getSupabaseClient()
+    try {
+        const { data: existing } = await client.from('banners').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
+        const payload = {
+            message: bannerMessage.value.trim(),
+            link: bannerLink.value.trim(),
+            bg_color: bannerBgColor.value || '#ff5a1f',
+            text_color: bannerTextColor.value || '#ffffff',
+            is_active: bannerActive.value,
+            updated_at: new Date().toISOString()
+        }
+        if (existing) {
+            await client.from('banners').update(payload).eq('id', existing.id)
+        } else {
+            await client.from('banners').insert({
+                ...payload,
+                created_at: new Date().toISOString()
+            })
+        }
+        showToast('Banner saved!')
+    } catch {
+        showToast('Failed to save banner', false)
+    } finally {
+        bannerLoading.value = false
+    }
+}
+
+// ── Poll Functions ─────────────────────────────────────────────────────────────
+async function loadExistingPolls() {
+    const client = supabase || await getSupabaseClient()
+    try {
+        const { data } = await client.from('polls').select('*').order('created_at', { ascending: false })
+        existingPolls.value = (data || []).map((p: any) => ({
+            ...p,
+            options: typeof p.options === 'string' ? JSON.parse(p.options) : p.options
+        }))
+        for (const poll of existingPolls.value) {
+            await loadPollResults(poll.id)
+        }
+    } catch { /* ignore */ }
+}
+
+async function loadPollResults(pollId: number) {
+    const client = supabase || await getSupabaseClient()
+    try {
+        const { data: votes } = await client.from('poll_votes').select('selected_option').eq('poll_id', pollId)
+        const poll = existingPolls.value.find((p: any) => p.id === pollId)
+        if (!poll) return
+
+        const total = votes?.length || 0
+        pollVoteCounts.value[pollId] = total
+
+        if (poll.options && Array.isArray(poll.options)) {
+            const counts = new Array(poll.options.length).fill(0)
+            votes?.forEach((v: any) => {
+                if (v.selected_option >= 0 && v.selected_option < poll.options.length) {
+                    counts[v.selected_option]++
+                }
+            })
+            pollResultsMap.value[pollId] = poll.options.map((opt: string, i: number) => ({
+                option: opt,
+                count: counts[i],
+                percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
+            }))
+        }
+    } catch { /* ignore */ }
+}
+
+async function handleCreatePoll() {
+    if (!pollQuestion.value.trim() || !pollOptionsText.value.trim()) return
+    const options = pollOptionsText.value.split('\n').map((s: string) => s.trim()).filter(Boolean)
+    if (options.length < 2) {
+        showToast('Please provide at least 2 options', false)
+        return
+    }
+    pollLoading.value = true
+    const client = supabase || await getSupabaseClient()
+    try {
+        await client.from('polls').insert({
+            question: pollQuestion.value.trim(),
+            options: JSON.stringify(options),
+            is_active: pollActive.value,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        })
+        showToast('Poll created!')
+        pollQuestion.value = ''
+        pollOptionsText.value = ''
+        pollActive.value = false
+        await loadExistingPolls()
+    } catch {
+        showToast('Failed to create poll', false)
+    } finally {
+        pollLoading.value = false
+    }
+}
+
+async function handleTogglePoll(poll: any) {
+    const client = supabase || await getSupabaseClient()
+    try {
+        const newActive = !poll.is_active
+        if (newActive) {
+            await client.from('polls').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', poll.id)
+        }
+        await client.from('polls').update({ is_active: newActive, updated_at: new Date().toISOString() }).eq('id', poll.id)
+        poll.is_active = newActive
+        showToast(`Poll ${newActive ? 'activated' : 'deactivated'}!`)
+    } catch {
+        showToast('Failed to update poll', false)
+    }
+}
+
+async function handleDeletePoll(poll: any) {
+    if (!confirm(`Delete poll "${poll.question}"?`)) return
+    const client = supabase || await getSupabaseClient()
+    try {
+        await client.from('poll_votes').delete().eq('poll_id', poll.id)
+        await client.from('polls').delete().eq('id', poll.id)
+        existingPolls.value = existingPolls.value.filter((p: any) => p.id !== poll.id)
+        showToast('Poll deleted!')
+    } catch {
+        showToast('Failed to delete poll', false)
+    }
+}
+
+async function handleNotifyPoll(poll: any) {
+    const client = supabase || await getSupabaseClient()
+    try {
+        await client.from('notifications').insert({
+            title: 'New Poll',
+            message: poll.question,
+            type: 'info',
+            created_at: new Date().toISOString(),
+            created_by: 'admin'
+        })
+        showToast('Notification sent to all users!')
+    } catch {
+        showToast('Failed to send notification', false)
+    }
+}
+
 onMounted(() => {
-    getSupabaseClient().then(client => { supabase = client })
+    getSupabaseClient().then(client => {
+        supabase = client
+        loadBannerSettings()
+        loadExistingPolls()
+    })
 })
 </script>
 
@@ -359,7 +720,7 @@ onMounted(() => {
 
 .admin-page__container {
     width: 100%;
-    max-width: 480px;
+    max-width: 640px;
     padding: 2.75rem;
     background: rgba(19, 17, 14, 0.7);
     backdrop-filter: blur(20px) saturate(180%);
@@ -590,6 +951,114 @@ onMounted(() => {
 .admin-page__server-row:last-child { border-bottom: none; }
 .admin-page__server-row strong { color: #e8e1d3; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; }
 .admin-page__server-row span:first-child { color: #ff5a1f; }
+
+.admin-page__section-divider {
+    height: 1px;
+    background: rgba(245, 239, 228, 0.08);
+    margin: 2rem 0;
+}
+
+.admin-page__textarea {
+    resize: vertical;
+    font-family: inherit;
+}
+
+.admin-page__subsection-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.15rem;
+    color: #c7bfb0;
+    margin-bottom: 1rem;
+    margin-top: 1rem;
+}
+
+.admin-page__btn--danger {
+    background: #8a2a1e;
+    color: #f5efe4;
+    box-shadow: none;
+}
+
+.admin-page__btn--danger:hover {
+    background: #a63a2e;
+}
+
+.admin-page__poll-card {
+    background: rgba(245, 239, 228, 0.03);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.admin-page__poll-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.admin-page__poll-question {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #e8e1d3;
+}
+
+.admin-page__poll-status {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(167, 159, 141, 0.15);
+    color: #a79f8d;
+}
+
+.admin-page__poll-status.is-active {
+    background: rgba(107, 163, 104, 0.15);
+    color: #6ba368;
+}
+
+.admin-page__poll-results {
+    margin-bottom: 0.75rem;
+}
+
+.admin-page__poll-result-row {
+    margin-bottom: 0.5rem;
+}
+
+.admin-page__poll-result-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #a79f8d;
+    margin-bottom: 2px;
+}
+
+.admin-page__poll-bar-bg {
+    height: 6px;
+    background: rgba(245, 239, 228, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.admin-page__poll-bar-fill {
+    height: 100%;
+    background: #ff5a1f;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.admin-page__poll-total {
+    font-size: 0.7rem;
+    color: #8a8270;
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+.admin-page__poll-actions {
+    display: flex;
+    gap: 0.5rem;
+}
 
 .admin-page__toast {
     position: fixed;

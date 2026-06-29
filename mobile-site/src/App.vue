@@ -6,6 +6,8 @@
 
         <span class="grain" aria-hidden="true" />
 
+        <PollPopup />
+
         <router-view v-slot="{ Component, route }">
             <component :is="Component" :key="getRouteKey(route)" />
         </router-view>
@@ -19,6 +21,7 @@
 import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
+import PollPopup from '@/components/navigation/PollPopup.vue';
 
 const route = useRoute();
 const isBareLayout = computed(() => Boolean(route.meta.bareLayout));

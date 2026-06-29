@@ -78,7 +78,7 @@
         /* Glassmorphic Container matching stream-frame style */
         .container {
             width: 100%;
-            max-width: 480px;
+            max-width: 640px;
             padding: 2.75rem;
             background: var(--bg-card);
             backdrop-filter: blur(20px) saturate(180%);
@@ -519,6 +519,88 @@
                 </button>
             </div>
 
+            <!-- NOTIFICATIONS SECTION -->
+            <div class="curation-section">
+                <h2 class="section-title">Send Notification</h2>
+                <form onsubmit="handleSendNotification(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="notif-title">Title</label>
+                        <input type="text" id="notif-title" class="form-input" placeholder="Notification title" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="notif-message">Message (optional)</label>
+                        <textarea id="notif-message" class="form-input" placeholder="Notification message" rows="2" style="resize: vertical; font-family: inherit;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="notif-type">Type</label>
+                        <select id="notif-type" class="form-select">
+                            <option value="info">Info</option>
+                            <option value="success">Success</option>
+                            <option value="warning">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn" id="notif-btn"><span>Send to All Users</span></button>
+                </form>
+            </div>
+
+            <!-- BANNER SECTION -->
+            <div class="curation-section">
+                <h2 class="section-title">Banner</h2>
+                <form onsubmit="handleSaveBanner(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="banner-message">Message</label>
+                        <textarea id="banner-message" class="form-input" placeholder="Banner text (leave empty to hide)" rows="2" style="resize: vertical; font-family: inherit;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="banner-link">Link (optional)</label>
+                        <input type="url" id="banner-link" class="form-input" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="banner-bg">Background Color</label>
+                        <input type="text" id="banner-bg" class="form-input" placeholder="#ff5a1f">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="banner-text-color">Text Color</label>
+                        <input type="text" id="banner-text-color" class="form-input" placeholder="#ffffff">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="banner-active" style="margin-right: 0.5rem;">
+                            Active
+                        </label>
+                    </div>
+                    <button type="submit" class="btn" id="banner-btn"><span>Save Banner</span></button>
+                </form>
+            </div>
+
+            <!-- POLLS SECTION -->
+            <div class="curation-section">
+                <h2 class="section-title">Polls</h2>
+                
+                <h3 style="font-family: var(--font-display); font-size: 1.15rem; color: #c7bfb0; margin-bottom: 1rem;">Create Poll</h3>
+                <form onsubmit="handleCreatePoll(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="poll-question">Question</label>
+                        <input type="text" id="poll-question" class="form-input" placeholder="Should we put ads on the site?" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="poll-options">Options (one per line)</label>
+                        <textarea id="poll-options" class="form-input" placeholder="Yes&#10;No&#10;Maybe" rows="3" style="resize: vertical; font-family: inherit;" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="poll-active" style="margin-right: 0.5rem;">
+                            Activate immediately
+                        </label>
+                    </div>
+                    <button type="submit" class="btn" id="poll-create-btn"><span>Create Poll</span></button>
+                </form>
+
+                <h3 style="font-family: var(--font-display); font-size: 1.15rem; color: #c7bfb0; margin-top: 2rem; margin-bottom: 1rem;">Existing Polls &amp; Results</h3>
+                <div id="existing-polls"></div>
+            </div>
+
             <div class="server-grid">
                 <div class="server-grid-item"><strong>ID</strong><strong>Sweet Name</strong></div>
                 <div class="server-grid-item"><span>rasmalai</span><span>Rasmalai</span></div>
@@ -658,6 +740,10 @@
             
             // Load 4K curation
             await load4KCuration();
+            
+            // Load banner & polls
+            loadBannerSettings();
+            loadExistingPolls();
         }
 
         // ==========================================
@@ -925,6 +1011,249 @@
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Save Changes';
+            }
+        }
+
+        // ==========================================
+        // NOTIFICATION FUNCTIONS
+        // ==========================================
+        async function handleSendNotification(event) {
+            event.preventDefault();
+            const title = document.getElementById('notif-title').value.trim();
+            if (!title) return;
+            const btn = document.getElementById('notif-btn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const { error } = await supabaseClient.from('notifications').insert({
+                    title,
+                    message: document.getElementById('notif-message').value.trim(),
+                    type: document.getElementById('notif-type').value,
+                    created_by: 'admin',
+                    created_at: new Date().toISOString()
+                });
+                if (error) throw error;
+                showToast('Notification sent to all users!');
+                document.getElementById('notif-title').value = '';
+                document.getElementById('notif-message').value = '';
+                document.getElementById('notif-type').value = 'info';
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to send notification', false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send to All Users';
+            }
+        }
+
+        // ==========================================
+        // BANNER FUNCTIONS
+        // ==========================================
+        async function loadBannerSettings() {
+            try {
+                const { data } = await supabaseClient.from('banners').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+                if (data) {
+                    document.getElementById('banner-message').value = data.message || '';
+                    document.getElementById('banner-link').value = data.link || '';
+                    document.getElementById('banner-bg').value = data.bg_color || '#ff5a1f';
+                    document.getElementById('banner-text-color').value = data.text_color || '#ffffff';
+                    document.getElementById('banner-active').checked = data.is_active || false;
+                }
+            } catch (err) { console.warn('Could not load banner:', err); }
+        }
+
+        async function handleSaveBanner(event) {
+            event.preventDefault();
+            const btn = document.getElementById('banner-btn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            try {
+                const { data: existing } = await supabaseClient.from('banners').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle();
+                const payload = {
+                    message: document.getElementById('banner-message').value.trim(),
+                    link: document.getElementById('banner-link').value.trim(),
+                    bg_color: document.getElementById('banner-bg').value || '#ff5a1f',
+                    text_color: document.getElementById('banner-text-color').value || '#ffffff',
+                    is_active: document.getElementById('banner-active').checked,
+                    updated_at: new Date().toISOString()
+                };
+                if (existing) {
+                    await supabaseClient.from('banners').update(payload).eq('id', existing.id);
+                } else {
+                    await supabaseClient.from('banners').insert({ ...payload, created_at: new Date().toISOString() });
+                }
+                showToast('Banner saved!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to save banner', false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save Banner';
+            }
+        }
+
+        // ==========================================
+        // POLL FUNCTIONS
+        // ==========================================
+        let existingPollsData = [];
+
+        async function loadExistingPolls() {
+            try {
+                const { data } = await supabaseClient.from('polls').select('*').order('created_at', { ascending: false });
+                existingPollsData = (data || []).map(p => ({
+                    ...p,
+                    options: typeof p.options === 'string' ? JSON.parse(p.options) : p.options
+                }));
+                renderExistingPolls();
+            } catch (err) { console.warn('Could not load polls:', err); }
+        }
+
+        async function loadPollResults(pollId) {
+            try {
+                const { data: votes } = await supabaseClient.from('poll_votes').select('selected_option').eq('poll_id', pollId);
+                const poll = existingPollsData.find(p => p.id === pollId);
+                if (!poll) return [];
+                const total = votes?.length || 0;
+                const counts = new Array(poll.options.length).fill(0);
+                votes?.forEach(v => {
+                    if (v.selected_option >= 0 && v.selected_option < poll.options.length) {
+                        counts[v.selected_option]++;
+                    }
+                });
+                return poll.options.map((opt, i) => ({
+                    option: opt,
+                    count: counts[i],
+                    percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
+                }));
+            } catch { return []; }
+        }
+
+        async function renderExistingPolls() {
+            const container = document.getElementById('existing-polls');
+            if (existingPollsData.length === 0) {
+                container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--bone-400); font-size: 0.9rem;">No polls created yet</div>';
+                return;
+            }
+            let html = '';
+            for (const poll of existingPollsData) {
+                const results = await loadPollResults(poll.id);
+                const totalVotes = results.reduce((sum, r) => sum + r.count, 0);
+                html += `
+                    <div style="background: rgba(245, 239, 228, 0.03); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <span style="font-weight: 600; font-size: 0.95rem; color: var(--bone-100);">${escapeHtml(poll.question)}</span>
+                            <span style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.2rem 0.5rem; border-radius: 4px; background: ${poll.is_active ? 'rgba(107, 163, 104, 0.15)' : 'rgba(167, 159, 141, 0.15)'}; color: ${poll.is_active ? 'var(--success)' : 'var(--bone-300)'};">${poll.is_active ? 'Active' : 'Inactive'}</span>
+                        </div>
+                        ${results.map(r => `
+                            <div style="margin-bottom: 0.5rem;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--bone-300); margin-bottom: 2px;">
+                                    <span>${escapeHtml(r.option)}</span>
+                                    <span>${r.count} (${r.percentage}%)</span>
+                                </div>
+                                <div style="height: 6px; background: rgba(245, 239, 228, 0.06); border-radius: 3px; overflow: hidden;">
+                                    <div style="height: 100%; background: var(--ember); border-radius: 3px; width: ${r.percentage}%;"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        <div style="text-align: center; font-size: 0.7rem; color: var(--bone-400); margin-top: 0.5rem;">${totalVotes} total votes</div>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                            <button type="button" class="btn btn-sm" onclick="handleTogglePoll(${poll.id}, ${!poll.is_active})">${poll.is_active ? 'Deactivate' : 'Activate'}</button>
+                            <button type="button" class="btn btn-sm" onclick="handleNotifyPoll(${poll.id})">Notify All</button>
+                            <button type="button" class="btn btn-sm" style="background: #8a2a1e; color: var(--bone-50); box-shadow: none;" onclick="handleDeletePoll(${poll.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        async function handleCreatePoll(event) {
+            event.preventDefault();
+            const question = document.getElementById('poll-question').value.trim();
+            const optionsText = document.getElementById('poll-options').value.trim();
+            if (!question || !optionsText) return;
+            const options = optionsText.split('\n').map(s => s.trim()).filter(Boolean);
+            if (options.length < 2) {
+                showToast('Please provide at least 2 options', false);
+                return;
+            }
+            const btn = document.getElementById('poll-create-btn');
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+            try {
+                const { error } = await supabaseClient.from('polls').insert({
+                    question,
+                    options: JSON.stringify(options),
+                    is_active: document.getElementById('poll-active').checked,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                });
+                if (error) throw error;
+                showToast('Poll created!');
+                document.getElementById('poll-question').value = '';
+                document.getElementById('poll-options').value = '';
+                document.getElementById('poll-active').checked = false;
+                await loadExistingPolls();
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to create poll', false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Poll';
+            }
+        }
+
+        async function handleTogglePoll(pollId, newActive) {
+            try {
+                if (newActive) {
+                    await supabaseClient.from('polls').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', pollId);
+                }
+                await supabaseClient.from('polls').update({ is_active: newActive, updated_at: new Date().toISOString() }).eq('id', pollId);
+                const poll = existingPollsData.find(p => p.id === pollId);
+                if (poll) poll.is_active = newActive;
+                showToast(`Poll ${newActive ? 'activated' : 'deactivated'}!`);
+                await renderExistingPolls();
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to update poll', false);
+            }
+        }
+
+        async function handleDeletePoll(pollId) {
+            if (!confirm('Delete this poll?')) return;
+            try {
+                await supabaseClient.from('poll_votes').delete().eq('poll_id', pollId);
+                await supabaseClient.from('polls').delete().eq('id', pollId);
+                existingPollsData = existingPollsData.filter(p => p.id !== pollId);
+                showToast('Poll deleted!');
+                await renderExistingPolls();
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to delete poll', false);
+            }
+        }
+
+        async function handleNotifyPoll(pollId) {
+            const poll = existingPollsData.find(p => p.id === pollId);
+            if (!poll) return;
+            try {
+                await supabaseClient.from('notifications').insert({
+                    title: 'New Poll',
+                    message: poll.question,
+                    type: 'info',
+                    created_at: new Date().toISOString(),
+                    created_by: 'admin'
+                });
+                showToast('Notification sent to all users!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to send notification', false);
             }
         }
 

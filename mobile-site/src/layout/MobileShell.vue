@@ -14,6 +14,7 @@
                 @click="expandActions"
             >
                 <button
+                    v-if="!supportBtnHidden"
                     type="button"
                     class="m-app__support-btn"
                     @click="isDonationOpen = true"
@@ -143,6 +144,7 @@ const route = useRoute();
 const isAuthOpen = ref(false);
 const isSettingsOpen = ref(false);
 const isDonationOpen = ref(false);
+const supportBtnHidden = ref(false);
 const currentUser = ref('');
 
 const moreOpen = ref(false);
@@ -286,6 +288,12 @@ onMounted(() => {
         });
         localStorage.setItem('moovie_donation_seen', '1');
     }
+
+    getSupabaseClient().then(client => {
+        client.from('app_settings').select('value').eq('key', 'support_btn_hidden').single().then((res: any) => {
+            supportBtnHidden.value = res?.data?.value === 'true';
+        }).catch(() => {});
+    }).catch(() => {});
 });
 
 onBeforeUnmount(() => {

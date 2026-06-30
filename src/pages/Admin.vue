@@ -378,10 +378,25 @@
                             </label>
                             <p class="admin-page__hint" style="margin-top:0.5rem">Injects ad script on mobile site.</p>
                         </div>
+
+                        <div class="admin-page__ad-card">
+                            <div class="admin-page__ad-card-header">
+                                <span class="admin-page__ad-icon">🙈</span>
+                                <span class="admin-page__ad-label">Hide Support Button</span>
+                            </div>
+                            <label class="admin-page__toggle">
+                                <input v-model="supportBtnHidden" type="checkbox" class="admin-page__toggle-input">
+                                <span class="admin-page__toggle-track">
+                                    <span class="admin-page__toggle-knob" />
+                                </span>
+                                <span class="admin-page__toggle-text">{{ supportBtnHidden ? 'Hidden' : 'Visible' }}</span>
+                            </label>
+                            <p class="admin-page__hint" style="margin-top:0.5rem">Hides the Support button on both PC and mobile.</p>
+                        </div>
                     </div>
 
                     <button type="button" class="admin-page__btn" :disabled="saveLoading" style="margin-top:1rem" @click="handleSaveSettings">
-                        <span>{{ saveLoading ? 'Saving...' : 'Save Ad Settings' }}</span>
+                        <span>{{ saveLoading ? 'Saving...' : 'Save Settings' }}</span>
                     </button>
                 </div>
             </section>
@@ -456,6 +471,7 @@ const pollVoteCounts = ref<Record<number, number>>({})
 // ── Ads ──────────────────────────────────────────────────────────────────────────
 const adsPcEnabled = ref(false)
 const adsMobileEnabled = ref(false)
+const supportBtnHidden = ref(false)
 
 // ── Donations ────────────────────────────────────────────────────────────────────
 const donationRaised = ref(0)
@@ -578,6 +594,11 @@ async function loadDashboardSettings() {
         const { data } = await client.from('app_settings').select('value').eq('key', 'ads_mobile_enabled').single()
         adsMobileEnabled.value = data?.value === 'true'
     } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'support_btn_hidden').single()
+        supportBtnHidden.value = data?.value === 'true'
+    } catch { /* ignore */ }
 }
 
 async function handleSaveSettings() {
@@ -598,6 +619,7 @@ async function handleSaveSettings() {
 
         await client.from('app_settings').upsert({ key: 'ads_pc_enabled', value: String(adsPcEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'ads_mobile_enabled', value: String(adsMobileEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'support_btn_hidden', value: String(supportBtnHidden.value), updated_at: new Date() }, { onConflict: 'key' })
 
         showToast('Settings updated successfully!')
     } catch {

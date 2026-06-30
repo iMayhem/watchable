@@ -97,7 +97,7 @@
 
             <div class="site-header__actions">
                 <button
-                    v-if="!isNetflixMode"
+                    v-if="!isNetflixMode && !supportBtnHidden"
                     type="button"
                     class="site-header__support-btn"
                     @click="isDonationModalOpen = true"
@@ -533,6 +533,7 @@ export default defineComponent({
         const isAuthModalOpen = ref(false);
         const isSettingsModalOpen = ref(false);
         const isDonationModalOpen = ref(false);
+        const supportBtnHidden = ref(false);
 
         const currentUser = ref<string | null>(null);
         const { unreadCount } = useNotifications();
@@ -819,6 +820,12 @@ export default defineComponent({
                 });
                 localStorage.setItem('moovie_donation_seen', '1');
             }
+
+            getSupabaseClient().then(client => {
+                client.from('app_settings').select('value').eq('key', 'support_btn_hidden').single().then((res: any) => {
+                    supportBtnHidden.value = res?.data?.value === 'true';
+                }).catch(() => {});
+            }).catch(() => {});
         });
 
         watch(splashActive, (active, wasActive) => {
@@ -846,6 +853,7 @@ export default defineComponent({
             isAuthModalOpen,
             isSettingsModalOpen,
             isDonationModalOpen,
+            supportBtnHidden,
 
             currentUser,
             handleLogout,

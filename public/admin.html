@@ -759,6 +759,17 @@
                         <span class="toggle-status" id="ads-mobile-status">Disabled</span>
                     </label>
                 </div>
+
+                <div class="ad-row" style="margin-top:0.75rem">
+                    <div class="ad-row__label"><span>🙈</span> Hide Support Button</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="support-btn-toggle" onchange="saveAdSettings()">
+                        <span class="toggle-slider">
+                            <span class="toggle-knob"></span>
+                        </span>
+                        <span class="toggle-status" id="support-btn-status">Visible</span>
+                    </label>
+                </div>
             </div>
 
             <div class="server-grid">
@@ -1600,6 +1611,15 @@
                 const mobileEnabled = mobileData?.value === 'true';
                 document.getElementById('ads-mobile-toggle').checked = mobileEnabled;
                 document.getElementById('ads-mobile-status').textContent = mobileEnabled ? 'Enabled' : 'Disabled';
+
+                const { data: supportData } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'support_btn_hidden')
+                    .single();
+                const supportHidden = supportData?.value === 'true';
+                document.getElementById('support-btn-toggle').checked = supportHidden;
+                document.getElementById('support-btn-status').textContent = supportHidden ? 'Hidden' : 'Visible';
             } catch (err) {
                 console.warn('Could not load ad settings:', err);
             }
@@ -1608,9 +1628,11 @@
         async function saveAdSettings() {
             const pcChecked = document.getElementById('ads-pc-toggle').checked;
             const mobileChecked = document.getElementById('ads-mobile-toggle').checked;
+            const supportHidden = document.getElementById('support-btn-toggle').checked;
 
             document.getElementById('ads-pc-status').textContent = pcChecked ? 'Enabled' : 'Disabled';
             document.getElementById('ads-mobile-status').textContent = mobileChecked ? 'Enabled' : 'Disabled';
+            document.getElementById('support-btn-status').textContent = supportHidden ? 'Hidden' : 'Visible';
 
             try {
                 await supabaseClient.from('app_settings').upsert({
@@ -1625,10 +1647,16 @@
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'key' });
 
-                showToast('Ad settings saved!');
+                await supabaseClient.from('app_settings').upsert({
+                    key: 'support_btn_hidden',
+                    value: supportHidden ? 'true' : 'false',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+
+                showToast('Settings saved!');
             } catch (err) {
                 console.error(err);
-                showToast('Failed to save ad settings', false);
+                showToast('Failed to save settings', false);
             }
         }
 

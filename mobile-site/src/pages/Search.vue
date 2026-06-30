@@ -32,45 +32,88 @@
             </div>
 
             <template v-else-if="searchTerm.trim()">
-                <MobileMediaGrid
-                    v-if="activeTab === 'movies' && movieItems.length"
-                    :items="movieItems"
-                />
-                <MobileMediaGrid
-                    v-else-if="activeTab === 'shows' && showItems.length"
-                    :items="showItems"
-                />
-                <div
-                    v-else-if="activeTab === 'people' && people.length"
-                    class="m-search__people"
-                >
-                    <PersonCard
-                        v-for="person in people"
-                        :key="person.id"
-                        :id="person.id"
-                        :name="person.name"
-                        :profile-path="person.profile_path"
-                        :department="person.known_for_department || ''"
-                    />
-                </div>
-                <MobileMediaGrid
-                    v-else-if="activeTab === 'anime' && animeItems.length"
-                    :items="animeItems"
-                />
-                <template v-else-if="activeTab === 'upcoming' && upcomingCount">
-                    <MobileMediaGrid
-                        v-if="upcomingMovieItems.length"
-                        :items="upcomingMovieItems"
-                    />
-                    <MobileMediaGrid
-                        v-if="upcomingAnimeItems.length"
-                        :items="upcomingAnimeItems"
-                    />
-                </template>
+                <template v-if="activeTab === 'all'">
+                    <div v-if="movieItems.length" class="m-search__subsection">
+                        <h3 class="m-search__subsection-title">Movies</h3>
+                        <MobileMediaGrid :items="movieItems" />
+                    </div>
+                    <div v-if="showItems.length" class="m-search__subsection">
+                        <h3 class="m-search__subsection-title">Shows</h3>
+                        <MobileMediaGrid :items="showItems" />
+                    </div>
+                    <div v-if="people.length" class="m-search__subsection">
+                        <h3 class="m-search__subsection-title">People</h3>
+                        <div class="m-search__people">
+                            <PersonCard
+                                v-for="person in people"
+                                :key="person.id"
+                                :id="person.id"
+                                :name="person.name"
+                                :profile-path="person.profile_path"
+                                :department="person.known_for_department || ''"
+                            />
+                        </div>
+                    </div>
+                    <div v-if="animeItems.length" class="m-search__subsection">
+                        <h3 class="m-search__subsection-title">Anime</h3>
+                        <MobileMediaGrid :items="animeItems" />
+                    </div>
+                    <template v-if="upcomingCount">
+                        <div v-if="upcomingMovieItems.length" class="m-search__subsection">
+                            <h3 class="m-search__subsection-title">Upcoming Movies</h3>
+                            <MobileMediaGrid :items="upcomingMovieItems" />
+                        </div>
+                        <div v-if="upcomingAnimeItems.length" class="m-search__subsection">
+                            <h3 class="m-search__subsection-title">Upcoming Anime</h3>
+                            <MobileMediaGrid :items="upcomingAnimeItems" />
+                        </div>
+                    </template>
 
-                <div v-else class="m-search__empty meta">
-                    No {{ emptyLabel }} matched &ldquo;{{ searchTerm.trim() }}&rdquo;.
-                </div>
+                    <div v-if="!movieItems.length && !showItems.length && !people.length && !animeItems.length && !upcomingCount" class="m-search__empty meta">
+                        No results matched &ldquo;{{ searchTerm.trim() }}&rdquo;.
+                    </div>
+                </template>
+                <template v-else>
+                    <MobileMediaGrid
+                        v-if="activeTab === 'movies' && movieItems.length"
+                        :items="movieItems"
+                    />
+                    <MobileMediaGrid
+                        v-else-if="activeTab === 'shows' && showItems.length"
+                        :items="showItems"
+                    />
+                    <div
+                        v-else-if="activeTab === 'people' && people.length"
+                        class="m-search__people"
+                    >
+                        <PersonCard
+                            v-for="person in people"
+                            :key="person.id"
+                            :id="person.id"
+                            :name="person.name"
+                            :profile-path="person.profile_path"
+                            :department="person.known_for_department || ''"
+                        />
+                    </div>
+                    <MobileMediaGrid
+                        v-else-if="activeTab === 'anime' && animeItems.length"
+                        :items="animeItems"
+                    />
+                    <template v-else-if="activeTab === 'upcoming' && upcomingCount">
+                        <MobileMediaGrid
+                            v-if="upcomingMovieItems.length"
+                            :items="upcomingMovieItems"
+                        />
+                        <MobileMediaGrid
+                            v-if="upcomingAnimeItems.length"
+                            :items="upcomingAnimeItems"
+                        />
+                    </template>
+
+                    <div v-else class="m-search__empty meta">
+                        No {{ emptyLabel }} matched &ldquo;{{ searchTerm.trim() }}&rdquo;.
+                    </div>
+                </template>
 
                 <div
                     v-if="currentCount && (hasMore || isLoadingMore)"
@@ -137,7 +180,7 @@ import {
     upcomingAnimeMeta
 } from '@/composables/useSearch';
 
-const TAB_KEYS = ['movies', 'shows', 'people', 'anime', 'upcoming'] as const;
+const TAB_KEYS = ['all', 'movies', 'shows', 'people', 'anime', 'upcoming'] as const;
 type TabKey = typeof TAB_KEYS[number];
 
 const isTabKey = (value: string): value is TabKey =>
@@ -145,7 +188,7 @@ const isTabKey = (value: string): value is TabKey =>
 
 const resolveTab = (tab: string | undefined): TabKey => {
     if (tab && isTabKey(tab)) return tab;
-    return 'movies';
+    return 'all';
 };
 
 const route = useRoute();
@@ -180,6 +223,7 @@ const recentSearches = computed(() =>
 );
 
 const tabs = [
+    { value: 'all', label: 'All' },
     { value: 'movies', label: 'Movies' },
     { value: 'shows', label: 'TV' },
     { value: 'people', label: 'People' },
@@ -188,12 +232,14 @@ const tabs = [
 ];
 
 const tabLoading = computed(() => {
+    if (activeTab.value === 'all') return isLoading.value || isLoadingAnime.value || isLoadingUpcoming.value;
     if (activeTab.value === 'anime') return isLoadingAnime.value;
     if (activeTab.value === 'upcoming') return isLoadingUpcoming.value;
     return isLoading.value;
 });
 
 const currentCount = computed(() => {
+    if (activeTab.value === 'all') return movies.value.length + shows.value.length + people.value.length + anime.value.length + upcomingCount.value;
     if (activeTab.value === 'movies') return movies.value.length;
     if (activeTab.value === 'shows') return shows.value.length;
     if (activeTab.value === 'people') return people.value.length;
@@ -202,6 +248,7 @@ const currentCount = computed(() => {
 });
 
 const emptyLabel = computed(() => {
+    if (activeTab.value === 'all') return 'results';
     if (activeTab.value === 'movies') return 'films';
     if (activeTab.value === 'shows') return 'series';
     if (activeTab.value === 'people') return 'people';
@@ -210,6 +257,7 @@ const emptyLabel = computed(() => {
 });
 
 const hasMore = computed(() => {
+    if (activeTab.value === 'all') return false;
     if (activeTab.value === 'anime') return animeMeta.value.hasNextPage;
     if (activeTab.value === 'upcoming') {
         return (
@@ -300,7 +348,7 @@ const upcomingAnimeItems = computed(() =>
 const syncRoute = () => {
     const q: Record<string, string> = {};
     if (searchTerm.value.trim()) q.search = searchTerm.value.trim();
-    if (searchTerm.value.trim() && activeTab.value !== 'movies') q.tab = activeTab.value;
+    if (searchTerm.value.trim() && activeTab.value !== 'all') q.tab = activeTab.value;
     const current = route.query;
     if (JSON.stringify(q) !== JSON.stringify(current)) {
         router.replace({ query: q });
@@ -308,6 +356,7 @@ const syncRoute = () => {
 };
 
 const chooseDefaultTab = () => {
+    if (activeTab.value === 'all') return;
     if (activeTab.value !== 'movies') return;
     if (!movies.value.length && shows.value.length) activeTab.value = 'shows';
     else if (!movies.value.length && !shows.value.length && people.value.length) {
@@ -347,7 +396,7 @@ const ensureTabResults = async (tab: TabKey) => {
     if (!q) return;
 
     if (
-        (tab === 'movies' || tab === 'shows' || tab === 'people')
+        (tab === 'all' || tab === 'movies' || tab === 'shows' || tab === 'people')
         && !movies.value.length
         && !shows.value.length
         && !people.value.length
@@ -361,13 +410,10 @@ const ensureTabResults = async (tab: TabKey) => {
         }
     }
 
-    if (tab === 'anime' && !anime.value.length && !isLoadingAnime.value) {
+    if ((tab === 'all' || tab === 'anime') && !anime.value.length && !isLoadingAnime.value) {
         await loadAnimeResults(q);
-    } else if (
-        tab === 'upcoming'
-        && !upcomingCount.value
-        && !isLoadingUpcoming.value
-    ) {
+    }
+    if ((tab === 'all' || tab === 'upcoming') && !upcomingCount.value && !isLoadingUpcoming.value) {
         await loadUpcomingResults(q);
     }
 };
@@ -380,7 +426,11 @@ const performSearch = async (query: string, page = 1) => {
         clearSearchResults();
         if (activeTab.value === 'anime') isLoadingAnime.value = true;
         else if (activeTab.value === 'upcoming') isLoadingUpcoming.value = true;
-        else isLoading.value = true;
+        else if (activeTab.value === 'all') {
+            isLoading.value = true;
+            isLoadingAnime.value = true;
+            isLoadingUpcoming.value = true;
+        } else isLoading.value = true;
     } else {
         isLoadingMore.value = true;
     }
@@ -396,6 +446,12 @@ const performSearch = async (query: string, page = 1) => {
         }
 
         await fetchSearchResults(q, page);
+        if (activeTab.value === 'all') {
+            await Promise.all([
+                loadAnimeResults(q),
+                loadUpcomingResults(q)
+            ]);
+        }
         if (page === 1) chooseDefaultTab();
     } finally {
         isLoading.value = false;
@@ -578,6 +634,20 @@ onMounted(() => {
     &__idle-label {
         margin: 0;
         color: var(--bone-400);
+    }
+
+    &__subsection {
+        padding: 0 var(--s-4);
+        & + & {
+            margin-top: var(--s-5);
+        }
+    }
+
+    &__subsection-title {
+        font-family: var(--font-display);
+        font-size: 1rem;
+        color: var(--bone-100);
+        margin-bottom: var(--s-3);
     }
 
     &__chips {

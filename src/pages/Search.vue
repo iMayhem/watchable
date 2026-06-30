@@ -49,6 +49,128 @@
                         <span class="meta">Searching the archive…</span>
                     </div>
 
+                    <template v-if="activeTab === 'all'">
+                        <div v-if="movies.length" class="search-page__subsection">
+                            <h3 class="search-page__subsection-title">Movies</h3>
+                            <div class="search-page__grid">
+                                <PosterCard
+                                    v-for="item in movies"
+                                    :key="`m-${item.id}`"
+                                    :id="item.id"
+                                    type="movie"
+                                    :title="item.title || item.original_title || ''"
+                                    :original-title="item.original_title || ''"
+                                    :poster-path="item.poster_path"
+                                    :rating="item.vote_average || 0"
+                                    :release-date="item.release_date || ''"
+                                    :genre-ids="item.genre_ids || []"
+                                    :adult="item.adult || false"
+                                />
+                            </div>
+                        </div>
+
+                        <div v-if="shows.length" class="search-page__subsection">
+                            <h3 class="search-page__subsection-title">Shows</h3>
+                            <div class="search-page__grid">
+                                <PosterCard
+                                    v-for="item in shows"
+                                    :key="`t-${item.id}`"
+                                    :id="item.id"
+                                    type="tv"
+                                    :title="item.name || item.original_name || ''"
+                                    :original-title="item.original_name || ''"
+                                    :poster-path="item.poster_path"
+                                    :rating="item.vote_average || 0"
+                                    :release-date="item.first_air_date || ''"
+                                    :genre-ids="item.genre_ids || []"
+                                    :adult="false"
+                                />
+                            </div>
+                        </div>
+
+                        <div v-if="people.length" class="search-page__subsection">
+                            <h3 class="search-page__subsection-title">People</h3>
+                            <div class="search-page__people-grid">
+                                <PersonCard
+                                    v-for="item in people"
+                                    :key="`p-${item.id}`"
+                                    :id="item.id"
+                                    :name="item.name"
+                                    :profile-path="item.profile_path"
+                                    :department="item.known_for_department || ''"
+                                />
+                            </div>
+                        </div>
+
+                        <div v-if="anime.length" class="search-page__subsection">
+                            <h3 class="search-page__subsection-title">Anime</h3>
+                            <div class="search-page__grid">
+                                <PosterCard
+                                    v-for="item in anime"
+                                    :key="`a-${item.id}`"
+                                    :id="item.id"
+                                    type="anime"
+                                    :title="item.title.english || item.title.romaji"
+                                    :original-title="item.title.native || item.title.romaji"
+                                    :poster-path="animePosterPath(item)"
+                                    :rating="item.averageScore ? item.averageScore / 10 : 0"
+                                    :release-date="animeReleaseDate(item)"
+                                    :genre-ids="[]"
+                                    :adult="false"
+                                />
+                            </div>
+                        </div>
+
+                        <div v-if="upcomingCount" class="search-page__subsection">
+                            <h3 class="search-page__subsection-title">Upcoming</h3>
+                            <div class="search-page__grid">
+                                <PosterCard
+                                    v-for="item in upcomingMovies"
+                                    :key="`um-${item.id}`"
+                                    :id="item.id"
+                                    type="movie"
+                                    :title="item.title || item.original_title || ''"
+                                    :original-title="item.original_title || ''"
+                                    :poster-path="item.poster_path"
+                                    :rating="item.vote_average || 0"
+                                    :release-date="item.release_date || ''"
+                                    :genre-ids="item.genre_ids || []"
+                                    :adult="item.adult || false"
+                                />
+                                <PosterCard
+                                    v-for="item in upcomingAnime"
+                                    :key="`ua-${item.id}`"
+                                    :id="item.id"
+                                    type="anime"
+                                    :title="item.title.english || item.title.romaji"
+                                    :original-title="item.title.native || item.title.romaji"
+                                    :poster-path="animePosterPath(item)"
+                                    :rating="item.averageScore ? item.averageScore / 10 : 0"
+                                    :release-date="animeReleaseDate(item)"
+                                    :genre-ids="[]"
+                                    :adult="false"
+                                />
+                            </div>
+                        </div>
+
+                        <div v-if="!movies.length && !shows.length && !people.length && !anime.length && !upcomingCount" class="search-page__empty">
+                            <div class="search-page__empty-icon" aria-hidden="true">
+                                <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.4">
+                                    <circle cx="32" cy="32" r="22"/>
+                                    <circle cx="32" cy="32" r="7"/>
+                                    <circle cx="32" cy="14" r="3"/>
+                                    <circle cx="32" cy="50" r="3"/>
+                                    <circle cx="14" cy="32" r="3"/>
+                                    <circle cx="50" cy="32" r="3"/>
+                                </svg>
+                            </div>
+                            <h3 class="search-page__empty-title display">Not in the archive.</h3>
+                            <p class="search-page__empty-desc">
+                                No results matched "{{ searchTerm }}". Try a different spelling, or browse a related category.
+                            </p>
+                        </div>
+                    </template>
+
                     <template v-else-if="activeTab === 'movies' && movies.length">
                         <div class="search-page__grid">
                             <PosterCard
@@ -267,7 +389,7 @@ import type { AnimeMedia } from '../composables/useAniList';
 import { addSearchTerm, searchHistory } from '../composables/useHistory';
 import { usePaginatedInfiniteScroll } from '../composables/useLazyLoad';
 
-const TAB_KEYS = ['movies', 'shows', 'people', 'anime', 'upcoming'] as const;
+const TAB_KEYS = ['all', 'movies', 'shows', 'people', 'anime', 'upcoming'] as const;
 type TabKey = typeof TAB_KEYS[number];
 
 const isTabKey = (value: string): value is TabKey =>
@@ -291,7 +413,7 @@ export default defineComponent({
         const activeTab = ref<TabKey>(
             typeof route.query.tab === 'string' && isTabKey(route.query.tab)
                 ? route.query.tab
-                : 'movies'
+                : 'all'
         );
         const isLoading = ref(false);
         const isLoadingAnime = ref(false);
@@ -318,6 +440,7 @@ export default defineComponent({
         );
 
         const tabs: TabDef[] = [
+            { label: 'All', value: 'all' },
             { label: 'Movies', value: 'movies' },
             { label: 'Shows', value: 'shows' },
             { label: 'People', value: 'people' },
@@ -328,10 +451,12 @@ export default defineComponent({
         const tabLoading = computed(() => {
             if (activeTab.value === 'anime') return isLoadingAnime.value;
             if (activeTab.value === 'upcoming') return isLoadingUpcoming.value;
+            if (activeTab.value === 'all') return isLoading.value || isLoadingAnime.value || isLoadingUpcoming.value;
             return isLoading.value;
         });
 
         const currentCount = computed(() => {
+            if (activeTab.value === 'all') return movies.value.length + shows.value.length + people.value.length + anime.value.length + upcomingCount.value;
             if (activeTab.value === 'movies') return movies.value.length;
             if (activeTab.value === 'shows') return shows.value.length;
             if (activeTab.value === 'people') return people.value.length;
@@ -340,6 +465,7 @@ export default defineComponent({
         });
 
         const emptyLabel = computed(() => {
+            if (activeTab.value === 'all') return 'results';
             if (activeTab.value === 'movies') return 'films';
             if (activeTab.value === 'shows') return 'series';
             if (activeTab.value === 'people') return 'people';
@@ -348,6 +474,7 @@ export default defineComponent({
         });
 
         const hasMore = computed(() => {
+            if (activeTab.value === 'all') return false;
             if (activeTab.value === 'anime') {
                 return animeMeta.value.hasNextPage;
             }
@@ -377,6 +504,7 @@ export default defineComponent({
         };
 
         const chooseDefaultTab = () => {
+            if (activeTab.value === 'all') return;
             if (!movies.value.length && shows.value.length) activeTab.value = 'shows';
             else if (!movies.value.length && !shows.value.length && people.value.length) {
                 activeTab.value = 'people';
@@ -421,7 +549,7 @@ export default defineComponent({
             if (!q) return;
 
             if (
-                (tab === 'movies' || tab === 'shows' || tab === 'people')
+                (tab === 'all' || tab === 'movies' || tab === 'shows' || tab === 'people')
                 && !movies.value.length
                 && !shows.value.length
                 && !people.value.length
@@ -435,13 +563,10 @@ export default defineComponent({
                 }
             }
 
-            if (tab === 'anime' && !anime.value.length && !isLoadingAnime.value) {
+            if ((tab === 'all' || tab === 'anime') && !anime.value.length && !isLoadingAnime.value) {
                 await loadAnimeResults(q);
-            } else if (
-                tab === 'upcoming'
-                && !upcomingCount.value
-                && !isLoadingUpcoming.value
-            ) {
+            }
+            if ((tab === 'all' || tab === 'upcoming') && !upcomingCount.value && !isLoadingUpcoming.value) {
                 await loadUpcomingResults(q);
             }
         };
@@ -454,7 +579,11 @@ export default defineComponent({
                 clearSearchResults();
                 if (activeTab.value === 'anime') isLoadingAnime.value = true;
                 else if (activeTab.value === 'upcoming') isLoadingUpcoming.value = true;
-                else isLoading.value = true;
+                else if (activeTab.value === 'all') {
+                    isLoading.value = true;
+                    isLoadingAnime.value = true;
+                    isLoadingUpcoming.value = true;
+                } else isLoading.value = true;
             } else {
                 isLoadingMore.value = true;
             }
@@ -470,6 +599,12 @@ export default defineComponent({
                 }
 
                 await fetchSearchResults(q, page);
+                if (activeTab.value === 'all') {
+                    await Promise.all([
+                        loadAnimeResults(q),
+                        loadUpcomingResults(q)
+                    ]);
+                }
                 if (page === 1) chooseDefaultTab();
             } finally {
                 isLoading.value = false;
@@ -483,7 +618,7 @@ export default defineComponent({
         const syncRoute = () => {
             const q: Record<string, string> = {};
             if (searchTerm.value) q.search = searchTerm.value;
-            if (searchTerm.value && activeTab.value !== 'movies') q.tab = activeTab.value;
+            if (searchTerm.value && activeTab.value !== 'all') q.tab = activeTab.value;
             const current = route.query;
             if (JSON.stringify(q) !== JSON.stringify(current)) {
                 router.replace({ query: q });
@@ -493,7 +628,7 @@ export default defineComponent({
         const handleClearSearch = () => {
             clearSearchResults();
             searchTerm.value = '';
-            activeTab.value = 'movies';
+            activeTab.value = 'all';
             syncRoute();
             nextTick(() => inputEl.value?.focus());
         };

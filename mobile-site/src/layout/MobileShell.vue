@@ -144,7 +144,7 @@ const route = useRoute();
 const isAuthOpen = ref(false);
 const isSettingsOpen = ref(false);
 const isDonationOpen = ref(false);
-const supportBtnHidden = ref(false);
+const supportBtnHidden = ref(localStorage.getItem('moovie_support_btn_hidden') === 'true');
 const currentUser = ref('');
 
 const moreOpen = ref(false);
@@ -292,6 +292,7 @@ onMounted(() => {
     getSupabaseClient().then(client => {
         client.from('app_settings').select('value').eq('key', 'support_btn_hidden').single().then((res: any) => {
             supportBtnHidden.value = res?.data?.value === 'true';
+            localStorage.setItem('moovie_support_btn_hidden', String(supportBtnHidden.value));
         }).catch(() => {});
     }).catch(() => {});
 });

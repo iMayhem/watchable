@@ -899,6 +899,45 @@ watch(activeTab, (tab) => {
     line-height: 1.5;
 }
 
+.admin-page__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.5rem;
+}
+
+.admin-page__tab {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(245, 239, 228, 0.03);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    color: #a79f8d;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.admin-page__tab:hover {
+    background: rgba(245, 239, 228, 0.06);
+    border-color: rgba(255, 90, 31, 0.3);
+    color: #e8e1d3;
+}
+
+.admin-page__tab.is-active {
+    background: rgba(255, 90, 31, 0.12);
+    border-color: #ff5a1f;
+    color: #ff5a1f;
+}
+
+.admin-page__tab-icon {
+    font-size: 0.9rem;
+}
+
 .admin-page__field {
     margin-bottom: 1.5rem;
 }

@@ -153,7 +153,7 @@ export default defineComponent({
             }
             const url = props.embedUrl.toLowerCase();
             if (url.includes('cinemaos.live') || url.includes('smashystream.com')) {
-                attrs.sandbox = 'allow-scripts allow-same-origin allow-forms allow-presentation';
+                attrs.sandbox = 'allow-scripts allow-same-origin allow-forms allow-presentation allow-fullscreen';
             }
             return attrs;
         });

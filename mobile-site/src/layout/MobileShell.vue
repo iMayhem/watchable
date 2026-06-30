@@ -127,6 +127,7 @@ import AuthModal from '@/components/navigation/AuthModal.vue';
 import SettingsModal from '@/components/navigation/SettingsModal.vue';
 import DonationModal from '@/components/navigation/DonationModal.vue';
 import NotificationBell from '../components/navigation/NotificationBell.vue';
+import { getSupabaseClient } from '@/lib/supabase';
 
 withDefaults(defineProps<{
     immersive?: boolean;
@@ -272,7 +273,17 @@ onMounted(() => {
     window.addEventListener('movora_auth_change', onAuthChange);
     document.addEventListener('click', onDocumentClick);
     if (!localStorage.getItem('moovie_donation_seen')) {
-        isDonationOpen.value = true;
+        getSupabaseClient().then(client => {
+            client.from('app_settings').select('value').eq('key', 'donation_popup_enabled').single().then((res: any) => {
+                if (res?.data?.value !== 'false') {
+                    isDonationOpen.value = true;
+                }
+            }).catch(() => {
+                isDonationOpen.value = true;
+            });
+        }).catch(() => {
+            isDonationOpen.value = true;
+        });
         localStorage.setItem('moovie_donation_seen', '1');
     }
 });

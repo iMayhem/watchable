@@ -401,6 +401,7 @@ import DonationModal from './DonationModal.vue';
 import { openPalette } from '../../composables/useCommandPalette';
 import { useOpeningSplash } from '../../composables/useOpeningSplash';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
+import { getSupabaseClient } from '../../lib/supabase';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { getContentMode } from '../../composables/useContentMode';
 import {
@@ -805,7 +806,17 @@ export default defineComponent({
             window.addEventListener('movora_auth_change', updateCurrentUser);
             document.addEventListener('click', handleClickOutside);
             if (!localStorage.getItem('moovie_donation_seen')) {
-                isDonationModalOpen.value = true;
+                getSupabaseClient().then(client => {
+                    client.from('app_settings').select('value').eq('key', 'donation_popup_enabled').single().then((res: any) => {
+                        if (res?.data?.value !== 'false') {
+                            isDonationModalOpen.value = true;
+                        }
+                    }).catch(() => {
+                        isDonationModalOpen.value = true;
+                    });
+                }).catch(() => {
+                    isDonationModalOpen.value = true;
+                });
                 localStorage.setItem('moovie_donation_seen', '1');
             }
         });

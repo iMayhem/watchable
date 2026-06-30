@@ -327,8 +327,14 @@
                             <input id="donation-raised" v-model.number="donationRaised" type="number" class="admin-page__input" min="0" step="0.01" placeholder="0">
                             <p class="admin-page__hint">Only use if you want to override the auto-detected balance.</p>
                         </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">
+                                <input v-model="donationPopupEnabled" type="checkbox" style="margin-right: 0.5rem;">
+                                Show donation popup on first visit
+                            </label>
+                        </div>
                         <button type="submit" class="admin-page__btn" :disabled="donationLoading">
-                            <span>{{ donationLoading ? 'Saving...' : 'Save Override' }}</span>
+                            <span>{{ donationLoading ? 'Saving...' : 'Save' }}</span>
                         </button>
                     </form>
 
@@ -408,6 +414,7 @@ const pollVoteCounts = ref<Record<number, number>>({})
 const donationRaised = ref(0)
 const donationLoading = ref(false)
 const donationNotifLoading = ref(false)
+const donationPopupEnabled = ref(true)
 const cryptoBtcUsd = ref(0)
 const cryptoLtcUsd = ref(0)
 const cryptoUsdtUsd = ref(0)
@@ -509,6 +516,11 @@ async function loadDashboardSettings() {
         const { data } = await client.from('app_settings').select('value').eq('key', 'donation_raised').single()
         if (data?.value) donationRaised.value = Number(data.value)
     } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'donation_popup_enabled').single()
+        if (data?.value) donationPopupEnabled.value = data.value === 'true'
+    } catch { /* ignore */ }
 }
 
 async function handleSaveSettings() {
@@ -609,9 +621,10 @@ async function handleSaveDonations() {
     const client = supabase || await getSupabaseClient()
     try {
         await client.from('app_settings').upsert({ key: 'donation_raised', value: String(donationRaised.value), updated_at: new Date() }, { onConflict: 'key' })
-        showToast('Donation amount saved!')
+        await client.from('app_settings').upsert({ key: 'donation_popup_enabled', value: String(donationPopupEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
+        showToast('Donation settings saved!')
     } catch {
-        showToast('Failed to save donation amount', false)
+        showToast('Failed to save donation settings', false)
     } finally {
         donationLoading.value = false
     }

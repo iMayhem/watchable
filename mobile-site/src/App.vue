@@ -21,6 +21,7 @@
 import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
+import { useAdScript } from '@/composables/useAdScript';
 import PollPopup from '@/components/navigation/PollPopup.vue';
 
 const route = useRoute();
@@ -65,6 +66,8 @@ const initIdle = async () => {
     import('./pages/Discuss.vue');
     import('./pages/Upcoming.vue');
 };
+
+useAdScript('mobile');
 
 onMounted(() => {
     if ('requestIdleCallback' in window) {

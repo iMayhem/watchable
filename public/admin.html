@@ -227,6 +227,67 @@
             box-shadow: 0 0 20px var(--ember-glow);
         }
 
+        .ad-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-card);
+            border: 1px solid var(--rule);
+            border-radius: var(--r-md);
+            padding: 0.85rem 1rem;
+        }
+
+        .ad-row__label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--bone-200);
+        }
+
+        .toggle-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            cursor: pointer;
+        }
+
+        .toggle-switch input { display: none; }
+
+        .toggle-slider {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: rgba(245, 239, 228, 0.12);
+            border-radius: 11px;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--ember);
+        }
+
+        .toggle-knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: #f5efe4;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider .toggle-knob {
+            transform: translateX(18px);
+        }
+
+        .toggle-status {
+            font-size: 0.8rem;
+            color: var(--bone-300);
+            min-width: 4rem;
+        }
+
         /* Views (Passcode authentication vs. Dashboard) */
         .view-section {
             display: none;
@@ -673,6 +734,33 @@
                 </button>
             </div>
 
+            <div class="curation-section">
+                <h2 class="section-title">Ad Management</h2>
+                <p style="color:var(--bone-300);font-size:0.85rem;margin-bottom:1rem">Turn ads on/off separately for PC and Mobile visitors.</p>
+
+                <div class="ad-row">
+                    <div class="ad-row__label"><span>🖥️</span> PC / Desktop</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ads-pc-toggle" onchange="saveAdSettings()">
+                        <span class="toggle-slider">
+                            <span class="toggle-knob"></span>
+                        </span>
+                        <span class="toggle-status" id="ads-pc-status">Disabled</span>
+                    </label>
+                </div>
+
+                <div class="ad-row" style="margin-top:0.75rem">
+                    <div class="ad-row__label"><span>📱</span> Mobile</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ads-mobile-toggle" onchange="saveAdSettings()">
+                        <span class="toggle-slider">
+                            <span class="toggle-knob"></span>
+                        </span>
+                        <span class="toggle-status" id="ads-mobile-status">Disabled</span>
+                    </label>
+                </div>
+            </div>
+
             <div class="server-grid">
                 <div class="server-grid-item"><strong>ID</strong><strong>Sweet Name</strong></div>
                 <div class="server-grid-item"><span>rasmalai</span><span>Rasmalai</span></div>
@@ -820,6 +908,9 @@
             // Load donation settings & balance
             refreshCryptoBalance();
             loadDonationSettings();
+
+            // Load ad settings
+            loadAdSettings();
         }
 
         // ==========================================
@@ -1483,6 +1574,61 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = '❤️ Notify everyone — donation received!';
+            }
+        }
+
+        // ==========================================
+        // AD MANAGEMENT LOGIC
+        // ==========================================
+
+        async function loadAdSettings() {
+            try {
+                const { data: pcData } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'ads_pc_enabled')
+                    .single();
+                const pcEnabled = pcData?.value === 'true';
+                document.getElementById('ads-pc-toggle').checked = pcEnabled;
+                document.getElementById('ads-pc-status').textContent = pcEnabled ? 'Enabled' : 'Disabled';
+
+                const { data: mobileData } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'ads_mobile_enabled')
+                    .single();
+                const mobileEnabled = mobileData?.value === 'true';
+                document.getElementById('ads-mobile-toggle').checked = mobileEnabled;
+                document.getElementById('ads-mobile-status').textContent = mobileEnabled ? 'Enabled' : 'Disabled';
+            } catch (err) {
+                console.warn('Could not load ad settings:', err);
+            }
+        }
+
+        async function saveAdSettings() {
+            const pcChecked = document.getElementById('ads-pc-toggle').checked;
+            const mobileChecked = document.getElementById('ads-mobile-toggle').checked;
+
+            document.getElementById('ads-pc-status').textContent = pcChecked ? 'Enabled' : 'Disabled';
+            document.getElementById('ads-mobile-status').textContent = mobileChecked ? 'Enabled' : 'Disabled';
+
+            try {
+                await supabaseClient.from('app_settings').upsert({
+                    key: 'ads_pc_enabled',
+                    value: pcChecked ? 'true' : 'false',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+
+                await supabaseClient.from('app_settings').upsert({
+                    key: 'ads_mobile_enabled',
+                    value: mobileChecked ? 'true' : 'false',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+
+                showToast('Ad settings saved!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to save ad settings', false);
             }
         }
 

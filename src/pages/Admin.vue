@@ -342,6 +342,48 @@
                         <span>{{ donationNotifLoading ? 'Sending...' : '❤️ Notify everyone — donation received!' }}</span>
                     </button>
                 </div>
+
+                <!-- ── Ads Tab ──────────────────────────────────────────── -->
+                <div v-if="activeTab === 'ads'" class="admin-page__tab-content">
+                    <h2 class="admin-page__section-title">Ad Management</h2>
+                    <p class="admin-page__hint" style="margin-bottom:1.25rem">Turn ads on/off separately for PC and Mobile visitors.</p>
+
+                    <div class="admin-page__ads-grid">
+                        <div class="admin-page__ad-card">
+                            <div class="admin-page__ad-card-header">
+                                <span class="admin-page__ad-icon">🖥️</span>
+                                <span class="admin-page__ad-label">PC / Desktop</span>
+                            </div>
+                            <label class="admin-page__toggle">
+                                <input v-model="adsPcEnabled" type="checkbox" class="admin-page__toggle-input">
+                                <span class="admin-page__toggle-track">
+                                    <span class="admin-page__toggle-knob" />
+                                </span>
+                                <span class="admin-page__toggle-text">{{ adsPcEnabled ? 'Enabled' : 'Disabled' }}</span>
+                            </label>
+                            <p class="admin-page__hint" style="margin-top:0.5rem">Injects ad script on desktop site.</p>
+                        </div>
+
+                        <div class="admin-page__ad-card">
+                            <div class="admin-page__ad-card-header">
+                                <span class="admin-page__ad-icon">📱</span>
+                                <span class="admin-page__ad-label">Mobile</span>
+                            </div>
+                            <label class="admin-page__toggle">
+                                <input v-model="adsMobileEnabled" type="checkbox" class="admin-page__toggle-input">
+                                <span class="admin-page__toggle-track">
+                                    <span class="admin-page__toggle-knob" />
+                                </span>
+                                <span class="admin-page__toggle-text">{{ adsMobileEnabled ? 'Enabled' : 'Disabled' }}</span>
+                            </label>
+                            <p class="admin-page__hint" style="margin-top:0.5rem">Injects ad script on mobile site.</p>
+                        </div>
+                    </div>
+
+                    <button type="button" class="admin-page__btn" :disabled="saveLoading" style="margin-top:1rem" @click="handleSaveSettings">
+                        <span>{{ saveLoading ? 'Saving...' : 'Save Ad Settings' }}</span>
+                    </button>
+                </div>
             </section>
         </div>
 
@@ -372,7 +414,8 @@ const tabs = [
     { key: 'notifications', icon: '🔔', label: 'Notifications' },
     { key: 'banner', icon: '🏴', label: 'Banner' },
     { key: 'polls', icon: '📊', label: 'Polls' },
-    { key: 'donations', icon: '💰', label: 'Donations' }
+    { key: 'donations', icon: '💰', label: 'Donations' },
+    { key: 'ads', icon: '📢', label: 'Ads' }
 ]
 const toast = ref('')
 const toastType = ref<'success' | 'error'>('success')
@@ -409,6 +452,10 @@ const pollLoading = ref(false)
 const existingPolls = ref<any[]>([])
 const pollResultsMap = ref<Record<number, any[]>>({})
 const pollVoteCounts = ref<Record<number, number>>({})
+
+// ── Ads ──────────────────────────────────────────────────────────────────────────
+const adsPcEnabled = ref(false)
+const adsMobileEnabled = ref(false)
 
 // ── Donations ────────────────────────────────────────────────────────────────────
 const donationRaised = ref(0)
@@ -521,6 +568,16 @@ async function loadDashboardSettings() {
         const { data } = await client.from('app_settings').select('value').eq('key', 'donation_popup_enabled').single()
         if (data?.value) donationPopupEnabled.value = data.value === 'true'
     } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'ads_pc_enabled').single()
+        adsPcEnabled.value = data?.value === 'true'
+    } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'ads_mobile_enabled').single()
+        adsMobileEnabled.value = data?.value === 'true'
+    } catch { /* ignore */ }
 }
 
 async function handleSaveSettings() {
@@ -538,6 +595,9 @@ async function handleSaveSettings() {
             adminPasscode = newPasscode.value
             newPasscode.value = ''
         }
+
+        await client.from('app_settings').upsert({ key: 'ads_pc_enabled', value: String(adsPcEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'ads_mobile_enabled', value: String(adsMobileEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
 
         showToast('Settings updated successfully!')
     } catch {
@@ -1311,5 +1371,79 @@ watch(activeTab, (tab) => {
 
 .admin-page__btn--donation:hover:not(:disabled) {
     background: #e04e1a;
+}
+
+.admin-page__ads-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.admin-page__ad-card {
+    background: rgba(19, 17, 14, 0.7);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.admin-page__ad-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.admin-page__ad-icon {
+    font-size: 1.5rem;
+}
+
+.admin-page__ad-label {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: #c7bfb0;
+}
+
+.admin-page__toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.admin-page__toggle-input {
+    display: none;
+}
+
+.admin-page__toggle-track {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: rgba(245, 239, 228, 0.12);
+    border-radius: 12px;
+    transition: background 0.3s ease;
+}
+
+.admin-page__toggle-input:checked + .admin-page__toggle-track {
+    background: #ff5a1f;
+}
+
+.admin-page__toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: #f5efe4;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+.admin-page__toggle-input:checked + .admin-page__toggle-track .admin-page__toggle-knob {
+    transform: translateX(20px);
+}
+
+.admin-page__toggle-text {
+    font-size: 0.85rem;
+    color: #a79f8d;
 }
 </style>

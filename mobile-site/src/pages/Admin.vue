@@ -176,6 +176,39 @@
                         <span>{{ donationNotifLoading ? 'Sending...' : '❤️ Notify everyone — donation received!' }}</span>
                     </button>
                 </div>
+
+                <div class="admin-page__curation">
+                    <h2 class="admin-page__section-title">Ad Management</h2>
+                    <p class="admin-page__hint" style="margin-bottom:1rem">Turn ads on/off separately for PC and Mobile.</p>
+
+                    <div class="admin-page__field">
+                        <label class="admin-page__label" style="display:flex;align-items:center;gap:0.75rem;text-transform:none;font-weight:400;font-size:0.85rem">
+                            <span>🖥️ PC / Desktop</span>
+                            <label class="admin-page__toggle" style="margin-left:auto">
+                                <input v-model="adsPcEnabled" type="checkbox" class="admin-page__toggle-input">
+                                <span class="admin-page__toggle-track">
+                                    <span class="admin-page__toggle-knob" />
+                                </span>
+                            </label>
+                        </label>
+                    </div>
+
+                    <div class="admin-page__field">
+                        <label class="admin-page__label" style="display:flex;align-items:center;gap:0.75rem;text-transform:none;font-weight:400;font-size:0.85rem">
+                            <span>📱 Mobile</span>
+                            <label class="admin-page__toggle" style="margin-left:auto">
+                                <input v-model="adsMobileEnabled" type="checkbox" class="admin-page__toggle-input">
+                                <span class="admin-page__toggle-track">
+                                    <span class="admin-page__toggle-knob" />
+                                </span>
+                            </label>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="admin-page__btn" :disabled="saveLoading" @click="handleSaveSettings" style="margin-top:0.5rem">
+                        <span>{{ saveLoading ? 'Saving...' : 'Save Ad Settings' }}</span>
+                    </button>
+                </div>
             </section>
         </div>
 
@@ -290,6 +323,16 @@ async function loadDashboardSettings() {
         const { data } = await client.from('app_settings').select('value').eq('key', 'donation_popup_enabled').single()
         if (data?.value) donationPopupEnabled.value = data.value === 'true'
     } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'ads_pc_enabled').single()
+        adsPcEnabled.value = data?.value === 'true'
+    } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'ads_mobile_enabled').single()
+        adsMobileEnabled.value = data?.value === 'true'
+    } catch { /* ignore */ }
 }
 
 async function handleSaveSettings() {
@@ -307,6 +350,9 @@ async function handleSaveSettings() {
             adminPasscode = newPasscode.value
             newPasscode.value = ''
         }
+
+        await client.from('app_settings').upsert({ key: 'ads_pc_enabled', value: String(adsPcEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'ads_mobile_enabled', value: String(adsMobileEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
 
         showToast('Settings updated successfully!')
     } catch {
@@ -383,6 +429,10 @@ async function handleSave4K() {
         save4kLoading.value = false
     }
 }
+
+// ── Ads ──────────────────────────────────────────────────────────────────────────
+const adsPcEnabled = ref(false)
+const adsMobileEnabled = ref(false)
 
 // ── Donations ────────────────────────────────────────────────────────────────────
 const donationRaised = ref(0)
@@ -783,6 +833,44 @@ onMounted(() => {
 
 .admin-page__btn--donation:hover:not(:disabled) {
     background: #e84817;
+}
+
+.admin-page__toggle {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.admin-page__toggle-input {
+    display: none;
+}
+
+.admin-page__toggle-track {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: rgba(245, 239, 228, 0.12);
+    border-radius: 11px;
+    transition: background 0.3s ease;
+}
+
+.admin-page__toggle-input:checked + .admin-page__toggle-track {
+    background: #ff5a1f;
+}
+
+.admin-page__toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: #f5efe4;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+.admin-page__toggle-input:checked + .admin-page__toggle-track .admin-page__toggle-knob {
+    transform: translateX(18px);
 }
 
 .admin-page__subsection-title {

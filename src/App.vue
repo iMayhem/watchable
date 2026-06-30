@@ -40,6 +40,7 @@ import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
 import { getContentMode } from './composables/useContentMode';
+import { useAdScript } from './composables/useAdScript';
 import ContentModeGate from './components/navigation/ContentModeGate.vue';
 import OpeningSplash from './components/navigation/OpeningSplash.vue';
 import BannerBar from './components/navigation/BannerBar.vue';
@@ -145,6 +146,8 @@ const initIdle = async () => {
     import('./pages/Upcoming.vue');
     import('./pages/NetflixBrowse.vue');
 };
+
+useAdScript('pc');
 
 onMounted(() => {
     loadGlobalSettings();

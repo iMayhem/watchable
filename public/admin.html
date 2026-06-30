@@ -189,6 +189,44 @@
             box-shadow: none;
         }
 
+        /* Donation Tracker */
+        .balance-card {
+            background: var(--bg-card);
+            border: 1px solid var(--rule);
+            border-radius: var(--r-md);
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            font-size: 0.95rem;
+            color: var(--bone-200);
+            border-bottom: 1px solid var(--rule);
+        }
+        .balance-row--total {
+            font-weight: 700;
+            color: var(--ember);
+            border-bottom: none;
+            font-size: 1.05rem;
+            padding-top: 0.6rem;
+        }
+        .btn--sm {
+            padding: 0.4rem 0.85rem;
+            font-size: 0.8rem;
+            margin-top: 0.75rem;
+        }
+        .btn--donation {
+            background: linear-gradient(135deg, var(--ember), var(--ember-600));
+            color: #fff;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .btn--donation:hover {
+            box-shadow: 0 0 20px var(--ember-glow);
+        }
+
         /* Views (Passcode authentication vs. Dashboard) */
         .view-section {
             display: none;
@@ -601,6 +639,40 @@
                 <div id="existing-polls"></div>
             </div>
 
+            <div class="curation-section">
+                <h2 class="section-title">Donations Tracker</h2>
+
+                <div class="balance-card">
+                    <h3 style="font-family: var(--font-display); font-size: 1rem; color: #c7bfb0; margin-bottom: 0.75rem;">Live Wallet Balance</h3>
+                    <div id="balance-loading" class="empty-state">Checking wallets...</div>
+                    <div id="balance-content" style="display:none">
+                        <div class="balance-row"><span>BTC</span><span id="btc-usd">$0.00</span></div>
+                        <div class="balance-row"><span>LTC</span><span id="ltc-usd">$0.00</span></div>
+                        <div class="balance-row"><span>USDT (TRC20)</span><span id="usdt-usd">$0.00</span></div>
+                        <div class="balance-row balance-row--total"><span>Total</span><span id="total-usd">$0.00</span></div>
+                    </div>
+                    <button type="button" class="btn btn--sm" id="refresh-balance-btn" onclick="refreshCryptoBalance()">Refresh Balance</button>
+                </div>
+
+                <form onsubmit="handleSaveDonations(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="donation-raised">Manual Override Amount ($)</label>
+                        <input id="donation-raised" type="number" class="form-input" min="0" step="0.01" placeholder="0" style="margin-bottom: 0.5rem;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="display:flex;align-items:center;gap:0.5rem;font-weight:400;font-size:0.9rem;text-transform:none">
+                            <input id="donation-popup-enabled" type="checkbox" checked style="margin:0;width:auto">
+                            Show donation popup on first visit
+                        </label>
+                    </div>
+                    <button type="submit" class="btn" id="donation-save-btn"><span>Save Donation Settings</span></button>
+                </form>
+
+                <button type="button" class="btn btn--donation" id="donation-notif-btn" onclick="handleDonationNotif()" style="margin-top:0.75rem">
+                    ❤️ Notify everyone — donation received!
+                </button>
+            </div>
+
             <div class="server-grid">
                 <div class="server-grid-item"><strong>ID</strong><strong>Sweet Name</strong></div>
                 <div class="server-grid-item"><span>rasmalai</span><span>Rasmalai</span></div>
@@ -744,6 +816,10 @@
             // Load banner & polls
             loadBannerSettings();
             loadExistingPolls();
+            
+            // Load donation settings & balance
+            refreshCryptoBalance();
+            loadDonationSettings();
         }
 
         // ==========================================
@@ -1254,6 +1330,159 @@
             } catch (err) {
                 console.error(err);
                 showToast('Failed to send notification', false);
+            }
+        }
+
+        // ==========================================
+        // DONATION TRACKER LOGIC
+        // ==========================================
+
+        const BTC_ADDR = 'bc1qkk0yyu8efu2gep5y59ev7s4j0wxnpxsfh4ympk';
+        const LTC_ADDR = 'ltc1qpnurrqnv466wa4uh6urh0ul5n4wu0rf8k5l25z';
+        const USDT_ADDR = 'TKfaywHdffM1iYdiSP3xFPajxgXwq2jmDG';
+        const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+
+        async function fetchBtcBalance() {
+            try {
+                const res = await fetch(`https://api.blockchair.com/bitcoin/address/${BTC_ADDR}?limit=0,1`);
+                const json = await res.json();
+                const sat = json?.data?.[BTC_ADDR]?.balance ?? 0;
+                return sat / 1e8;
+            } catch { return 0; }
+        }
+
+        async function fetchLtcBalance() {
+            try {
+                const res = await fetch(`https://api.blockchair.com/litecoin/address/${LTC_ADDR}?limit=0,1`);
+                const json = await res.json();
+                const lit = json?.data?.[LTC_ADDR]?.balance ?? 0;
+                return lit / 1e8;
+            } catch { return 0; }
+        }
+
+        async function fetchUsdtBalance() {
+            try {
+                const res = await fetch(`https://api.trongrid.io/v1/accounts/${USDT_ADDR}?only_confirmed=true`);
+                const json = await res.json();
+                const tokens = json?.data?.[0]?.trc20 ?? [];
+                for (const t of tokens) {
+                    if (t[USDT_CONTRACT]) return Number(t[USDT_CONTRACT]) / 1e6;
+                }
+                return 0;
+            } catch { return 0; }
+        }
+
+        async function fetchPrices() {
+            try {
+                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,litecoin,tether&vs_currencies=usd');
+                const json = await res.json();
+                return { btc: json?.bitcoin?.usd ?? 0, ltc: json?.litecoin?.usd ?? 0 };
+            } catch { return { btc: 0, ltc: 0 }; }
+        }
+
+        async function refreshCryptoBalance() {
+            const loadingEl = document.getElementById('balance-loading');
+            const contentEl = document.getElementById('balance-content');
+            if (!loadingEl || !contentEl) return;
+            loadingEl.style.display = 'block';
+            contentEl.style.display = 'none';
+            loadingEl.textContent = 'Checking wallets...';
+            try {
+                const [btcBal, ltcBal, usdtBal, prices] = await Promise.all([
+                    fetchBtcBalance(),
+                    fetchLtcBalance(),
+                    fetchUsdtBalance(),
+                    fetchPrices()
+                ]);
+                const btcUsd = btcBal * prices.btc;
+                const ltcUsd = ltcBal * prices.ltc;
+                const totalUsd = btcUsd + ltcUsd + usdtBal;
+                document.getElementById('btc-usd').textContent = `$${btcUsd.toFixed(2)}`;
+                document.getElementById('ltc-usd').textContent = `$${ltcUsd.toFixed(2)}`;
+                document.getElementById('usdt-usd').textContent = `$${usdtBal.toFixed(2)}`;
+                document.getElementById('total-usd').textContent = `$${totalUsd.toFixed(2)}`;
+                loadingEl.style.display = 'none';
+                contentEl.style.display = 'block';
+            } catch (err) {
+                loadingEl.textContent = 'Failed to fetch wallet balance';
+                console.error(err);
+            }
+        }
+
+        async function loadDonationSettings() {
+            try {
+                const { data: raisedData } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'donation_raised')
+                    .single();
+                if (raisedData && raisedData.value) {
+                    document.getElementById('donation-raised').value = raisedData.value;
+                }
+                const { data: popupData } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'donation_popup_enabled')
+                    .single();
+                if (popupData && popupData.value !== null) {
+                    document.getElementById('donation-popup-enabled').checked = popupData.value === 'true';
+                }
+            } catch (err) {
+                console.warn('Could not load donation settings:', err);
+            }
+        }
+
+        async function handleSaveDonations(event) {
+            event.preventDefault();
+            const raised = document.getElementById('donation-raised').value.trim();
+            const popupEnabled = document.getElementById('donation-popup-enabled').checked ? 'true' : 'false';
+            const btn = document.getElementById('donation-save-btn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            try {
+                if (raised) {
+                    const { error: rErr } = await supabaseClient.from('app_settings').upsert({
+                        key: 'donation_raised',
+                        value: raised,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'key' });
+                    if (rErr) throw rErr;
+                }
+                const { error: pErr } = await supabaseClient.from('app_settings').upsert({
+                    key: 'donation_popup_enabled',
+                    value: popupEnabled,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+                if (pErr) throw pErr;
+                showToast('Donation settings saved!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to save donation settings', false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save Donation Settings';
+            }
+        }
+
+        async function handleDonationNotif() {
+            const btn = document.getElementById('donation-notif-btn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                await supabaseClient.from('notifications').insert({
+                    title: 'Donation Received! 🎉',
+                    message: 'Thank you for supporting Moovie! A donation has been received.',
+                    type: 'success',
+                    created_at: new Date().toISOString(),
+                    created_by: 'admin'
+                });
+                showToast('Donation notification sent to all users!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to send donation notification', false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '❤️ Notify everyone — donation received!';
             }
         }
 

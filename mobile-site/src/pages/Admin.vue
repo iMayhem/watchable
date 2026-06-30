@@ -138,6 +138,44 @@
                     <div class="admin-page__server-row"><span>vidlink</span><span>Cham Cham</span></div>
                     <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
                 </div>
+
+                <div class="admin-page__curation">
+                    <h2 class="admin-page__section-title">Donations Tracker</h2>
+
+                    <div class="admin-page__balance-card">
+                        <h3 class="admin-page__subsection-title">Live Wallet Balance</h3>
+                        <div v-if="cryptoLoading" class="admin-page__empty">Checking wallets...</div>
+                        <template v-else>
+                            <div class="admin-page__balance-row"><span>BTC</span><span>${{ cryptoBtcUsd.toFixed(2) }}</span></div>
+                            <div class="admin-page__balance-row"><span>LTC</span><span>${{ cryptoLtcUsd.toFixed(2) }}</span></div>
+                            <div class="admin-page__balance-row"><span>USDT</span><span>${{ cryptoUsdtUsd.toFixed(2) }}</span></div>
+                            <div class="admin-page__balance-row admin-page__balance-row--total"><span>Total</span><span>${{ cryptoTotal.toFixed(2) }}</span></div>
+                        </template>
+                        <button type="button" class="admin-page__btn admin-page__btn--sm" :disabled="cryptoLoading" @click="refreshCryptoBalance" style="margin-top:0.5rem">
+                            {{ cryptoLoading ? 'Refreshing...' : 'Refresh Balance' }}
+                        </button>
+                    </div>
+
+                    <form @submit.prevent="handleSaveDonations">
+                        <div class="admin-page__field">
+                            <label class="admin-page__label" for="donation-raised">Manual Override Amount ($)</label>
+                            <input id="donation-raised" v-model.number="donationRaised" type="number" class="admin-page__input" min="0" step="0.01" placeholder="0">
+                        </div>
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">
+                                <input v-model="donationPopupEnabled" type="checkbox" style="margin-right:0.5rem">
+                                Show donation popup on first visit
+                            </label>
+                        </div>
+                        <button type="submit" class="admin-page__btn" :disabled="donationLoading">
+                            <span>{{ donationLoading ? 'Saving...' : 'Save Donation Settings' }}</span>
+                        </button>
+                    </form>
+
+                    <button type="button" class="admin-page__btn admin-page__btn--donation" :disabled="donationNotifLoading" @click="handleDonationNotif" style="margin-top:0.75rem">
+                        <span>{{ donationNotifLoading ? 'Sending...' : '❤️ Notify everyone — donation received!' }}</span>
+                    </button>
+                </div>
             </section>
         </div>
 
@@ -148,7 +186,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 
 const DEFAULT_PASSCODE = 'admin123'
 const SUPABASE_URL = 'https://eeyiragtylotiwozbgqp.supabase.co'
@@ -242,6 +280,16 @@ async function loadDashboardSettings() {
     } catch { /* ignore */ }
 
     await load4KCuration()
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'donation_raised').single()
+        if (data?.value) donationRaised.value = Number(data.value)
+    } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'donation_popup_enabled').single()
+        if (data?.value) donationPopupEnabled.value = data.value === 'true'
+    } catch { /* ignore */ }
 }
 
 async function handleSaveSettings() {
@@ -335,6 +383,86 @@ async function handleSave4K() {
         save4kLoading.value = false
     }
 }
+
+// ── Donations ────────────────────────────────────────────────────────────────────
+const donationRaised = ref(0)
+const donationLoading = ref(false)
+const donationPopupEnabled = ref(true)
+const donationNotifLoading = ref(false)
+const cryptoBtcUsd = ref(0)
+const cryptoLtcUsd = ref(0)
+const cryptoUsdtUsd = ref(0)
+const cryptoTotal = ref(0)
+const cryptoLoading = ref(false)
+
+async function refreshCryptoBalance() {
+    cryptoLoading.value = true
+    const BTC_ADDR = 'bc1qkk0yyu8efu2gep5y59ev7s4j0wxnpxsfh4ympk'
+    const LTC_ADDR = 'ltc1qpnurrqnv466wa4uh6urh0ul5n4wu0rf8k5l25z'
+    const USDT_ADDR = 'TKfaywHdffM1iYdiSP3xFPajxgXwq2jmDG'
+    const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+    try {
+        const [btcRes, ltcRes, usdtRes, priceRes] = await Promise.all([
+            fetch(`https://api.blockchair.com/bitcoin/address/${BTC_ADDR}?limit=0,1`).then(r => r.json()).catch(() => ({})),
+            fetch(`https://api.blockchair.com/litecoin/address/${LTC_ADDR}?limit=0,1`).then(r => r.json()).catch(() => ({})),
+            fetch(`https://api.trongrid.io/v1/accounts/${USDT_ADDR}?only_confirmed=true`).then(r => r.json()).catch(() => ({})),
+            fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,litecoin,tether&vs_currencies=usd').then(r => r.json()).catch(() => ({}))
+        ])
+        const btcBal = (btcRes?.data?.[BTC_ADDR]?.balance ?? 0) / 1e8
+        const ltcBal = (ltcRes?.data?.[LTC_ADDR]?.balance ?? 0) / 1e8
+        let usdtBal = 0
+        const tokens = usdtRes?.data?.[0]?.trc20 ?? []
+        for (const t of tokens) {
+            if (t[USDT_CONTRACT]) { usdtBal = Number(t[USDT_CONTRACT]) / 1e6; break }
+        }
+        const btcPrice = priceRes?.bitcoin?.usd ?? 0
+        const ltcPrice = priceRes?.litecoin?.usd ?? 0
+        cryptoBtcUsd.value = btcBal * btcPrice
+        cryptoLtcUsd.value = ltcBal * ltcPrice
+        cryptoUsdtUsd.value = usdtBal
+        cryptoTotal.value = cryptoBtcUsd.value + cryptoLtcUsd.value + cryptoUsdtUsd.value
+    } catch { /* ignore */ } finally {
+        cryptoLoading.value = false
+    }
+}
+
+async function handleSaveDonations() {
+    donationLoading.value = true
+    const client = await getClient()
+    try {
+        await client.from('app_settings').upsert({ key: 'donation_raised', value: String(donationRaised.value), updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'donation_popup_enabled', value: String(donationPopupEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
+        showToast('Donation settings saved!')
+    } catch {
+        showToast('Failed to save donation settings', false)
+    } finally {
+        donationLoading.value = false
+    }
+}
+
+async function handleDonationNotif() {
+    donationNotifLoading.value = true
+    const client = await getClient()
+    try {
+        const amount = cryptoTotal.value > 0 ? `$${cryptoTotal.value.toFixed(2)}` : 'a donation'
+        await client.from('notifications').insert({
+            title: `❤️ Someone just donated ${amount}!`,
+            message: 'Thank you for keeping this thing running. 💛',
+            type: 'success',
+            created_by: 'admin',
+            created_at: new Date().toISOString()
+        })
+        showToast('Donation notification sent!')
+    } catch {
+        showToast('Failed to send notification', false)
+    } finally {
+        donationNotifLoading.value = false
+    }
+}
+
+onMounted(() => {
+    void refreshCryptoBalance()
+})
 </script>
 
 <style scoped>
@@ -620,6 +748,49 @@ async function handleSave4K() {
 .admin-page__toast.is-show { transform: translateY(0); opacity: 1; }
 .admin-page__toast.is-success { border-left: 4px solid #6ba368; }
 .admin-page__toast.is-error { border-left: 4px solid #c94e3d; }
+
+.admin-page__balance-card {
+    background: rgba(245, 239, 228, 0.02);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.admin-page__balance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+    font-size: 0.8rem;
+    color: #c4bda8;
+}
+
+.admin-page__balance-row--total {
+    border-top: 1px solid rgba(245, 239, 228, 0.1);
+    margin-top: 0.3rem;
+    padding-top: 0.5rem;
+    font-weight: 700;
+    color: #ff5a1f;
+    font-size: 0.9rem;
+}
+
+.admin-page__btn--donation {
+    background: #ff5a1f;
+    color: #0b0a08;
+    border: none;
+}
+
+.admin-page__btn--donation:hover:not(:disabled) {
+    background: #e84817;
+}
+
+.admin-page__subsection-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1rem;
+    color: #f5efe4;
+    margin-bottom: 0.5rem;
+}
 
 @media (max-width: 480px) {
     .admin-page__container {

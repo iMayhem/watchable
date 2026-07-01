@@ -700,7 +700,14 @@ export default defineComponent({
                     return url.split('?')[0].split('#')[0].toLowerCase();
                 }
                 let autoPlayed = false;
-                for (const [prov, urls] of Object.entries(rawData) as [string, string[]][]) {
+                const sortedEntries = (Object.entries(rawData) as [string, string[]][]).sort(([keyA], [keyB]) => {
+                    const isSpiderA = keyA.toLowerCase().includes('spider');
+                    const isSpiderB = keyB.toLowerCase().includes('spider');
+                    if (isSpiderA && !isSpiderB) return -1;
+                    if (!isSpiderA && isSpiderB) return 1;
+                    return keyA.localeCompare(keyB);
+                });
+                for (const [prov, urls] of sortedEntries) {
                     for (let i = 0; i < urls.length; i++) {
                         const ext = targetExt(urls[i]);
                         if (playableExts.some(e => ext.endsWith(e))) {

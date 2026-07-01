@@ -372,7 +372,14 @@ export default defineComponent({
         const filteredResult = computed(() => {
             if (!result.value) return null;
             const out: Record<string, string[]> = {};
-            for (const [provider, urls] of Object.entries(result.value)) {
+            const sortedEntries = Object.entries(result.value).sort(([keyA], [keyB]) => {
+                const isSpiderA = keyA.toLowerCase().includes('spider');
+                const isSpiderB = keyB.toLowerCase().includes('spider');
+                if (isSpiderA && !isSpiderB) return -1;
+                if (!isSpiderA && isSpiderB) return 1;
+                return keyA.localeCompare(keyB);
+            });
+            for (const [provider, urls] of sortedEntries) {
                 const baseProvider = provider.split(' ·')[0];
                 if (selectedProviders.value.has(baseProvider)) {
                     out[provider] = urls;

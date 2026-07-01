@@ -148,10 +148,12 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onUnmounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const API_BASE = 'https://proxy.moovie.fun';
+
+const LOG = '[ScraperTest]';
 
 const LOADING_MESSAGES = [
     'Probing providers…',
@@ -159,6 +161,38 @@ const LOADING_MESSAGES = [
     'Checking mirrors…',
     'Resolving streams…',
 ];
+
+function dbg(label: string, data?: unknown) {
+    if (data !== undefined) {
+        console.debug(`${LOG} ${label}`, data);
+    } else {
+        console.debug(`${LOG} ${label}`);
+    }
+}
+
+function log(label: string, data?: unknown) {
+    if (data !== undefined) {
+        console.log(`${LOG} ${label}`, data);
+    } else {
+        console.log(`${LOG} ${label}`);
+    }
+}
+
+function warn(label: string, data?: unknown) {
+    if (data !== undefined) {
+        console.warn(`${LOG} ${label}`, data);
+    } else {
+        console.warn(`${LOG} ${label}`);
+    }
+}
+
+function err(label: string, data?: unknown) {
+    if (data !== undefined) {
+        console.error(`${LOG} ${label}`, data);
+    } else {
+        console.error(`${LOG} ${label}`);
+    }
+}
 
 export default defineComponent({
     name: 'ScraperTesting',
@@ -179,6 +213,7 @@ export default defineComponent({
         const loadingLabel = ref(LOADING_MESSAGES[0]);
         let artInstance: any = null;
         let msgInterval: number | null = null;
+        let hlsInstance: any = null;
 
         const title = computed(() => searchTitle.value.trim() || '');
 
@@ -196,11 +231,45 @@ export default defineComponent({
             return count;
         });
 
+        const allStreamsFlat = computed(() => {
+            const out: { provider: string; index: number; url: string }[] = [];
+            if (!result.value) return out;
+            for (const [provider, urls] of Object.entries(result.value)) {
+                urls.forEach((url, i) => out.push({ provider, index: i, url }));
+            }
+            return out;
+        });
+
+        function inspectUrl(u: string) {
+            try {
+                const parsed = new URL(u);
+                return {
+                    protocol: parsed.protocol,
+                    hostname: parsed.hostname,
+                    port: parsed.port,
+                    pathname: parsed.pathname,
+                    pathLength: parsed.pathname.length,
+                    search: parsed.search,
+                    searchParams: Object.fromEntries(parsed.searchParams.entries()),
+                    hash: parsed.hash,
+                };
+            } catch {
+                return { error: 'invalid URL', raw: u };
+            }
+        }
+
         const loadArtplayerAssets = (() => {
             let promise: Promise<void> | null = null;
             return () => {
-                if ((window as any).Artplayer) return Promise.resolve();
-                if (promise) return promise;
+                if ((window as any).Artplayer) {
+                    dbg('artplayer:already-loaded');
+                    return Promise.resolve();
+                }
+                if (promise) {
+                    dbg('artplayer:awaiting-existing-load');
+                    return promise;
+                }
+                dbg('artplayer:starting-asset-load');
                 promise = new Promise((resolve, reject) => {
                     if (!document.querySelector('link[data-stest-art-css]')) {
                         const link = document.createElement('link');
@@ -208,41 +277,126 @@ export default defineComponent({
                         link.href = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.css';
                         link.setAttribute('data-stest-art-css', '1');
                         document.head.appendChild(link);
+                        dbg('artplayer:css-link-appended');
                     }
                     const script = document.createElement('script');
                     script.src = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.min.js';
                     script.onload = () => {
+                        log('artplayer:script-loaded', { version: (window as any).Artplayer?.version || 'unknown' });
                         const hlsScript = document.createElement('script');
                         hlsScript.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
-                        hlsScript.onload = () => resolve();
-                        hlsScript.onerror = () => resolve();
+                        hlsScript.onload = () => {
+                            log('hls.js:script-loaded', { version: (window as any).Hls?.version || 'unknown' });
+                            resolve();
+                        };
+                        hlsScript.onerror = () => {
+                            warn('hls.js:script-failed, continuing without hls.js');
+                            resolve();
+                        };
                         document.head.appendChild(hlsScript);
+                        dbg('hls.js:script-tag-appended');
                     };
-                    script.onerror = () => reject(new Error('ArtPlayer failed to load'));
+                    script.onerror = () => {
+                        err('artplayer:script-load-failed');
+                        reject(new Error('ArtPlayer failed to load'));
+                    };
                     document.head.appendChild(script);
+                    dbg('artplayer:script-tag-appended');
                 });
                 return promise;
             };
         })();
 
-        const destroyArt = () => {
+        function destroyArt() {
             if (artInstance) {
-                try { artInstance.destroy(false); } catch { /* ignore */ }
+                log('artplayer:destroy', {
+                    hasInstance: true,
+                    currentUrl: artInstance?.url,
+                });
+                try {
+                    artInstance.destroy(false);
+                    dbg('artplayer:destroy-ok');
+                } catch (e) {
+                    warn('artplayer:destroy-error', e);
+                }
                 artInstance = null;
             }
-        };
+            if (hlsInstance) {
+                dbg('hls.js:destroy');
+                try { hlsInstance.destroy(); } catch { /* */ }
+                hlsInstance = null;
+            }
+        }
 
-        const mountArtplayer = async (url: string) => {
+        function setupArtplayerEvents(art: any, url: string) {
+            const events = [
+                'video:loadedmetadata',
+                'video:canplay',
+                'video:playing',
+                'video:pause',
+                'video:waiting',
+                'video:stalled',
+                'video:error',
+                'video:ended',
+                'video:timeupdate',
+                'video:seeking',
+                'video:seeked',
+                'ready',
+                'pause',
+                'play',
+                'error',
+                'destroy',
+            ] as const;
+
+            const meta = { url, mountedAt: Date.now() };
+
+            art.on('ready', () => log('artplayer:ready', meta));
+            art.on('play', () => log('artplayer:play', meta));
+            art.on('pause', () => dbg('artplayer:pause', meta));
+            art.on('error', (e: any) => err('artplayer:error', { ...meta, error: e }));
+            art.on('destroy', () => log('artplayer:destroy-event', meta));
+
+            art.on('video:loadedmetadata', () => {
+                const v = art.video;
+                log('artplayer:video:loadedmetadata', {
+                    ...meta,
+                    duration: v?.duration,
+                    videoWidth: v?.videoWidth,
+                    videoHeight: v?.videoHeight,
+                    readyState: v?.readyState,
+                });
+            });
+
+            art.on('video:canplay', () => dbg('artplayer:video:canplay', meta));
+            art.on('video:playing', () => log('artplayer:video:playing', meta));
+            art.on('video:waiting', () => warn('artplayer:video:waiting', meta));
+            art.on('video:stalled', () => warn('artplayer:video:stalled', meta));
+            art.on('video:ended', () => log('artplayer:video:ended', meta));
+            art.on('video:error', (e: any) => err('artplayer:video:error', { ...meta, error: e }));
+        }
+
+        async function mountArtplayer(url: string) {
+            log('artplayer:mount-start', { url, urlInspect: inspectUrl(url) });
+
             await loadArtplayerAssets();
             const container = artContainer.value;
-            if (!container) return;
+            if (!container) {
+                warn('artplayer:mount-skipped-no-container');
+                return;
+            }
             destroyArt();
 
             const ArtplayerCtor = (window as any).Artplayer;
             const HlsCtor = (window as any).Hls;
-            const isM3u8 = url.includes('.m3u8') || url.includes('m3u8');
+            const isM3u8 = url.includes('.m3u8') || url.includes('m3u8') || url.includes('.m3u');
 
-            artInstance = new ArtplayerCtor({
+            log('artplayer:mount-config', {
+                type: isM3u8 ? 'm3u8' : 'mp4',
+                hlsJsAvailable: Boolean(HlsCtor),
+                hlsJsSupported: HlsCtor?.isSupported?.() ?? false,
+            });
+
+            const config: Record<string, any> = {
                 container,
                 url,
                 type: isM3u8 ? 'm3u8' : 'mp4',
@@ -256,25 +410,97 @@ export default defineComponent({
                 fastForward: true,
                 setting: true,
                 theme: '#ff5a1f',
-                customType: isM3u8 ? {
+            };
+
+            if (isM3u8 && HlsCtor) {
+                config.customType = {
                     m3u8(video: HTMLVideoElement, src: string) {
-                        if (HlsCtor?.isSupported()) {
-                            const hls = new HlsCtor({ enableWorker: true });
-                            hls.loadSource(src);
-                            hls.attachMedia(video);
+                        log('hls.js:customType-invoked', { src });
+                        if (HlsCtor.isSupported()) {
+                            hlsInstance = new HlsCtor({
+                                enableWorker: true,
+                                debug: true,
+                                maxBufferLength: 30,
+                                maxMaxBufferLength: 60,
+                            });
+
+                            hlsInstance.on(HlsCtor.Events.MANIFEST_PARSED, (_event: any, data: any) => {
+                                log('hls.js:manifest-parsed', {
+                                    levels: data.levels?.length,
+                                    levels_detail: data.levels?.map((l: any) => ({
+                                        height: l.height,
+                                        width: l.width,
+                                        bitrate: l.bitrate,
+                                        codec: l.codec,
+                                    })),
+                                    audioTracks: data.audioTracks?.length,
+                                });
+                            });
+
+                            hlsInstance.on(HlsCtor.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
+                                dbg('hls.js:level-switched', { level: data.level });
+                            });
+
+                            hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
+                                if (data.fatal) {
+                                    err('hls.js:fatal-error', {
+                                        type: data.type,
+                                        details: data.details,
+                                        reason: data.reason,
+                                    });
+                                } else {
+                                    dbg('hls.js:recoverable-error', {
+                                        type: data.type,
+                                        details: data.details,
+                                    });
+                                }
+                            });
+
+                            hlsInstance.on(HlsCtor.Events.FRAG_LOADED, (_event: any, data: any) => {
+                                dbg('hls.js:frag-loaded', {
+                                    frag: data.frag?.url,
+                                    size: data.frag?.size,
+                                    duration: data.frag?.duration,
+                                });
+                            });
+
+                            hlsInstance.on(HlsCtor.Events.BUFFER_APPENDED, (_event: any, data: any) => {
+                                dbg('hls.js:buffer-appended', {
+                                    pending: data?.pending,
+                                    time: data?.time,
+                                });
+                            });
+
+                            hlsInstance.loadSource(src);
+                            hlsInstance.attachMedia(video);
+
+                            log('hls.js:attached', { src });
                         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                            warn('hls.js:not-supported-using-native-hls');
                             video.src = src;
+                        } else {
+                            err('hls.js:not-supported-and-no-native-hls');
                         }
                     },
-                } : undefined,
+                };
+            }
+
+            artInstance = new ArtplayerCtor(config);
+            log('artplayer:mounted', {
+                url,
+                constructorVersion: ArtplayerCtor.version,
             });
-        };
+            setupArtplayerEvents(artInstance, url);
+        }
 
         const setActive = (provider: string, index: number) => {
             const url = result.value?.[provider]?.[index];
             if (url) {
+                log('stream:set-active', { provider, index, url, urlInspect: inspectUrl(url) });
                 activeStreamUrl.value = url;
                 mountArtplayer(url);
+            } else {
+                warn('stream:set-active-invalid', { provider, index });
             }
         };
 
@@ -284,7 +510,10 @@ export default defineComponent({
         const copy = async (url: string) => {
             try {
                 await navigator.clipboard.writeText(url);
-            } catch { /* ignore */ }
+                log('clipboard:copied', { url: url.slice(0, 80) });
+            } catch (e) {
+                warn('clipboard:copy-failed', e);
+            }
         };
 
         const goBack = () => {
@@ -294,6 +523,15 @@ export default defineComponent({
         const search = async () => {
             const q = searchTitle.value.trim();
             if (!q) return;
+
+            log('scrape:start', {
+                title: q,
+                season: season.value,
+                episode: episode.value,
+                fast: Boolean(fast.value),
+                timestamp: new Date().toISOString(),
+            });
+
             loading.value = true;
             error.value = '';
             result.value = null;
@@ -315,31 +553,130 @@ export default defineComponent({
 
             const qs = new URLSearchParams(params).toString();
             const url = `${API_BASE}/api/scrape?${qs}`;
+
+            log('scrape:request', {
+                url,
+                params,
+                apiBase: API_BASE,
+            });
+
             const startedAt = performance.now();
 
             try {
                 const resp = await fetch(url);
-                timing.value = Math.round(performance.now() - startedAt);
+                const elapsed = Math.round(performance.now() - startedAt);
+                timing.value = elapsed;
+
+                const headers: Record<string, string> = {};
+                resp.headers.forEach((v, k) => { headers[k] = v; });
+
+                dbg('scrape:response-headers', {
+                    status: resp.status,
+                    statusText: resp.statusText,
+                    ok: resp.ok,
+                    contentType: resp.headers.get('content-type'),
+                    contentLength: resp.headers.get('content-length'),
+                    cacheControl: resp.headers.get('cache-control'),
+                    date: resp.headers.get('date'),
+                    elapsed,
+                    headers,
+                });
+
                 if (!resp.ok) {
-                    throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+                    const body = await resp.text();
+                    err('scrape:http-error', { status: resp.status, body: body.slice(0, 500) });
+                    throw new Error(`HTTP ${resp.status}: ${body.slice(0, 200)}`);
                 }
-                result.value = await resp.json();
-                if (numStreams.value > 0) {
-                    const firstProvider = Object.keys(result.value!)[0];
-                    setActive(firstProvider, 0);
+
+                const rawData = await resp.json();
+                log('scrape:response-parsed', {
+                    elapsed,
+                    providerCount: Object.keys(rawData).length,
+                    totalStreams: Object.values(rawData).reduce((acc: number, v: any) => acc + (Array.isArray(v) ? v.length : 0), 0),
+                    providers: Object.entries(rawData).map(([name, urls]) => ({
+                        name,
+                        count: (urls as any[]).length,
+                    })),
+                });
+
+                // Deep inspect each stream URL
+                for (const [provider, urls] of Object.entries(rawData)) {
+                    dbg(`scrape:provider:${provider}`, {
+                        count: (urls as any[]).length,
+                        urls: (urls as any[]).map((u: string) => inspectUrl(u)),
+                        raw: urls,
+                    });
                 }
-            } catch (err: any) {
-                error.value = err.message || 'Request failed';
+
+                result.value = rawData;
+
+                // Auto-play first stream
+                const allProviders = Object.keys(rawData);
+                if (allProviders.length > 0) {
+                    const firstProv = allProviders[0];
+                    const firstUrls = rawData[firstProv];
+                    if (firstUrls?.length > 0) {
+                        log('scrape:auto-play', { provider: firstProv, index: 0, url: firstUrls[0] });
+                        setActive(firstProv, 0);
+                    }
+                }
+            } catch (e: any) {
+                const elapsed = timing.value !== null ? timing.value : Math.round(performance.now() - startedAt);
+                err('scrape:failed', {
+                    message: e.message,
+                    stack: e.stack?.split('\n').slice(0, 6).join('\n'),
+                    elapsed,
+                });
+                error.value = e.message || 'Request failed';
             } finally {
                 loading.value = false;
                 if (msgInterval) clearInterval(msgInterval);
                 msgInterval = null;
+                log('scrape:end', {
+                    elapsed: timing.value,
+                    totalStreams: numStreams.value,
+                    providers: numProviders.value,
+                });
             }
         };
+
+        // Expose debug state to window for console inspection
+        onMounted(() => {
+            (window as any).__scraperDebug = {
+                state: () => ({
+                    searchTitle: searchTitle.value,
+                    season: season.value,
+                    episode: episode.value,
+                    fast: fast.value,
+                    loading: loading.value,
+                    error: error.value,
+                    result: result.value,
+                    timing: timing.value,
+                    activeStreamUrl: activeStreamUrl.value,
+                    numProviders: numProviders.value,
+                    numStreams: numStreams.value,
+                    artInstance: artInstance ? {
+                        url: artInstance.url,
+                        playing: !artInstance.paused,
+                    } : null,
+                    hlsInstance: hlsInstance ? { alive: true } : null,
+                    allStreams: allStreamsFlat.value,
+                }),
+                inspect: (url: string) => inspectUrl(url),
+                search: search,
+                play: setActive,
+                result: result,
+                apiBase: API_BASE,
+                version: '1.0.0',
+            };
+            log('debug:exposed', { hint: 'Use window.__scraperDebug in console' });
+            dbg('debug:exposed-full', { api: Object.keys((window as any).__scraperDebug) });
+        });
 
         onUnmounted(() => {
             destroyArt();
             if (msgInterval) clearInterval(msgInterval);
+            delete (window as any).__scraperDebug;
         });
 
         return {

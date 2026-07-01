@@ -97,6 +97,60 @@
                     </div>
                 </div>
 
+                <!-- Provider selector accordion -->
+                <section class="provider-selector">
+                    <div class="server-accordion__head" @click="providersOpen = !providersOpen">
+                        <div class="server-accordion__heading">
+                            <p class="eyebrow">Provider selector</p>
+                            <h3 class="server-accordion__title">
+                                {{ selectedProviders.size === allProviders.length ? 'All providers' : `${selectedProviders.size} / ${allProviders.length} selected` }}
+                                <span class="provider-selector__chev">{{ providersOpen ? '▲' : '▼' }}</span>
+                            </h3>
+                        </div>
+                        <div class="provider-selector__actions">
+                            <button type="button" class="provider-selector__action" @click.stop="selectAllProviders">All</button>
+                            <button type="button" class="provider-selector__action" @click.stop="selectFastProviders">Fast</button>
+                            <button type="button" class="provider-selector__action" @click.stop="selectedProviders.clear(); selectedProviders = new Set(selectedProviders)">None</button>
+                        </div>
+                    </div>
+
+                    <div v-if="providersOpen" class="server-accordion__body">
+                        <ul class="server-accordion__grid provider-selector__grid">
+                            <li v-for="provider in allProviders" :key="provider.name">
+                                <button
+                                    type="button"
+                                    class="provider-card"
+                                    :class="{
+                                        'is-selected': selectedProviders.has(provider.name),
+                                        'is-fast': provider.fast,
+                                        'has-result': result && result[provider.name],
+                                        'has-error': result && !result[provider.name],
+                                    }"
+                                    @click="toggleProvider(provider.name)"
+                                >
+                                    <span class="provider-card__check">{{ selectedProviders.has(provider.name) ? '✓' : '' }}</span>
+                                    <span class="provider-card__body">
+                                        <span class="provider-card__name">{{ provider.name }}</span>
+                                        <span class="provider-card__hint meta">
+                                            {{ provider.fast ? 'fast' : 'full' }}
+                                            <template v-if="result && result[provider.name]">
+                                                · {{ result[provider.name].length }} URL{{ result[provider.name].length === 1 ? '' : 's' }}
+                                            </template>
+                                            <template v-else-if="result && !result[provider.name]">
+                                                · no streams
+                                            </template>
+                                        </span>
+                                    </span>
+                                    <span class="provider-card__badge" :class="{ 'is-live': result && result[provider.name] }">
+                                        {{ result && result[provider.name] ? '✓' : result ? '✗' : '' }}
+                                    </span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Results per provider -->
                 <section v-if="result && numProviders > 0" class="server-accordion">
                     <div class="server-accordion__head">
                         <div class="server-accordion__heading">
@@ -107,11 +161,14 @@
 
                     <div class="server-accordion__body">
                         <ul class="server-accordion__grid" role="listbox">
-                            <li v-for="(urls, provider) in result" :key="provider">
+                            <li v-for="(urls, provider) in filteredResult" :key="provider">
                                 <div class="server-card server-card--group">
                                     <span class="server-card__body">
                                         <span class="server-card__name">{{ provider }}</span>
                                         <span class="server-card__hint meta">{{ urls.length }} URL{{ urls.length === 1 ? '' : 's' }}</span>
+                                    </span>
+                                    <span class="server-card__actions">
+                                        <button type="button" class="server-card__copy" title="Copy all URLs" @click="copyAll(urls)">📋 all</button>
                                     </span>
                                 </div>
                                 <div v-for="(url, i) in urls" :key="i" class="server-card server-card--url">
@@ -194,6 +251,32 @@ function err(label: string, data?: unknown) {
     }
 }
 
+const ALL_PROVIDERS: { name: string; fast: boolean }[] = [
+    { name: 'VidLink', fast: true },
+    { name: 'VidFast', fast: true },
+    { name: 'Hexa', fast: true },
+    { name: 'Onetouchtv', fast: false },
+    { name: 'Lordflix', fast: true },
+    { name: 'Kisskh', fast: true },
+    { name: 'DahmerMovies', fast: false },
+    { name: 'Akwam', fast: false },
+    { name: 'VegaMovies', fast: false },
+    { name: 'Bollyflix', fast: false },
+    { name: 'Moviesmod', fast: false },
+    { name: 'MoviesDrive', fast: false },
+    { name: 'OnlineMoviesHindi', fast: false },
+    { name: 'Animepahe', fast: true },
+    { name: 'Levidia', fast: false },
+    { name: 'Desicinemas', fast: false },
+    { name: 'Goojara', fast: false },
+    { name: 'UHDmovies', fast: false },
+    { name: 'NetMirror', fast: true },
+    { name: 'Peachify', fast: true },
+    { name: 'ShowBox', fast: false },
+];
+
+const FAST_NAMES = new Set(ALL_PROVIDERS.filter(p => p.fast).map(p => p.name));
+
 export default defineComponent({
     name: 'ScraperTesting',
     setup() {
@@ -211,9 +294,13 @@ export default defineComponent({
         const artContainer = ref<HTMLElement | null>(null);
         const bloomRef = ref<HTMLElement | null>(null);
         const loadingLabel = ref(LOADING_MESSAGES[0]);
+        const providersOpen = ref(true);
+        const selectedProviders = ref(new Set(ALL_PROVIDERS.map(p => p.name)));
         let artInstance: any = null;
         let msgInterval: number | null = null;
         let hlsInstance: any = null;
+
+        const allProviders = ALL_PROVIDERS;
 
         const title = computed(() => searchTitle.value.trim() || '');
 
@@ -239,6 +326,37 @@ export default defineComponent({
             }
             return out;
         });
+
+        const filteredResult = computed(() => {
+            if (!result.value) return null;
+            const out: Record<string, string[]> = {};
+            for (const [provider, urls] of Object.entries(result.value)) {
+                if (selectedProviders.value.has(provider)) {
+                    out[provider] = urls;
+                }
+            }
+            return out;
+        });
+
+        function toggleProvider(name: string) {
+            const s = new Set(selectedProviders.value);
+            if (s.has(name)) s.delete(name);
+            else s.add(name);
+            selectedProviders.value = s;
+        }
+
+        function selectAllProviders() {
+            selectedProviders.value = new Set(ALL_PROVIDERS.map(p => p.name));
+        }
+
+        function selectFastProviders() {
+            selectedProviders.value = new Set(FAST_NAMES);
+            fast.value = 1;
+        }
+
+        function copyAll(urls: string[]) {
+            copy(urls.join('\n'));
+        }
 
         function inspectUrl(u: string) {
             try {
@@ -684,7 +802,9 @@ export default defineComponent({
             loading, error, result, timing, showDebug,
             numProviders, numStreams, title,
             activeStreamUrl, artContainer, bloomRef, loadingLabel,
+            allProviders, selectedProviders, providersOpen, filteredResult,
             search, setActive, truncate, copy, goBack,
+            toggleProvider, selectAllProviders, selectFastProviders, copyAll,
         };
     },
 });
@@ -1278,6 +1398,149 @@ export default defineComponent({
         transition: background-color var(--dur-fast);
 
         &:hover { background: rgba(255, 255, 255, 0.08); }
+    }
+}
+
+// ── Provider selector ──────────────────────────────────────────
+.provider-selector {
+    background: var(--ink-850);
+    box-shadow: inset 0 0 0 1px var(--rule);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+
+    &__chev {
+        margin-left: var(--s-2);
+        font-size: 10px;
+        color: var(--bone-400);
+    }
+
+    &__actions {
+        display: flex;
+        gap: var(--s-1);
+        margin-top: var(--s-2);
+    }
+
+    &__action {
+        all: unset;
+        cursor: pointer;
+        padding: 0.2rem 0.6rem;
+        border-radius: var(--r-pill);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--rule);
+        color: var(--bone-300);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        transition: background-color var(--dur-fast), border-color var(--dur-fast);
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--bone-400);
+        }
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: var(--s-1);
+    }
+}
+
+.provider-card {
+    all: unset;
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-2);
+    border-radius: var(--r-md);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--rule);
+    cursor: pointer;
+    transition: all var(--dur-fast);
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: var(--bone-400);
+    }
+
+    &.is-selected {
+        border-color: var(--ember);
+        background: rgba(255, 90, 31, 0.06);
+    }
+
+    &.has-result {
+        border-color: rgba(78, 255, 120, 0.3);
+        &.is-selected { border-color: #4eff78; }
+    }
+
+    &.has-error {
+        opacity: 0.5;
+    }
+
+    &.is-fast {
+        .provider-card__hint { color: var(--ember); }
+    }
+
+    &__check {
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        border: 1px solid var(--rule-strong);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+        color: var(--ember);
+        transition: all var(--dur-fast);
+    }
+
+    &.is-selected &__check {
+        border-color: var(--ember);
+        background: rgba(255, 90, 31, 0.15);
+    }
+
+    &__body {
+        display: grid;
+        gap: 1px;
+        min-width: 0;
+        flex: 1;
+    }
+
+    &__name {
+        font-family: var(--font-ui);
+        font-weight: 600;
+        font-size: var(--fs-sm);
+        color: var(--bone-50);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__hint {
+        font-size: 10px;
+        color: var(--bone-400);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__badge {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+        color: rgba(255, 255, 255, 0.15);
+
+        &.is-live {
+            color: #4eff78;
+            background: rgba(78, 255, 120, 0.1);
+        }
     }
 }
 

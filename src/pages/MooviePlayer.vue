@@ -33,6 +33,8 @@
 <script lang="ts">
 import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import Plyr from 'plyr';
+import 'plyr/dist/plyr.css';
 
 const API_BASE = 'https://proxy.moovie.fun';
 const LOADING_MESSAGES = [
@@ -58,30 +60,16 @@ export default defineComponent({
         let hlsInstance: any = null;
         let msgInterval: number | null = null;
 
-        // ── Load Plyr + HLS.js from CDN if not already present ──────────────
-        function loadScript(src: string): Promise<void> {
+        // ── Load HLS.js from CDN if not already present ──────────────
+        function loadHls(): Promise<void> {
             return new Promise((resolve) => {
-                if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-                const s = document.createElement('script');
-                s.src = src;
-                s.onload = () => resolve();
-                s.onerror = () => resolve();
-                document.head.appendChild(s);
+                if ((window as any).Hls) { resolve(); return; }
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => resolve();
+                document.head.appendChild(script);
             });
-        }
-
-        function loadLink(href: string): void {
-            if (document.querySelector(`link[href="${href}"]`)) return;
-            const l = document.createElement('link');
-            l.rel = 'stylesheet';
-            l.href = href;
-            document.head.appendChild(l);
-        }
-
-        async function loadDeps() {
-            loadLink('https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css');
-            await loadScript('https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js');
-            await loadScript('https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.min.js');
         }
 
         // ── Destroy instances ────────────────────────────────────────────────
@@ -101,15 +89,12 @@ export default defineComponent({
 
         // ── Mount Plyr ───────────────────────────────────────────────────────
         async function mountPlayer(url: string) {
-            await loadDeps();
+            await loadHls();
             const container = playerContainer.value;
             if (!container) return;
             destroyPlayer();
 
             const HlsCtor = (window as any).Hls;
-            const PlyrCtor = (window as any).Plyr;
-            if (!PlyrCtor) return;
-
             const isM3u8 = url.includes('.m3u8') || url.includes('m3u8') || url.includes('.m3u');
 
             const video = document.createElement('video');
@@ -131,7 +116,7 @@ export default defineComponent({
                 video.src = url;
             }
 
-            plyrInstance = new PlyrCtor(video, {
+            plyrInstance = new Plyr(video, {
                 autoplay: true,
                 controls: [
                     'play-large', 'play', 'progress',

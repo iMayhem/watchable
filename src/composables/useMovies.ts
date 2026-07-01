@@ -93,8 +93,8 @@ export interface MovieVideo {
     size: number,
     type: string
 }
-const router = useRouter()
 export const handleMovieClick = (id: number) => {
+    const router = useRouter()
     router.push({name: "Movie", params: {id: id.toString()}})
 }
 export const useMovies = () => {

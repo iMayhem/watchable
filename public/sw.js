@@ -3,8 +3,7 @@ const IMAGE_CACHE = 'moovie-image-cache-v1';
 const PRECACHE_ASSETS = [
   '/',
   '/favicon.svg',
-  '/manifest.json',
-  '/artplayer-compact.css'
+  '/manifest.json'
 ];
 
 const IMAGE_HOSTS = [
@@ -56,7 +55,11 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .then((r) => { caches.open(CACHE_NAME).then((c) => c.put('/', r.clone())); return r; })
+        .then((r) => {
+          const rClone = r.clone();
+          caches.open(CACHE_NAME).then((c) => c.put('/', rClone));
+          return r;
+        })
         .catch(() => caches.match('/'))
     );
     return;
@@ -76,11 +79,19 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(event.request).then((hit) => {
         if (hit) {
-          fetch(event.request).then((net) => { if (net.status === 200) caches.open(CACHE_NAME).then((c) => c.put(event.request, net)); }).catch(() => {});
+          fetch(event.request).then((net) => {
+            if (net.status === 200) {
+              const netClone = net.clone();
+              caches.open(CACHE_NAME).then((c) => c.put(event.request, netClone));
+            }
+          }).catch(() => {});
           return hit;
         }
         return fetch(event.request).then((net) => {
-          if (net && net.status === 200 && net.type === 'basic') caches.open(CACHE_NAME).then((c) => c.put(event.request, net.clone()));
+          if (net && net.status === 200 && net.type === 'basic') {
+            const netClone = net.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(event.request, netClone));
+          }
           return net;
         });
       })
@@ -94,7 +105,10 @@ self.addEventListener('fetch', (event) => {
         return cache.match(event.request).then((hit) => {
           if (hit) {
             fetch(event.request).then((net) => {
-              if (net && net.ok) cache.put(event.request, net);
+              if (net && net.ok) {
+                const netClone = net.clone();
+                cache.put(event.request, netClone);
+              }
             }).catch(() => {});
             return hit;
           }

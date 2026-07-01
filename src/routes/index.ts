@@ -360,6 +360,16 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/moovie',
+        name: 'MooviePlayer',
+        component: () => import('../pages/MooviePlayer.vue'),
+        meta: {
+            showInHeader: false,
+            hidden: true,
+            title: 'moovie Player'
+        }
+    },
+    {
         path: '/party',
         name: 'Party',
         component: () => import('../pages/Party.vue'),

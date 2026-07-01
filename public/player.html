@@ -1,60 +1,59 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineStream Premium Player</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stream Player — CineStream</title>
     <style>
-        html, body {
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #0b0c10;
-            color: #f5f5f7;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #000;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #fff;
             overflow: hidden;
         }
 
         #player-container {
-            width: 100%;
-            height: 100%;
             position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
         }
 
-        /* Error/Loading Banner */
+        /* Status Overlay */
         .status-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
+            z-index: 20;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, #1a1a24 0%, #0b0c10 100%);
-            z-index: 10;
+            background: #0b0a08;
+            padding: 1.5rem;
             text-align: center;
-            padding: 2rem;
-            box-sizing: border-box;
         }
 
         .status-spinner {
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
             border: 3px solid rgba(255, 90, 31, 0.15);
             border-top-color: #ff5a1f;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 1.5rem;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 1.25rem;
         }
 
         .status-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin: 0 0 0.5rem 0;
-            letter-spacing: -0.02em;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem;
+            color: #f5efe4;
         }
 
         .status-subtitle {
@@ -73,11 +72,67 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* ── Plyr Custom Styling & Sleek Overrides ── */
+        .plyr {
+            width: 100% !important;
+            height: 100% !important;
+            background: #000 !important;
+        }
+
+        .plyr__video-wrapper {
+            height: 100% !important;
+            width: 100% !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .plyr-video-element {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+        }
+
+        /* Floating control bar logic for Plyr controls */
+        .plyr__controls {
+            background: rgba(11, 10, 8, 0.8) !important;
+            backdrop-filter: blur(14px) saturate(1.2) !important;
+            -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 10px !important;
+            margin: 24px !important; /* Float 24px inside from all edges */
+            padding: 10px 16px !important;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 10 !important;
+            transition: opacity 0.3s ease, transform 0.3s ease !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        /* Style Plyr buttons to be warm/orange desaturated */
+        .plyr__control {
+            color: rgba(255, 90, 31, 0.8) !important;
+            transition: color 0.2s ease, transform 0.15s ease !important;
+        }
+
+        .plyr__control:hover, .plyr__control[aria-expanded="true"] {
+            background: rgba(255, 90, 31, 0.1) !important;
+            color: #ff723f !important;
+            filter: drop-shadow(0 0 4px rgba(255, 90, 31, 0.6)) !important;
+        }
+
+        /* Plyr progress bar slider overrides */
+        .plyr__progress input[type='range'] {
+            color: #ff5a1f !important;
+        }
     </style>
-    <!-- Artplayer & HlsJS CDNs -->
-    <link rel="stylesheet" href="/artplayer-compact.css">
+    <!-- Plyr & HlsJS CDNs -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.min.js"></script>
     <script defer src="https://cloud.umami.is/script.js" data-website-id="584702db-6988-4367-9bb3-935742c17dd4"></script>
 </head>
 <body>
@@ -141,44 +196,45 @@
                 // Hide loader
                 statusOverlay.style.display = 'none';
 
-                // Setup Artplayer with HLS support
+                // Setup Plyr with HLS support
                 const firstOption = data.options[0];
-                const art = new Artplayer({
-                    container: '#player-container',
-                    url: firstOption.url,
-                    type: firstOption.format || 'm3u8',
-                    fullscreen: true,
-                    fullscreenWeb: true,
-                    playbackRate: true,
-                    aspectRatio: true,
-                    setting: true,
-                    pip: false,
-                    playsInline: true,
-                    autoSize: true,
-                    theme: '#ff5a1f', // Premium CineStream orange accent
-                    customType: {
-                        m3u8: function (video, url) {
-                            if (Hls.isSupported()) {
-                                const hls = new Hls({
-                                    maxMaxBufferLength: 30,
-                                    enableWorker: true
-                                });
-                                hls.loadSource(url);
-                                hls.attachMedia(video);
-                                art.on('destroy', () => hls.destroy());
-                            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                                video.src = url;
-                            } else {
-                                art.notice.show = 'Unsupported video format';
-                            }
-                        }
-                    }
-                });
+                const format = firstOption.format || 'm3u8';
+                
+                const video = document.createElement('video');
+                video.controls = false;
+                video.playsInline = true;
+                video.autoplay = true;
+                video.className = 'plyr-video-element';
+                document.getElementById('player-container').appendChild(video);
 
-                art.cssVar('--art-control-height', '34px');
-                art.cssVar('--art-control-icon-size', '20px');
-                art.cssVar('--art-bottom-gap', '0px');
-                art.cssVar('--art-progress-height', '3px');
+                if (format === 'm3u8' && Hls.isSupported()) {
+                    const hls = new Hls({
+                        maxMaxBufferLength: 30,
+                        enableWorker: true
+                    });
+                    hls.loadSource(firstOption.url);
+                    hls.attachMedia(video);
+                } else {
+                    video.src = firstOption.url;
+                }
+
+                const player = new Plyr(video, {
+                    autoplay: true,
+                    controls: [
+                        'play-large',
+                        'play',
+                        'progress',
+                        'current-time',
+                        'duration',
+                        'mute',
+                        'volume',
+                        'settings',
+                        'pip',
+                        'airplay',
+                        'fullscreen'
+                    ],
+                    settings: ['quality', 'speed', 'loop']
+                });
 
             } catch (err) {
                 showError(err.message);

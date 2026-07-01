@@ -1,6 +1,8 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useStreamExtension } from './useStreamExtension';
 import { nfDebug, nfDebugError } from './useNetflixDebug';
+import Plyr from 'plyr';
+import 'plyr/dist/plyr.css';
 
 export type PlayerSkin = 'default' | 'netflix';
 
@@ -137,32 +139,25 @@ export function buildMoovieResolveUrl(opts: {
     return `/api/moovie-catalog?${params.toString()}`;
 }
 
-const loadArtplayerAssets = (() => {
+const loadHlsJs = (() => {
     let promise: Promise<void> | null = null;
     return () => {
-        if ((window as any).Artplayer) return Promise.resolve();
+        if ((window as any).Hls) return Promise.resolve();
         if (promise) return promise;
         promise = new Promise((resolve, reject) => {
-            if (!document.querySelector('link[data-moovie-art-css]')) {
-                const link = document.createElement('link');
-                link.rel = 'stylesheet';
-                link.href = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.css';
-                link.setAttribute('data-moovie-art-css', '1');
-                document.head.appendChild(link);
-            }
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
             script.onload = () => resolve();
-            script.onerror = () => reject(new Error('ArtPlayer failed to load'));
+            script.onerror = () => reject(new Error('hls.js failed to load'));
             document.head.appendChild(script);
         });
         return promise;
     };
 })();
 
-/** Warm ArtPlayer CDN assets before the user hits Play. */
+/** Warm player assets. (Kept for compatibility) */
 export function warmMooviePlayerAssets() {
-    return loadArtplayerAssets();
+    return Promise.resolve();
 }
 
 async function fetchMoovieResolve(url: string): Promise<MoovieResolve> {
@@ -249,8 +244,8 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const streamWarning = ref('');
     const resolved = ref<MoovieResolve | null>(null);
     const selectedStreamIndex = ref(0);
-    const artReady = ref(false);
-    const artContainer = ref<HTMLElement | null>(null);
+    const artReady = ref(false); // rename to plyrReady conceptually but keep property name
+    const artContainer = ref<HTMLElement | null>(null); // rename to playerContainer conceptually but keep property name
     const isPlaying = ref(false);
     const currentTime = ref(0);
     const duration = ref(0);
@@ -258,7 +253,8 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const isMuted = ref(false);
     const playbackEnded = ref(false);
 
-    let artInstance: any = null;
+    let plyrInstance: Plyr | null = null;
+    let hlsInstance: any = null;
     let prepareToken = 0;
     let resolveToken = 0;
     let playbackRetryToken = 0;
@@ -275,7 +271,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     let videoClickHandler: ((event: MouseEvent) => void) | null = null;
 
     const clearArtInstance = () => {
-        const video = artInstance?.video as HTMLVideoElement | undefined;
+        const video = (plyrInstance as any)?.media as HTMLVideoElement | undefined;
         if (video && videoClickHandler) {
             video.removeEventListener('click', videoClickHandler);
             videoClickHandler = null;
@@ -289,14 +285,25 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
                 /* ignore */
             }
         }
-        if (artInstance) {
+        if (plyrInstance) {
             dbg('player:destroy');
             try {
-                artInstance.destroy(true);
+                plyrInstance.destroy();
             } catch {
                 /* ignore */
             }
-            artInstance = null;
+            plyrInstance = null;
+        }
+        if (hlsInstance) {
+            try {
+                hlsInstance.destroy();
+            } catch {
+                /* ignore */
+            }
+            hlsInstance = null;
+        }
+        if (artContainer.value) {
+            artContainer.value.innerHTML = '';
         }
         artReady.value = false;
         isPlaying.value = false;
@@ -436,14 +443,14 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     };
 
     const bindVideoClickToggle = () => {
-        const video = artInstance?.video as HTMLVideoElement | undefined;
+        const video = (plyrInstance as any)?.media as HTMLVideoElement | undefined;
         if (!video || videoClickHandler) return;
 
         videoClickHandler = (event: MouseEvent) => {
             event.stopPropagation();
-            if (!artInstance) return;
+            if (!plyrInstance) return;
             dbg('player:video-click');
-            artInstance.toggle();
+            plyrInstance.togglePlay();
         };
         video.addEventListener('click', videoClickHandler);
     };
@@ -452,14 +459,13 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         stream: MoovieStream,
         opts: PlaybackResumeOptions = {}
     ) => {
-        if (!artInstance) return false;
+        if (!plyrInstance) return false;
 
         const resumeAt =
-            opts.resumeAt ?? artInstance.currentTime ?? currentTime.value ?? 0;
+            opts.resumeAt ?? plyrInstance.currentTime ?? currentTime.value ?? 0;
         const resumePlaying = opts.resumePlaying ?? isPlaying.value;
-        const playUrl = resolvePlaybackUrl(stream);
 
-        artInstance.pause();
+        plyrInstance.pause();
         isPlaying.value = false;
 
         dbg('player:switch-url', {
@@ -468,137 +474,55 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             resumePlaying
         });
 
-        const SWITCH_URL_TIMEOUT_MS = 12000;
-        const seekSwitch = resumeAt > 0;
-
-        return new Promise<boolean>((resolve) => {
-            let settled = false;
-            const detachReadyListeners = () => {
-                artInstance.off('video:canplay', onCanPlay);
-                artInstance.off('video:loadeddata', onLoadedData);
-                artInstance.off('video:loadedmetadata', onLoadedMetadata);
-            };
-            const finish = (ok: boolean) => {
-                if (settled) return;
-                settled = true;
-                window.clearTimeout(switchTimer);
-                detachReadyListeners();
-                resolve(ok);
-            };
-
-            const switchTimer = window.setTimeout(() => {
-                dbgError('player:switch-url:timeout', {
-                    quality: stream.quality,
-                    seekSwitch
-                });
-                finish(false);
-            }, SWITCH_URL_TIMEOUT_MS);
-
-            const startPlayback = () => {
-                if (resumePlaying) {
-                    void artInstance.play()?.catch(() => artInstance.play());
-                } else {
-                    artInstance.pause();
-                }
-                playbackError.value = '';
-                playbackEnded.value = false;
-                finish(true);
-            };
-
-            const onCanPlay = () => {
-                try {
-                    if (resumeAt > 0) {
-                        artInstance.seek = resumeAt;
-                        currentTime.value = resumeAt;
-                    }
-                    startPlayback();
-                } catch (err) {
-                    dbgError('player:switch-url:resume-fail', err);
-                    finish(false);
-                }
-            };
-
-            const onLoadedMetadata = () => {
-                if (!seekSwitch) return;
-                try {
-                    if (resumeAt > 0) {
-                        artInstance.seek = resumeAt;
-                        currentTime.value = resumeAt;
-                    }
-                    startPlayback();
-                } catch (err) {
-                    dbgError('player:switch-url:metadata-seek-fail', err);
-                    finish(false);
-                }
-            };
-
-            const onLoadedData = () => {
-                if (seekSwitch) return;
-                try {
-                    startPlayback();
-                } catch (err) {
-                    dbgError('player:switch-url:loadeddata-fail', err);
-                    finish(false);
-                }
-            };
-
-            if (seekSwitch) {
-                artInstance.on('video:loadedmetadata', onLoadedMetadata);
-                artInstance.on('video:canplay', onCanPlay);
-            } else {
-                artInstance.on('video:loadeddata', onLoadedData);
-                artInstance.on('video:canplay', onCanPlay);
-            }
-
-            void artInstance.switchUrl(playUrl).catch((err: unknown) => {
-                dbgError('player:switch-url:fail', err);
-                finish(false);
+        // Plyr doesn't have switchUrl. We need to recreate the player or swap source.
+        // Re-creating is more robust, especially since Hls.js might be in use.
+        try {
+            await preparePlayback(stream, activeResolveUrl, {
+                allowRefresh: false,
+                resume: { resumeAt, resumePlaying }
             });
-        });
+            return true;
+        } catch (err) {
+            dbgError('player:switch-url:fail', err);
+            return false;
+        }
     };
 
     const bindPlaybackEvents = () => {
-        if (!artInstance) return;
+        if (!plyrInstance) return;
 
         const syncTime = () => {
-            const video = artInstance.video as HTMLVideoElement | undefined;
-            if (!video) return;
-            currentTime.value = video.currentTime || 0;
-            duration.value = video.duration || 0;
-            isMuted.value = video.muted;
-            if (video.buffered.length > 0) {
-                buffered.value = video.buffered.end(video.buffered.length - 1);
-            }
+            if (!plyrInstance) return;
+            currentTime.value = plyrInstance.currentTime || 0;
+            duration.value = plyrInstance.duration || 0;
+            isMuted.value = plyrInstance.muted;
+            buffered.value = plyrInstance.buffered * plyrInstance.duration;
             if (
                 playbackEnded.value &&
-                video.duration > 0 &&
-                video.duration - video.currentTime > 2
+                plyrInstance.duration > 0 &&
+                plyrInstance.duration - plyrInstance.currentTime > 2
             ) {
                 playbackEnded.value = false;
             }
         };
 
-        artInstance.on('video:timeupdate', syncTime);
-        artInstance.on('video:loadedmetadata', () => {
-            dbg('player:metadata', { duration: artInstance.video?.duration });
-            playbackError.value = '';
-            syncTime();
-        });
-        artInstance.on('video:play', () => {
+        plyrInstance.on('timeupdate', syncTime);
+        plyrInstance.on('playing', () => {
             dbg('player:play');
             isPlaying.value = true;
+            syncTime();
         });
-        artInstance.on('video:pause', () => {
+        plyrInstance.on('pause', () => {
             dbg('player:pause');
             isPlaying.value = false;
         });
-        artInstance.on('video:ended', () => {
+        plyrInstance.on('ended', () => {
             dbg('player:ended');
             playbackEnded.value = true;
             isPlaying.value = false;
         });
-        artInstance.on('video:volumechange', syncTime);
-        artInstance.on('error', () => {
+        plyrInstance.on('volumechange', syncTime);
+        plyrInstance.on('error', () => {
             void handlePlaybackError();
         });
 
@@ -649,11 +573,11 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             });
 
             try {
-                const ok = artInstance
+                const ok = plyrInstance
                     ? await switchStreamUrl(stream, {
                           resumeAt: currentTime.value,
                           resumePlaying: isPlaying.value
-                      })
+                       })
                     : await (async () => {
                           await preparePlayback(stream, activeResolveUrl, {
                               allowRefresh: false
@@ -770,12 +694,11 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         });
     };
 
-    const mountArtplayer = async (
+    const mountPlyr = async (
         stream: MoovieStream,
         resume: PlaybackResumeOptions = {}
     ) => {
         dbg('player:mount:start', { quality: stream.quality, extension: extensionActive.value });
-        await loadArtplayerAssets();
         const container = artContainer.value;
         if (!container) throw new Error('Player container missing');
 
@@ -789,67 +712,79 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             resumeAt,
             resumePlaying
         });
-        const ArtplayerCtor = (window as any).Artplayer;
+
         const isNetflix = skin === 'netflix';
+        const streamType = detectStreamMediaType(stream.url);
 
-        artInstance = new ArtplayerCtor({
-            container,
-            url: playUrl,
-            type: detectStreamMediaType(stream.url),
-            autoplay: resumePlaying,
-            preload: 'auto',
-            theme: '#4eb5ff',
-            playbackRate: !isNetflix,
-            aspectRatio: !isNetflix,
-            fullscreen: !isNetflix,
-            fullscreenWeb: !isNetflix,
-            miniProgressBar: !isNetflix,
-            fastForward: !isNetflix,
-            setting: !isNetflix,
-            autoSize: isNetflix,
-            autoMini: false,
-            pip: false,
-            controls: isNetflix ? [] : undefined
-        });
+        const video = document.createElement('video');
+        video.className = 'plyr-video-element';
+        video.controls = false;
+        video.playsInline = true;
+        video.autoplay = resumePlaying;
+        video.preload = 'auto';
+        container.appendChild(video);
 
-        bindPlaybackEvents();
+        if (streamType === 'mkv') {
+            await loadHlsJs();
+            const HlsCtor = (window as any).Hls;
+            if (HlsCtor && HlsCtor.isSupported()) {
+                hlsInstance = new HlsCtor({ enableWorker: true });
+                hlsInstance.loadSource(playUrl);
+                hlsInstance.attachMedia(video);
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = playUrl;
+            } else {
+                throw new Error('HLS/MKV playback is not supported in this browser.');
+            }
+        } else {
+            video.src = playUrl;
+        }
 
-        if (resumeAt > 0 || resumePlaying === false) {
+        // Apply resume parameters to the native video element directly or on loadedmetadata
+        if (resumeAt > 0 || !resumePlaying) {
             let resumed = false;
             const applyResume = () => {
-                if (resumed || !artInstance) return;
+                if (resumed) return;
                 resumed = true;
                 if (resumeAt > 0) {
-                    artInstance.seek = resumeAt;
+                    video.currentTime = resumeAt;
                     currentTime.value = resumeAt;
                 }
                 if (!resumePlaying) {
-                    artInstance.pause();
+                    video.pause();
                 }
             };
-            artInstance.on('video:loadedmetadata', applyResume);
-            artInstance.on('video:canplay', applyResume);
+            video.addEventListener('loadedmetadata', applyResume);
+            video.addEventListener('canplay', applyResume);
         }
+
+        plyrInstance = new Plyr(video, {
+            autoplay: resumePlaying,
+            controls: isNetflix ? [] : ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'airplay', 'fullscreen'],
+            settings: isNetflix ? [] : ['quality', 'speed', 'loop']
+        });
+
+        bindPlaybackEvents();
 
         artReady.value = true;
         dbg('player:mount:ready', { quality: stream.quality });
     };
 
     const togglePlay = () => {
-        if (!artInstance) return;
-        artInstance.toggle();
+        if (!plyrInstance) return;
+        plyrInstance.togglePlay();
     };
 
     const pausePlayback = () => {
-        if (!artInstance) return;
-        artInstance.pause();
+        if (!plyrInstance) return;
+        plyrInstance.pause();
         isPlaying.value = false;
     };
 
     const seekTo = (time: number) => {
-        if (!artInstance) return;
-        artInstance.seek = Math.max(0, Math.min(time, duration.value || time));
-        currentTime.value = artInstance.currentTime;
+        if (!plyrInstance) return;
+        plyrInstance.currentTime = Math.max(0, Math.min(time, duration.value || time));
+        currentTime.value = plyrInstance.currentTime;
     };
 
     const skipBack = (seconds = 10) => {
@@ -857,9 +792,9 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     };
 
     const toggleMute = () => {
-        if (!artInstance?.video) return;
-        artInstance.video.muted = !artInstance.video.muted;
-        isMuted.value = artInstance.video.muted;
+        if (!plyrInstance) return;
+        plyrInstance.muted = !plyrInstance.muted;
+        isMuted.value = plyrInstance.muted;
     };
 
     const progress = computed(() => {
@@ -935,7 +870,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
             }
             if (token !== prepareToken) return;
             await waitForContainer();
-            await mountArtplayer(stream, resume);
+            await mountPlyr(stream, resume);
             playbackError.value = '';
             playbackErrorRetries = 0;
             failedStreamIndices.clear();
@@ -977,8 +912,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
             await Promise.all([
                 resolveTask,
-                waitForExtension(),
-                loadArtplayerAssets()
+                waitForExtension()
             ]);
 
             if (!isResolveActive(token)) return;
@@ -1043,7 +977,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
 
         const preferredQuality =
             resolved.value?.streams?.[selectedStreamIndex.value]?.quality;
-        const data = artInstance
+        const data = plyrInstance
             ? await fetchResolveQuick(opts, token)
             : await fetchResolveForPlayback(opts, token);
         if (!isResolveActive(token)) throw new ResolveAborted();
@@ -1067,7 +1001,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         const stream = data.streams?.[selectedStreamIndex.value] || null;
         if (!stream) throw new Error('No stream available for this audio.');
 
-        if (artInstance) {
+        if (plyrInstance) {
             const ok = await switchStreamUrl(stream, resume);
             if (!isResolveActive(token)) throw new ResolveAborted();
             if (!ok) throw new Error('Could not switch audio track.');
@@ -1090,7 +1024,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
         selectedStreamIndex.value = index;
         const stream = resolved.value?.streams?.[index] || null;
         if (!stream) return;
-        if (artInstance) {
+        if (plyrInstance) {
             await switchStreamUrl(stream, { resumeAt, resumePlaying });
             return;
         }
@@ -1100,7 +1034,7 @@ export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     };
 
     watch(extensionActive, async (active) => {
-        if (!active || !artInstance || !resolved.value?.streams?.length) return;
+        if (!active || !plyrInstance || !resolved.value?.streams?.length) return;
         const stream = resolved.value.streams[selectedStreamIndex.value];
         if (!stream) return;
         dbg('player:extension-switch-url', { quality: stream.quality });

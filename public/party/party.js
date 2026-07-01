@@ -1711,6 +1711,7 @@
 
         // Available Stream Servers
         const serversList = [
+            { id: 'moovie', name: 'moovie', movie: '/moovie?tmdb_id={tmdbId}', tv: '/moovie?tmdb_id={tmdbId}&season={season}&episode={episode}' },
             { id: 'rasmalai', name: 'Rasmalai', movie: 'https://peachify.top/embed/movie/{tmdbId}', tv: 'https://peachify.top/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'cinemaos', name: 'Gulab Jamun', movie: 'https://cinemaos.live/player/{tmdbId}', tv: 'https://cinemaos.live/player/{tmdbId}/{season}/{episode}' },
             { id: 'smashy', name: 'Jalebi', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },

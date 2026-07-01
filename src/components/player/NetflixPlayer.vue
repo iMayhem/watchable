@@ -910,32 +910,76 @@ export default defineComponent({
     }
 
     &__stage {
+        --plyr-color-main: var(--ember, #ff5a1f);
+        --plyr-video-background: #000;
+        --plyr-menu-background: rgba(21, 20, 26, 0.95);
+        --plyr-menu-color: rgba(245, 242, 235, 0.8);
+        --plyr-control-radius: 10px;
+        --plyr-tooltip-background: rgba(11, 10, 8, 0.9);
+        --plyr-tooltip-color: #fff;
+        --plyr-range-track-height: 4px;
+        --plyr-range-thumb-height: 12px;
+
         position: relative;
         z-index: 1;
         pointer-events: auto;
         width: 100%;
         height: 100%;
 
-        :deep(.art-video-player) {
-            z-index: 1 !important;
-            width: 100% !important;
+        :deep(.plyr) {
             height: 100% !important;
+            width: 100% !important;
+            border-radius: inherit;
+            background: #000 !important;
         }
 
-        :deep(.art-video) {
-            width: 100% !important;
+        :deep(.plyr__video-wrapper) {
             height: 100% !important;
-            object-fit: contain;
+            width: 100% !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        :deep(.art-layers),
-        :deep(.art-mask),
-        :deep(.art-controls),
-        :deep(.art-bottom),
-        :deep(.art-info),
-        :deep(.art-settings),
-        :deep(.art-contextmenus) {
-            display: none !important;
+        :deep(video) {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+        }
+
+        /* Floating control bar logic for Plyr controls */
+        :deep(.plyr__controls) {
+            background: rgba(11, 10, 8, 0.8) !important;
+            backdrop-filter: blur(14px) saturate(1.2) !important;
+            -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 10px !important;
+            margin: 24px !important; /* Float 24px inside from all edges */
+            padding: 10px 16px !important;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 10 !important;
+            transition: opacity 0.3s ease, transform 0.3s ease !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        /* Style Plyr buttons to be warm/orange desaturated */
+        :deep(.plyr__control) {
+            color: rgba(255, 90, 31, 0.8) !important;
+            transition: color 0.2s ease, transform 0.15s ease !important;
+
+            &:hover, &[aria-expanded="true"] {
+                background: rgba(255, 90, 31, 0.1) !important;
+                color: #ff723f !important;
+                filter: drop-shadow(0 0 4px rgba(255, 90, 31, 0.6)) !important;
+            }
+        }
+
+        /* Plyr progress bar slider overrides */
+        :deep(.plyr__progress input[type='range']) {
+            color: var(--plyr-color-main) !important;
         }
     }
 

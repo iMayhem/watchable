@@ -203,6 +203,8 @@
 <script lang="ts">
 import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import Plyr from 'plyr';
+import 'plyr/dist/plyr.css';
 
 const API_BASE = 'https://proxy.moovie.fun';
 
@@ -435,50 +437,30 @@ export default defineComponent({
             }
         }
 
-        const loadArtplayerAssets = (() => {
+        const loadHls = (() => {
             let promise: Promise<void> | null = null;
             return () => {
-                if ((window as any).Artplayer) {
-                    dbg('artplayer:already-loaded');
+                if ((window as any).Hls) {
+                    dbg('hls.js:already-loaded');
                     return Promise.resolve();
                 }
                 if (promise) {
-                    dbg('artplayer:awaiting-existing-load');
+                    dbg('hls.js:awaiting-existing-load');
                     return promise;
                 }
-                dbg('artplayer:starting-asset-load');
-                promise = new Promise((resolve, reject) => {
-                    if (!document.querySelector('link[data-stest-art-css]')) {
-                        const link = document.createElement('link');
-                        link.rel = 'stylesheet';
-                        link.href = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.css';
-                        link.setAttribute('data-stest-art-css', '1');
-                        document.head.appendChild(link);
-                        dbg('artplayer:css-link-appended');
-                    }
+                dbg('hls.js:starting-asset-load');
+                promise = new Promise((resolve) => {
                     const script = document.createElement('script');
-                    script.src = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.min.js';
+                    script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
                     script.onload = () => {
-                        log('artplayer:script-loaded', { version: (window as any).Artplayer?.version || 'unknown' });
-                        const hlsScript = document.createElement('script');
-                        hlsScript.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
-                        hlsScript.onload = () => {
-                            log('hls.js:script-loaded', { version: (window as any).Hls?.version || 'unknown' });
-                            resolve();
-                        };
-                        hlsScript.onerror = () => {
-                            warn('hls.js:script-failed, continuing without hls.js');
-                            resolve();
-                        };
-                        document.head.appendChild(hlsScript);
-                        dbg('hls.js:script-tag-appended');
+                        log('hls.js:script-loaded', { version: (window as any).Hls?.version || 'unknown' });
+                        resolve();
                     };
                     script.onerror = () => {
-                        err('artplayer:script-load-failed');
-                        reject(new Error('ArtPlayer failed to load'));
+                        warn('hls.js:script-failed, continuing without hls.js');
+                        resolve();
                     };
                     document.head.appendChild(script);
-                    dbg('artplayer:script-tag-appended');
                 });
                 return promise;
             };
@@ -486,15 +468,11 @@ export default defineComponent({
 
         function destroyArt() {
             if (artInstance) {
-                log('artplayer:destroy', {
-                    hasInstance: true,
-                    currentUrl: artInstance?.url,
-                });
+                log('plyr:destroy', { hasInstance: true });
                 try {
-                    artInstance.destroy(false);
-                    dbg('artplayer:destroy-ok');
+                    artInstance.destroy();
                 } catch (e) {
-                    warn('artplayer:destroy-error', e);
+                    warn('plyr:destroy-error', e);
                 }
                 artInstance = null;
             }
@@ -503,163 +481,95 @@ export default defineComponent({
                 try { hlsInstance.destroy(); } catch { /* */ }
                 hlsInstance = null;
             }
+            if (artContainer.value) {
+                artContainer.value.innerHTML = '';
+            }
         }
 
-        function setupArtplayerEvents(art: any, url: string) {
+        async function mountPlayer(url: string) {
+            log('plyr:mount-start', { url, urlInspect: inspectUrl(url) });
 
-            const meta = { url, mountedAt: Date.now() };
-
-            art.on('ready', () => log('artplayer:ready', meta));
-            art.on('play', () => log('artplayer:play', meta));
-            art.on('pause', () => dbg('artplayer:pause', meta));
-            art.on('error', (e: any) => err('artplayer:error', { ...meta, error: e }));
-            art.on('destroy', () => log('artplayer:destroy-event', meta));
-
-            art.on('video:loadedmetadata', () => {
-                const v = art.video;
-                log('artplayer:video:loadedmetadata', {
-                    ...meta,
-                    duration: v?.duration,
-                    videoWidth: v?.videoWidth,
-                    videoHeight: v?.videoHeight,
-                    readyState: v?.readyState,
-                });
-            });
-
-            art.on('video:canplay', () => dbg('artplayer:video:canplay', meta));
-            art.on('video:playing', () => log('artplayer:video:playing', meta));
-            art.on('video:waiting', () => warn('artplayer:video:waiting', meta));
-            art.on('video:stalled', () => warn('artplayer:video:stalled', meta));
-            art.on('video:ended', () => log('artplayer:video:ended', meta));
-            art.on('video:error', (e: any) => err('artplayer:video:error', { ...meta, error: e }));
-        }
-
-        async function mountArtplayer(url: string) {
-            log('artplayer:mount-start', { url, urlInspect: inspectUrl(url) });
-
-            await loadArtplayerAssets();
+            await loadHls();
             const container = artContainer.value;
             if (!container) {
-                warn('artplayer:mount-skipped-no-container');
+                warn('plyr:mount-skipped-no-container');
                 return;
             }
             destroyArt();
 
-            const ArtplayerCtor = (window as any).Artplayer;
             const HlsCtor = (window as any).Hls;
             const isM3u8 = url.includes('.m3u8') || url.includes('m3u8') || url.includes('.m3u');
 
-            log('artplayer:mount-config', {
-                type: isM3u8 ? 'm3u8' : 'mp4',
-                hlsJsAvailable: Boolean(HlsCtor),
-                hlsJsSupported: HlsCtor?.isSupported?.() ?? false,
-            });
-
-            const config: Record<string, any> = {
-                container,
-                url,
-                type: isM3u8 ? 'm3u8' : 'mp4',
-                autoplay: true,
-                preload: 'auto',
-                playbackRate: true,
-                aspectRatio: true,
-                fullscreen: true,
-                fullscreenWeb: true,
-                miniProgressBar: true,
-                fastForward: true,
-                setting: true,
-                theme: '#ff5a1f',
-            };
+            const video = document.createElement('video');
+            video.controls = false;
+            video.playsInline = true;
+            video.autoplay = true;
+            video.className = 'plyr-video-element';
+            container.appendChild(video);
 
             if (isM3u8 && HlsCtor) {
-                config.customType = {
-                    m3u8(video: HTMLVideoElement, src: string) {
-                        log('hls.js:customType-invoked', { src });
-                        if (HlsCtor.isSupported()) {
-                            hlsInstance = new HlsCtor({
-                                enableWorker: true,
-                                debug: true,
-                                maxBufferLength: 30,
-                                maxMaxBufferLength: 60,
+                log('plyr:mount-hls-config', {
+                    hlsJsAvailable: Boolean(HlsCtor),
+                    hlsJsSupported: HlsCtor.isSupported(),
+                });
+
+                if (HlsCtor.isSupported()) {
+                    hlsInstance = new HlsCtor({
+                        enableWorker: true,
+                        debug: true,
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 60,
+                    });
+
+                    hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
+                        if (data.fatal) {
+                            err('hls.js:fatal-error', {
+                                type: data.type,
+                                details: data.details,
+                                reason: data.reason,
                             });
-
-                            hlsInstance.on(HlsCtor.Events.MANIFEST_PARSED, (_event: any, data: any) => {
-                                log('hls.js:manifest-parsed', {
-                                    levels: data.levels?.length,
-                                    levels_detail: data.levels?.map((l: any) => ({
-                                        height: l.height,
-                                        width: l.width,
-                                        bitrate: l.bitrate,
-                                        codec: l.codec,
-                                    })),
-                                    audioTracks: data.audioTracks?.length,
-                                });
-                            });
-
-                            hlsInstance.on(HlsCtor.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
-                                dbg('hls.js:level-switched', { level: data.level });
-                            });
-
-                            hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
-                                if (data.fatal) {
-                                    err('hls.js:fatal-error', {
-                                        type: data.type,
-                                        details: data.details,
-                                        reason: data.reason,
-                                    });
-                                    // Auto-fallback: try next stream on any fatal network/media error
-                                    const currentIndex = flatStreams.value.findIndex(s => s.url === src);
-                                    if (currentIndex !== -1 && currentIndex + 1 < flatStreams.value.length) {
-                                        const next = flatStreams.value[currentIndex + 1];
-                                        warn('stream:auto-fallback', { from: src, to: next.url, reason: data.details });
-                                        hlsInstance.destroy();
-                                        setActive(next.provider, next.index);
-                                    } else {
-                                        err('stream:all-streams-failed', { totalTried: flatStreams.value.length });
-                                    }
-                                } else {
-                                    dbg('hls.js:recoverable-error', {
-                                        type: data.type,
-                                        details: data.details,
-                                    });
-                                }
-                            });
-
-                            hlsInstance.on(HlsCtor.Events.FRAG_LOADED, (_event: any, data: any) => {
-                                dbg('hls.js:frag-loaded', {
-                                    frag: data.frag?.url,
-                                    size: data.frag?.size,
-                                    duration: data.frag?.duration,
-                                });
-                            });
-
-                            hlsInstance.on(HlsCtor.Events.BUFFER_APPENDED, (_event: any, data: any) => {
-                                dbg('hls.js:buffer-appended', {
-                                    pending: data?.pending,
-                                    time: data?.time,
-                                });
-                            });
-
-                            hlsInstance.loadSource(src);
-                            hlsInstance.attachMedia(video);
-
-                            log('hls.js:attached', { src });
-                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                            warn('hls.js:not-supported-using-native-hls');
-                            video.src = src;
-                        } else {
-                            err('hls.js:not-supported-and-no-native-hls');
+                            // Auto-fallback: try next stream on fatal error
+                            const currentIndex = flatStreams.value.findIndex(s => s.url === url);
+                            if (currentIndex !== -1 && currentIndex + 1 < flatStreams.value.length) {
+                                const next = flatStreams.value[currentIndex + 1];
+                                warn('stream:auto-fallback', { from: url, to: next.url, reason: data.details });
+                                hlsInstance.destroy();
+                                setActive(next.provider, next.index);
+                            } else {
+                                err('stream:all-streams-failed', { totalTried: flatStreams.value.length });
+                            }
                         }
-                    },
-                };
+                    });
+
+                    hlsInstance.loadSource(url);
+                    hlsInstance.attachMedia(video);
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url;
+                }
+            } else {
+                video.src = url;
             }
 
-            artInstance = new ArtplayerCtor(config);
-            log('artplayer:mounted', {
-                url,
-                constructorVersion: ArtplayerCtor.version,
+            artInstance = new Plyr(video, {
+                autoplay: true,
+                controls: [
+                    'play-large',
+                    'play',
+                    'progress',
+                    'current-time',
+                    'duration',
+                    'mute',
+                    'volume',
+                    'settings',
+                    'pip',
+                    'airplay',
+                    'fullscreen',
+                ],
+                settings: ['quality', 'speed', 'loop'],
+                tooltips: { controls: true, seek: true },
             });
-            setupArtplayerEvents(artInstance, url);
+
+            log('plyr:mounted', { url });
         }
 
         const setActive = (provider: string, index: number) => {
@@ -667,7 +577,7 @@ export default defineComponent({
             if (url) {
                 log('stream:set-active', { provider, index, url, urlInspect: inspectUrl(url) });
                 activeStreamUrl.value = url;
-                mountArtplayer(url);
+                mountPlayer(url);
             } else {
                 warn('stream:set-active-invalid', { provider, index });
             }
@@ -1616,9 +1526,79 @@ pre {
     background: rgba(0,0,0,0.45);
     border: 1px solid var(--rule);
     overflow: auto;
-    font-size: 9px;
-    line-height: 1.4;
     max-height: 300px;
     color: var(--bone-200);
+}
+
+/* ── Plyr Custom Styling & Sleek Overrides ── */
+.player-frame__art {
+    --plyr-color-main: var(--ember, #ff5a1f);
+    --plyr-video-background: #000;
+    --plyr-menu-background: rgba(21, 20, 26, 0.95);
+    --plyr-menu-color: rgba(245, 242, 235, 0.8);
+    --plyr-control-radius: 10px;
+    --plyr-tooltip-background: rgba(11, 10, 8, 0.9);
+    --plyr-tooltip-color: #fff;
+    --plyr-range-track-height: 4px;
+    --plyr-range-thumb-height: 12px;
+
+    width: 100%;
+    height: 100%;
+
+    :deep(.plyr) {
+        height: 100%;
+        width: 100%;
+        border-radius: inherit;
+        background: #000;
+    }
+
+    :deep(.plyr__video-wrapper) {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    :deep(video) {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    /* Floating control bar logic for Plyr controls */
+    :deep(.plyr__controls) {
+        background: rgba(11, 10, 8, 0.8) !important;
+        backdrop-filter: blur(14px) saturate(1.2) !important;
+        -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 10px !important;
+        margin: 24px !important; /* Float 24px inside from all edges */
+        padding: 10px 16px !important;
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 10 !important;
+        transition: opacity 0.3s ease, transform 0.3s ease !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    /* Style Plyr buttons to be warm/orange desaturated */
+    :deep(.plyr__control) {
+        color: rgba(255, 90, 31, 0.8) !important;
+        transition: color 0.2s ease, transform 0.15s ease !important;
+
+        &:hover, &[aria-expanded="true"] {
+            background: rgba(255, 90, 31, 0.1) !important;
+            color: #ff723f !important;
+            filter: drop-shadow(0 0 4px rgba(255, 90, 31, 0.6)) !important;
+        }
+    }
+
+    /* Plyr progress bar slider overrides */
+    :deep(.plyr__progress input[type='range']) {
+        color: var(--plyr-color-main) !important;
+    }
 }
 </style>

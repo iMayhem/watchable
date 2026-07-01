@@ -33,13 +33,49 @@
                 <!-- ── Left: Player ────────────────────────────────── -->
                 <div class="split-layout__player">
                     <div class="search-bar">
-                        <input
-                            v-model="searchTitle"
-                            type="text"
-                            placeholder="Search title…"
-                            class="search-bar__input"
-                            @keydown.enter="search"
-                        />
+                        <div class="search-bar__input-wrap">
+                            <input
+                                v-model="searchTitle"
+                                type="text"
+                                placeholder="Search title…"
+                                class="search-bar__input"
+                                autocomplete="off"
+                                @keydown.enter="onSearchEnter"
+                                @input="onTitleInput"
+                                @focus="showSuggestions = tmdbSuggestions.length > 0"
+                                @blur="hideSuggestions"
+                            />
+                            <!-- TMDB suggestions dropdown -->
+                            <div v-if="showSuggestions && tmdbSuggestions.length" class="tmdb-dropdown">
+                                <div v-if="tmdbLoading" class="tmdb-dropdown__loading">
+                                    <span class="tmdb-spinner" />
+                                </div>
+                                <button
+                                    v-for="item in tmdbSuggestions"
+                                    :key="item.id"
+                                    type="button"
+                                    class="tmdb-item"
+                                    @mousedown.prevent="selectTmdb(item)"
+                                >
+                                    <img
+                                        v-if="item.poster"
+                                        :src="item.poster"
+                                        class="tmdb-item__poster"
+                                        loading="lazy"
+                                    />
+                                    <div v-else class="tmdb-item__poster tmdb-item__poster--blank">
+                                        <span>?</span>
+                                    </div>
+                                    <div class="tmdb-item__info">
+                                        <span class="tmdb-item__name">{{ item.title }}</span>
+                                        <div class="tmdb-item__meta">
+                                            <span class="tmdb-item__badge" :class="'tmdb-item__badge--' + item.type">{{ item.type === 'tv' ? 'TV' : 'Movie' }}</span>
+                                            <span v-if="item.year" class="tmdb-item__year">{{ item.year }}</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
                         <div class="search-bar__opts">
                             <label class="search-bar__opt">
                                 <span>S</span>
@@ -236,6 +272,70 @@ export default defineComponent({
         const loadingLabel = ref(LOADING_MESSAGES[0]);
         const providersOpen = ref(true);
         const selectedProviders = ref(new Set(ALL_PROVIDERS.map(p => p.name)));
+
+        // ── TMDB Autocomplete ──────────────────────────────────────────────
+        const TMDB_KEY = 'dfa4c2c7c1de1005adee824dc5593672';
+        interface TmdbSuggestion { id: number; title: string; year: string; type: 'movie' | 'tv'; poster: string | null; }
+        const tmdbSuggestions = ref<TmdbSuggestion[]>([]);
+        const tmdbLoading = ref(false);
+        const showSuggestions = ref(false);
+        const selectedTmdbId = ref<number | null>(null);
+        const selectedMediaType = ref<'movie' | 'tv' | null>(null);
+        let tmdbDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+        async function fetchTmdbSuggestions(query: string) {
+            if (!query.trim()) { tmdbSuggestions.value = []; return; }
+            tmdbLoading.value = true;
+            try {
+                const url = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&include_adult=false&page=1`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const results = (data.results || []).filter((r: any) => r.media_type === 'movie' || r.media_type === 'tv').slice(0, 8);
+                tmdbSuggestions.value = results.map((r: any): TmdbSuggestion => ({
+                    id: r.id,
+                    title: r.title || r.name || '',
+                    year: (r.release_date || r.first_air_date || '').slice(0, 4),
+                    type: r.media_type as 'movie' | 'tv',
+                    poster: r.poster_path ? `https://image.tmdb.org/t/p/w92${r.poster_path}` : null,
+                }));
+                showSuggestions.value = tmdbSuggestions.value.length > 0;
+            } catch { /* silent */ } finally {
+                tmdbLoading.value = false;
+            }
+        }
+
+        function onTitleInput() {
+            // User typed manually — clear any selected TMDB ID
+            selectedTmdbId.value = null;
+            selectedMediaType.value = null;
+            if (tmdbDebounceTimer) clearTimeout(tmdbDebounceTimer);
+            tmdbDebounceTimer = setTimeout(() => fetchTmdbSuggestions(searchTitle.value), 280);
+        }
+
+        function selectTmdb(item: TmdbSuggestion) {
+            searchTitle.value = item.title;
+            selectedTmdbId.value = item.id;
+            selectedMediaType.value = item.type;
+            showSuggestions.value = false;
+            tmdbSuggestions.value = [];
+            if (item.type === 'tv' && season.value === 0) {
+                season.value = 1;
+                episode.value = 1;
+            } else if (item.type === 'movie') {
+                season.value = 0;
+                episode.value = 0;
+            }
+        }
+
+        function hideSuggestions() {
+            setTimeout(() => { showSuggestions.value = false; }, 150);
+        }
+
+        function onSearchEnter() {
+            showSuggestions.value = false;
+            search();
+        }
+        // ──────────────────────────────────────────────────────────────────
         let artInstance: any = null;
         let msgInterval: number | null = null;
         let hlsInstance: any = null;
@@ -607,7 +707,15 @@ export default defineComponent({
                 loadingLabel.value = LOADING_MESSAGES[i];
             }, 1800);
 
-            const params: Record<string, string> = { title: q };
+            const params: Record<string, string> = {};
+            // Prefer tmdb_id for accuracy; fallback to title
+            if (selectedTmdbId.value) {
+                params.tmdb_id = String(selectedTmdbId.value);
+                params.title = q; // keep for display/cache key
+                if (selectedMediaType.value) params.media_type = selectedMediaType.value;
+            } else {
+                params.title = q;
+            }
             if (season.value > 0) params.season = String(season.value);
             if (episode.value > 0) params.episode = String(episode.value);
             if (fast.value) params.fast = '1';
@@ -768,6 +876,9 @@ export default defineComponent({
             allProviders, selectedProviders, providersOpen, filteredResult,
             search, setActive, truncate, copy, goBack,
             toggleProvider, selectAllProviders, selectFastProviders, selectNoneProviders, copyAll, playAll,
+            tmdbSuggestions, tmdbLoading, showSuggestions,
+            onTitleInput, selectTmdb, hideSuggestions, onSearchEnter,
+            selectedTmdbId, selectedMediaType,
         };
     },
 });
@@ -1022,7 +1133,119 @@ export default defineComponent({
     }
 }
 
-// ── Player frame ────────────────────────────────────────────────
+// ── TMDB Autocomplete dropdown ───────────────────────────────────
+.search-bar__input-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.tmdb-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: -12px;
+    right: -12px;
+    background: #1a1a24;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 999;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+    max-height: 420px;
+    overflow-y: auto;
+
+    &__loading {
+        display: flex;
+        justify-content: center;
+        padding: 12px;
+    }
+}
+
+.tmdb-spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-top-color: var(--ember);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.tmdb-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+
+    &:last-child { border-bottom: 0; }
+    &:hover { background: rgba(255,255,255,0.07); }
+
+    &__poster {
+        width: 36px;
+        height: 54px;
+        object-fit: cover;
+        border-radius: 4px;
+        flex-shrink: 0;
+        background: rgba(255,255,255,0.06);
+
+        &--blank {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: var(--bone-400);
+        }
+    }
+
+    &__info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    &__name {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--bone-50);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    &__badge {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 4px;
+
+        &--movie { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
+        &--tv    { background: rgba(99,  102, 241, 0.2); color: #818cf8; }
+    }
+
+    &__year {
+        font-size: 11px;
+        color: var(--bone-400);
+    }
+}
+
+
 .player-frame {
     position: relative;
     aspect-ratio: 16 / 9;

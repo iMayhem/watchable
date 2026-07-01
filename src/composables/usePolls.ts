@@ -16,11 +16,17 @@ export interface PollResult {
     percentage: number
 }
 
+export interface PollWithResults extends Poll {
+    results: PollResult[]
+    totalVotes: number
+}
+
 const activePoll = ref<Poll | null>(null)
 const pollResults = ref<PollResult[]>([])
 const totalVotes = ref(0)
 const loading = ref(false)
 const voting = ref(false)
+const allPolls = ref<PollWithResults[]>([])
 
 const POLL_VOTED_PREFIX = 'poll_voted_'
 const POLL_DISMISSED_PREFIX = 'poll_dismissed_'
@@ -84,6 +90,53 @@ export function usePolls() {
         }
     }
 
+    async function fetchAllPolls() {
+        try {
+            const supabase = await getSupabaseClient()
+            const { data } = await supabase
+                .from('polls')
+                .select('*')
+                .order('created_at', { ascending: false })
+
+            const polls: PollWithResults[] = []
+
+            for (const row of data || []) {
+                const poll: Poll = {
+                    ...row,
+                    options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options
+                }
+
+                const { data: votes } = await supabase
+                    .from('poll_votes')
+                    .select('selected_option')
+                    .eq('poll_id', poll.id)
+
+                const total = votes?.length || 0
+                const counts = new Array(poll.options.length).fill(0)
+                votes?.forEach((v: any) => {
+                    if (v.selected_option >= 0 && v.selected_option < poll.options.length) {
+                        counts[v.selected_option]++
+                    }
+                })
+
+                polls.push({
+                    ...poll,
+                    totalVotes: total,
+                    results: poll.options.map((opt, i) => ({
+                        option: opt,
+                        count: counts[i],
+                        percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
+                    }))
+                })
+            }
+
+            allPolls.value = polls
+        } catch (e) {
+            console.error('Failed to fetch all polls:', e)
+            allPolls.value = []
+        }
+    }
+
     async function vote(pollId: number, selectedOption: number) {
         const storageKey = POLL_VOTED_PREFIX + pollId
         if (localStorage.getItem(storageKey)) return false
@@ -129,8 +182,10 @@ export function usePolls() {
         totalVotes,
         loading,
         voting,
+        allPolls,
         fetchActivePoll,
         fetchPollResults,
+        fetchAllPolls,
         vote,
         hasVoted,
         hasDismissed,

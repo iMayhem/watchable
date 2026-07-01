@@ -17,72 +17,114 @@
 
         <Teleport to="body">
             <div v-if="isOpen" class="notification-bell__backdrop" @click="closeDropdown" />
+            <div v-if="isOpen" ref="dropdownRef" class="notification-bell__dropdown" :style="dropdownStyle" @click.stop>
+                <div class="notification-bell__header">
+                    <span class="notification-bell__title">Notifications</span>
+                    <button
+                        v-if="unreadCount > 0"
+                        type="button"
+                        class="notification-bell__mark-read"
+                        @click="handleMarkAllRead"
+                    >
+                        Mark all read
+                    </button>
+                </div>
+
+                <!-- Active poll results -->
+                <div v-if="pollData" class="notification-bell__poll">
+                    <div class="notification-bell__poll-question">{{ pollData.question }}</div>
+                    <div class="notification-bell__poll-results">
+                        <div v-for="(r, i) in pollData.results" :key="i" class="notification-bell__poll-result">
+                            <div class="notification-bell__poll-result-label">
+                                <span>{{ r.option }}</span>
+                                <span>{{ r.count }} ({{ r.percentage }}%)</span>
+                            </div>
+                            <div class="notification-bell__poll-bar">
+                                <div class="notification-bell__poll-bar-fill" :style="{ width: r.percentage + '%' }" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="notification-bell__poll-total">{{ pollData.totalVotes }} total votes</div>
+                    <button
+                        v-if="hasOldPolls"
+                        type="button"
+                        class="notification-bell__old-polls-btn"
+                        @click="openOldPolls"
+                    >
+                        {{ showOldPolls ? 'Close Old Polls' : 'Old Polls' }}
+                    </button>
+                </div>
+
+                <div class="notification-bell__list">
+                    <div v-if="notifications.length === 0 && !pollData" class="notification-bell__empty">
+                        No notifications yet
+                    </div>
+                    <button
+                        v-for="n in notifications"
+                        :key="n.id"
+                        type="button"
+                        class="notification-bell__item"
+                        :class="{ 'is-unread': !n.read }"
+                        @click="handleClick(n)"
+                    >
+                        <div class="notification-bell__item-dot" :class="`is-${n.type}`" />
+                        <div class="notification-bell__item-content">
+                            <div class="notification-bell__item-title">{{ n.title }}</div>
+                            <div v-if="n.message" class="notification-bell__item-message">{{ n.message }}</div>
+                            <div class="notification-bell__item-time">{{ timeAgo(n.created_at) }}</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Old polls panel (to the left of main dropdown) -->
+            <div v-if="isOpen && showOldPolls" class="notification-bell__old-panel" :style="oldPanelStyle" @click.stop>
+                <div class="notification-bell__old-header">
+                    <span class="notification-bell__title">All Polls</span>
+                    <button type="button" class="notification-bell__poll-back" @click="showOldPolls = false">
+                        Close
+                    </button>
+                </div>
+                <div class="notification-bell__old-list">
+                    <div v-for="p in allPollsData" :key="p.id" class="notification-bell__old-poll">
+                        <div class="notification-bell__poll-question notification-bell__poll-question--sm">{{ p.question }}</div>
+                        <div v-if="!p.is_active" class="notification-bell__poll-inactive-badge">closed</div>
+                        <div class="notification-bell__poll-results">
+                            <div v-for="(r, i) in p.results" :key="i" class="notification-bell__poll-result">
+                                <div class="notification-bell__poll-result-label">
+                                    <span>{{ r.option }}</span>
+                                    <span>{{ r.count }} ({{ r.percentage }}%)</span>
+                                </div>
+                                <div class="notification-bell__poll-bar">
+                                    <div class="notification-bell__poll-bar-fill" :style="{ width: r.percentage + '%' }" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="notification-bell__poll-total">{{ p.totalVotes }} total votes</div>
+                    </div>
+                </div>
+            </div>
         </Teleport>
-
-        <div v-if="isOpen" class="notification-bell__dropdown">
-            <div class="notification-bell__header">
-                <span class="notification-bell__title">Notifications</span>
-                <button
-                    v-if="unreadCount > 0"
-                    type="button"
-                    class="notification-bell__mark-read"
-                    @click="handleMarkAllRead"
-                >
-                    Mark all read
-                </button>
-            </div>
-
-            <div v-if="pollData" class="notification-bell__poll">
-                <div class="notification-bell__poll-question">{{ pollData.question }}</div>
-                <div class="notification-bell__poll-results">
-                    <div v-for="(r, i) in pollData.results" :key="i" class="notification-bell__poll-result">
-                        <div class="notification-bell__poll-result-label">
-                            <span>{{ r.option }}</span>
-                            <span>{{ r.count }} ({{ r.percentage }}%)</span>
-                        </div>
-                        <div class="notification-bell__poll-bar">
-                            <div class="notification-bell__poll-bar-fill" :style="{ width: r.percentage + '%' }" />
-                        </div>
-                    </div>
-                </div>
-                <div class="notification-bell__poll-total">{{ pollData.totalVotes }} total votes</div>
-            </div>
-
-            <div class="notification-bell__list">
-                <div v-if="notifications.length === 0 && !pollData" class="notification-bell__empty">
-                    No notifications yet
-                </div>
-                <button
-                    v-for="n in notifications"
-                    :key="n.id"
-                    type="button"
-                    class="notification-bell__item"
-                    :class="{ 'is-unread': !n.read }"
-                    @click="handleClick(n)"
-                >
-                    <div class="notification-bell__item-dot" :class="`is-${n.type}`" />
-                    <div class="notification-bell__item-content">
-                        <div class="notification-bell__item-title">{{ n.title }}</div>
-                        <div v-if="n.message" class="notification-bell__item-message">{{ n.message }}</div>
-                        <div class="notification-bell__item-time">{{ timeAgo(n.created_at) }}</div>
-                    </div>
-                </button>
-            </div>
-        </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useNotifications } from '../../composables/useNotifications'
 import { usePolls } from '../../composables/usePolls'
 
 const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
-const { activePoll, pollResults, totalVotes, fetchActivePoll } = usePolls()
+const { activePoll, pollResults, totalVotes, allPolls, fetchActivePoll, fetchAllPolls } = usePolls()
 
 const isOpen = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
+const dropdownRef = ref<HTMLElement | null>(null)
+const showOldPolls = ref(false)
 const pollData = ref<{ question: string; results: { option: string; count: number; percentage: number }[]; totalVotes: number } | null>(null)
+const allPollsData = ref<{ id: number; question: string; is_active: boolean; results: { option: string; count: number; percentage: number }[]; totalVotes: number }[]>([])
+const hasOldPolls = ref(false)
+const dropdownStyle = ref<Record<string, string>>({})
+const oldPanelStyle = ref<Record<string, string>>({})
 
 async function loadPollData() {
     await fetchActivePoll()
@@ -95,14 +137,51 @@ async function loadPollData() {
     } else {
         pollData.value = null
     }
+    await fetchAllPolls()
+    const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
+    hasOldPolls.value = old.length > 0
+}
+
+async function openOldPolls() {
+    if (showOldPolls.value) {
+        showOldPolls.value = false
+        return
+    }
+    await fetchAllPolls()
+    allPollsData.value = allPolls.value.map(p => ({
+        id: p.id,
+        question: p.question,
+        is_active: p.is_active,
+        results: p.results,
+        totalVotes: p.totalVotes
+    }))
+    showOldPolls.value = true
+    nextTick(positionDropdown)
+}
+
+function positionDropdown() {
+    if (containerRef.value) {
+        const rect = containerRef.value.getBoundingClientRect()
+        const top = rect.bottom + 8 + 'px'
+        const right = window.innerWidth - rect.right + 'px'
+        dropdownStyle.value = { top, right }
+        if (showOldPolls.value) {
+            oldPanelStyle.value = {
+                top,
+                right: `calc(${right} + 368px)`
+            }
+        }
+    }
 }
 
 function toggleDropdown() {
     isOpen.value = !isOpen.value
     if (isOpen.value) {
+        showOldPolls.value = false
         fetchNotifications()
         loadPollData()
         handleMarkAllRead()
+        nextTick(positionDropdown)
     }
 }
 
@@ -134,19 +213,21 @@ function timeAgo(dateStr: string) {
     return new Date(dateStr).toLocaleDateString()
 }
 
-function handleClickOutside(e: MouseEvent) {
-    if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
-        closeDropdown()
+function handleReposition() {
+    if (isOpen.value) {
+        positionDropdown()
     }
 }
 
 onMounted(() => {
     fetchNotifications()
-    document.addEventListener('click', handleClickOutside)
+    window.addEventListener('scroll', handleReposition, { passive: true })
+    window.addEventListener('resize', handleReposition, { passive: true })
 })
 
 onBeforeUnmount(() => {
-    document.removeEventListener('click', handleClickOutside)
+    window.removeEventListener('scroll', handleReposition)
+    window.removeEventListener('resize', handleReposition)
 })
 </script>
 
@@ -205,9 +286,7 @@ onBeforeUnmount(() => {
 }
 
 .notification-bell__dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
+    position: fixed;
     width: 360px;
     max-height: 480px;
     background: rgba(26, 24, 21, 0.97);
@@ -380,5 +459,99 @@ onBeforeUnmount(() => {
     font-size: 0.625rem;
     color: var(--bone-500);
     margin-top: 4px;
+}
+
+.notification-bell__old-polls-btn {
+    display: block;
+    width: 100%;
+    margin-top: var(--s-2);
+    padding: var(--s-1) 0;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-sm);
+    color: var(--bone-400);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+
+.notification-bell__old-polls-btn:hover {
+    color: var(--bone-50);
+    border-color: var(--rule-strong);
+}
+
+.notification-bell__old-panel {
+    position: fixed;
+    width: 360px;
+    max-height: 480px;
+    background: rgba(26, 24, 21, 0.97);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-lg);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.notification-bell__old-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--s-4) var(--s-4) var(--s-2);
+    border-bottom: 1px solid var(--rule);
+}
+
+.notification-bell__old-list {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--s-1) 0;
+}
+
+.notification-bell__poll-back {
+    background: none;
+    border: none;
+    color: var(--ember);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.notification-bell__poll-back:hover {
+    text-decoration: underline;
+}
+
+.notification-bell__old-poll {
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--rule);
+}
+
+.notification-bell__old-poll:last-child {
+    border-bottom: none;
+}
+
+.notification-bell__poll-question--sm {
+    font-size: var(--fs-xs);
+    margin-bottom: var(--s-1);
+}
+
+.notification-bell__poll-inactive-badge {
+    display: inline-block;
+    font-size: 0.55rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bone-500);
+    background: var(--ink-700);
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+    margin-bottom: var(--s-1);
 }
 </style>

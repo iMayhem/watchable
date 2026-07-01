@@ -17,7 +17,7 @@
         <Teleport to="body">
             <div v-if="isOpen" class="m-notif-bell__backdrop" @click="closeDropdown" />
 
-            <div v-if="isOpen" class="m-notif-bell__dropdown">
+            <div v-if="isOpen" class="m-notif-bell__dropdown" @click.stop>
                 <div class="m-notif-bell__header">
                     <span class="m-notif-bell__title">Notifications</span>
                     <button
@@ -36,7 +36,8 @@
                     </button>
                 </div>
 
-                <div v-if="pollData" class="m-notif-bell__poll">
+                <!-- Active poll results -->
+                <div v-if="!showOldPolls && pollData" class="m-notif-bell__poll">
                     <div class="m-notif-bell__poll-question">{{ pollData.question }}</div>
                     <div class="m-notif-bell__poll-results">
                         <div v-for="(r, i) in pollData.results" :key="i" class="m-notif-bell__poll-result">
@@ -50,6 +51,44 @@
                         </div>
                     </div>
                     <div class="m-notif-bell__poll-total">{{ pollData.totalVotes }} total votes</div>
+                    <button
+                        v-if="hasOldPolls"
+                        type="button"
+                        class="m-notif-bell__old-polls-btn"
+                        @click.stop="openOldPolls"
+                    >
+                        Old Polls
+                    </button>
+                </div>
+
+                <!-- Old polls list -->
+                <div v-if="showOldPolls" class="m-notif-bell__poll m-notif-bell__poll--old">
+                    <div class="m-notif-bell__poll-header">
+                        <span class="m-notif-bell__poll-question">All Polls</span>
+                        <button
+                            type="button"
+                            class="m-notif-bell__poll-back"
+                            @click.stop="showOldPolls = false"
+                        >
+                            Back
+                        </button>
+                    </div>
+                    <div v-for="p in allPollsData" :key="p.id" class="m-notif-bell__old-poll">
+                        <div class="m-notif-bell__poll-question m-notif-bell__poll-question--sm">{{ p.question }}</div>
+                        <div v-if="!p.is_active" class="m-notif-bell__poll-inactive-badge">closed</div>
+                        <div class="m-notif-bell__poll-results">
+                            <div v-for="(r, i) in p.results" :key="i" class="m-notif-bell__poll-result">
+                                <div class="m-notif-bell__poll-result-label">
+                                    <span>{{ r.option }}</span>
+                                    <span>{{ r.count }} ({{ r.percentage }}%)</span>
+                                </div>
+                                <div class="m-notif-bell__poll-bar">
+                                    <div class="m-notif-bell__poll-bar-fill" :style="{ width: r.percentage + '%' }" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="m-notif-bell__poll-total">{{ p.totalVotes }} total votes</div>
+                    </div>
                 </div>
 
                 <div class="m-notif-bell__list">
@@ -83,12 +122,15 @@ import { useNotifications } from '@/composables/useNotifications'
 import { usePolls } from '@/composables/usePolls'
 
 const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
-const { activePoll, pollResults, totalVotes, fetchActivePoll } = usePolls()
+const { activePoll, pollResults, totalVotes, allPolls, fetchActivePoll, fetchAllPolls } = usePolls()
 
 defineProps<{ compact?: boolean }>()
 
 const isOpen = ref(false)
+const showOldPolls = ref(false)
 const pollData = ref<{ question: string; results: { option: string; count: number; percentage: number }[]; totalVotes: number } | null>(null)
+const allPollsData = ref<{ id: number; question: string; is_active: boolean; results: { option: string; count: number; percentage: number }[]; totalVotes: number }[]>([])
+const hasOldPolls = ref(false)
 
 async function loadPollData() {
     await fetchActivePoll()
@@ -101,11 +143,27 @@ async function loadPollData() {
     } else {
         pollData.value = null
     }
+    await fetchAllPolls()
+    const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
+    hasOldPolls.value = old.length > 0
+}
+
+async function openOldPolls() {
+    await fetchAllPolls()
+    allPollsData.value = allPolls.value.map(p => ({
+        id: p.id,
+        question: p.question,
+        is_active: p.is_active,
+        results: p.results,
+        totalVotes: p.totalVotes
+    }))
+    showOldPolls.value = true
 }
 
 function toggleDropdown() {
     isOpen.value = !isOpen.value
     if (isOpen.value) {
+        showOldPolls.value = false
         fetchNotifications()
         loadPollData()
     }
@@ -398,5 +456,80 @@ onMounted(() => {
     font-size: 0.625rem;
     color: var(--bone-500);
     margin-top: 4px;
+}
+
+.m-notif-bell__old-polls-btn {
+    display: block;
+    width: 100%;
+    margin-top: var(--s-2);
+    padding: var(--s-1) 0;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-sm);
+    color: var(--bone-400);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+}
+
+.m-notif-bell__old-polls-btn:hover {
+    color: var(--bone-50);
+    border-color: var(--rule-strong);
+}
+
+.m-notif-bell__poll--old {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.m-notif-bell__poll-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--s-2);
+}
+
+.m-notif-bell__poll-back {
+    background: none;
+    border: none;
+    color: var(--ember);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.m-notif-bell__poll-back:hover {
+    text-decoration: underline;
+}
+
+.m-notif-bell__old-poll {
+    padding: var(--s-2) 0;
+    border-bottom: 1px solid var(--rule);
+}
+
+.m-notif-bell__old-poll:last-child {
+    border-bottom: none;
+}
+
+.m-notif-bell__poll-question--sm {
+    font-size: var(--fs-xs);
+    margin-bottom: var(--s-1);
+}
+
+.m-notif-bell__poll-inactive-badge {
+    display: inline-block;
+    font-size: 0.55rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bone-500);
+    background: var(--ink-700);
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+    margin-bottom: var(--s-1);
 }
 </style>

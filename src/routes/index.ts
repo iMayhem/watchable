@@ -330,16 +330,6 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
-        path: '/test',
-        name: 'TestMoovieStream',
-        component: () => import('../pages/TestMoovieStream.vue'),
-        meta: {
-            showInHeader: false,
-            hidden: true,
-            title: 'Test'
-        }
-    },
-    {
         path: '/testing',
         name: 'ScraperTesting',
         component: () => import('../pages/ScraperTesting.vue'),
@@ -357,17 +347,6 @@ const routes: Array<RouteRecordRaw> = [
             showInHeader: false,
             hidden: true,
             title: 'Scraper Lab',
-            bareLayout: true
-        }
-    },
-    {
-        path: '/moovie',
-        name: 'MooviePlayer',
-        component: () => import('../pages/MooviePlayer.vue'),
-        meta: {
-            showInHeader: false,
-            hidden: true,
-            title: 'moovie Player',
             bareLayout: true
         }
     },
@@ -475,10 +454,6 @@ router.afterEach((to) => {
 
     const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode', 'NetflixDetail', 'NetflixAnimeDetail', 'StreamNetflixMovie', 'StreamNetflixTV'];
     if (to.name && dynamicRoutes.includes(to.name as string)) {
-        return;
-    }
-
-    if (to.name === 'TestMoovieStream') {
         return;
     }
 

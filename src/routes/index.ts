@@ -356,7 +356,8 @@ const routes: Array<RouteRecordRaw> = [
         meta: {
             showInHeader: false,
             hidden: true,
-            title: 'Scraper Lab'
+            title: 'Scraper Lab',
+            bareLayout: true
         }
     },
     {
@@ -366,7 +367,8 @@ const routes: Array<RouteRecordRaw> = [
         meta: {
             showInHeader: false,
             hidden: true,
-            title: 'moovie Player'
+            title: 'moovie Player',
+            bareLayout: true
         }
     },
     {

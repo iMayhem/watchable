@@ -699,10 +699,20 @@ export default defineComponent({
 
                 // Auto-play first playable stream (M3U8 > MP4 > WebM)
                 const playableExts = ['.m3u8', '.mp4', '.webm'];
+                function targetExt(url: string): string {
+                    const m = url.match(/[?&]url=([^&]+)/);
+                    if (m) {
+                        try {
+                            const decoded = atob(decodeURIComponent(m[1]));
+                            return decoded.split('?')[0].split('#')[0].toLowerCase();
+                        } catch { /* fall through */ }
+                    }
+                    return url.split('?')[0].split('#')[0].toLowerCase();
+                }
                 let autoPlayed = false;
                 for (const [prov, urls] of Object.entries(rawData)) {
                     for (let i = 0; i < urls.length; i++) {
-                        const ext = urls[i].split('?')[0].split('#')[0].toLowerCase();
+                        const ext = targetExt(urls[i]);
                         if (playableExts.some(e => ext.endsWith(e))) {
                             log('scrape:auto-play', { provider: prov, index: i, url: urls[i] });
                             setActive(prov, i);

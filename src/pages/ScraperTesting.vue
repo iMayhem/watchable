@@ -39,6 +39,11 @@
                 <span>{{ numStreams }} stream{{ numStreams === 1 ? '' : 's' }}</span>
                 <span v-if="timing">{{ timing }}ms</span>
             </div>
+
+            <div v-if="activeStreamUrl" class="stest__player">
+                <div ref="artContainer" class="stest__artplayer" />
+            </div>
+
             <div v-for="(urls, provider) in result" :key="provider" class="stest__provider">
                 <div class="stest__provider-header">
                     <strong>{{ provider }}</strong>
@@ -47,7 +52,7 @@
                 <div v-for="(url, i) in urls" :key="i" class="stest__stream">
                     <span class="stest__idx">#{{ i + 1 }}</span>
                     <code class="stest__url">{{ url }}</code>
-                    <button type="button" class="stest__play-btn" @click="play(url)">Play</button>
+                    <button type="button" class="stest__play-btn" @click="setActive(url)">Play</button>
                     <button type="button" class="stest__copy-btn" @click="copy(url)">Copy</button>
                 </div>
             </div>
@@ -63,15 +68,11 @@
             </button>
             <pre v-if="showDebug">{{ JSON.stringify(result, null, 2) }}</pre>
         </section>
-
-        <div v-if="playerUrl" class="stest__player-wrapper">
-            <video ref="videoEl" controls autoplay class="stest__video" />
-        </div>
     </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, onUnmounted, ref, watch } from 'vue';
 
 const API_BASE = 'https://proxy.moovie.fun';
 
@@ -87,8 +88,9 @@ export default defineComponent({
         const result = ref<Record<string, string[]> | null>(null);
         const timing = ref<number | null>(null);
         const showDebug = ref(false);
-        const playerUrl = ref('');
-        const videoEl = ref<HTMLVideoElement | null>(null);
+        const activeStreamUrl = ref('');
+        const artContainer = ref<HTMLElement | null>(null);
+        let artInstance: any = null;
 
         const numProviders = computed(() => {
             if (!result.value) return 0;
@@ -104,13 +106,103 @@ export default defineComponent({
             return count;
         });
 
+        const loadArtplayerAssets = (() => {
+            let promise: Promise<void> | null = null;
+            return () => {
+                if ((window as any).Artplayer) return Promise.resolve();
+                if (promise) return promise;
+                promise = new Promise((resolve, reject) => {
+                    if (!document.querySelector('link[data-stest-art-css]')) {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.css';
+                        link.setAttribute('data-stest-art-css', '1');
+                        document.head.appendChild(link);
+                    }
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/artplayer/dist/artplayer.min.js';
+                    script.onload = () => {
+                        const hlsScript = document.createElement('script');
+                        hlsScript.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
+                        hlsScript.onload = () => resolve();
+                        hlsScript.onerror = () => resolve();
+                        document.head.appendChild(hlsScript);
+                    };
+                    script.onerror = () => reject(new Error('ArtPlayer failed to load'));
+                    document.head.appendChild(script);
+                });
+                return promise;
+            };
+        })();
+
+        const destroyArt = () => {
+            if (artInstance) {
+                try { artInstance.destroy(false); } catch { /* ignore */ }
+                artInstance = null;
+            }
+        };
+
+        const mountArtplayer = async (url: string) => {
+            await loadArtplayerAssets();
+            const container = artContainer.value;
+            if (!container) return;
+            destroyArt();
+
+            const ArtplayerCtor = (window as any).Artplayer;
+            const HlsCtor = (window as any).Hls;
+            const isM3u8 = url.includes('.m3u8') || url.includes('m3u8');
+
+            artInstance = new ArtplayerCtor({
+                container,
+                url,
+                type: isM3u8 ? 'm3u8' : 'mp4',
+                autoplay: true,
+                preload: 'auto',
+                playbackRate: true,
+                aspectRatio: true,
+                fullscreen: true,
+                fullscreenWeb: true,
+                miniProgressBar: true,
+                fastForward: true,
+                setting: true,
+                theme: '#4eb5ff',
+                customType: isM3u8 ? {
+                    m3u8(video: HTMLVideoElement, src: string) {
+                        if (HlsCtor?.isSupported()) {
+                            const hls = new HlsCtor({ enableWorker: true });
+                            hls.loadSource(src);
+                            hls.attachMedia(video);
+                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                            video.src = src;
+                        }
+                    },
+                } : undefined,
+            });
+
+            artInstance.on('video:loadedmetadata', () => {
+                console.log('[ArtPlayer] loadedmetadata');
+            });
+        };
+
+        const setActive = (url: string) => {
+            activeStreamUrl.value = url;
+            mountArtplayer(url);
+        };
+
+        const copy = async (url: string) => {
+            try {
+                await navigator.clipboard.writeText(url);
+            } catch { /* ignore */ }
+        };
+
         const search = async () => {
             if (!title.value.trim()) return;
             loading.value = true;
             error.value = '';
             result.value = null;
-            playerUrl.value = '';
+            activeStreamUrl.value = '';
             timing.value = null;
+            destroyArt();
 
             const params: Record<string, string> = { title: title.value.trim() };
             if (season.value > 0) params.season = String(season.value);
@@ -128,6 +220,10 @@ export default defineComponent({
                     throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
                 }
                 result.value = await resp.json();
+                if (numStreams.value > 0) {
+                    const firstUrl = Object.values(result.value!)[0][0];
+                    setActive(firstUrl);
+                }
             } catch (err: any) {
                 error.value = err.message || 'Request failed';
             } finally {
@@ -135,34 +231,15 @@ export default defineComponent({
             }
         };
 
-        const play = (url: string) => {
-            playerUrl.value = url;
-            if (videoEl.value) {
-                videoEl.value.src = url;
-                videoEl.value.play().catch(() => {});
-            }
-        };
-
-        const copy = async (url: string) => {
-            try {
-                await navigator.clipboard.writeText(url);
-            } catch {
-                // fallback
-            }
-        };
-
-        watch(playerUrl, (url) => {
-            if (url && videoEl.value) {
-                videoEl.value.src = url;
-                videoEl.value.play().catch(() => {});
-            }
+        onUnmounted(() => {
+            destroyArt();
         });
 
         return {
             title, season, episode, fast,
             loading, error, result, timing, showDebug,
-            numProviders, numStreams, playerUrl, videoEl,
-            search, play, copy,
+            numProviders, numStreams, activeStreamUrl, artContainer,
+            search, setActive, copy,
         };
     },
 });
@@ -237,6 +314,18 @@ input, select {
     margin-bottom: 1rem;
     font-size: 0.85rem;
     color: rgba(244, 247, 251, 0.6);
+}
+.stest__player {
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 1rem;
+}
+.stest__artplayer {
+    width: 100%;
+    height: 100%;
 }
 .stest__provider {
     margin-bottom: 0.75rem;
@@ -313,17 +402,5 @@ input, select {
     font-size: 0.75rem;
     line-height: 1.45;
     max-height: 320px;
-}
-.stest__player-wrapper {
-    max-width: 1100px;
-    margin: 1rem auto;
-    border-radius: 14px;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.stest__video {
-    width: 100%;
-    display: block;
-    background: #000;
 }
 </style>

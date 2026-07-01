@@ -340,6 +340,16 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/testing',
+        name: 'ScraperTesting',
+        component: () => import('../pages/ScraperTesting.vue'),
+        meta: {
+            showInHeader: false,
+            hidden: true,
+            title: 'Scraper Testing'
+        }
+    },
+    {
         path: '/party',
         name: 'Party',
         component: () => import('../pages/Party.vue'),

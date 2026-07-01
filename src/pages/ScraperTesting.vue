@@ -416,24 +416,6 @@ export default defineComponent({
         }
 
         function setupArtplayerEvents(art: any, url: string) {
-            const events = [
-                'video:loadedmetadata',
-                'video:canplay',
-                'video:playing',
-                'video:pause',
-                'video:waiting',
-                'video:stalled',
-                'video:error',
-                'video:ended',
-                'video:timeupdate',
-                'video:seeking',
-                'video:seeked',
-                'ready',
-                'pause',
-                'play',
-                'error',
-                'destroy',
-            ] as const;
 
             const meta = { url, mountedAt: Date.now() };
 
@@ -710,7 +692,7 @@ export default defineComponent({
                     return url.split('?')[0].split('#')[0].toLowerCase();
                 }
                 let autoPlayed = false;
-                for (const [prov, urls] of Object.entries(rawData)) {
+                for (const [prov, urls] of Object.entries(rawData) as [string, string[]][]) {
                     for (let i = 0; i < urls.length; i++) {
                         const ext = targetExt(urls[i]);
                         if (playableExts.some(e => ext.endsWith(e))) {

@@ -258,7 +258,8 @@ export default defineComponent({
             return count;
         });
 
-        const allStreamsFlat = computed(() => {
+        // Flat ordered list of all streams across all providers
+        const flatStreams = computed(() => {
             const out: { provider: string; index: number; url: string }[] = [];
             if (!result.value) return out;
             for (const [provider, urls] of Object.entries(result.value)) {
@@ -266,6 +267,7 @@ export default defineComponent({
             }
             return out;
         });
+
 
         const filteredResult = computed(() => {
             if (!result.value) return null;
@@ -396,24 +398,6 @@ export default defineComponent({
         }
 
         function setupArtplayerEvents(art: any, url: string) {
-            const events = [
-                'video:loadedmetadata',
-                'video:canplay',
-                'video:playing',
-                'video:pause',
-                'video:waiting',
-                'video:stalled',
-                'video:error',
-                'video:ended',
-                'video:timeupdate',
-                'video:seeking',
-                'video:seeked',
-                'ready',
-                'pause',
-                'play',
-                'error',
-                'destroy',
-            ] as const;
 
             const meta = { url, mountedAt: Date.now() };
 
@@ -515,6 +499,16 @@ export default defineComponent({
                                         details: data.details,
                                         reason: data.reason,
                                     });
+                                    // Auto-fallback: try next stream on any fatal network/media error
+                                    const currentIndex = flatStreams.value.findIndex(s => s.url === src);
+                                    if (currentIndex !== -1 && currentIndex + 1 < flatStreams.value.length) {
+                                        const next = flatStreams.value[currentIndex + 1];
+                                        warn('stream:auto-fallback', { from: src, to: next.url, reason: data.details });
+                                        hlsInstance.destroy();
+                                        setActive(next.provider, next.index);
+                                    } else {
+                                        err('stream:all-streams-failed', { totalTried: flatStreams.value.length });
+                                    }
                                 } else {
                                     dbg('hls.js:recoverable-error', {
                                         type: data.type,
@@ -690,7 +684,7 @@ export default defineComponent({
                     return url.split('?')[0].split('#')[0].toLowerCase();
                 }
                 let autoPlayed = false;
-                for (const [prov, urls] of Object.entries(rawData)) {
+                for (const [prov, urls] of Object.entries(rawData) as [string, string[]][]) {
                     for (let i = 0; i < urls.length; i++) {
                         const ext = targetExt(urls[i]);
                         if (playableExts.some(e => ext.endsWith(e))) {
@@ -747,7 +741,7 @@ export default defineComponent({
                         playing: !artInstance.paused,
                     } : null,
                     hlsInstance: hlsInstance ? { alive: true } : null,
-                    allStreams: allStreamsFlat.value,
+                    allStreams: flatStreams.value,
                 }),
                 inspect: (url: string) => inspectUrl(url),
                 search: search,

@@ -59,6 +59,22 @@ export default defineComponent({
         let plyrInstance: any = null;
         let hlsInstance: any = null;
         let msgInterval: number | null = null;
+        let playbackTimeout: number | null = null;
+
+        function triggerGulabJamunFallback() {
+            if (gulabjamunUrl.value) return;
+            console.log('[MooviePlayer] Playback stalled or failed. Switching to Gulab Jamun...');
+            destroyPlayer();
+            const tmdbId = String(route.query.tmdb_id || '');
+            const season = String(route.query.season || '');
+            const episode = String(route.query.episode || '');
+            const isTv = season && episode;
+            if (isTv) {
+                gulabjamunUrl.value = `https://cinemaos.live/player/${tmdbId}/${season}/${episode}`;
+            } else {
+                gulabjamunUrl.value = `https://cinemaos.live/player/${tmdbId}`;
+            }
+        }
 
         // ── Load HLS.js from CDN if not already present ──────────────
         function loadHls(): Promise<void> {
@@ -74,6 +90,10 @@ export default defineComponent({
 
         // ── Destroy instances ────────────────────────────────────────────────
         function destroyPlayer() {
+            if (playbackTimeout) {
+                clearTimeout(playbackTimeout);
+                playbackTimeout = null;
+            }
             if (plyrInstance) {
                 try { plyrInstance.destroy(); } catch { /* */ }
                 plyrInstance = null;
@@ -104,14 +124,47 @@ export default defineComponent({
             video.className = 'plyr-video-element';
             container.appendChild(video);
 
-            if (isM3u8 && HlsCtor && HlsCtor.isSupported()) {
-                hlsInstance = new HlsCtor({
-                    enableWorker: true,
-                    maxBufferLength: 30,
-                    maxMaxBufferLength: 60,
-                });
-                hlsInstance.loadSource(url);
-                hlsInstance.attachMedia(video);
+            // Trigger fallback if playback does not start in 12s
+            playbackTimeout = window.setTimeout(() => {
+                triggerGulabJamunFallback();
+            }, 12000);
+
+            video.addEventListener('playing', () => {
+                if (playbackTimeout) {
+                    clearTimeout(playbackTimeout);
+                    playbackTimeout = null;
+                }
+            });
+
+            video.addEventListener('error', () => {
+                triggerGulabJamunFallback();
+            });
+
+            if (isM3u8 && HlsCtor) {
+                if (HlsCtor.isSupported()) {
+                    hlsInstance = new HlsCtor({
+                        enableWorker: true,
+                        debug: true,
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 60,
+                    });
+
+                    hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
+                        if (data.fatal) {
+                            console.error('[MooviePlayer] hls.js fatal error:', {
+                                type: data.type,
+                                details: data.details,
+                                reason: data.reason,
+                            });
+                            triggerGulabJamunFallback();
+                        }
+                    });
+
+                    hlsInstance.loadSource(url);
+                    hlsInstance.attachMedia(video);
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = url;
+                }
             } else {
                 video.src = url;
             }
@@ -160,31 +213,59 @@ export default defineComponent({
                 const res = await fetch(`${API_BASE}/api/scrape?${qs}`);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-                const data: Record<string, string[]> = await res.json();
-                const flat = Object.values(data).flat();
+                const rawData: Record<string, string[]> = await res.json();
+                
+                // Auto-play first playable stream (M3U8 > MP4 > WebM) using the exact ScraperTesting logic
+                const playableExts = ['.m3u8', '.mp4', '.webm'];
+                
+                function targetExt(url: string): string {
+                    const m = url.match(/[?&]url=([^&]+)/);
+                    if (m) {
+                        try {
+                            const decoded = atob(decodeURIComponent(m[1]));
+                            return decoded.split('?')[0].split('#')[0].toLowerCase();
+                        } catch { /* fall through */ }
+                    }
+                    return url.split('?')[0].split('#')[0].toLowerCase();
+                }
 
-                if (!flat.length) throw new Error('No streams found');
+                let autoPlayed = false;
+                let playable = '';
 
-                // prefer M3U8
-                const playable = flat.find(u =>
-                    u.includes('.m3u8') || u.includes('m3u8')
-                ) || flat[0];
+                const sortedEntries = (Object.entries(rawData) as [string, string[]][]).sort(([keyA], [keyB]) => {
+                    const isSpiderA = keyA.toLowerCase().includes('spider');
+                    const isSpiderB = keyB.toLowerCase().includes('spider');
+                    if (isSpiderA && !isSpiderB) return -1;
+                    if (!isSpiderA && isSpiderB) return 1;
+                    return keyA.localeCompare(keyB);
+                });
+
+                for (const [_, urls] of sortedEntries) {
+                    for (let i = 0; i < urls.length; i++) {
+                        const ext = targetExt(urls[i]);
+                        if (playableExts.some(e => ext.endsWith(e))) {
+                            playable = urls[i];
+                            autoPlayed = true;
+                            break;
+                        }
+                    }
+                    if (autoPlayed) break;
+                }
+
+                if (!autoPlayed && Object.keys(rawData).length > 0) {
+                    const firstProv = Object.keys(rawData)[0];
+                    playable = rawData[firstProv][0];
+                    autoPlayed = true;
+                }
+
+                if (!playable) throw new Error('No playable streams found');
 
                 activeUrl.value = playable;
                 loading.value = false;
                 if (msgInterval) clearInterval(msgInterval);
                 await mountPlayer(playable);
             } catch (e: any) {
-                // ── Fallback: switch to Gulab Jamun embed ─────────────────
-                loading.value = false;
-                if (msgInterval) clearInterval(msgInterval);
-
-                const isTv = season && episode;
-                if (isTv) {
-                    gulabjamunUrl.value = `https://cinemaos.live/player/${tmdbId}/${season}/${episode}`;
-                } else {
-                    gulabjamunUrl.value = `https://cinemaos.live/player/${tmdbId}`;
-                }
+                triggerGulabJamunFallback();
             }
         }
 

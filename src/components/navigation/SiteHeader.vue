@@ -167,15 +167,6 @@
                         Sign In
                     </button>
 
-                    <button
-                        v-if="showModeSwitch"
-                        type="button"
-                        class="site-header__mode-btn"
-                        @click="toggleContentMode"
-                    >
-                        {{ modeLabel }}
-                    </button>
-
                     <div ref="regionContainer" class="site-header__region-container">
                         <button
                             class="site-header__region-toggle"

@@ -697,15 +697,25 @@ export default defineComponent({
 
                 result.value = rawData;
 
-                // Auto-play first stream
-                const allProviders = Object.keys(rawData);
-                if (allProviders.length > 0) {
-                    const firstProv = allProviders[0];
-                    const firstUrls = rawData[firstProv];
-                    if (firstUrls?.length > 0) {
-                        log('scrape:auto-play', { provider: firstProv, index: 0, url: firstUrls[0] });
-                        setActive(firstProv, 0);
+                // Auto-play first playable stream (M3U8 > MP4 > WebM)
+                const playableExts = ['.m3u8', '.mp4', '.webm'];
+                let autoPlayed = false;
+                for (const [prov, urls] of Object.entries(rawData)) {
+                    for (let i = 0; i < urls.length; i++) {
+                        const ext = urls[i].split('?')[0].split('#')[0].toLowerCase();
+                        if (playableExts.some(e => ext.endsWith(e))) {
+                            log('scrape:auto-play', { provider: prov, index: i, url: urls[i] });
+                            setActive(prov, i);
+                            autoPlayed = true;
+                            break;
+                        }
                     }
+                    if (autoPlayed) break;
+                }
+                if (!autoPlayed && Object.keys(rawData).length > 0) {
+                    const firstProv = Object.keys(rawData)[0];
+                    log('scrape:auto-play-fallback', { provider: firstProv, url: rawData[firstProv][0] });
+                    setActive(firstProv, 0);
                 }
             } catch (e: any) {
                 const elapsed = timing.value !== null ? timing.value : Math.round(performance.now() - startedAt);

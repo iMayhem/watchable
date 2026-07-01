@@ -291,7 +291,8 @@ export default defineComponent({
             if (!result.value) return null;
             const out: Record<string, string[]> = {};
             for (const [provider, urls] of Object.entries(result.value)) {
-                if (selectedProviders.value.has(provider)) {
+                const baseProvider = provider.split(' ·')[0];
+                if (selectedProviders.value.has(baseProvider)) {
                     out[provider] = urls;
                 }
             }

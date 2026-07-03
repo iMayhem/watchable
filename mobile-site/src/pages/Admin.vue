@@ -38,6 +38,7 @@
                             <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
                             <option value="smashy">Jalebi (SmashyStream)</option>
                             <option value="mappletv">Kaju Katli (MappleTV)</option>
+                            <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
                             <option value="vidking">Kheer (VidKing)</option>
                             <option value="videasy">Barfi (VidEasy)</option>
                             <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
@@ -50,7 +51,6 @@
                             <option value="vidfast">Mysore Pak (VidFast)</option>
                             <option value="movies111">Imarti (111Movies)</option>
                             <option value="vidora">Ghevar (Vidora)</option>
-                            <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
                         </select>
                     </div>
 
@@ -135,8 +135,8 @@
                     <div class="admin-page__server-row"><span>cinemaos</span><span>Gulab Jamun</span></div>
                     <div class="admin-page__server-row"><span>smashy</span><span>Jalebi</span></div>
                     <div class="admin-page__server-row"><span>videasy</span><span>Barfi</span></div>
-                    <div class="admin-page__server-row"><span>vidlink</span><span>Cham Cham</span></div>
                     <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
+                    <div class="admin-page__server-row"><span>vidlink</span><span>Cham Cham</span></div>
                 </div>
 
                 <div class="admin-page__curation">

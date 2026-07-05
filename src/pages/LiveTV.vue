@@ -338,51 +338,25 @@ onMounted(() => {
             max-width: calc(80vh * 16 / 9);
         }
 
-        :deep(.art-video-player) {
-            position: absolute;
-            inset: 0;
+        :deep(.plyr) {
+            height: 100% !important;
+            width: 100% !important;
+            border-radius: inherit;
+            background: #000 !important;
+        }
+
+        :deep(.plyr__video-wrapper) {
+            height: 100% !important;
+            width: 100% !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        :deep(video) {
             width: 100% !important;
             height: 100% !important;
-            overflow: hidden;
-        }
-
-        :deep(.art-video) {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        :deep(.art-bottom) {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            padding-bottom: 0;
-        }
-
-        :deep(.art-controls) {
-            display: flex;
-            align-items: center;
-            padding: 0 12px 12px;
-        }
-
-        :deep(.art-controls-left),
-        :deep(.art-controls-center),
-        :deep(.art-controls-right) {
-            display: flex;
-            align-items: center;
-        }
-
-        :deep(.art-control) {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        :deep(.art-control .art-icon) {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            object-fit: contain !important;
         }
     }
 

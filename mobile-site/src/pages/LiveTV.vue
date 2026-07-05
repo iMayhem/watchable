@@ -253,45 +253,25 @@ onMounted(() => {
         background: #000;
         border: 1px solid var(--rule);
 
-        :deep(.art-video-player) {
-            position: absolute;
-            inset: 0;
-            width: 100% !important;
+        :deep(.plyr) {
             height: 100% !important;
-            overflow: hidden;
+            width: 100% !important;
+            border-radius: inherit;
+            background: #000 !important;
         }
 
-        :deep(.art-video) {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        :deep(.art-bottom) {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            padding-bottom: 0;
-        }
-
-        :deep(.art-controls) {
+        :deep(.plyr__video-wrapper) {
+            height: 100% !important;
+            width: 100% !important;
             display: flex;
-            align-items: center;
-            padding: 0 10px 10px;
-        }
-
-        :deep(.art-controls-left),
-        :deep(.art-controls-center),
-        :deep(.art-controls-right) {
-            display: flex;
-            align-items: center;
-        }
-
-        :deep(.art-control) {
-            display: inline-flex;
             align-items: center;
             justify-content: center;
+        }
+
+        :deep(video) {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
         }
     }
 

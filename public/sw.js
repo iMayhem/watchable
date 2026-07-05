@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moovie-cache-v4';
+const CACHE_NAME = 'moovie-cache-v5';
 const IMAGE_CACHE = 'moovie-image-cache-v1';
 const PRECACHE_ASSETS = [
   '/',

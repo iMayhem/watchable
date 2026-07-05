@@ -387,6 +387,55 @@
             color: var(--ember);
         }
 
+        .cache-card {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1.5rem;
+            background: rgba(255, 90, 31, 0.06);
+            border: 1px solid rgba(255, 90, 31, 0.2);
+            border-radius: var(--r-md);
+            padding: 1.25rem 1.5rem;
+            margin-top: 2rem;
+            text-align: left;
+        }
+
+        .cache-info {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            flex: 1;
+        }
+
+        .cache-icon {
+            font-size: 1.8rem;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .cache-title {
+            color: var(--bone-100);
+            font-size: 0.95rem;
+            display: block;
+            font-weight: 600;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #c0392b, #e74c3c);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.25);
+            width: auto;
+            white-space: nowrap;
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 6px 16px rgba(231, 76, 60, 0.4);
+            transform: translateY(-1px);
+        }
+
         /* 4K Curation Panel Styles */
         .curation-section {
             margin-top: 2.5rem;
@@ -793,6 +842,20 @@
                 <div class="server-grid-item"><span>movies111</span><span>Imarti</span></div>
                 <div class="server-grid-item"><span>vidora</span><span>Ghevar</span></div>
                 <div class="server-grid-item"><span>icecream</span><span>Icecream</span></div>
+            </div>
+
+            <!-- Clear TMDB Cache Section -->
+            <div class="cache-card">
+                <div class="cache-info">
+                    <span class="cache-icon">🧊</span>
+                    <div>
+                        <strong class="cache-title">Clear TMDB Poster Cache</strong>
+                        <p class="subtitle" style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--bone-300);">Nukes the poster and trending list cache globally for all users instantly, forcing everyone to load the fresh updates from TMDB.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-danger" id="clear-cache-btn" onclick="handleClearTmdbCache(event)">
+                    <span>🗑️ Clear Cache Now</span>
+                </button>
             </div>
         </section>
     </div>
@@ -1202,6 +1265,38 @@
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Save Changes';
+            }
+        }
+
+        async function handleClearTmdbCache(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('clear-cache-btn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span>Clearing...</span>';
+
+            try {
+                // Upsert new cache bust timestamp to Supabase for everyone
+                const { error } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'cache_bust_timestamp', value: new Date().toISOString(), updated_at: new Date() }, { onConflict: 'key' });
+
+                if (error) throw error;
+
+                // Delete local browser cache entries
+                if (window.caches) {
+                    await caches.delete('tmdb-api-cache-v1');
+                    await caches.delete('tmdb-api-cache-v2');
+                }
+                localStorage.removeItem('moovie_poster_cache_v1');
+
+                showToast('✅ Cache cleared globally for all users!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to clear cache globally', false);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         }
 

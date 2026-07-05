@@ -76,12 +76,23 @@ export async function refreshGlobalSettings() {
         const { data } = await supabase
             .from('app_settings')
             .select('key, value')
-            .in('key', ['tmdb_image_quality']);
+            .in('key', ['tmdb_image_quality', 'cache_bust_timestamp']);
 
         const rows = Array.isArray(data) ? data : [];
         const quality = rows.find((row: any) => row.key === 'tmdb_image_quality')?.value;
         if (quality === 'low' || quality === 'medium' || quality === 'high') {
             selectedTmdbImageQuality.value = quality;
+        }
+
+        const cacheBust = rows.find((row: any) => row.key === 'cache_bust_timestamp')?.value;
+        if (cacheBust && localStorage.getItem('last_cache_bust') !== cacheBust) {
+            if (typeof window !== 'undefined' && window.caches) {
+                await window.caches.delete('tmdb-api-cache-v1');
+                await window.caches.delete('tmdb-api-cache-v2');
+            }
+            localStorage.removeItem('moovie_poster_cache_v1');
+            localStorage.setItem('last_cache_bust', cacheBust);
+            console.log('[🧹 CACHE] Global cache bust triggered by admin settings');
         }
     } catch (err) {
         console.warn('[settings] Failed to load global settings:', err);

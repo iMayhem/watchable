@@ -665,17 +665,19 @@ async function handleSaveSettings() {
 async function handleClearTmdbCache() {
     clearCacheLoading.value = true
     try {
-        // Delete both old v1 and current v2 Cache Storage entries
-        const deletedV1 = await caches.delete('tmdb-api-cache-v1')
-        const deletedV2 = await caches.delete('tmdb-api-cache-v2')
+        // Upsert new cache bust timestamp to Supabase for everyone
+        const client = supabase || await getSupabaseClient()
+        await client.from('app_settings').upsert({ key: 'cache_bust_timestamp', value: new Date().toISOString(), updated_at: new Date() }, { onConflict: 'key' })
+
+        // Delete both old v1 and current v2 Cache Storage entries locally too
+        await caches.delete('tmdb-api-cache-v1')
+        await caches.delete('tmdb-api-cache-v2')
         // Also wipe the localStorage poster cache
         localStorage.removeItem('moovie_poster_cache_v1')
-        const cleared = [deletedV1 && 'tmdb-api-cache-v1', deletedV2 && 'tmdb-api-cache-v2']
-            .filter(Boolean)
-            .join(', ')
-        showToast(cleared ? `✅ Cleared: ${cleared} — reload the page to see fresh posters!` : '✅ Cache was already empty', true)
-    } catch {
-        showToast('Failed to clear cache — browser may not support Cache API', false)
+        showToast('✅ Cache cleared globally for all users!', true)
+    } catch (e) {
+        console.error(e)
+        showToast('Failed to clear cache globally', false)
     } finally {
         clearCacheLoading.value = false
     }

@@ -30,7 +30,8 @@
       "@supabase/supabase-js": ["node_modules/@supabase/supabase-js"],
       "axios": ["node_modules/axios"],
       "artplayer": ["node_modules/artplayer"],
-      "hls.js": ["node_modules/hls.js"]
+      "hls.js": ["node_modules/hls.js"],
+      "plyr": ["node_modules/plyr"]
     }
   },
   "include": [

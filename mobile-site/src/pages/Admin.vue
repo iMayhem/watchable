@@ -51,6 +51,7 @@
                             <option value="vidfast">Mysore Pak (VidFast)</option>
                             <option value="movies111">Imarti (111Movies)</option>
                             <option value="vidora">Ghevar (Vidora)</option>
+                            <option value="icecream">Icecream (Chillflix)</option>
                         </select>
                     </div>
 
@@ -134,9 +135,21 @@
                     <div class="admin-page__server-row"><span>rasmalai</span><span>Rasmalai</span></div>
                     <div class="admin-page__server-row"><span>cinemaos</span><span>Gulab Jamun</span></div>
                     <div class="admin-page__server-row"><span>smashy</span><span>Jalebi</span></div>
-                    <div class="admin-page__server-row"><span>videasy</span><span>Barfi</span></div>
+                    <div class="admin-page__server-row"><span>mappletv</span><span>Kaju Katli</span></div>
                     <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
+                    <div class="admin-page__server-row"><span>vidking</span><span>Kheer</span></div>
+                    <div class="admin-page__server-row"><span>videasy</span><span>Barfi</span></div>
+                    <div class="admin-page__server-row"><span>vidsrc_ru</span><span>Laddu</span></div>
+                    <div class="admin-page__server-row"><span>vidsrc_su</span><span>Peda</span></div>
+                    <div class="admin-page__server-row"><span>vidsrcme</span><span>Gajar Ka Halwa</span></div>
+                    <div class="admin-page__server-row"><span>multiembed</span><span>Soan Papdi</span></div>
+                    <div class="admin-page__server-row"><span>vsrc</span><span>Sandesh</span></div>
                     <div class="admin-page__server-row"><span>vidlink</span><span>Cham Cham</span></div>
+                    <div class="admin-page__server-row"><span>autoembed</span><span>Kulfi</span></div>
+                    <div class="admin-page__server-row"><span>vidfast</span><span>Mysore Pak</span></div>
+                    <div class="admin-page__server-row"><span>movies111</span><span>Imarti</span></div>
+                    <div class="admin-page__server-row"><span>vidora</span><span>Ghevar</span></div>
+                    <div class="admin-page__server-row"><span>icecream</span><span>Icecream</span></div>
                 </div>
 
                 <div class="admin-page__curation">

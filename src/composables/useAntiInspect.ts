@@ -282,13 +282,7 @@ export function installAntiInspect() {
         console.log('%c', element);
     };
     
-    // Prevent source viewing via data URIs
-    addListener(window, 'beforeunload', (e: BeforeUnloadEvent) => {
-        if (document.activeElement?.tagName === 'IFRAME') {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
+
 
     // Main detection interval
     intervalId = window.setInterval(() => {

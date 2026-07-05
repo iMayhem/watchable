@@ -133,13 +133,20 @@ if (cachedDefaultServer) {
   }
 }
 
+function isMobileClient(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname.startsWith('m.') || 
+         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+}
+
 async function fetchDefaultServerId() {
   try {
     const supabase = await getSupabaseClient();
+    const settingsKey = isMobileClient() ? 'default_provider_mobile' : 'default_provider';
     const { data } = await supabase
       .from('app_settings')
       .select('value')
-      .eq('key', 'default_provider')
+      .eq('key', settingsKey)
       .single();
     if (data && data.value) {
       return data.value;

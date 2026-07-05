@@ -594,8 +594,32 @@
             
             <form onsubmit="handleSaveSettings(event)">
                 <div class="form-group">
-                    <label class="form-label" for="default-provider-select">Default Stream Player</label>
+                    <label class="form-label" for="default-provider-select">Default Stream Player (PC)</label>
                     <select id="default-provider-select" class="form-select">
+                        <option value="rasmalai">Rasmalai (sweet server)</option>
+                        <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
+                        <option value="smashy">Jalebi (SmashyStream)</option>
+                        <option value="mappletv">Kaju Katli (MappleTV)</option>
+                        <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
+                        <option value="vidking">Kheer (VidKing)</option>
+                        <option value="videasy">Barfi (VidEasy)</option>
+                        <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
+                        <option value="vidsrc_su">Peda (VidSrc.su)</option>
+                        <option value="vidsrcme">Gajar Ka Halwa (VidSrcMe)</option>
+                        <option value="multiembed">Soan Papdi (MultiEmbed)</option>
+                        <option value="vsrc">Sandesh (vsrc.su)</option>
+                        <option value="vidlink">Cham Cham (VidLink)</option>
+                        <option value="autoembed">Kulfi (AutoEmbed)</option>
+                        <option value="vidfast">Mysore Pak (VidFast)</option>
+                        <option value="movies111">Imarti (111Movies)</option>
+                        <option value="vidora">Ghevar (Vidora)</option>
+                        <option value="icecream">Icecream (Chillflix)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
+                    <label class="form-label" for="default-provider-mobile-select">Default Stream Player (Mobile)</label>
+                    <select id="default-provider-mobile-select" class="form-select">
                         <option value="rasmalai">Rasmalai (sweet server)</option>
                         <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
                         <option value="smashy">Jalebi (SmashyStream)</option>
@@ -941,14 +965,24 @@
         // Load settings onto dashboard
         async function loadDashboardSettings() {
             try {
-                const { data, error } = await supabaseClient
+                const { data: defaultProviderData } = await supabaseClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'default_provider')
                     .single();
                 
-                if (data && data.value) {
-                    document.getElementById('default-provider-select').value = data.value.toLowerCase();
+                if (defaultProviderData && defaultProviderData.value) {
+                    document.getElementById('default-provider-select').value = defaultProviderData.value.toLowerCase();
+                }
+
+                const { data: mobileProviderData } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'default_provider_mobile')
+                    .single();
+                
+                if (mobileProviderData && mobileProviderData.value) {
+                    document.getElementById('default-provider-mobile-select').value = mobileProviderData.value.toLowerCase();
                 }
             } catch (err) {
                 console.warn('Could not retrieve current default provider:', err);
@@ -1215,6 +1249,7 @@
             event.preventDefault();
             const saveBtn = document.getElementById('save-btn');
             const defaultProvider = document.getElementById('default-provider-select').value;
+            const defaultProviderMobile = document.getElementById('default-provider-mobile-select').value;
             const tmdbImageQuality = document.getElementById('tmdb-quality-select').value;
             const newPasscode = document.getElementById('new-passcode-input').value.trim();
 
@@ -1228,6 +1263,12 @@
                     .upsert({ key: 'default_provider', value: defaultProvider, updated_at: new Date() }, { onConflict: 'key' });
 
                 if (providerError) throw providerError;
+
+                const { error: providerMobileError } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'default_provider_mobile', value: defaultProviderMobile, updated_at: new Date() }, { onConflict: 'key' });
+
+                if (providerMobileError) throw providerMobileError;
 
                 const { error: qualityError } = await supabaseClient
                     .from('app_settings')

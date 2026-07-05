@@ -32,8 +32,32 @@
 
                 <form @submit.prevent="handleSaveSettings">
                     <div class="admin-page__field">
-                        <label class="admin-page__label" for="default-provider">Default Stream Player</label>
+                        <label class="admin-page__label" for="default-provider">Default Stream Player (PC)</label>
                         <select id="default-provider" v-model="settings.defaultProvider" class="admin-page__select">
+                            <option value="rasmalai">Rasmalai (sweet server)</option>
+                            <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
+                            <option value="smashy">Jalebi (SmashyStream)</option>
+                            <option value="mappletv">Kaju Katli (MappleTV)</option>
+                            <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
+                            <option value="vidking">Kheer (VidKing)</option>
+                            <option value="videasy">Barfi (VidEasy)</option>
+                            <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
+                            <option value="vidsrc_su">Peda (VidSrc.su)</option>
+                            <option value="vidsrcme">Gajar Ka Halwa (VidSrcMe)</option>
+                            <option value="multiembed">Soan Papdi (MultiEmbed)</option>
+                            <option value="vsrc">Sandesh (vsrc.su)</option>
+                            <option value="vidlink">Cham Cham (VidLink)</option>
+                            <option value="autoembed">Kulfi (AutoEmbed)</option>
+                            <option value="vidfast">Mysore Pak (VidFast)</option>
+                            <option value="movies111">Imarti (111Movies)</option>
+                            <option value="vidora">Ghevar (Vidora)</option>
+                            <option value="icecream">Icecream (Chillflix)</option>
+                        </select>
+                    </div>
+
+                    <div class="admin-page__field">
+                        <label class="admin-page__label" for="default-provider-mobile">Default Stream Player (Mobile)</label>
+                        <select id="default-provider-mobile" v-model="settings.defaultProviderMobile" class="admin-page__select">
                             <option value="rasmalai">Rasmalai (sweet server)</option>
                             <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
                             <option value="smashy">Jalebi (SmashyStream)</option>
@@ -276,6 +300,7 @@ let adminPasscode = DEFAULT_PASSCODE
 
 const settings = reactive({
     defaultProvider: 'rasmalai',
+    defaultProviderMobile: 'rasmalai',
     tmdbQuality: 'medium',
     groqKeys: ['', '', '']
 })
@@ -318,6 +343,11 @@ async function loadDashboardSettings() {
     try {
         const { data } = await client.from('app_settings').select('value').eq('key', 'default_provider').single()
         if (data?.value) settings.defaultProvider = data.value.toLowerCase()
+    } catch { /* ignore */ }
+
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'default_provider_mobile').single()
+        if (data?.value) settings.defaultProviderMobile = data.value.toLowerCase()
     } catch { /* ignore */ }
 
     try {
@@ -370,6 +400,7 @@ async function handleSaveSettings() {
     const client = await getClient()
     try {
         await client.from('app_settings').upsert({ key: 'default_provider', value: settings.defaultProvider, updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'default_provider_mobile', value: settings.defaultProviderMobile, updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'tmdb_image_quality', value: settings.tmdbQuality, updated_at: new Date() }, { onConflict: 'key' })
 
         const keys = settings.groqKeys.filter(Boolean)

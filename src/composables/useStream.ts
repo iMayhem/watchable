@@ -28,7 +28,7 @@ export const streamData = useStorage<StreamData>('streamData', defaultStreamData
 
 // Migrate legacy local storage preferences — force Rasmalai (index 0) as default
 if (streamData.value) {
-  if (!streamData.value.version || streamData.value.version < 6) {
+  if (!streamData.value.version || streamData.value.version < 7) {
     // v6: Hard-reset ALL saved server preferences to Rasmalai (index 0).
     // IMPORTANT: We must reassign the entire object — NOT mutate nested properties.
     // VueUse's useStorage only tracks top-level ref reassignments; direct deep
@@ -44,7 +44,7 @@ if (streamData.value) {
     // Reassign the entire value so useStorage detects and persists the change
     streamData.value = {
       movieServerMap: resetMap,
-      version: 6
+      version: 7
     };
   }
 }
@@ -66,7 +66,8 @@ export const movieServers = ref<Server[]>([
   { name: 'Kulfi', urlTemplate: 'https://player.autoembed.app/embed/movie/{tmdbId}' },
   { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/movie/{tmdbId}' },
   { name: 'Imarti', urlTemplate: 'https://111movies.com/movie/{tmdbId}' },
-  { name: 'Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' }
+  { name: 'Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' },
+  { name: 'Icecream', urlTemplate: 'https://chillflix.pw/embed/movie/{tmdbId}?autoplay=true' }
 ]);
 
 export const tvServers = ref<Server[]>([
@@ -86,7 +87,8 @@ export const tvServers = ref<Server[]>([
   { name: 'Kulfi', urlTemplate: 'https://player.autoembed.app/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/tv/{externalId}/{season}/{episode}' },
   { name: 'Imarti', urlTemplate: 'https://111movies.com/tv/{externalId}/{season}/{episode}' },
-  { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' }
+  { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' },
+  { name: 'Icecream', urlTemplate: 'https://chillflix.pw/embed/tv/{externalId}/{season}/{episode}?autoplay=true&autonext=true' }
 ]);
 
 const idToNameMap: Record<string, string> = {
@@ -106,7 +108,8 @@ const idToNameMap: Record<string, string> = {
   vidfast: 'Mysore Pak',
   movies111: 'Imarti',
   vidora: 'Ghevar',
-  vidsuper: 'Motichoor Ladoo'
+  vidsuper: 'Motichoor Ladoo',
+  icecream: 'Icecream'
 };
 
 export const isDefaultServerLoaded = ref(false);
@@ -323,7 +326,7 @@ export function buildStreamUrl(
       url += `${separator}progress=${timestampSeconds}`;
     } else if (serverName.includes('111movies')) {
       url += `?progress=${timestampSeconds}`;
-    } else if (serverName.includes('vidlink') || serverName.includes('vidfast') || serverName.includes('rasmalai')) {
+    } else if (serverName.includes('vidlink') || serverName.includes('vidfast') || serverName.includes('rasmalai') || serverName.includes('icecream')) {
       const separator = url.includes('?') ? '&' : '?';
       url += `${separator}startAt=${timestampSeconds}`;
     }

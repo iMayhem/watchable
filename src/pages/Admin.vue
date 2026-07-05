@@ -69,6 +69,7 @@
                                 <option value="vidfast">Mysore Pak (VidFast)</option>
                                 <option value="movies111">Imarti (111Movies)</option>
                                 <option value="vidora">Ghevar (Vidora)</option>
+                                <option value="icecream">Icecream (Chillflix)</option>
                             </select>
                         </div>
 
@@ -107,6 +108,26 @@
                         <div class="admin-page__server-row"><span>videasy</span><span>Barfi</span></div>
                         <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
                         <div class="admin-page__server-row"><span>vidlink</span><span>Cham Cham</span></div>
+                        <div class="admin-page__server-row"><span>icecream</span><span>Icecream</span></div>
+                    </div>
+
+                    <!-- ── Clear TMDB Cache ──────────────────────────────── -->
+                    <div class="admin-page__cache-card" style="margin-top: 2rem;">
+                        <div class="admin-page__cache-info">
+                            <span class="admin-page__cache-icon">🧊</span>
+                            <div>
+                                <strong class="admin-page__cache-title">Clear TMDB Poster Cache</strong>
+                                <p class="admin-page__hint" style="margin:0.25rem 0 0;">Nukes the local browser cache so fresh posters, billboards &amp; trending content load immediately. Each visitor's cache expires daily automatically — use this for an instant force-refresh on your own browser.</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            class="admin-page__btn admin-page__btn--danger"
+                            :disabled="clearCacheLoading"
+                            @click="handleClearTmdbCache"
+                        >
+                            <span>{{ clearCacheLoading ? 'Clearing...' : '🗑️ Clear Cache Now' }}</span>
+                        </button>
                     </div>
                 </div>
 
@@ -472,6 +493,7 @@ const pollVoteCounts = ref<Record<number, number>>({})
 const adsPcEnabled = ref(false)
 const adsMobileEnabled = ref(false)
 const supportBtnHidden = ref(false)
+const clearCacheLoading = ref(false)
 
 // ── Donations ────────────────────────────────────────────────────────────────────
 const donationRaised = ref(0)
@@ -626,6 +648,25 @@ async function handleSaveSettings() {
         showToast('Failed to update settings in Supabase', false)
     } finally {
         saveLoading.value = false
+    }
+}
+
+async function handleClearTmdbCache() {
+    clearCacheLoading.value = true
+    try {
+        // Delete both old v1 and current v2 Cache Storage entries
+        const deletedV1 = await caches.delete('tmdb-api-cache-v1')
+        const deletedV2 = await caches.delete('tmdb-api-cache-v2')
+        // Also wipe the localStorage poster cache
+        localStorage.removeItem('moovie_poster_cache_v1')
+        const cleared = [deletedV1 && 'tmdb-api-cache-v1', deletedV2 && 'tmdb-api-cache-v2']
+            .filter(Boolean)
+            .join(', ')
+        showToast(cleared ? `✅ Cleared: ${cleared} — reload the page to see fresh posters!` : '✅ Cache was already empty', true)
+    } catch {
+        showToast('Failed to clear cache — browser may not support Cache API', false)
+    } finally {
+        clearCacheLoading.value = false
     }
 }
 
@@ -1230,6 +1271,47 @@ watch(activeTab, (tab) => {
     height: 1px;
     background: rgba(245, 239, 228, 0.08);
     margin: 2rem 0;
+}
+
+.admin-page__cache-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.5rem;
+    background: rgba(255, 90, 31, 0.06);
+    border: 1px solid rgba(255, 90, 31, 0.2);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+}
+
+.admin-page__cache-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    flex: 1;
+}
+
+.admin-page__cache-icon {
+    font-size: 1.8rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.admin-page__cache-title {
+    color: #e8e1d3;
+    font-size: 0.95rem;
+    display: block;
+}
+
+.admin-page__btn--danger {
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.admin-page__btn--danger:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    transform: translateY(-1px);
 }
 
 .admin-page__textarea {

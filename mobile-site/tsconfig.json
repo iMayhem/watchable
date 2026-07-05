@@ -31,7 +31,7 @@
       "axios": ["node_modules/axios"],
       "artplayer": ["node_modules/artplayer"],
       "hls.js": ["node_modules/hls.js"],
-      "plyr": ["node_modules/plyr"]
+      "plyr": ["node_modules/plyr/src/js/plyr.d.ts", "../node_modules/plyr/src/js/plyr.d.ts"]
     }
   },
   "include": [

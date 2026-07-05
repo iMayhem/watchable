@@ -325,13 +325,18 @@ onMounted(() => {
     &__player {
         position: relative;
         width: 100%;
-        height: clamp(14rem, 56.25vw, 72vh);
-        max-height: 72vh;
+        aspect-ratio: 16 / 9;
+        height: auto;
+        margin: 0 auto;
         border-radius: var(--r-lg);
         overflow: hidden;
         border: 1px solid var(--rule-strong);
         background: #000;
         box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+
+        @media (min-width: 1024px) {
+            max-width: calc(80vh * 16 / 9);
+        }
 
         :deep(.art-video-player) {
             position: absolute;
@@ -387,13 +392,20 @@ onMounted(() => {
         align-items: center;
         justify-content: center;
         gap: var(--s-4);
-        min-height: min(72vh, 28rem);
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        height: auto;
+        margin: 0 auto;
         padding: var(--s-8);
         text-align: center;
         border-radius: var(--r-lg);
         border: 1px dashed var(--rule-strong);
         background: var(--ink-850);
         color: var(--bone-300);
+
+        @media (min-width: 1024px) {
+            max-width: calc(80vh * 16 / 9);
+        }
 
         svg {
             color: var(--bone-500);

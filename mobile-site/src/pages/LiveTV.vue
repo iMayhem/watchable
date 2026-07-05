@@ -245,7 +245,9 @@ onMounted(() => {
     &__player {
         position: relative;
         width: 100%;
-        height: clamp(12rem, 56.25vw, 52vh);
+        aspect-ratio: 16 / 9;
+        height: auto;
+        margin: 0 auto;
         border-radius: var(--r-md);
         overflow: hidden;
         background: #000;
@@ -296,7 +298,10 @@ onMounted(() => {
     &__placeholder {
         display: grid;
         place-items: center;
-        min-height: 12rem;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        height: auto;
+        margin: 0 auto;
         padding: var(--s-6);
         text-align: center;
         border-radius: var(--r-md);

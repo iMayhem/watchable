@@ -2233,13 +2233,6 @@
                 if (isAnimeplay) {
                     newIframe.referrerPolicy = 'origin';
                 }
-                if (
-                    lowerUrl.includes('cinemaos.live') ||
-                    lowerUrl.includes('smashystream.com')
-                ) {
-                    newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
-                }
-
                 newIframe.src = embedUrl;
                 parent.replaceChild(newIframe, oldIframe);
 

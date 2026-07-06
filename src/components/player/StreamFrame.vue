@@ -151,10 +151,6 @@ export default defineComponent({
             if (isAnimeplayEmbed.value) {
                 attrs.referrerpolicy = 'origin';
             }
-            const url = props.embedUrl.toLowerCase();
-            if (url.includes('cinemaos.live') || url.includes('smashystream.com')) {
-                attrs.sandbox = 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups';
-            }
             return attrs;
         });
 

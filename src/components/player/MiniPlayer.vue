@@ -78,9 +78,6 @@ export default defineComponent({
                 attrs.referrerpolicy = 'origin';
                 attrs.allow = 'autoplay; fullscreen; picture-in-picture';
             }
-            if (url.includes('cinemaos.live') || url.includes('smashystream.com')) {
-                attrs.sandbox = 'allow-scripts allow-same-origin allow-forms allow-presentation allow-fullscreen';
-            }
             return attrs;
         });
 

@@ -1,7 +1,8 @@
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { getSupabaseClient } from '../lib/supabase'
 
-const AD_SRC = 'https://pl30115432.effectivecpmnetwork.com/1a/26/00/1a260038e7b9a9e1d5c9855789406aec.js'
+const AD_SRC = atob('aHR0cHM6Ly9jaGV3c2V2ZXIuY29tLzFhLzI2LzAwLzFhMjYwMDM4ZTdiOWE5ZTFkNWM5ODU1Nzg5NDA2YWVjLmpz')
 const SCRIPT_ID = 'adsterra-ad-script'
 
 let pollingId: ReturnType<typeof setInterval> | null = null
@@ -32,17 +33,25 @@ async function fetchAdSetting(key: string): Promise<boolean> {
 }
 
 export function useAdScript(type: 'pc' | 'mobile') {
+    const route = useRoute()
     const key = type === 'pc' ? 'ads_pc_enabled' : 'ads_mobile_enabled'
     const enabled = ref(false)
 
     async function refresh() {
-        const newVal = await fetchAdSetting(key)
-        if (newVal && !enabled.value) {
-            injectAd()
-        } else if (!newVal && enabled.value) {
-            removeAd()
+        const isSettingEnabled = await fetchAdSetting(key)
+        const isAllowedPage = route.path === '/' || route.path.includes('/search')
+        
+        if (isSettingEnabled && isAllowedPage) {
+            if (!enabled.value) {
+                injectAd()
+                enabled.value = true
+            }
+        } else {
+            if (enabled.value) {
+                removeAd()
+                enabled.value = false
+            }
         }
-        enabled.value = newVal
     }
 
     onMounted(() => {
@@ -62,6 +71,10 @@ export function useAdScript(type: 'pc' | 'mobile') {
 
     onBeforeUnmount(() => {
         document.removeEventListener('visibilitychange', onVisibility)
+    })
+
+    watch(() => route.path, () => {
+        refresh()
     })
 
     function onVisibility() {

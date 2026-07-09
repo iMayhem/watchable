@@ -56,6 +56,26 @@
                         media-type="movie"
                         @switch-to-server="changeServer"
                     />
+
+                    <div v-if="netflixEntry" class="watch-stage__nf-banner">
+                        <span class="watch-stage__nf-icon">🎬</span>
+                        <div class="watch-stage__nf-text">
+                            <strong>Available in Netflix Player</strong>
+                            <span v-if="netflixEntry.languages.length">
+                                with {{ netflixEntry.languages.join(' · ') }}
+                            </span>
+                            <span v-else>with language options</span>
+                        </div>
+                        <button
+                            class="watch-stage__nf-btn"
+                            @click="goToNetflix"
+                        >
+                            Watch
+                        </button>
+                    </div>
+                    <div v-else-if="netflixSearching" class="watch-stage__nf-banner watch-stage__nf-banner--loading">
+                        <span>Checking for Netflix version...</span>
+                    </div>
                 </div>
             </div>
 
@@ -184,6 +204,12 @@ export default defineComponent({
             router.push(paths.movie(movieId.value));
         };
 
+        const goToNetflix = () => {
+            if (netflixEntry.value) {
+                router.push(`/stream/nf/movie/${netflixEntry.value.catalogId}`);
+            }
+        };
+
         const handleWatchTogether = (event: MouseEvent) => {
             isNavigatingToParty.value = true;
             const target = event.currentTarget as HTMLAnchorElement;
@@ -191,6 +217,56 @@ export default defineComponent({
             setTimeout(() => {
                 window.location.href = href;
             }, 50);
+        };
+
+        // ── Netflix catalog variant detection ───────────────────
+        const netflixEntry = ref<{ catalogId: string; languages: string[] } | null>(null);
+        const netflixSearching = ref(false);
+
+        const searchNetflixVariant = async (tmdbId: string) => {
+            netflixSearching.value = true;
+            try {
+                const res = await fetch(`/api/moovie-catalog?action=search&q=${encodeURIComponent(tmdbId)}&type=movie&page=0`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const results: any[] = data?.results || [];
+                for (const r of results) {
+                    const langTags: string[] = [];
+                    const tagRe = /\[([^\]]+)\]/g;
+                    let m;
+                    while ((m = tagRe.exec(r.title || '')) !== null) {
+                        const tag = m[1].trim();
+                        if (tag && !langTags.includes(tag)) langTags.push(tag);
+                    }
+                    if (langTags.length > 0) {
+                        netflixEntry.value = {
+                            catalogId: String(r.id),
+                            languages: langTags,
+                        };
+                        return;
+                    }
+                }
+                // Fallback: if any result has a subjectid, it's a usable Netflix entry
+                for (const r of results) {
+                    const metaRes = await fetch(`/api/moovie-catalog?action=meta&type=movie&id=${r.id}`);
+                    if (metaRes.ok) {
+                        const meta = await metaRes.json();
+                        if (meta?.meta?.subjectid) {
+                            if (!netflixEntry.value) {
+                                netflixEntry.value = {
+                                    catalogId: String(r.id),
+                                    languages: [],
+                                };
+                            }
+                            return;
+                        }
+                    }
+                }
+            } catch {
+                // silent
+            } finally {
+                netflixSearching.value = false;
+            }
         };
 
         watch(
@@ -207,6 +283,12 @@ export default defineComponent({
             loadMovie();
         });
 
+        watch(movie, (m) => {
+            if (m?.id) {
+                searchNetflixVariant(String(m.id));
+            }
+        });
+
         return {
             movieId,
             movie,
@@ -216,7 +298,10 @@ export default defineComponent({
             currentEmbedUrl,
             changeServer,
             goBack,
-            handleWatchTogether
+            handleWatchTogether,
+            goToNetflix,
+            netflixEntry,
+            netflixSearching,
         };
     }
 });
@@ -743,6 +828,67 @@ export default defineComponent({
     &__party-icon {
         width: 16px;
         height: 16px;
+    }
+
+    &__nf-banner {
+        display: flex;
+        align-items: center;
+        gap: var(--s-3);
+        margin-top: var(--s-3);
+        padding: var(--s-3) var(--s-4);
+        background: rgba(88, 166, 255, 0.08);
+        border: 1px solid rgba(88, 166, 255, 0.25);
+        border-radius: var(--r-lg);
+        color: var(--bone-50);
+        font-size: var(--fs-sm);
+
+        &--loading {
+            color: var(--bone-300);
+            background: var(--surface-tint);
+            border-color: var(--rule);
+        }
+    }
+
+    &__nf-icon {
+        font-size: var(--fs-xl);
+        flex-shrink: 0;
+    }
+
+    &__nf-text {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+
+        strong {
+            font-weight: 600;
+        }
+
+        span {
+            color: var(--bone-300);
+            font-size: var(--fs-xs);
+        }
+    }
+
+    &__nf-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1.25rem;
+        background: var(--accent2, #1f6feb);
+        color: #fff;
+        border: none;
+        border-radius: var(--r-pill);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color var(--dur-fast) var(--ease-out);
+        flex-shrink: 0;
+
+        &:hover {
+            background: var(--accent, #58a6ff);
+        }
     }
 }
 

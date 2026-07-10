@@ -69,7 +69,8 @@ export const movieServers = ref<Server[]>([
   { name: 'Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' },
   { name: 'Icecream', urlTemplate: 'https://chillflix.pw/embed/movie/{tmdbId}?autoplay=true' },
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true' },
-  { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/movie/{tmdbId}' }
+  { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/movie/{tmdbId}' },
+  { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true' }
 ]);
 
 export const tvServers = ref<Server[]>([
@@ -92,7 +93,8 @@ export const tvServers = ref<Server[]>([
   { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' },
   { name: 'Icecream', urlTemplate: 'https://chillflix.pw/embed/tv/{externalId}/{season}/{episode}?autoplay=true&autonext=true' },
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/tv/{externalId}/{season}/{episode}' }
+  { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/tv/{externalId}/{season}/{episode}?autoplay=true' }
 ]);
 
 const idToNameMap: Record<string, string> = {
@@ -115,7 +117,8 @@ const idToNameMap: Record<string, string> = {
   vidsuper: 'Motichoor Ladoo',
   icecream: 'Icecream',
   cinezo: 'Cheesecake',
-  nankhatai: 'Nankhatai'
+  nankhatai: 'Nankhatai',
+  petha: 'Petha'
 };
 
 export const isDefaultServerLoaded = ref(false);

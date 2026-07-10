@@ -1772,7 +1772,8 @@
             { id: 'movies111', name: 'Imarti', movie: 'https://111movies.com/movie/{tmdbId}', tv: 'https://111movies.com/tv/{tmdbId}/{season}/{episode}' },
             { id: 'vidora', name: 'Ghevar', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' },
             { id: 'cinezo', name: 'Cheesecake', movie: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true', tv: 'https://player.cinezo.live/embed/tv/{tmdbId}/{season}/{episode}?autoplay=true' },
-            { id: 'nankhatai', name: 'Nankhatai', movie: 'https://www.NontonGo.win/embed/movie/{tmdbId}', tv: 'https://www.NontonGo.win/embed/tv/{tmdbId}/{season}/{episode}' }
+            { id: 'nankhatai', name: 'Nankhatai', movie: 'https://www.NontonGo.win/embed/movie/{tmdbId}', tv: 'https://www.NontonGo.win/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'petha', name: 'Petha', movie: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true', tv: 'https://www.NontonGo.win/player/tv/{tmdbId}/{season}/{episode}?autoplay=true' }
         ];
 
         let activeProvider = 'rasmalai';

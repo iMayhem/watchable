@@ -53,6 +53,7 @@
                             <option value="vidora">Ghevar (Vidora)</option>
                             <option value="icecream">Icecream (Chillflix)</option>
                             <option value="cinezo">Cheesecake (Cinezo)</option>
+                            <option value="nankhatai">Nankhatai (NontonGo)</option>
                         </select>
                     </div>
 
@@ -78,6 +79,7 @@
                             <option value="vidora">Ghevar (Vidora)</option>
                             <option value="icecream">Icecream (Chillflix)</option>
                             <option value="cinezo">Cheesecake (Cinezo)</option>
+                            <option value="nankhatai">Nankhatai (NontonGo)</option>
                         </select>
                     </div>
 
@@ -177,6 +179,7 @@
                     <div class="admin-page__server-row"><span>vidora</span><span>Ghevar</span></div>
                     <div class="admin-page__server-row"><span>icecream</span><span>Icecream</span></div>
                     <div class="admin-page__server-row"><span>cinezo</span><span>Cheesecake</span></div>
+                    <div class="admin-page__server-row"><span>nankhatai</span><span>Nankhatai</span></div>
                 </div>
 
                 <div class="admin-page__curation">

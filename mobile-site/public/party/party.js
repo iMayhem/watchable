@@ -1770,7 +1770,8 @@
             { id: 'autoembed', name: 'Kulfi', movie: 'https://player.autoembed.app/embed/movie/{tmdbId}', tv: 'https://player.autoembed.app/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'vidfast', name: 'Mysore Pak', movie: 'https://vidfast.pro/movie/{tmdbId}', tv: 'https://vidfast.pro/tv/{tmdbId}/{season}/{episode}' },
             { id: 'movies111', name: 'Imarti', movie: 'https://111movies.com/movie/{tmdbId}', tv: 'https://111movies.com/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidora', name: 'Ghevar', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' }
+            { id: 'vidora', name: 'Ghevar', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' },
+            { id: 'cinezo', name: 'Cheesecake', movie: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true', tv: 'https://player.cinezo.live/embed/tv/{tmdbId}/{season}/{episode}?autoplay=true' }
         ];
 
         let activeProvider = 'rasmalai';

@@ -70,6 +70,7 @@
                                 <option value="movies111">Imarti (111Movies)</option>
                                 <option value="vidora">Ghevar (Vidora)</option>
                                 <option value="icecream">Icecream (Chillflix)</option>
+                                <option value="cinezo">Cheesecake (Cinezo)</option>
                             </select>
                         </div>
 
@@ -94,6 +95,7 @@
                                 <option value="movies111">Imarti (111Movies)</option>
                                 <option value="vidora">Ghevar (Vidora)</option>
                                 <option value="icecream">Icecream (Chillflix)</option>
+                                <option value="cinezo">Cheesecake (Cinezo)</option>
                             </select>
                         </div>
 
@@ -144,6 +146,7 @@
                         <div class="admin-page__server-row"><span>movies111</span><span>Imarti</span></div>
                         <div class="admin-page__server-row"><span>vidora</span><span>Ghevar</span></div>
                         <div class="admin-page__server-row"><span>icecream</span><span>Icecream</span></div>
+                        <div class="admin-page__server-row"><span>cinezo</span><span>Cheesecake</span></div>
                     </div>
 
                     <!-- ── Clear TMDB Cache ──────────────────────────────── -->

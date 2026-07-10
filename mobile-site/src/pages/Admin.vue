@@ -185,6 +185,24 @@
                     <div class="admin-page__server-row"><span>petha</span><span>Petha</span></div>
                 </div>
 
+                <!-- Server Reorder -->
+                <div style="margin-top: 2rem;">
+                    <h2 class="admin-page__section-title">Server Order</h2>
+                    <p class="admin-page__hint" style="margin-bottom:0.75rem;">Rearrange the server list for all users.</p>
+                    <div v-for="(s, i) in serverOrderList" :key="s.id" class="admin-page__reorder-item">
+                        <div class="admin-page__reorder-controls">
+                            <button type="button" class="admin-page__reorder-btn" :disabled="i === 0" @click="moveServer(i, -1)">↑</button>
+                            <button type="button" class="admin-page__reorder-btn" :disabled="i === serverOrderList.length - 1" @click="moveServer(i, 1)">↓</button>
+                        </div>
+                        <span class="admin-page__reorder-idx">{{ i + 1 }}</span>
+                        <span class="admin-page__reorder-name">{{ s.name }}</span>
+                        <span class="admin-page__reorder-id">{{ s.id }}</span>
+                    </div>
+                    <button type="button" class="admin-page__btn" style="margin-top:0.75rem;" :disabled="orderSaving" @click="handleSaveOrder">
+                        <span>{{ orderSaving ? 'Saving...' : 'Save Server Order' }}</span>
+                    </button>
+                </div>
+
                 <div class="admin-page__curation">
                     <h2 class="admin-page__section-title">Donations Tracker</h2>
 
@@ -278,6 +296,7 @@
 
 <script lang="ts" setup>
 import { ref, reactive, onMounted } from 'vue'
+import { serverOrder, setServerOrder, fetchServerOrder, getServers } from '../../src/composables/useStream'
 
 const DEFAULT_PASSCODE = 'admin123'
 const SUPABASE_URL = 'https://eeyiragtylotiwozbgqp.supabase.co'
@@ -298,6 +317,8 @@ const authenticated = ref(false)
 const authLoading = ref(false)
 const saveLoading = ref(false)
 const save4kLoading = ref(false)
+const orderSaving = ref(false)
+const serverOrderList = ref<{ id: string; name: string }[]>([])
 const passcode = ref('')
 const newPasscode = ref('')
 const toast = ref('')
@@ -402,6 +423,52 @@ async function loadDashboardSettings() {
         const { data } = await client.from('app_settings').select('value').eq('key', 'support_btn_hidden').single()
         supportBtnHidden.value = data?.value === 'true'
     } catch { /* ignore */ }
+
+    await loadServerOrder()
+}
+
+async function loadServerOrder() {
+    await fetchServerOrder()
+    const servers = getServers('movie')
+    const idMap: Record<string, string> = {
+        rasmalai: 'Rasmalai', cinemaos: 'Gulab Jamun', smashy: 'Jalebi',
+        mappletv: 'Kaju Katli', vidking: 'Kheer', videasy: 'Barfi',
+        vidsrc_ru: 'Laddu', vidsrc_su: 'Peda', vidsrcme: 'Gajar Ka Halwa',
+        multiembed: 'Soan Papdi', vsrc: 'Sandesh', vidlink: 'Cham Cham',
+        autoembed: 'Kulfi', vidfast: 'Mysore Pak', movies111: 'Imarti',
+        vidora: 'Ghevar', vidsuper: 'Motichoor Ladoo', icecream: 'Icecream',
+        cinezo: 'Cheesecake', nankhatai: 'Nankhatai', petha: 'Petha'
+    }
+    const reverseMap: Record<string, string> = {}
+    for (const [id, name] of Object.entries(idMap)) reverseMap[name.toLowerCase()] = id
+
+    if (serverOrder.value && serverOrder.value.length > 0) {
+        serverOrderList.value = serverOrder.value.map(id => ({ id, name: idMap[id.toLowerCase()] || id }))
+    } else {
+        serverOrderList.value = servers.map(s => ({ id: reverseMap[s.name.toLowerCase()] || s.name.toLowerCase(), name: s.name }))
+    }
+}
+
+function moveServer(index: number, direction: number) {
+    const newIndex = index + direction
+    if (newIndex < 0 || newIndex >= serverOrderList.value.length) return
+    const item = serverOrderList.value.splice(index, 1)[0]
+    serverOrderList.value.splice(newIndex, 0, item)
+}
+
+async function handleSaveOrder() {
+    orderSaving.value = true
+    const client = await getClient()
+    try {
+        const ids = serverOrderList.value.map(s => s.id)
+        await client.from('app_settings').upsert({ key: 'server_order', value: JSON.stringify(ids), updated_at: new Date() }, { onConflict: 'key' })
+        setServerOrder(ids)
+        showToast('Server order updated!')
+    } catch {
+        showToast('Failed to save order', false)
+    } finally {
+        orderSaving.value = false
+    }
 }
 
 async function handleSaveSettings() {
@@ -959,5 +1026,62 @@ onMounted(() => {
     .admin-page__title {
         font-size: 1.5rem;
     }
+}
+
+.admin-page__reorder-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(19, 17, 14, 0.7);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 6px;
+    margin-bottom: 0.35rem;
+}
+.admin-page__reorder-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.admin-page__reorder-btn {
+    background: rgba(245, 239, 228, 0.06);
+    border: 1px solid rgba(245, 239, 228, 0.1);
+    color: #c7bfb0;
+    width: 24px;
+    height: 18px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.admin-page__reorder-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+.admin-page__reorder-btn:hover:not(:disabled) {
+    background: rgba(255, 90, 31, 0.2);
+    color: #ff5a1f;
+}
+.admin-page__reorder-idx {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: #8a8270;
+    min-width: 1.2rem;
+    text-align: right;
+}
+.admin-page__reorder-name {
+    flex: 1;
+    font-size: 0.85rem;
+    color: #e8e1d3;
+}
+.admin-page__reorder-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: #8a8270;
+    text-transform: uppercase;
 }
 </style>

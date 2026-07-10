@@ -387,6 +387,63 @@
             color: var(--ember);
         }
 
+        .reorder-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(19, 17, 14, 0.7);
+            border: 1px solid rgba(245, 239, 228, 0.08);
+            border-radius: 6px;
+            margin-bottom: 0.35rem;
+        }
+        .reorder-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .reorder-btn {
+            background: rgba(245, 239, 228, 0.06);
+            border: 1px solid rgba(245, 239, 228, 0.1);
+            color: #c7bfb0;
+            width: 24px;
+            height: 18px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .reorder-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .reorder-btn:hover:not(:disabled) {
+            background: rgba(255, 90, 31, 0.2);
+            color: #ff5a1f;
+        }
+        .reorder-idx {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #8a8270;
+            min-width: 1.2rem;
+            text-align: right;
+        }
+        .reorder-name {
+            flex: 1;
+            font-size: 0.85rem;
+            color: #e8e1d3;
+        }
+        .reorder-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: #8a8270;
+            text-transform: uppercase;
+        }
+
         .cache-card {
             display: flex;
             align-items: flex-start;
@@ -877,6 +934,16 @@
                 <div class="server-grid-item"><span>petha</span><span>Petha</span></div>
             </div>
 
+            <!-- Server Reorder Section -->
+            <div style="margin-top: 2rem;">
+                <h2 style="font-family: var(--font-display); font-size: 1.25rem; color: #f5efe4; margin-bottom: 0.5rem;">Server Order</h2>
+                <p style="color: #a79f8d; font-size: 0.8rem; margin-bottom: 0.75rem;">Rearrange the server list for all users. Top server becomes default.</p>
+                <div id="server-reorder-list"></div>
+                <button type="button" class="btn" id="save-order-btn" onclick="handleSaveOrder()" style="margin-top:0.75rem;">
+                    <span>Save Server Order</span>
+                </button>
+            </div>
+
             <!-- Clear TMDB Cache Section -->
             <div class="cache-card">
                 <div class="cache-info">
@@ -1041,6 +1108,92 @@
 
             // Load ad settings
             loadAdSettings();
+
+            // Load server order
+            loadServerOrder();
+        }
+
+        // ==========================================
+        // SERVER ORDER LOGIC
+        // ==========================================
+        let serverOrderIds = [];
+
+        const serverIdToName = {
+            rasmalai: 'Rasmalai', cinemaos: 'Gulab Jamun', smashy: 'Jalebi',
+            mappletv: 'Kaju Katli', vidking: 'Kheer', videasy: 'Barfi',
+            vidsrc_ru: 'Laddu', vidsrc_su: 'Peda', vidsrcme: 'Gajar Ka Halwa',
+            multiembed: 'Soan Papdi', vsrc: 'Sandesh', vidlink: 'Cham Cham',
+            autoembed: 'Kulfi', vidfast: 'Mysore Pak', movies111: 'Imarti',
+            vidora: 'Ghevar', vidsuper: 'Motichoor Ladoo', icecream: 'Icecream',
+            cinezo: 'Cheesecake', nankhatai: 'Nankhatai', petha: 'Petha'
+        };
+        const defaultServerIds = Object.keys(serverIdToName);
+
+        async function loadServerOrder() {
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'server_order')
+                    .single();
+                if (data && data.value) {
+                    const parsed = JSON.parse(data.value);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        serverOrderIds = parsed;
+                        renderReorderList();
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not load server order:', e);
+            }
+            serverOrderIds = [...defaultServerIds];
+            renderReorderList();
+        }
+
+        function moveReorderItem(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= serverOrderIds.length) return;
+            const item = serverOrderIds.splice(index, 1)[0];
+            serverOrderIds.splice(newIndex, 0, item);
+            renderReorderList();
+        }
+
+        function renderReorderList() {
+            const container = document.getElementById('server-reorder-list');
+            container.innerHTML = '';
+            serverOrderIds.forEach((id, i) => {
+                const name = serverIdToName[id] || id;
+                const div = document.createElement('div');
+                div.className = 'reorder-item';
+                div.innerHTML = `
+                    <div class="reorder-controls">
+                        <button type="button" class="reorder-btn" ${i === 0 ? 'disabled' : ''} onclick="moveReorderItem(${i}, -1)">↑</button>
+                        <button type="button" class="reorder-btn" ${i === serverOrderIds.length - 1 ? 'disabled' : ''} onclick="moveReorderItem(${i}, 1)">↓</button>
+                    </div>
+                    <span class="reorder-idx">${i + 1}</span>
+                    <span class="reorder-name">${name}</span>
+                    <span class="reorder-id">${id}</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function handleSaveOrder() {
+            const btn = document.getElementById('save-order-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span>Saving...</span>';
+            try {
+                await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'server_order', value: JSON.stringify(serverOrderIds), updated_at: new Date() }, { onConflict: 'key' });
+                showToast('Server order updated!');
+            } catch (e) {
+                showToast('Failed to save order', false);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>Save Server Order</span>';
+            }
         }
 
         // ==========================================

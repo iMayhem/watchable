@@ -2,6 +2,8 @@ import { useStorage } from "@vueuse/core";
 import { ref } from "vue";
 import { getSupabaseClient } from "../lib/supabase";
 
+export const serverOrder = ref<string[] | null>(null);
+
 interface MovieServer {
   serverIndex: number;
   type: 'movie' | 'tv';
@@ -202,6 +204,7 @@ export async function loadDefaultServer() {
 
 // Call loadDefaultServer immediately
 loadDefaultServer();
+fetchServerOrder();
 
 export const currentStreamData = ref({
   currentStreamId: 0,
@@ -294,8 +297,51 @@ export function getLastWatchedMetaData(mediaId: string | number): MovieServer | 
   return streamData.value.movieServerMap[id] || null;
 }
 
+function applyOrder(servers: Server[]): Server[] {
+  if (!serverOrder.value || serverOrder.value.length === 0) return servers;
+  const orderMap = new Map<string, number>();
+  serverOrder.value.forEach((id, i) => {
+    const name = idToNameMap[id.toLowerCase()];
+    if (name) orderMap.set(name.toLowerCase(), i);
+  });
+  if (orderMap.size === 0) return servers;
+  const ordered: (Server | null)[] = new Array(serverOrder.value.length).fill(null);
+  const remaining: Server[] = [];
+  for (const s of servers) {
+    const idx = orderMap.get(s.name.toLowerCase());
+    if (idx !== undefined) {
+      ordered[idx] = s;
+    } else {
+      remaining.push(s);
+    }
+  }
+  return [...ordered.filter(Boolean) as Server[], ...remaining];
+}
+
 export function getServers(type: 'movie' | 'tv' = 'movie'): Server[] {
-  return type === 'movie' ? movieServers.value : tvServers.value;
+  const servers = type === 'movie' ? movieServers.value : tvServers.value;
+  return applyOrder(servers);
+}
+
+export async function fetchServerOrder() {
+  try {
+    const supabase = await getSupabaseClient();
+    const { data } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'server_order')
+      .single();
+    if (data?.value) {
+      const parsed = JSON.parse(data.value);
+      if (Array.isArray(parsed)) serverOrder.value = parsed;
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function setServerOrder(order: string[]) {
+  serverOrder.value = order;
 }
 
 export function buildStreamUrl(

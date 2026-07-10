@@ -296,7 +296,7 @@
 
 <script lang="ts" setup>
 import { ref, reactive, onMounted } from 'vue'
-import { serverOrder, setServerOrder, fetchServerOrder, getServers } from '../../src/composables/useStream'
+import { serverOrder, setServerOrder, fetchServerOrder, getServers } from '@/composables/useStream'
 
 const DEFAULT_PASSCODE = 'admin123'
 const SUPABASE_URL = 'https://eeyiragtylotiwozbgqp.supabase.co'

@@ -492,7 +492,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { getSupabaseClient } from '../lib/supabase'
 import { serverOrder, setServerOrder, fetchServerOrder, getServers } from '../composables/useStream'
 

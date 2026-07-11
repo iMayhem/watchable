@@ -130,8 +130,12 @@ export default defineComponent({
         }
 
         async function mountPlayer(url: string) {
+            console.debug('[MoovieFrame] mountPlayer url:', url)
             const container = artContainer.value
-            if (!container) return
+            if (!container) {
+                console.debug('[MoovieFrame] mountPlayer no container')
+                return
+            }
             destroyPlayer()
 
             await loadHlsJs()
@@ -177,9 +181,23 @@ export default defineComponent({
             let url = `${HUB_PROXY}?q=${encodeURIComponent(id)}&type=${type}`
             if (type === 'tv' && props.season > 0) url += `&season=${props.season}`
             if (type === 'tv' && props.episode > 0) url += `&episode=${props.episode}`
+            console.debug('[MoovieFrame] fetchStreams url:', url)
             const res = await fetch(url)
-            if (!res.ok) throw new Error(`Hub search failed (${res.status})`)
-            const data: HubSearchResponse = await res.json()
+            console.debug('[MoovieFrame] fetchStreams res status:', res.status, 'ok:', res.ok)
+            if (!res.ok) {
+                const body = await res.text().catch(() => '')
+                console.debug('[MoovieFrame] fetchStreams error body (first 500):', body.slice(0, 500))
+                throw new Error(`Hub search failed (${res.status})`)
+            }
+            const text = await res.text()
+            console.debug('[MoovieFrame] fetchStreams raw response (first 500):', text.slice(0, 500))
+            let data: HubSearchResponse
+            try {
+                data = JSON.parse(text)
+            } catch {
+                console.debug('[MoovieFrame] fetchStreams JSON parse failed, response starts with:', text.slice(0, 100))
+                throw new Error('Hub returned non-JSON response')
+            }
             const all: HubStream[] = []
             for (const group of data.results || []) {
                 for (const stream of group.streams || []) {
@@ -187,6 +205,7 @@ export default defineComponent({
                     all.push(stream)
                 }
             }
+            console.debug('[MoovieFrame] fetchStreams parsed streams:', all.length)
             return all
         }
 
@@ -198,14 +217,18 @@ export default defineComponent({
         }
 
         async function doLoad() {
+            console.debug('[MoovieFrame] doLoad start')
             destroyPlayer(); loading.value = true; error.value = ''; startMessages()
             try {
                 const streams = await fetchStreams()
                 const best = pickBest(streams)
                 if (!best) throw new Error('No streamable sources found')
+                console.debug('[MoovieFrame] doLoad best stream:', best.name, best.proxyUrl || best.url)
                 await mountPlayer(best.proxyUrl || best.url)
                 loading.value = false
+                console.debug('[MoovieFrame] doLoad done')
             } catch (e: any) {
+                console.debug('[MoovieFrame] doLoad error:', e.message)
                 error.value = e.message || 'Failed to load stream'
                 loading.value = false; stopMessages()
             }

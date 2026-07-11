@@ -77,6 +77,7 @@
             <div class="watch-stage__theater">
                 <div class="watch-stage__player-container">
                     <StreamFrame
+                        v-if="!isMoovieServer"
                         :embed-url="currentEmbedUrl"
                         :title="show?.name || 'Stream'"
                         :backdrop-path="show?.backdrop_path || ''"
@@ -86,6 +87,16 @@
                         :season="currentSeason"
                         :episode="currentEpisode"
                         @switch-to-server="changeServer"
+                    />
+                    <MoovieFrame
+                        v-else
+                        :media-id="showId"
+                        media-type="tv"
+                        :season="currentSeason"
+                        :episode="currentEpisode"
+                        :title="show?.name || 'Stream'"
+                        :backdrop-path="show?.backdrop_path || ''"
+                        :poster-path="show?.poster_path || ''"
                     />
                     
 
@@ -169,6 +180,7 @@ import { getResumeTimestamp } from '../composables/useProgress';
 import { useAppPaths } from '../composables/useAppPaths';
 
 import StreamFrame from '../components/player/StreamFrame.vue';
+import MoovieFrame from '../components/player/MoovieFrame.vue';
 import ServerAccordion from '../components/player/ServerAccordion.vue';
 import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
@@ -179,6 +191,7 @@ export default defineComponent({
     name: 'StreamTVShow',
     components: {
         StreamFrame,
+        MoovieFrame,
         ServerAccordion,
         EpisodeNavigator,
         UpNextDrawer,
@@ -222,6 +235,11 @@ export default defineComponent({
         });
 
         const availableServers = computed(() => getServers('tv'));
+        const isMoovieServer = computed(() => {
+            const servers = getServers('tv');
+            const idx = currentStreamData.value.currentServer;
+            return servers[idx]?.name === 'Moovie';
+        });
         const availableSeasons = computed(() =>
             seasons.value.filter((s) => s.season_number > 0)
         );
@@ -545,6 +563,7 @@ export default defineComponent({
             show,
             currentStreamData,
             availableServers,
+            isMoovieServer,
             availableSeasons,
             seasonEpisodes,
             currentSeason,
@@ -816,17 +835,20 @@ export default defineComponent({
         @media (max-width: 1023px) {
             width: 100%;
 
-            :deep(.stream-frame__stage) {
+            :deep(.stream-frame__stage),
+            :deep(.moovie-frame__stage) {
                 padding: 0;
             }
 
-            :deep(.stream-frame__player) {
+            :deep(.stream-frame__player),
+            :deep(.moovie-frame__player) {
                 border-radius: var(--r-md);
             }
         }
 
         @media (min-width: 1024px) {
-            :deep(.stream-frame__player) {
+            :deep(.stream-frame__player),
+            :deep(.moovie-frame__player) {
                 width: 100%;
                 max-width: calc(80vh * 16 / 9);
                 aspect-ratio: 16 / 9;

@@ -52,6 +52,7 @@ if (streamData.value) {
 }
 
 export const movieServers = ref<Server[]>([
+  { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{tmdbId}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
@@ -76,6 +77,7 @@ export const movieServers = ref<Server[]>([
 ]);
 
 export const tvServers = ref<Server[]>([
+  { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{externalId}/{season}/{episode}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
@@ -100,6 +102,7 @@ export const tvServers = ref<Server[]>([
 ]);
 
 const idToNameMap: Record<string, string> = {
+  moovie: 'Moovie',
   rasmalai: 'Rasmalai',
   cinemaos: 'Gulab Jamun',
   smashy: 'Jalebi',

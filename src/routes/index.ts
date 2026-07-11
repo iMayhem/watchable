@@ -227,6 +227,15 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/hub',
+        name: 'PlayerHub',
+        component: () => import('../pages/PlayerHub.vue'),
+        meta: {
+            showInHeader: true,
+            title: 'Hub Player'
+        }
+    },
+    {
         path: '/watchlist',
         name: 'Watchlist',
         component: () => import('../pages/Watchlist.vue'),

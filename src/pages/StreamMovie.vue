@@ -48,6 +48,7 @@
             <div class="watch-stage__theater">
                 <div class="watch-stage__player-container">
                     <StreamFrame
+                        v-if="!isMoovieServer"
                         :embed-url="currentEmbedUrl"
                         :title="movie?.title || 'Stream'"
                         :backdrop-path="movie?.backdrop_path || ''"
@@ -55,6 +56,14 @@
                         :media-id="movieId"
                         media-type="movie"
                         @switch-to-server="changeServer"
+                    />
+                    <MoovieFrame
+                        v-else
+                        :media-id="movieId"
+                        media-type="movie"
+                        :title="movie?.title || 'Stream'"
+                        :backdrop-path="movie?.backdrop_path || ''"
+                        :poster-path="movie?.poster_path || ''"
                     />
                 </div>
             </div>
@@ -84,13 +93,14 @@ import { getResumeTimestamp } from '../composables/useProgress';
 import { useAppPaths } from '../composables/useAppPaths';
 
 import StreamFrame from '../components/player/StreamFrame.vue';
+import MoovieFrame from '../components/player/MoovieFrame.vue';
 import ServerAccordion from '../components/player/ServerAccordion.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import CommentsSection from '../components/player/CommentsSection.vue';
 
 export default defineComponent({
     name: 'StreamMovie',
-    components: { StreamFrame, ServerAccordion, ArrowLeft, CommentsSection },
+    components: { StreamFrame, MoovieFrame, ServerAccordion, ArrowLeft, CommentsSection },
     setup() {
         const route = useRoute();
         const router = useRouter();
@@ -112,6 +122,11 @@ export default defineComponent({
                 return 0;
             }
             return currentStreamData.value.currentServer;
+        });
+        const isMoovieServer = computed(() => {
+            const servers = getServers('movie');
+            const idx = currentStreamData.value.currentServer;
+            return servers[idx]?.name === 'Moovie';
         });
         const reloadKey = ref(0);
         const resumeTimestamp = ref(0);
@@ -213,6 +228,7 @@ export default defineComponent({
             currentStreamData,
             availableServers,
             activeAccordionIndex,
+            isMoovieServer,
             currentEmbedUrl,
             changeServer,
             goBack,
@@ -411,17 +427,20 @@ export default defineComponent({
         @media (max-width: 1023px) {
             width: 100%;
 
-            :deep(.stream-frame__stage) {
+            :deep(.stream-frame__stage),
+            :deep(.moovie-frame__stage) {
                 padding: 0;
             }
 
-            :deep(.stream-frame__player) {
+            :deep(.stream-frame__player),
+            :deep(.moovie-frame__player) {
                 border-radius: var(--r-md);
             }
         }
 
         @media (min-width: 1024px) {
-            :deep(.stream-frame__player) {
+            :deep(.stream-frame__player),
+            :deep(.moovie-frame__player) {
                 width: 100%;
                 max-width: calc(80vh * 16 / 9);
                 aspect-ratio: 16 / 9;

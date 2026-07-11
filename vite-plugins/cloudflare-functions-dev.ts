@@ -7,7 +7,7 @@ type RouteLoader = () => Promise<{ onRequest: PagesHandler }>;
 
 const API_ROUTES: Record<string, RouteLoader> = {
   '/api/moovie-catalog': () => import('../functions/api/moovie-catalog.js'),
-  '/api/moovie-hub': () => import('../functions/api/moovie-hub.ts'),
+  '/api/moovie-hub': () => import('../functions/api/moovie-hub.js'),
   '/api/cinestream': () => import('../functions/api/cinestream.ts'),
   '/api/watchmode-cache': () => import('../functions/api/watchmode-cache.ts'),
 };

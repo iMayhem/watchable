@@ -25,7 +25,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import Plyr from 'plyr'
 import 'plyr/dist/plyr.css'
 import { useWebImage } from '../../utils/useWebImage'
@@ -74,7 +74,7 @@ export default defineComponent({
         let hlsInstance: any = null
         let stopTracking: (() => void) | null = null
 
-        useAmbientColor(() => props.backdropPath || props.posterPath || null, rootRef)
+        useAmbientColor(computed(() => props.backdropPath || props.posterPath || null), rootRef)
 
         const ambientImage = ref('')
         const computeAmbient = () => {

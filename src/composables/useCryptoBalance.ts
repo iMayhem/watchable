@@ -12,7 +12,8 @@ const loading = ref(false)
 
 async function fetchBtcBalance(): Promise<number> {
     try {
-        const res = await fetch(`https://api.blockchair.com/bitcoin/address/${BTC_ADDR}?limit=0,1`)
+        const res = await fetch(`https://api.blockchair.com/bitcoin/address/${BTC_ADDR}?limit=0,0`)
+        if (!res.ok) return 0
         const json = await res.json()
         const sat = json?.data?.[BTC_ADDR]?.balance ?? 0
         return sat / 1e8
@@ -21,7 +22,8 @@ async function fetchBtcBalance(): Promise<number> {
 
 async function fetchLtcBalance(): Promise<number> {
     try {
-        const res = await fetch(`https://api.blockchair.com/litecoin/address/${LTC_ADDR}?limit=0,1`)
+        const res = await fetch(`https://api.blockchair.com/litecoin/address/${LTC_ADDR}?limit=0,0`)
+        if (!res.ok) return 0
         const json = await res.json()
         const lit = json?.data?.[LTC_ADDR]?.balance ?? 0
         return lit / 1e8

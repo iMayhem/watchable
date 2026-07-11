@@ -447,7 +447,15 @@ async function loadServerOrder() {
     for (const [id, name] of Object.entries(idMap)) reverseMap[name.toLowerCase()] = id
 
     if (serverOrder.value && serverOrder.value.length > 0) {
-        serverOrderList.value = serverOrder.value.map(id => ({ id, name: idMap[id.toLowerCase()] || id }))
+        const savedList = serverOrder.value.map(id => ({ id, name: idMap[id.toLowerCase()] || id }))
+        const savedIds = new Set(serverOrder.value.map(id => id.toLowerCase()))
+        for (const s of servers) {
+            const id = reverseMap[s.name.toLowerCase()] || s.name.toLowerCase()
+            if (!savedIds.has(id.toLowerCase())) {
+                savedList.push({ id, name: s.name })
+            }
+        }
+        serverOrderList.value = savedList
     } else {
         serverOrderList.value = servers.map(s => ({ id: reverseMap[s.name.toLowerCase()] || s.name.toLowerCase(), name: s.name }))
     }

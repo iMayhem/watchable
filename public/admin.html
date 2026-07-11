@@ -1143,6 +1143,12 @@
                     const parsed = JSON.parse(data.value);
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         serverOrderIds = parsed;
+                        const existing = new Set(parsed.map(x => x.toLowerCase()));
+                        defaultServerIds.forEach(id => {
+                            if (!existing.has(id.toLowerCase())) {
+                                serverOrderIds.push(id);
+                            }
+                        });
                         renderReorderList();
                         return;
                     }

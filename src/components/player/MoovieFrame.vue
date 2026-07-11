@@ -32,6 +32,7 @@ import { useWebImage } from '../../utils/useWebImage'
 import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
 
+const HUB_DIRECT = 'https://providers.peestream.in/api/search'
 const HUB_PROXY = '/api/moovie-hub'
 
 interface HubStream {
@@ -178,17 +179,26 @@ export default defineComponent({
             const id = String(props.mediaId)
             if (!id) return []
             const type = props.mediaType
-            let url = `${HUB_PROXY}?q=${encodeURIComponent(id)}&type=${type}`
-            if (type === 'tv' && props.season > 0) url += `&season=${props.season}`
-            if (type === 'tv' && props.episode > 0) url += `&episode=${props.episode}`
-            console.debug('[MoovieFrame] fetchStreams url:', url)
-            const res = await fetch(url)
-            console.debug('[MoovieFrame] fetchStreams res status:', res.status, 'ok:', res.ok)
-            if (!res.ok) {
-                const body = await res.text().catch(() => '')
-                console.debug('[MoovieFrame] fetchStreams error body (first 500):', body.slice(0, 500))
-                throw new Error(`Hub search failed (${res.status})`)
+            const qs = `q=${encodeURIComponent(id)}&type=${type}${type === 'tv' && props.season > 0 ? `&season=${props.season}` : ''}${type === 'tv' && props.episode > 0 ? `&episode=${props.episode}` : ''}`
+            let res: Response | null = null
+            let usedUrl = ''
+            for (const base of [HUB_DIRECT, HUB_PROXY]) {
+                usedUrl = `${base}?${qs}`
+                console.debug('[MoovieFrame] fetchStreams trying:', usedUrl)
+                try {
+                    res = await fetch(usedUrl)
+                    if (!res.ok) {
+                        console.debug('[MoovieFrame] fetchStreams', base, 'status:', res.status)
+                        continue
+                    }
+                    break
+                } catch (e) {
+                    console.debug('[MoovieFrame] fetchStreams', base, 'failed:', (e as Error).message)
+                    res = null
+                }
             }
+            if (!res) throw new Error('All hub endpoints failed')
+            console.debug('[MoovieFrame] fetchStreams resolved:', usedUrl, 'status:', res.status)
             const text = await res.text()
             console.debug('[MoovieFrame] fetchStreams raw response (first 500):', text.slice(0, 500))
             let data: HubSearchResponse

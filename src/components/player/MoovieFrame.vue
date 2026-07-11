@@ -331,11 +331,34 @@ export default defineComponent({
             return all
         }
 
+        const qualityRank: Record<string, number> = {
+            '4K': 6, '2160P': 6, '2160': 6,
+            '1080P': 5, '1080': 5, 'FHD': 5,
+            '720P': 4, '720': 4, 'HD': 4,
+            '480P': 3, '480': 3, 'SD': 3,
+            '360P': 2, '360': 2,
+            '240P': 1, '240': 1,
+        }
+
+        function scoreStream(s: HubStream): number {
+            const q = (s.quality || '').toUpperCase().trim()
+            const rank = qualityRank[q] ?? 0
+            const typeBonus = s.type === 'm3u8' || s.url?.includes('.m3u8') ? 0.5 : 0
+            return rank + typeBonus
+        }
+
         function pickBest(streams: HubStream[]): HubStream | null {
             if (!streams.length) return null
-            return streams.find(s => s.type === 'm3u8' || s.url.includes('.m3u8'))
-                || streams.find(s => s.type === 'mp4' || s.url.includes('.mp4'))
-                || streams[0]
+            let best = streams[0]
+            let bestScore = scoreStream(best)
+            for (let i = 1; i < streams.length; i++) {
+                const s = scoreStream(streams[i])
+                if (s > bestScore) {
+                    bestScore = s
+                    best = streams[i]
+                }
+            }
+            return best
         }
 
         async function doLoad() {

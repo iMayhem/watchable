@@ -32,8 +32,7 @@ import { useWebImage } from '../../utils/useWebImage'
 import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
 
-const HUB_DIRECT = 'https://proxy.peestream.in/api/search'
-const HUB_DIRECT2 = 'https://providers.peestream.in/api/search'
+const HUB_DIRECT = 'https://providers.peestream.in/api/search'
 const HUB_PROXY = '/api/moovie-hub'
 
 interface HubStream {
@@ -183,7 +182,7 @@ export default defineComponent({
             const qs = `q=${encodeURIComponent(id)}&type=${type}${type === 'tv' && props.season > 0 ? `&season=${props.season}` : ''}${type === 'tv' && props.episode > 0 ? `&episode=${props.episode}` : ''}`
             let res: Response | null = null
             let usedUrl = ''
-            for (const base of [HUB_DIRECT, HUB_DIRECT2, HUB_PROXY]) {
+            for (const base of [HUB_DIRECT, HUB_PROXY]) {
                 usedUrl = `${base}?${qs}`
                 console.debug('[MoovieFrame] fetchStreams trying:', usedUrl)
                 try {

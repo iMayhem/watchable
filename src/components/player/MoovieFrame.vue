@@ -189,6 +189,7 @@ export default defineComponent({
                     res = await fetch(usedUrl)
                     if (!res.ok) {
                         console.debug('[MoovieFrame] fetchStreams', base, 'status:', res.status)
+                        res = null
                         continue
                     }
                     break
@@ -199,6 +200,14 @@ export default defineComponent({
             }
             if (!res) throw new Error('All hub endpoints failed')
             console.debug('[MoovieFrame] fetchStreams resolved:', usedUrl, 'status:', res.status)
+            
+            const contentType = res.headers.get('content-type') || ''
+            if (!contentType.includes('application/json')) {
+                const text = await res.text()
+                console.debug('[MoovieFrame] fetchStreams expected JSON, got:', contentType, 'Response starts with:', text.slice(0, 100))
+                throw new Error(`Hub returned non-JSON response (Status: ${res.status}, Type: ${contentType})`)
+            }
+            
             const text = await res.text()
             console.debug('[MoovieFrame] fetchStreams raw response (first 500):', text.slice(0, 500))
             let data: HubSearchResponse
@@ -206,7 +215,7 @@ export default defineComponent({
                 data = JSON.parse(text)
             } catch {
                 console.debug('[MoovieFrame] fetchStreams JSON parse failed, response starts with:', text.slice(0, 100))
-                throw new Error('Hub returned non-JSON response')
+                throw new Error('Hub returned invalid JSON')
             }
             const all: HubStream[] = []
             for (const group of data.results || []) {

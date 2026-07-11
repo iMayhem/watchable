@@ -34,6 +34,7 @@
                     <div class="admin-page__field">
                         <label class="admin-page__label" for="default-provider">Default Stream Player (PC)</label>
                         <select id="default-provider" v-model="settings.defaultProvider" class="admin-page__select">
+                            <option value="moovie">Moovie (moovie server)</option>
                             <option value="rasmalai">Rasmalai (sweet server)</option>
                             <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
                             <option value="smashy">Jalebi (SmashyStream)</option>
@@ -61,6 +62,7 @@
                     <div class="admin-page__field">
                         <label class="admin-page__label" for="default-provider-mobile">Default Stream Player (Mobile)</label>
                         <select id="default-provider-mobile" v-model="settings.defaultProviderMobile" class="admin-page__select">
+                            <option value="moovie">Moovie (moovie server)</option>
                             <option value="rasmalai">Rasmalai (sweet server)</option>
                             <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
                             <option value="smashy">Jalebi (SmashyStream)</option>
@@ -162,6 +164,7 @@
 
                 <div class="admin-page__server-grid">
                     <div class="admin-page__server-row"><strong>ID</strong><strong>Sweet Name</strong></div>
+                    <div class="admin-page__server-row"><span>moovie</span><span>Moovie</span></div>
                     <div class="admin-page__server-row"><span>rasmalai</span><span>Rasmalai</span></div>
                     <div class="admin-page__server-row"><span>cinemaos</span><span>Gulab Jamun</span></div>
                     <div class="admin-page__server-row"><span>smashy</span><span>Jalebi</span></div>
@@ -431,6 +434,7 @@ async function loadServerOrder() {
     await fetchServerOrder()
     const servers = getServers('movie')
     const idMap: Record<string, string> = {
+        moovie: 'Moovie',
         rasmalai: 'Rasmalai', cinemaos: 'Gulab Jamun', smashy: 'Jalebi',
         mappletv: 'Kaju Katli', vidking: 'Kheer', videasy: 'Barfi',
         vidsrc_ru: 'Laddu', vidsrc_su: 'Peda', vidsrcme: 'Gajar Ka Halwa',

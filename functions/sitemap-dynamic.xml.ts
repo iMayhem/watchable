@@ -9,11 +9,11 @@ export async function onRequest(context) {
   const TMDB_API_KEY = 'dfa4c2c7c1de1005adee824dc5593672';
 
   // Fetch top/trending movies, tv-shows, and anime in parallel
-  const moviesPromise = fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}`)
+  const moviesPromise = fetch(`https://proxy.moovie.fun/tmdb-api/3/trending/movie/week?api_key=${TMDB_API_KEY}`)
     .then(r => r.json())
     .catch(() => ({ results: [] }));
 
-  const tvShowsPromise = fetch(`https://api.themoviedb.org/3/trending/tv/week?api_key=${TMDB_API_KEY}`)
+  const tvShowsPromise = fetch(`https://proxy.moovie.fun/tmdb-api/3/trending/tv/week?api_key=${TMDB_API_KEY}`)
     .then(r => r.json())
     .catch(() => ({ results: [] }));
 

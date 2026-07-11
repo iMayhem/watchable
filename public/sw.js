@@ -8,6 +8,7 @@ const PRECACHE_ASSETS = [
 
 const IMAGE_HOSTS = [
   'image.tmdb.org',
+  'proxy.moovie.fun',
   'aoneroom.com',
   'hakunaymatata.com',
   'watch21.shop',

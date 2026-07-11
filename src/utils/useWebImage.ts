@@ -5,7 +5,7 @@ import { TVShowDetails } from '../composables/useTvShows';
 import { getSettings } from '../composables/useSettings';
 
 // TMDB posters/backdrops load directly from image.tmdb.org (browser → TMDB CDN).
-const TMDB_BASE = 'https://image.tmdb.org/t/p/';
+const TMDB_BASE = 'https://proxy.moovie.fun/tmdb-image/t/p/';
 
 const ANILIST_CDN_PATTERN = /(?:^https?:\/\/)(?:[\w-]+\.)?anilist\.co\//i;
 

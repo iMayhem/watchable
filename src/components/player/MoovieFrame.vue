@@ -1,5 +1,5 @@
 <template>
-    <div ref="rootRef" class="moovie-frame" :class="{ 'has-error': error }">
+    <div ref="rootRef" class="moovie-frame" :class="{ 'has-error': error, 'is-buffering': buffering }">
         <div v-if="ambientImage" class="moovie-frame__bloom" :style="{ backgroundImage: `url(${ambientImage})` }" aria-hidden="true" />
 
         <div class="moovie-frame__stage">
@@ -19,6 +19,28 @@
                     <h3>{{ error }}</h3>
                     <button type="button" class="moovie-frame__retry" @click="retry">Retry</button>
                 </div>
+
+                <ul
+                    v-if="!loading && !error && qualityOpen && uniqueQualities.length > 1"
+                    ref="qualityRootRef"
+                    class="moovie-frame__quality-menu"
+                >
+                    <li
+                        v-for="(q, i) in uniqueQualities"
+                        :key="i"
+                        role="option"
+                        :aria-selected="selectedQualityIndex === i"
+                    >
+                        <button
+                            type="button"
+                            class="moovie-frame__quality-item"
+                            :class="{ 'is-active': selectedQualityIndex === i }"
+                            @click.stop="selectQuality(i)"
+                        >
+                            {{ q }}
+                        </button>
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
@@ -68,12 +90,39 @@ export default defineComponent({
     setup(props) {
         const rootRef = ref<HTMLElement | null>(null)
         const artContainer = ref<HTMLElement | null>(null)
+        const qualityRootRef = ref<HTMLElement | null>(null)
         const loading = ref(false)
         const error = ref('')
         const loadingLabel = ref('Resolving stream…')
+        const streams = ref<HubStream[]>([])
+        const selectedStreamIndex = ref(0)
+        const qualityOpen = ref(false)
+        const buffering = ref(false)
         let plyrInstance: Plyr | null = null
         let hlsInstance: any = null
         let stopTracking: (() => void) | null = null
+
+        const uniqueQualities = computed(() => {
+            const seen = new Set<string>()
+            const out: string[] = []
+            for (const s of streams.value) {
+                const q = s.quality || 'Auto'
+                if (!seen.has(q)) {
+                    seen.add(q)
+                    out.push(q)
+                }
+            }
+            return out
+        })
+
+        const selectedQualityIndex = computed(() => {
+            const q = streams.value[selectedStreamIndex.value]?.quality
+            return q ? uniqueQualities.value.indexOf(q) : 0
+        })
+
+        const activeQualityLabel = computed(() => {
+            return streams.value[selectedStreamIndex.value]?.quality || 'Auto'
+        })
 
         useAmbientColor(computed(() => props.backdropPath || props.posterPath || null), rootRef)
 
@@ -138,6 +187,8 @@ export default defineComponent({
                 return
             }
             destroyPlayer()
+            qualityOpen.value = false
+            buffering.value = true
 
             await loadHlsJs()
             const HlsCtor = (window as any).Hls
@@ -151,6 +202,16 @@ export default defineComponent({
             video.style.height = '100%'
             video.style.objectFit = 'contain'
             video.className = 'plyr-video-element'
+
+            const onBufferEnd = () => { buffering.value = false }
+            video.addEventListener('waiting', () => { buffering.value = true })
+            video.addEventListener('playing', onBufferEnd)
+            video.addEventListener('canplay', onBufferEnd)
+            video.addEventListener('loadeddata', onBufferEnd)
+            video.addEventListener('seeked', onBufferEnd)
+            video.addEventListener('error', onBufferEnd)
+            video.addEventListener('abort', onBufferEnd)
+
             container.appendChild(video)
 
             if (isHls && HlsCtor && HlsCtor.isSupported()) {
@@ -173,6 +234,49 @@ export default defineComponent({
                     : ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
                 settings: ['speed'],
             })
+
+            void injectQualityButton()
+        }
+
+        function injectQualityButton() {
+            if (!plyrInstance || uniqueQualities.value.length <= 1) return
+            const controls = plyrInstance.elements?.controls
+            if (!controls) return
+            const settingsBtn = controls.querySelector('[data-plyr="settings"]')
+            if (!settingsBtn) return
+            if (controls.querySelector('.moovie-frame__quality-btn')) return
+
+            const btn = document.createElement('button')
+            btn.className = 'plyr__controls__item plyr__control moovie-frame__quality-btn'
+            btn.type = 'button'
+            btn.setAttribute('data-plyr', 'quality')
+            btn.innerHTML = `<span class="plyr__sr-only">Quality</span>`
+            const label = document.createElement('span')
+            label.className = 'moovie-frame__quality-label'
+            btn.appendChild(label)
+
+            const updateBtnLabel = () => {
+                const q = streams.value[selectedStreamIndex.value]?.quality || 'Auto'
+                label.textContent = q
+                btn.classList.toggle('has-menu', uniqueQualities.value.length > 1)
+            }
+            updateBtnLabel()
+
+            const toggle = (e: MouseEvent) => {
+                e.stopPropagation()
+                if (uniqueQualities.value.length > 1) qualityOpen.value = !qualityOpen.value
+            }
+            btn.addEventListener('click', toggle)
+
+            settingsBtn.parentNode?.insertBefore(btn, settingsBtn)
+
+            const checkControls = () => {
+                const existing = controls.querySelector('.moovie-frame__quality-btn')
+                if (!existing) {
+                    settingsBtn.parentNode?.insertBefore(btn, settingsBtn)
+                }
+            }
+            plyrInstance.on('controlsshown', checkControls)
         }
 
         async function fetchStreams() {
@@ -238,11 +342,16 @@ export default defineComponent({
             console.debug('[MoovieFrame] doLoad start')
             destroyPlayer(); loading.value = true; error.value = ''; startMessages()
             try {
-                const streams = await fetchStreams()
-                const best = pickBest(streams)
-                if (!best) throw new Error('No streamable sources found')
-                console.debug('[MoovieFrame] doLoad best stream:', best.name, best.proxyUrl || best.url)
-                await mountPlayer(best.proxyUrl || best.url)
+                const all = await fetchStreams()
+                streams.value = all
+                if (!all.length) throw new Error('No streamable sources found')
+                const best = pickBest(all)
+                const idx = best ? all.indexOf(best) : 0
+                selectedStreamIndex.value = idx
+                const target = best || all[0]
+                console.debug('[MoovieFrame] doLoad stream:', target.name, target.quality, target.proxyUrl || target.url)
+                await mountPlayer(target.proxyUrl || target.url)
+                updateQualityBtn()
                 loading.value = false
                 console.debug('[MoovieFrame] doLoad done')
             } catch (e: any) {
@@ -254,6 +363,37 @@ export default defineComponent({
 
         function retry() { void doLoad() }
 
+        function toggleQuality() {
+            if (uniqueQualities.value.length > 1) qualityOpen.value = !qualityOpen.value
+        }
+
+        function onClickOutside(e: MouseEvent) {
+            if (!qualityOpen.value) return
+            const target = e.target as Node
+            if (qualityRootRef.value?.contains(target)) return
+            if ((target as Element)?.closest?.('.moovie-frame__quality-btn')) return
+            qualityOpen.value = false
+        }
+
+        function updateQualityBtn() {
+            const btn = document.querySelector('.moovie-frame__quality-btn .moovie-frame__quality-label')
+            if (btn) {
+                btn.textContent = streams.value[selectedStreamIndex.value]?.quality || 'Auto'
+            }
+        }
+
+        async function selectQuality(index: number) {
+            const q = uniqueQualities.value[index]
+            if (!q) return
+            const idx = streams.value.findIndex(s => s.quality === q)
+            if (idx < 0) return
+            qualityOpen.value = false
+            selectedStreamIndex.value = idx
+            updateQualityBtn()
+            const stream = streams.value[idx]
+            await mountPlayer(stream.proxyUrl || stream.url)
+        }
+
         const startTrackingIfNeeded = () => {
             if (stopTracking) { stopTracking(); stopTracking = null }
             if (props.mediaId) {
@@ -264,10 +404,10 @@ export default defineComponent({
         watch(() => [props.mediaId, props.mediaType, props.season, props.episode], () => { if (props.mediaId) { void doLoad(); startTrackingIfNeeded() } })
         watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
 
-        onMounted(() => { computeAmbient(); startTrackingIfNeeded(); void doLoad() })
-        onUnmounted(() => { destroyPlayer(); if (stopTracking) { stopTracking(); stopTracking = null } })
+        onMounted(() => { computeAmbient(); startTrackingIfNeeded(); void doLoad(); document.addEventListener('click', onClickOutside) })
+        onUnmounted(() => { destroyPlayer(); if (stopTracking) { stopTracking(); stopTracking = null }; document.removeEventListener('click', onClickOutside) })
 
-        return { rootRef, artContainer, loading, error, loadingLabel, ambientImage, retry }
+        return { rootRef, artContainer, qualityRootRef, loading, error, loadingLabel, ambientImage, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, qualityOpen, buffering, retry, selectQuality, toggleQuality }
     },
 })
 </script>
@@ -362,6 +502,67 @@ export default defineComponent({
         &:hover { background: var(--ember-600); transform: translateY(-1px); }
     }
 
+    &__quality-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 0 6px;
+        background: none;
+        border: 0;
+        color: inherit;
+        font-family: var(--font-ui);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        &.has-menu::after {
+            content: '';
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid currentColor;
+            margin-left: 2px;
+            vertical-align: middle;
+        }
+    }
+
+    &__quality-label {
+        letter-spacing: 0.03em;
+    }
+
+    &__quality-menu {
+        position: absolute;
+        bottom: 52px;
+        right: calc(var(--s-3) + 60px);
+        z-index: 20;
+        min-width: 120px;
+        list-style: none;
+        padding: var(--s-1);
+        background: rgba(15, 15, 15, 0.98);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--r-md);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    &__quality-item {
+        display: block;
+        width: 100%;
+        padding: 0.4rem 0.75rem;
+        background: none;
+        border: 0;
+        border-radius: var(--r-sm);
+        color: #f0eee3;
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.1s;
+        &:hover { background: rgba(255, 255, 255, 0.08); }
+        &.is-active { color: #ff5a1f; font-weight: 600; }
+    }
+
     .meta { font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: uppercase; margin: 0; }
     .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bone-400); margin: 0; }
 }
@@ -451,6 +652,23 @@ export default defineComponent({
     }
     .plyr__control--forward:hover { background: rgba(255, 90, 31, 0.15); }
 }
+
+.is-buffering :deep(.plyr__control--overlaid) {
+    pointer-events: none;
+    svg { display: none; }
+    &::after {
+        content: '';
+        display: block;
+        width: 28px;
+        height: 28px;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: moovie-spin 0.8s linear infinite;
+    }
+}
+
+@keyframes moovie-spin { to { transform: rotate(360deg); } }
 
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 @keyframes spin { to { transform: rotate(360deg); } }

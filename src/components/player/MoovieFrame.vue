@@ -186,27 +186,26 @@ export default defineComponent({
                 usedUrl = `${base}?${qs}`
                 console.debug('[MoovieFrame] fetchStreams trying:', usedUrl)
                 try {
-                    res = await fetch(usedUrl)
-                    if (!res.ok) {
-                        console.debug('[MoovieFrame] fetchStreams', base, 'status:', res.status)
-                        res = null
+                    const r = await fetch(usedUrl)
+                    if (!r.ok) {
+                        console.debug('[MoovieFrame] fetchStreams', base, 'status:', r.status)
                         continue
                     }
+                    // Cloudflare may return 200 with an HTML challenge page — skip if not JSON
+                    const ct = r.headers.get('content-type') || ''
+                    if (!ct.includes('application/json')) {
+                        const preview = await r.text()
+                        console.debug('[MoovieFrame] fetchStreams', base, 'non-JSON response (type:', ct, ') preview:', preview.slice(0, 120))
+                        continue
+                    }
+                    res = r
                     break
                 } catch (e) {
                     console.debug('[MoovieFrame] fetchStreams', base, 'failed:', (e as Error).message)
-                    res = null
                 }
             }
-            if (!res) throw new Error('All hub endpoints failed')
+            if (!res) throw new Error('All hub endpoints failed — try again later')
             console.debug('[MoovieFrame] fetchStreams resolved:', usedUrl, 'status:', res.status)
-            
-            const contentType = res.headers.get('content-type') || ''
-            if (!contentType.includes('application/json')) {
-                const text = await res.text()
-                console.debug('[MoovieFrame] fetchStreams expected JSON, got:', contentType, 'Response starts with:', text.slice(0, 100))
-                throw new Error(`Hub returned non-JSON response (Status: ${res.status}, Type: ${contentType})`)
-            }
             
             const text = await res.text()
             console.debug('[MoovieFrame] fetchStreams raw response (first 500):', text.slice(0, 500))

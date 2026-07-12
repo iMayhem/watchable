@@ -859,13 +859,13 @@ export default defineComponent({
         }
 
         function toggleFullscreen() {
-            const el = rootRef.value
-            if (!el) return
+            const video = videoRef.value
+            if (!video) return
             if (document.fullscreenElement) {
                 document.exitFullscreen()
                 isFullscreen.value = false
             } else {
-                el.requestFullscreen().then(() => isFullscreen.value = true).catch(() => {})
+                video.requestFullscreen().then(() => isFullscreen.value = true).catch(() => {})
             }
         }
 

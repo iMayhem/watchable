@@ -907,18 +907,6 @@ export default defineComponent({
             return []
         }
 
-        function srtUrlToVttBlob(subUrl: string): Promise<string | null> {
-            return fetch(subUrl).then(r => {
-                if (!r.ok) return null
-                return r.text()
-            }).then(text => {
-                if (!text) return null
-                const vtt = srtToVtt(text)
-                const blob = new Blob([vtt], { type: 'text/vtt' })
-                return URL.createObjectURL(blob)
-            }).catch(() => null)
-        }
-
         async function loadWyzieSubtitles() {
             console.debug('[Wyzie] loading subtitles...')
             const subs = await fetchWyzieSubtitles()
@@ -931,26 +919,51 @@ export default defineComponent({
             for (const url of wyzieBlobUrls) { URL.revokeObjectURL(url) }
             wyzieBlobUrls = []
 
+            const filtered = subs
+                .filter(s => s.language === 'en' || s.language === 'english')
+                .slice(0, 10)
+            if (!filtered.length) {
+                console.debug('[Wyzie] no English subs, showing first 5')
+                filtered.push(...subs.slice(0, 5))
+            }
+
             const wyzieTracks: { id: number; name: string; lang?: string; isWyzie: boolean }[] = []
 
-            for (let i = 0; i < subs.length; i++) {
-                const sub = subs[i]
-                console.debug('[Wyzie] fetching sub content:', sub.url)
-                const blobUrl = await srtUrlToVttBlob(sub.url)
-                if (!blobUrl) { console.debug('[Wyzie] failed to convert sub:', sub.display); continue }
-                wyzieBlobUrls.push(blobUrl)
+            const results = await Promise.allSettled(
+                filtered.map(async (sub, i) => {
+                    const trackId = WYZIE_TRACK_OFFSET + i
+                    let blobUrl: string | null = null
+                    for (const subUrl of [sub.url, `${HUB_BASE}/api/proxy?destination=${encodeURIComponent(sub.url)}`]) {
+                        try {
+                            const r = await fetch(subUrl)
+                            if (!r.ok) continue
+                            const text = await r.text()
+                            if (!text) continue
+                            const vtt = srtToVtt(text)
+                            blobUrl = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }))
+                            break
+                        } catch { /* try next */ }
+                    }
+                    if (!blobUrl) return null
+                    wyzieBlobUrls.push(blobUrl)
+                    return { trackId, blobUrl, sub }
+                })
+            )
+
+            for (const result of results) {
+                if (result.status !== 'fulfilled' || !result.value) continue
+                const { trackId, blobUrl, sub } = result.value
 
                 const track = document.createElement('track')
                 track.kind = 'captions'
-                track.label = sub.display || sub.language || `Track ${i}`
+                track.label = sub.display || sub.language || `Track ${trackId - WYZIE_TRACK_OFFSET}`
                 track.srclang = sub.language || 'en'
                 track.src = blobUrl
                 track.default = false
                 video.appendChild(track)
                 wyzieTrackElements.push(track)
 
-                const trackId = WYZIE_TRACK_OFFSET + i
-                wyzieTracks.push({ id: trackId, name: sub.display || sub.language || `Sub ${i}`, lang: sub.language, isWyzie: true })
+                wyzieTracks.push({ id: trackId, name: sub.display || sub.language || `Sub ${trackId}`, lang: sub.language, isWyzie: true })
             }
 
             if (!wyzieTracks.length) { console.debug('[Wyzie] no tracks created'); return }

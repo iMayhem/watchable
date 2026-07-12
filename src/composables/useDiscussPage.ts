@@ -24,6 +24,38 @@ export function useDiscussPage() {
     const submitting = ref(false);
     const newCommentText = ref('');
 
+    const showLoungeEmojiPicker = ref(false);
+    const showThreadEmojiPicker = ref(false);
+    const popularEmojis = ['😀', '😂', '😍', '🔥', '❤️', '👍', '🎉', '🎬', '📺', '🍿', '😮', '👏'];
+
+    const toggleEmojiPicker = (type: 'lounge' | 'thread') => {
+        if (type === 'lounge') {
+            showLoungeEmojiPicker.value = !showLoungeEmojiPicker.value;
+            showThreadEmojiPicker.value = false;
+        } else {
+            showThreadEmojiPicker.value = !showThreadEmojiPicker.value;
+            showLoungeEmojiPicker.value = false;
+        }
+    };
+
+    const insertEmoji = (emoji: string, type: 'lounge' | 'thread') => {
+        if (type === 'lounge') {
+            newCommentText.value += emoji;
+            showLoungeEmojiPicker.value = false;
+        } else {
+            newSelectedCommentText.value += emoji;
+            showThreadEmojiPicker.value = false;
+        }
+    };
+
+    const handleOutsideClick = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.m-discuss__composer-btn') && !target.closest('.discuss-composer-btn--emoji') && !target.closest('.discuss-emoji-picker') && !target.closest('.m-discuss__emoji-picker')) {
+            showLoungeEmojiPicker.value = false;
+            showThreadEmojiPicker.value = false;
+        }
+    };
+
     const isLoggedIn = ref(false);
     const currentUsername = ref('');
     const showAuthModal = ref(false);
@@ -494,12 +526,14 @@ export function useDiscussPage() {
         if (realtimeChannel) supabase.removeChannel(realtimeChannel);
         if (movieRealtimeChannel) supabase.removeChannel(movieRealtimeChannel);
         if (selectedMovieRealtimeChannel) supabase.removeChannel(selectedMovieRealtimeChannel);
+        window.removeEventListener('click', handleOutsideClick);
     };
 
     const init = () => {
         checkAuth();
         void bootstrapDiscuss();
         window.addEventListener('movora_auth_change', checkAuth);
+        window.addEventListener('click', handleOutsideClick);
     };
 
     onMounted(init);
@@ -545,6 +579,13 @@ export function useDiscussPage() {
         handleMovieChatScroll,
         viewMovieDiscussion,
         closeMovieDiscussion,
-        postSelectedMovieComment
+        postSelectedMovieComment,
+        
+        // Emoji Picker additions
+        showLoungeEmojiPicker,
+        showThreadEmojiPicker,
+        popularEmojis,
+        toggleEmojiPicker,
+        insertEmoji
     };
 }

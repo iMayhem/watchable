@@ -76,13 +76,25 @@
                 </div>
 
                 <footer class="m-discuss__composer">
+                    <!-- Emoji Picker Popover -->
+                    <div v-if="showLoungeEmojiPicker" class="m-discuss__emoji-picker">
+                        <button 
+                            v-for="emoji in popularEmojis" 
+                            :key="emoji" 
+                            type="button" 
+                            class="m-discuss__emoji-btn" 
+                            @click="insertEmoji(emoji, 'lounge')"
+                        >
+                            {{ emoji }}
+                        </button>
+                    </div>
                     <div v-if="!isLoggedIn" class="m-discuss__login-prompt">
                         <p class="meta">Sign in to post in the chat.</p>
                         <button type="button" class="m-discuss__signin" @click="showAuthModal = true">Sign In</button>
                     </div>
                     <form v-else class="m-discuss__form" @submit.prevent="handlePostComment">
                         <div class="m-discuss__input-wrapper">
-                            <button type="button" class="m-discuss__composer-btn" aria-label="Emojis">
+                            <button type="button" class="m-discuss__composer-btn" aria-label="Emojis" @click.stop="toggleEmojiPicker('lounge')">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
@@ -211,9 +223,21 @@
                 </div>
 
                 <footer class="m-discuss__composer">
+                    <!-- Emoji Picker Popover -->
+                    <div v-if="showThreadEmojiPicker" class="m-discuss__emoji-picker">
+                        <button 
+                            v-for="emoji in popularEmojis" 
+                            :key="emoji" 
+                            type="button" 
+                            class="m-discuss__emoji-btn" 
+                            @click="insertEmoji(emoji, 'thread')"
+                        >
+                            {{ emoji }}
+                        </button>
+                    </div>
                     <form class="m-discuss__form" @submit.prevent="postSelectedMovieComment">
                         <div class="m-discuss__input-wrapper">
-                            <button type="button" class="m-discuss__composer-btn" aria-label="Emojis">
+                            <button type="button" class="m-discuss__composer-btn" aria-label="Emojis" @click.stop="toggleEmojiPicker('thread')">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
@@ -336,7 +360,12 @@ const {
     handleMovieChatScroll,
     viewMovieDiscussion,
     closeMovieDiscussion,
-    postSelectedMovieComment
+    postSelectedMovieComment,
+    showLoungeEmojiPicker,
+    showThreadEmojiPicker,
+    popularEmojis,
+    toggleEmojiPicker,
+    insertEmoji
 } = useDiscussPage();
 
 const { updateSeo } = useSeo();
@@ -776,6 +805,52 @@ onMounted(() => {
         color: var(--bone-200);
         font-size: 0.78rem;
         font-weight: 600;
+    }
+
+    &__emoji-picker {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 8px;
+        right: 8px;
+        background: var(--ink-800);
+        border: 1px solid var(--rule);
+        border-radius: 12px;
+        padding: 6px;
+        display: flex;
+        justify-content: space-around;
+        gap: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        z-index: 100;
+        animation: mobilePickerSlideUp 0.15s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+    }
+
+    &__emoji-btn {
+        background: transparent;
+        border: none;
+        font-size: 1.25rem;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        transition: background-color 0.15s ease, transform 0.1s ease;
+
+        &:hover {
+            background: var(--surface-tint-hover);
+            transform: scale(1.15);
+        }
+        &:active {
+            transform: scale(0.9);
+        }
+    }
+}
+
+@keyframes mobilePickerSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

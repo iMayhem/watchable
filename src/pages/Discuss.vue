@@ -87,6 +87,18 @@
 
                         <!-- Chat Composer Bar -->
                         <footer class="discuss-chat__composer">
+                            <!-- Emoji Picker Popover -->
+                            <div v-if="showLoungeEmojiPicker" class="discuss-emoji-picker">
+                                <button 
+                                    v-for="emoji in popularEmojis" 
+                                    :key="emoji" 
+                                    type="button" 
+                                    class="discuss-emoji-btn" 
+                                    @click="insertEmoji(emoji, 'lounge')"
+                                >
+                                    {{ emoji }}
+                                </button>
+                            </div>
                             <form @submit.prevent="handlePostComment" class="discuss-composer-form discuss-composer-form--stacked">
                                 <div v-if="!isLoggedIn" class="discuss-composer-name-row">
                                     <input 
@@ -99,7 +111,7 @@
                                 </div>
                                 <div class="discuss-composer-input-row">
                                     <div class="discuss-composer-input-wrapper">
-                                        <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis">
+                                        <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis" @click.stop="toggleEmojiPicker('lounge')">
                                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                                 <circle cx="12" cy="12" r="10"></circle>
                                                 <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
@@ -222,6 +234,18 @@
 
                             <!-- Movie Comment Composer -->
                             <footer class="discuss-chat__composer">
+                                <!-- Emoji Picker Popover -->
+                                <div v-if="showThreadEmojiPicker" class="discuss-emoji-picker">
+                                    <button 
+                                        v-for="emoji in popularEmojis" 
+                                        :key="emoji" 
+                                        type="button" 
+                                        class="discuss-emoji-btn" 
+                                        @click="insertEmoji(emoji, 'thread')"
+                                    >
+                                        {{ emoji }}
+                                    </button>
+                                </div>
                                 <form @submit.prevent="postSelectedMovieComment" class="discuss-composer-form discuss-composer-form--stacked">
                                     <p v-if="!isLoggedIn" class="discuss-composer-anon-hint meta">
                                         Posting as Anonymous.
@@ -232,7 +256,7 @@
                                     </p>
                                     <div class="discuss-composer-input-row">
                                         <div class="discuss-composer-input-wrapper">
-                                            <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis">
+                                            <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis" @click.stop="toggleEmojiPicker('thread')">
                                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                                     <circle cx="12" cy="12" r="10"></circle>
                                                     <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
@@ -438,6 +462,38 @@ export default defineComponent({
         const newCommentText = ref('');
         const newMovieCommentText = ref('');
         const guestName = ref('');
+
+        const showLoungeEmojiPicker = ref(false);
+        const showThreadEmojiPicker = ref(false);
+        const popularEmojis = ['😀', '😂', '😍', '🔥', '❤️', '👍', '🎉', '🎬', '📺', '🍿', '😮', '👏'];
+
+        const toggleEmojiPicker = (type: 'lounge' | 'thread') => {
+            if (type === 'lounge') {
+                showLoungeEmojiPicker.value = !showLoungeEmojiPicker.value;
+                showThreadEmojiPicker.value = false;
+            } else {
+                showThreadEmojiPicker.value = !showThreadEmojiPicker.value;
+                showLoungeEmojiPicker.value = false;
+            }
+        };
+
+        const insertEmoji = (emoji: string, type: 'lounge' | 'thread') => {
+            if (type === 'lounge') {
+                newCommentText.value += emoji;
+                showLoungeEmojiPicker.value = false;
+            } else {
+                newSelectedCommentText.value += emoji;
+                showThreadEmojiPicker.value = false;
+            }
+        };
+
+        const handleOutsideClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('.discuss-composer-btn--emoji') && !target.closest('.discuss-emoji-picker')) {
+                showLoungeEmojiPicker.value = false;
+                showThreadEmojiPicker.value = false;
+            }
+        };
         
         const isLoggedIn = ref(false);
         const currentUsername = ref('');
@@ -974,11 +1030,13 @@ export default defineComponent({
                 canonical: 'https://moovie.fun/discuss'
             });
             window.addEventListener('movora_auth_change', checkAuth);
+            window.addEventListener('click', handleOutsideClick);
         });
 
         onBeforeUnmount(async () => {
             resetDiscussFeedCache();
             window.removeEventListener('movora_auth_change', checkAuth);
+            window.removeEventListener('click', handleOutsideClick);
             if (realtimeChannel) {
                 const supabase = await getSupabaseClient();
                 supabase.removeChannel(realtimeChannel);
@@ -1041,7 +1099,14 @@ export default defineComponent({
             handleMovieChatScroll,
             viewMovieDiscussion,
             closeMovieDiscussion,
-            postSelectedMovieComment
+            postSelectedMovieComment,
+            
+            // Emoji Picker additions
+            showLoungeEmojiPicker,
+            showThreadEmojiPicker,
+            popularEmojis,
+            toggleEmojiPicker,
+            insertEmoji
         };
     }
 });
@@ -1774,6 +1839,50 @@ export default defineComponent({
 @keyframes shimmer {
     100% {
         transform: translateX(100%);
+    }
+}
+
+.discuss-emoji-picker {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 16px;
+    background: var(--ink-800);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    z-index: 100;
+    animation: pickerSlideUp 0.15s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+.discuss-emoji-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.35rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+
+    &:hover {
+        background: var(--surface-tint-hover);
+        transform: scale(1.15);
+    }
+    &:active {
+        transform: scale(0.9);
+    }
+}
+
+@keyframes pickerSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

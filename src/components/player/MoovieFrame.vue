@@ -247,16 +247,12 @@ export default defineComponent({
                 hlsInstance.attachMedia(video)
             } else {
                 if (currentHeaders) {
-                    try {
-                        const res = await fetch(url, { headers: currentHeaders as Record<string, string> })
-                        if (res.ok) {
-                            const blob = await res.blob()
-                            video.src = URL.createObjectURL(blob)
-                        } else {
-                            video.src = url
-                        }
-                    } catch {
-                        video.src = url
+                    const res = await fetch(url, { headers: currentHeaders as Record<string, string> })
+                    if (res.ok) {
+                        const blob = await res.blob()
+                        video.src = URL.createObjectURL(blob)
+                    } else {
+                        throw new Error(`CDN returned ${res.status}`)
                     }
                 } else {
                     video.src = url
@@ -410,11 +406,7 @@ export default defineComponent({
                 selectedStreamIndex.value = idx
                 const target = best || all[0]
                 await ensureProxySetting()
-                const useProxy = proxyEnabled && target.proxyUrl
-                const playUrl = useProxy ? target.proxyUrl : target.url
-                currentHeaders = !useProxy && target.headers ? target.headers : null
-                console.debug('[MoovieFrame] doLoad stream:', target.name, target.quality, playUrl)
-                await mountPlayer(playUrl)
+                await tryPlayStream(target)
                 updateQualityBtn()
                 loading.value = false
                 console.debug('[MoovieFrame] doLoad done')
@@ -422,6 +414,25 @@ export default defineComponent({
                 console.debug('[MoovieFrame] doLoad error:', e.message)
                 error.value = e.message || 'Failed to load stream'
                 loading.value = false; stopMessages()
+            }
+        }
+
+        async function tryPlayStream(s: HubStream) {
+            const useProxy = proxyEnabled && !!s.proxyUrl
+            const playUrl = useProxy ? s.proxyUrl! : s.url
+            const headers = !useProxy && s.headers ? (s.headers as Record<string, string>) : null
+            currentHeaders = headers
+            console.debug('[MoovieFrame] tryPlayStream:', s.name, s.quality, playUrl)
+            try {
+                await mountPlayer(playUrl)
+            } catch (e) {
+                if (!useProxy && s.proxyUrl && proxyEnabled) {
+                    console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
+                    currentHeaders = null
+                    await mountPlayer(s.proxyUrl)
+                } else {
+                    throw e
+                }
             }
         }
 
@@ -455,10 +466,7 @@ export default defineComponent({
             selectedStreamIndex.value = idx
             updateQualityBtn()
             const stream = streams.value[idx]
-            const useProxy = proxyEnabled && stream.proxyUrl
-            const playUrl = useProxy ? stream.proxyUrl : stream.url
-            currentHeaders = !useProxy && stream.headers ? stream.headers : null
-            await mountPlayer(playUrl)
+            await tryPlayStream(stream)
         }
 
         const startTrackingIfNeeded = () => {

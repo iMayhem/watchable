@@ -253,16 +253,12 @@ export default defineComponent({
                 hlsInstance.attachMedia(video)
             } else {
                 if (currentHeaders) {
-                    try {
-                        const res = await fetch(url, { headers: currentHeaders as Record<string, string> })
-                        if (res.ok) {
-                            const blob = await res.blob()
-                            video.src = URL.createObjectURL(blob)
-                        } else {
-                            video.src = url
-                        }
-                    } catch {
-                        video.src = url
+                    const res = await fetch(url, { headers: currentHeaders as Record<string, string> })
+                    if (res.ok) {
+                        const blob = await res.blob()
+                        video.src = URL.createObjectURL(blob)
+                    } else {
+                        throw new Error(`CDN returned ${res.status}`)
                     }
                 } else {
                     video.src = url
@@ -279,15 +275,26 @@ export default defineComponent({
             })
         }
 
-        function playStream(stream: HubStream) {
-            ensureProxySetting()
+        async function playStream(stream: HubStream) {
+            await ensureProxySetting()
             const useProxy = proxyEnabled && !!stream.proxyUrl
             const playUrl = useProxy ? stream.proxyUrl : stream.url
-            currentHeaders = !useProxy && stream.headers ? stream.headers : null
+            currentHeaders = !useProxy && stream.headers ? (stream.headers as Record<string, string>) : null
             activeStreamUrl.value = playUrl
             activeTitle.value = `${stream._providerName} · ${stream.quality || 'Auto'}`
             playbackError.value = ''
-            mountPlayer(playUrl)
+            try {
+                await mountPlayer(playUrl)
+            } catch (e) {
+                if (!useProxy && stream.proxyUrl && proxyEnabled) {
+                    console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', stream.proxyUrl)
+                    currentHeaders = null
+                    activeStreamUrl.value = stream.proxyUrl
+                    await mountPlayer(stream.proxyUrl)
+                } else {
+                    playbackError.value = 'Playback failed'
+                }
+            }
         }
 
         function copyUrl(stream: HubStream) {

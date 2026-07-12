@@ -1263,7 +1263,6 @@ export default defineComponent({
             }
         }
 
-        watch(() => [props.mediaId, props.mediaType, props.season, props.episode], () => { if (props.mediaId) { void doLoad(); startTrackingIfNeeded() } })
         watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
 
         function onKeydown(e: KeyboardEvent) {

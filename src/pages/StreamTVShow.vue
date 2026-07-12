@@ -77,7 +77,6 @@
             <div class="watch-stage__theater">
                 <div class="watch-stage__player-container">
                     <StreamFrame
-                        v-slot:default
                         v-if="!isMoovieServer"
                         :key="`stream-${currentSeason}-${currentEpisode}`"
                         :embed-url="currentEmbedUrl"

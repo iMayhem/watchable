@@ -2,8 +2,8 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getSupabaseClient } from '../lib/supabase'
 
-const AD_SRC = atob('aHR0cHM6Ly9jaGV3c2V2ZXIuY29tLzFhLzI2LzAwLzFhMjYwMDM4ZTdiOWE5ZTFkNWM5ODU1Nzg5NDA2YWVjLmpz')
-const SCRIPT_ID = 'adsterra-ad-script'
+const SCRIPT_ID = 'monetag-ad-script'
+const AD_DOMAIN = 'al5sm.com'
 
 let pollingId: ReturnType<typeof setInterval> | null = null
 let pollCount = 0
@@ -26,14 +26,14 @@ function injectAd() {
     if (document.getElementById(SCRIPT_ID)) return
     const script = document.createElement('script')
     script.id = SCRIPT_ID
-    script.src = AD_SRC
-    script.async = true
+    script.textContent = `(function(s){s.dataset.zone='11222206';s.src='https://${AD_DOMAIN}/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
     document.head.appendChild(script)
 }
 
 function removeAd() {
-    const el = document.getElementById(SCRIPT_ID)
-    if (el) el.remove()
+    const wrapper = document.getElementById(SCRIPT_ID)
+    if (wrapper) wrapper.remove()
+    document.querySelectorAll(`script[src*="${AD_DOMAIN}"]`).forEach(el => el.remove())
 }
 
 async function fetchAdSetting(key: string): Promise<boolean> {

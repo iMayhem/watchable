@@ -6,6 +6,12 @@
             <div class="moovie-frame__player">
                 <video ref="videoRef" class="moovie-frame__video" />
 
+                <div v-if="!loading && !error" class="moovie-frame__center-btn" @click="togglePlay">
+                    <div v-if="buffering" class="moovie-frame__spinner" />
+                    <svg v-else-if="!playing" width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19" /></svg>
+                    <svg v-else width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                </div>
+
                 <div v-if="error && !loading" class="moovie-frame__overlay moovie-frame__overlay--error">
                     <p class="eyebrow">Hub Error</p>
                     <h3>{{ error }}</h3>
@@ -63,10 +69,16 @@
                         step="0.1"
                         :value="currentTime"
                         @input="seek"
+                        @mousedown="seeking = true"
+                        @mouseup="seeking = false"
+                        @touchstart="seeking = true"
+                        @touchend="seeking = false"
                         aria-label="Seek"
                     />
-                    <div class="moovie-frame__seek-track">
-                        <div class="moovie-frame__seek-fill" :style="{ width: duration ? (currentTime / duration * 100) + '%' : '0%' }" />
+                    <div class="moovie-frame__seek-track" :class="{ 'is-active': seeking }">
+                        <div class="moovie-frame__seek-fill" :style="{ width: duration ? (currentTime / duration * 100) + '%' : '0%' }">
+                            <div class="moovie-frame__seek-thumb" />
+                        </div>
                     </div>
                 </div>
 
@@ -308,6 +320,7 @@ export default defineComponent({
         const selectedStreamIndex = ref(0)
         const qualityOpen = ref(false)
         const buffering = ref(false)
+        const seeking = ref(false)
         const settingsOpen = ref(false)
         const settingsSection = ref<string | null>(null)
         const selectedServer = ref('')
@@ -923,7 +936,7 @@ export default defineComponent({
             document.removeEventListener('fullscreenchange', onFullscreenChange)
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, qualityOpen, buffering, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, setPlaybackSpeed, togglePiP }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, setPlaybackSpeed, togglePiP }
     },
 })
 </script>
@@ -977,6 +990,20 @@ export default defineComponent({
         width: 100%;
         height: 100%;
         object-fit: contain;
+    }
+
+    &__center-btn {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        display: grid;
+        place-content: center;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s;
+        color: #fff;
+        &:hover { opacity: 1; }
+        @media (hover: none) { opacity: 1; }
     }
 
     &__overlay {
@@ -1037,11 +1064,11 @@ export default defineComponent({
 
 .moovie-frame__seekbar {
     position: absolute;
-    bottom: 44px;
+    bottom: 42px;
     left: 0;
     right: 0;
     z-index: 25;
-    height: 20px;
+    height: 28px;
     display: flex;
     align-items: center;
     padding: 0 10px;
@@ -1056,26 +1083,48 @@ export default defineComponent({
     height: 100%;
     opacity: 0;
     cursor: pointer;
-    z-index: 1;
+    z-index: 2;
     pointer-events: auto;
     margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .moovie-frame__seek-track {
+    position: relative;
     width: 100%;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-    overflow: hidden;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    overflow: visible;
     pointer-events: none;
+    transition: height 0.15s;
+    .moovie-frame__seekbar:hover &,
+    &.is-active { height: 7px; }
 }
 
 .moovie-frame__seek-fill {
+    position: relative;
     height: 100%;
     background: var(--ember, #ff5a1f);
-    border-radius: 2px;
-    transition: width 0.1s linear;
+    border-radius: 999px;
     pointer-events: none;
+    transition: width 0.1s linear;
+}
+
+.moovie-frame__seek-thumb {
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translateY(-50%) scale(0);
+    transition: transform 0.15s;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    .moovie-frame__seekbar:hover &,
+    .moovie-frame__seek-track.is-active & { transform: translateY(-50%) scale(1); }
 }
 
 .moovie-frame__controls {

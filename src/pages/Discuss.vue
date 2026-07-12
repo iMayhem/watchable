@@ -88,13 +88,7 @@
                                 </button>
                             </div>
                             <form @submit.prevent="handlePostComment" class="discuss-composer-form discuss-composer-form--stacked">
-                                <p v-if="!isLoggedIn" class="discuss-composer-anon-hint meta">
-                                    Posting as Anonymous.
-                                    <button type="button" class="discuss-composer-signin" @click="showAuthModal = true">
-                                        Sign in
-                                    </button>
-                                    to use your account.
-                                </p>
+
                                 <div class="discuss-composer-input-row">
                                     <div class="discuss-composer-input-wrapper">
                                         <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis" @click.stop="toggleEmojiPicker('lounge')">
@@ -226,13 +220,7 @@
                                     </button>
                                 </div>
                                 <form @submit.prevent="postSelectedMovieComment" class="discuss-composer-form discuss-composer-form--stacked">
-                                    <p v-if="!isLoggedIn" class="discuss-composer-anon-hint meta">
-                                        Posting as Anonymous.
-                                        <button type="button" class="discuss-composer-signin" @click="showAuthModal = true">
-                                            Sign in
-                                        </button>
-                                        to use your account.
-                                    </p>
+
                                     <div class="discuss-composer-input-row">
                                         <div class="discuss-composer-input-wrapper">
                                             <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis" @click.stop="toggleEmojiPicker('thread')">

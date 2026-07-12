@@ -105,10 +105,7 @@
                             </svg>
                         </button>
                     </form>
-                    <p v-if="!isLoggedIn" class="discuss-composer-anon-hint meta m-discuss__anon-hint">
-                        Posting as Anonymous.
-                        <button type="button" class="discuss-composer-signin" @click="showAuthModal = true">Sign In</button> to use your account.
-                    </p>
+
                 </footer>
             </section>
 
@@ -250,12 +247,7 @@
                             </svg>
                         </button>
                     </form>
-                    <p v-if="!isLoggedIn" class="meta m-discuss__anon-hint">
-                        Posting as Anonymous.
-                        <button type="button" class="m-discuss__inline-signin" @click="showAuthModal = true">
-                            Sign in
-                        </button>
-                    </p>
+
                 </footer>
             </section>
         </div>

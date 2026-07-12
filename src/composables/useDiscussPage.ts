@@ -271,6 +271,15 @@ export function useDiscussPage() {
         return `https://api.dicebear.com/7.x/${style}/svg?seed=${cleanName}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
     };
 
+    const getUsernameColor = (username: string) => {
+        const colors = ['#30c25b', '#e56c19', '#248cf6', '#d93a8d', '#a357f6', '#f64040', '#00bcd4', '#ffb300'];
+        let hash = 0;
+        for (let i = 0; i < username.length; i++) {
+            hash = username.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    };
+
     const getCategoryIcon = (type: string) => {
         if (type === 'tv') return '📺';
         if (type === 'anime') return '🌟';
@@ -510,6 +519,7 @@ export function useDiscussPage() {
         showAuthModal,
         chatBox,
         getAvatarUrl,
+        getUsernameColor,
         isSelf,
         formatTimeAgo,
         handleScroll,

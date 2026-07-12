@@ -25,19 +25,19 @@
             <section
                 v-if="activeTab === 'lounge' && !selectedMovieId"
                 class="m-discuss__panel"
-                aria-label="General lounge"
+                aria-label="Open chat"
             >
                 <div class="m-discuss__panel-head">
                     <div>
                         <p class="eyebrow">Live now</p>
-                        <h1 class="m-discuss__title">General lounge</h1>
+                        <h1 class="m-discuss__title">Open chat</h1>
                     </div>
                     <span v-if="isLoggedIn" class="meta m-discuss__badge">@{{ currentUsername }}</span>
                     <span v-else class="meta">Guest</span>
                 </div>
 
                 <div ref="chatBox" class="m-discuss__feed" @scroll="handleScroll">
-                    <div v-if="loading" class="m-discuss__loading meta">Loading lounge…</div>
+                    <div v-if="loading" class="m-discuss__loading meta">Loading chat…</div>
                     <div v-else-if="!comments.length" class="m-discuss__empty meta">
                         No messages yet. Say hello below.
                     </div>
@@ -48,42 +48,61 @@
                             class="m-discuss__msg"
                             :class="{ 'is-self': isSelf(c.username) }"
                         >
-                            <img :src="getAvatarUrl(c.username)" :alt="c.username" class="m-discuss__avatar" />
-                            <div class="m-discuss__bubble-wrap">
-                                <div class="m-discuss__meta">
-                                    <span class="m-discuss__user">{{ c.username }}</span>
-                                    <span class="meta">{{ formatTimeAgo(c.created_at) }}</span>
+                            <img v-if="!isSelf(c.username)" :src="getAvatarUrl(c.username)" :alt="c.username" class="m-discuss__avatar" />
+                            <div class="m-discuss__bubble">
+                                <div class="m-discuss__bubble-header" v-if="!isSelf(c.username)">
+                                    <span class="m-discuss__user" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
                                 </div>
                                 <p class="m-discuss__text">{{ c.content }}</p>
-                                <button
-                                    v-if="!c.isReported"
-                                    type="button"
-                                    class="m-discuss__report"
-                                    @click="openReportModal(c)"
-                                >
-                                    Report
-                                </button>
+                                <div class="m-discuss__bubble-footer">
+                                    <span class="m-discuss__time">{{ formatTimeAgo(c.created_at) }}</span>
+                                    <span v-if="isSelf(c.username)" class="m-discuss__status">
+                                        <svg viewBox="0 0 16 11" width="14" height="10" fill="currentColor">
+                                            <path d="M15 1.084L5.672 10.375 1.5 6.22 2.583 5.14l3.089 3.076 8.243-8.212L15 1.084z M11.531 1.084l-4.7 4.697-0.781-0.78-1.085 1.082 1.866 1.866 5.785-5.782-1.085-1.083z"/>
+                                        </svg>
+                                    </span>
+                                </div>
                             </div>
+                            <button
+                                v-if="!c.isReported && !isSelf(c.username)"
+                                type="button"
+                                class="m-discuss__report"
+                                @click="openReportModal(c)"
+                            >
+                                Report
+                            </button>
                         </article>
                     </div>
                 </div>
 
                 <footer class="m-discuss__composer">
                     <div v-if="!isLoggedIn" class="m-discuss__login-prompt">
-                        <p class="meta">Sign in to post in the lounge.</p>
+                        <p class="meta">Sign in to post in the chat.</p>
                         <button type="button" class="m-discuss__signin" @click="showAuthModal = true">Sign In</button>
                     </div>
                     <form v-else class="m-discuss__form" @submit.prevent="handlePostComment">
-                        <input
-                            v-model="newCommentText"
-                            type="text"
-                            class="m-discuss__input"
-                            placeholder="Share something with the lounge…"
-                            :disabled="submitting"
-                            required
-                        />
+                        <div class="m-discuss__input-wrapper">
+                            <button type="button" class="m-discuss__composer-btn" aria-label="Emojis">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                                </svg>
+                            </button>
+                            <input
+                                v-model="newCommentText"
+                                type="text"
+                                class="m-discuss__input"
+                                placeholder="Type a message…"
+                                :disabled="submitting"
+                                required
+                            />
+                        </div>
                         <button type="submit" class="m-discuss__send" :disabled="submitting || !newCommentText.trim()">
-                            Send
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                            </svg>
                         </button>
                     </form>
                 </footer>
@@ -172,13 +191,20 @@
                             class="m-discuss__msg"
                             :class="{ 'is-self': isSelf(c.username) }"
                         >
-                            <img :src="getAvatarUrl(c.username)" :alt="c.username" class="m-discuss__avatar" />
-                            <div class="m-discuss__bubble-wrap">
-                                <div class="m-discuss__meta">
-                                    <span class="m-discuss__user">{{ c.username }}</span>
-                                    <span class="meta">{{ formatTimeAgo(c.created_at) }}</span>
+                            <img v-if="!isSelf(c.username)" :src="getAvatarUrl(c.username)" :alt="c.username" class="m-discuss__avatar" />
+                            <div class="m-discuss__bubble">
+                                <div class="m-discuss__bubble-header" v-if="!isSelf(c.username)">
+                                    <span class="m-discuss__user" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
                                 </div>
                                 <p class="m-discuss__text">{{ c.content }}</p>
+                                <div class="m-discuss__bubble-footer">
+                                    <span class="m-discuss__time">{{ formatTimeAgo(c.created_at) }}</span>
+                                    <span v-if="isSelf(c.username)" class="m-discuss__status">
+                                        <svg viewBox="0 0 16 11" width="14" height="10" fill="currentColor">
+                                            <path d="M15 1.084L5.672 10.375 1.5 6.22 2.583 5.14l3.089 3.076 8.243-8.212L15 1.084z M11.531 1.084l-4.7 4.697-0.781-0.78-1.085 1.082 1.866 1.866 5.785-5.782-1.085-1.083z"/>
+                                        </svg>
+                                    </span>
+                                </div>
                             </div>
                         </article>
                     </div>
@@ -186,20 +212,32 @@
 
                 <footer class="m-discuss__composer">
                     <form class="m-discuss__form" @submit.prevent="postSelectedMovieComment">
-                        <input
-                            v-model="newSelectedCommentText"
-                            type="text"
-                            class="m-discuss__input"
-                            placeholder="Reply to discussion…"
-                            :disabled="submittingSelected"
-                            required
-                        />
+                        <div class="m-discuss__input-wrapper">
+                            <button type="button" class="m-discuss__composer-btn" aria-label="Emojis">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                                </svg>
+                            </button>
+                            <input
+                                v-model="newSelectedCommentText"
+                                type="text"
+                                class="m-discuss__input"
+                                placeholder="Type a message…"
+                                :disabled="submittingSelected"
+                                required
+                            />
+                        </div>
                         <button
                             type="submit"
                             class="m-discuss__send"
                             :disabled="submittingSelected || !newSelectedCommentText.trim()"
                         >
-                            Send
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                            </svg>
                         </button>
                     </form>
                     <p v-if="!isLoggedIn" class="meta m-discuss__anon-hint">
@@ -257,7 +295,7 @@ import { useSeo } from '../composables/useSeo';
 const activeTab = ref<'lounge' | 'reviews'>('lounge');
 
 const tabs = [
-    { label: 'Lounge', value: 'lounge' },
+    { label: 'Open Chat', value: 'lounge' },
     { label: 'Reviews', value: 'reviews' }
 ];
 
@@ -273,6 +311,7 @@ const {
     showAuthModal,
     chatBox,
     getAvatarUrl,
+    getUsernameColor,
     isSelf,
     formatTimeAgo,
     handleScroll,
@@ -305,7 +344,7 @@ const { updateSeo } = useSeo();
 onMounted(() => {
     updateSeo({
         title: 'Discuss — Moovie',
-        description: 'Community lounge and title reviews on Moovie.',
+        description: 'Open chat and title reviews on Moovie.',
         canonical: 'https://m.moovie.fun/discuss'
     });
 });
@@ -387,11 +426,17 @@ onMounted(() => {
         overflow-y: auto;
         border: 1px solid var(--rule);
         border-radius: var(--r-md);
-        background: var(--ink-850);
+        background-color: var(--ink-900); /* Match site aesthetics */
+        background-image: radial-gradient(rgba(245, 239, 228, 0.02) 1.2px, transparent 0),
+                          radial-gradient(rgba(245, 239, 228, 0.02) 1.2px, transparent 0);
+        background-size: 24px 24px;
+        background-position: 0 0, 12px 12px;
         padding: var(--s-3);
 
         &--reviews {
             margin-bottom: 0;
+            background-color: var(--ink-850);
+            background-image: none;
         }
     }
 
@@ -404,39 +449,74 @@ onMounted(() => {
     }
 
     &__messages {
-        display: grid;
-        gap: var(--s-3);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
 
     &__msg {
-        display: grid;
-        grid-template-columns: 2.25rem 1fr;
-        gap: var(--s-2);
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        max-width: 85%;
+        margin-bottom: 2px;
+        animation: messageFadeIn 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
 
-        &.is-self .m-discuss__text {
-            background: rgba(232, 122, 58, 0.15);
-            border-color: rgba(232, 122, 58, 0.35);
+        &.is-self {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+            max-width: 85%;
+
+            .m-discuss__bubble {
+                background: rgba(255, 90, 31, 0.15); /* Ember tinted dark bubble */
+                border: 1px solid rgba(255, 90, 31, 0.3);
+                border-radius: 8px 0 8px 8px;
+            }
+        }
+
+        &--review {
+            display: grid;
+            grid-template-columns: 2.25rem 1fr;
+            max-width: 100%;
+            animation: none;
+            align-items: start;
         }
     }
 
     &__avatar {
-        width: 2.25rem;
-        height: 2.25rem;
+        width: 1.75rem;
+        height: 1.75rem;
         border-radius: var(--r-pill);
         background: var(--ink-800);
+        flex-shrink: 0;
+        margin-bottom: 2px;
     }
 
-    &__meta {
+    &__bubble {
+        background: var(--ink-800); /* Match site aesthetics */
+        border: 1px solid var(--rule);
+        border-radius: 0 8px 8px 8px;
+        padding: 6px 8px 6px 10px;
+        word-break: break-word;
+        box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+        position: relative;
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.35rem 0.6rem;
-        align-items: baseline;
-        margin-bottom: 0.25rem;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 80px;
+        max-width: 100%;
+    }
+
+    &__bubble-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 1px;
     }
 
     &__user {
         font-family: var(--font-ui);
-        font-size: 0.82rem;
+        font-size: 0.72rem;
         font-weight: 600;
     }
 
@@ -451,36 +531,60 @@ onMounted(() => {
 
     &__text {
         margin: 0;
-        padding: var(--s-2) var(--s-3);
-        border-radius: var(--r-md);
-        border: 1px solid var(--rule);
-        background: var(--ink-800);
-        font-size: 0.9rem;
-        line-height: 1.45;
-        word-break: break-word;
+        font-family: var(--font-ui);
+        font-size: 0.88rem;
+        font-weight: 400;
+        line-height: 1.4;
+        color: #e9edef;
+    }
+
+    &__bubble-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+        align-self: flex-end;
+        margin-top: 1px;
+    }
+
+    &__time {
+        font-family: var(--font-ui);
+        font-size: 0.62rem;
+        font-weight: 400;
+        color: #8696a0;
+    }
+
+    &__status {
+        display: flex;
+        align-items: center;
+        color: #53bdeb; /* WhatsApp blue ticks */
+        flex-shrink: 0;
     }
 
     &__report,
     &__thread-btn {
-        margin-top: 0.35rem;
         padding: 0;
         border: 0;
         background: none;
         color: var(--bone-400);
         font-size: 0.72rem;
         text-decoration: underline;
+        align-self: center;
+        margin-top: 2px;
     }
 
     &__review-actions {
         display: flex;
         gap: var(--s-3);
         align-items: center;
+        margin-top: 0.35rem;
     }
 
     &__composer {
         flex-shrink: 0;
         display: grid;
         gap: var(--s-2);
+        padding: 6px 4px;
     }
 
     &__login-prompt {
@@ -493,9 +597,8 @@ onMounted(() => {
         border: 1px dashed var(--rule);
     }
 
-    &__signin,
-    &__send {
-        min-height: 2.75rem;
+    &__signin {
+        min-height: 2.5rem;
         padding: 0 var(--s-4);
         border-radius: var(--r-pill);
         border: 1px solid var(--ember);
@@ -507,20 +610,90 @@ onMounted(() => {
         text-transform: uppercase;
     }
 
+    &__send {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--ember); /* Match site aesthetics (ember) */
+        color: #fff;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 0 0 2px;
+        flex-shrink: 0;
+        cursor: pointer;
+        transition: transform 0.15s cubic-bezier(0.18, 0.89, 0.32, 1.28), background-color 0.15s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+
+        &:disabled {
+            background: var(--ink-800);
+            color: var(--bone-500);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        svg {
+            width: 18px;
+            height: 18px;
+        }
+    }
+
     &__form {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: var(--s-2);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        width: 100%;
+    }
+
+    &__input-wrapper {
+        display: flex;
+        align-items: center;
+        background: var(--ink-800); /* Match site aesthetics */
+        border: none;
+        border-radius: 24px;
+        flex: 1;
+        padding-inline: 12px;
+        gap: 6px;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        min-width: 0;
+    }
+
+    &__composer-btn {
+        background: transparent;
+        border: none;
+        color: #8696a0;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+        flex-shrink: 0;
+
+        &:hover {
+            color: #e9edef;
+        }
     }
 
     &__input {
-        min-height: 2.75rem;
-        padding: 0 var(--s-3);
-        border-radius: var(--r-pill);
-        border: 1px solid var(--rule-strong);
-        background: var(--ink-800);
-        color: var(--bone-50);
+        flex: 1;
+        min-height: 2.5rem;
+        background: transparent !important;
+        border: none !important;
+        color: #e9edef !important;
         font-size: 16px;
+        padding: 8px 4px;
+        min-width: 0;
+
+        &:focus {
+            outline: none !important;
+        }
+
+        &::placeholder {
+            color: #8696a0;
+        }
     }
 
     &__anon-hint {
@@ -603,6 +776,17 @@ onMounted(() => {
         color: var(--bone-200);
         font-size: 0.78rem;
         font-weight: 600;
+    }
+}
+
+@keyframes messageFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 </style>

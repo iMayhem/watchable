@@ -5,21 +5,22 @@
         <main id="main" class="discuss-page__main" role="main">
             <div class="discuss-page__content container-lm">
                 <div class="discuss-layout">
-                    <section class="discuss-chat discuss-chat--lounge" aria-label="General lounge">
+                    <section class="discuss-chat discuss-chat--lounge" aria-label="Open chat">
                         <header class="discuss-chat__header">
                             <div class="discuss-chat__header-copy">
                                 <p class="eyebrow discuss-chat__eyebrow">Live now</p>
-                                <h2 class="discuss-chat__panel-title">General lounge</h2>
+                                <h2 class="discuss-chat__panel-title">Open chat</h2>
                             </div>
                             <div class="discuss-chat__user-badge">
-                                <span v-if="isLoggedIn">Signed in as <strong>@{{ currentUsername }}</strong></span>
-                                <span v-else class="meta">Browsing as guest</span>
+                                <template v-if="guestName || isLoggedIn">
+                                    <span class="meta">Chatting as <strong>{{ isLoggedIn ? '@' + currentUsername : guestName }}</strong></span>
+                                </template>
+                                <span v-else class="meta">Join the conversation</span>
                             </div>
                         </header>
 
-                        <!-- Scrollable General Chat Feed -->
                         <div ref="chatBox" class="discuss-chat__messages" @scroll="handleScroll">
-                            <div v-if="loading" class="discuss-chat__shimmer-list" role="status" aria-label="Loading lounge feed…">
+                            <div v-if="loading" class="discuss-chat__shimmer-list" role="status" aria-label="Loading open chat feed…">
                                 <div v-for="i in 6" :key="`lounge-skel-${i}`" class="discuss-msg discuss-msg--shimmer">
                                     <div class="discuss-msg__avatar discuss-msg__avatar--shimmer" />
                                     <div class="discuss-msg__body discuss-msg__body--full">
@@ -49,18 +50,25 @@
                                         'discuss-msg--reported': c.isReported 
                                     }"
                                 >
-                                    <div class="discuss-msg__avatar">
+                                    <div class="discuss-msg__avatar" v-if="!isSelf(c.username)">
                                         <img :src="getAvatarUrl(c.username)" :alt="c.username" class="discuss-msg__avatar-img" />
                                     </div>
 
                                     <div class="discuss-msg__body">
-                                        <div class="discuss-msg__meta">
-                                            <span class="discuss-msg__username">{{ c.username }}</span>
-                                            <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
-                                            <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
-                                        </div>
                                         <div class="discuss-msg__bubble">
+                                            <div class="discuss-msg__bubble-header" v-if="!isSelf(c.username)">
+                                                <span class="discuss-msg__username" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
+                                                <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
+                                            </div>
                                             <p class="discuss-msg__text">{{ c.content }}</p>
+                                            <div class="discuss-msg__bubble-footer">
+                                                <span class="discuss-msg__time">{{ formatTimeAgo(c.created_at) }}</span>
+                                                <span v-if="isSelf(c.username)" class="discuss-msg__status">
+                                                    <svg viewBox="0 0 16 11" width="14" height="10" fill="currentColor">
+                                                        <path d="M15 1.084L5.672 10.375 1.5 6.22 2.583 5.14l3.089 3.076 8.243-8.212L15 1.084z M11.531 1.084l-4.7 4.697-0.781-0.78-1.085 1.082 1.866 1.866 5.785-5.782-1.085-1.083z"/>
+                                                    </svg>
+                                                </span>
+                                            </div>
                                         </div>
                                         <div class="discuss-msg__actions">
                                             <button 
@@ -79,35 +87,46 @@
 
                         <!-- Chat Composer Bar -->
                         <footer class="discuss-chat__composer">
-                            <div v-if="!isLoggedIn" class="discuss-chat__login-prompt">
-                                <p class="meta">You must be signed in to post comments in the live lounge.</p>
-                                <button @click="showAuthModal = true" class="btn btn-primary btn-sm login-prompt-btn">
-                                    Sign In
-                                </button>
-                            </div>
-
-                            <template v-else>
-                                <form @submit.prevent="handlePostComment" class="discuss-composer-form">
+                            <form @submit.prevent="handlePostComment" class="discuss-composer-form discuss-composer-form--stacked">
+                                <div v-if="!isLoggedIn" class="discuss-composer-name-row">
                                     <input 
                                         type="text" 
-                                        v-model="newCommentText" 
-                                        placeholder="Share something with the lounge…"
-                                        required
-                                        class="discuss-chat__message-input"
-                                        :disabled="submitting"
+                                        v-model="guestName" 
+                                        placeholder="Your name (optional)"
+                                        maxlength="30"
+                                        class="discuss-chat__message-input discuss-chat__name-input"
                                     />
+                                </div>
+                                <div class="discuss-composer-input-row">
+                                    <div class="discuss-composer-input-wrapper">
+                                        <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis">
+                                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                                            </svg>
+                                        </button>
+                                        <input 
+                                            type="text" 
+                                            v-model="newCommentText" 
+                                            placeholder="Type a message…"
+                                            required
+                                            class="discuss-chat__message-input"
+                                            :disabled="submitting"
+                                        />
+                                    </div>
                                     <button 
                                         type="submit" 
-                                        class="btn btn-primary discuss-chat__send-btn"
+                                        class="discuss-chat__send-btn"
                                         :disabled="submitting || !newCommentText.trim()"
                                     >
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                            <line x1="22" y1="2" x2="11" y2="13"></line>
-                                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
                                         </svg>
                                     </button>
-                                </form>
-                            </template>
+                                </div>
+                            </form>
                         </footer>
                     </section>
 
@@ -166,18 +185,25 @@
                                             'discuss-msg--reported': c.isReported 
                                         }"
                                     >
-                                        <div class="discuss-msg__avatar">
+                                        <div class="discuss-msg__avatar" v-if="!isSelf(c.username)">
                                             <img :src="getAvatarUrl(c.username)" :alt="c.username" class="discuss-msg__avatar-img" />
                                         </div>
 
                                         <div class="discuss-msg__body">
-                                            <div class="discuss-msg__meta">
-                                                <span class="discuss-msg__username">{{ c.username }}</span>
-                                                <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
-                                                <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
-                                            </div>
                                             <div class="discuss-msg__bubble">
+                                                <div class="discuss-msg__bubble-header" v-if="!isSelf(c.username)">
+                                                    <span class="discuss-msg__username" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
+                                                    <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
+                                                </div>
                                                 <p class="discuss-msg__text">{{ c.content }}</p>
+                                                <div class="discuss-msg__bubble-footer">
+                                                    <span class="discuss-msg__time">{{ formatTimeAgo(c.created_at) }}</span>
+                                                    <span v-if="isSelf(c.username)" class="discuss-msg__status">
+                                                        <svg viewBox="0 0 16 11" width="14" height="10" fill="currentColor">
+                                                            <path d="M15 1.084L5.672 10.375 1.5 6.22 2.583 5.14l3.089 3.076 8.243-8.212L15 1.084z M11.531 1.084l-4.7 4.697-0.781-0.78-1.085 1.082 1.866 1.866 5.785-5.782-1.085-1.083z"/>
+                                                        </svg>
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div class="discuss-msg__actions">
                                                 <button 
@@ -205,22 +231,31 @@
                                         to use your account.
                                     </p>
                                     <div class="discuss-composer-input-row">
-                                        <input 
-                                            type="text" 
-                                            v-model="newSelectedCommentText" 
-                                            :placeholder="'Reply to discussion...'" 
-                                            required
-                                            class="discuss-chat__message-input"
-                                            :disabled="submittingSelected"
-                                        />
+                                        <div class="discuss-composer-input-wrapper">
+                                            <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis">
+                                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <circle cx="12" cy="12" r="10"></circle>
+                                                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                                                </svg>
+                                            </button>
+                                            <input 
+                                                type="text" 
+                                                v-model="newSelectedCommentText" 
+                                                placeholder="Type a message…"
+                                                required
+                                                class="discuss-chat__message-input"
+                                                :disabled="submittingSelected"
+                                            />
+                                        </div>
                                         <button 
                                             type="submit" 
-                                            class="btn btn-primary discuss-chat__send-btn"
+                                            class="discuss-chat__send-btn"
                                             :disabled="submittingSelected || !newSelectedCommentText.trim()"
                                         >
-                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
                                             </svg>
                                         </button>
                                     </div>
@@ -402,6 +437,7 @@ export default defineComponent({
         const submittingMovie = ref(false);
         const newCommentText = ref('');
         const newMovieCommentText = ref('');
+        const guestName = ref('');
         
         const isLoggedIn = ref(false);
         const currentUsername = ref('');
@@ -679,8 +715,16 @@ export default defineComponent({
             const styleIndex = Math.abs(hash) % styles.length;
             const style = styles[styleIndex];
             
-            // Add subtle colorful gradients/backgrounds to make them look extremely premium
             return `https://api.dicebear.com/7.x/${style}/svg?seed=${cleanName}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+        };
+
+        const getUsernameColor = (username: string) => {
+            const colors = ['#30c25b', '#e56c19', '#248cf6', '#d93a8d', '#a357f6', '#f64040', '#00bcd4', '#ffb300'];
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
         };
 
         const getCategoryIcon = (type: string) => {
@@ -817,14 +861,12 @@ export default defineComponent({
         };
 
         const handlePostComment = async () => {
-            if (!isLoggedIn.value) {
-                showAuthModal.value = true;
-                return;
-            }
             if (!newCommentText.value.trim()) return;
             submitting.value = true;
 
-            const nameToPost = `@${currentUsername.value}`;
+            const nameToPost = isLoggedIn.value
+                ? `@${currentUsername.value}`
+                : guestName.value.trim() || 'Anonymous';
 
             try {
                 const supabase = await getSupabaseClient();
@@ -928,7 +970,7 @@ export default defineComponent({
         onMounted(() => {
             updateSeo({
                 title: 'Discuss — Moovie',
-                description: 'Community lounge chatter and title-specific reviews on Moovie.',
+                description: 'Open chat and title-specific reviews on Moovie.',
                 canonical: 'https://moovie.fun/discuss'
             });
             window.addEventListener('movora_auth_change', checkAuth);
@@ -960,11 +1002,13 @@ export default defineComponent({
             newCommentText,
             newMovieCommentText,
             submittingMovie,
+            guestName,
             isLoggedIn,
             currentUsername,
             showAuthModal,
             chatBox,
             getAvatarUrl,
+            getUsernameColor,
             isSelf,
             formatTimeAgo,
             handleScroll,
@@ -1127,11 +1171,15 @@ export default defineComponent({
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: var(--s-4);
+        padding: var(--s-5);
         display: flex;
         flex-direction: column;
-        gap: var(--s-4);
-        background: rgba(11, 10, 8, 0.35);
+        gap: 8px;
+        background-color: var(--ink-900); /* Match site aesthetics */
+        background-image: radial-gradient(rgba(245, 239, 228, 0.02) 1.2px, transparent 0),
+                          radial-gradient(rgba(245, 239, 228, 0.02) 1.2px, transparent 0);
+        background-size: 24px 24px;
+        background-position: 0 0, 12px 12px;
         position: relative;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
@@ -1143,7 +1191,7 @@ export default defineComponent({
             background: transparent;
         }
         &::-webkit-scrollbar-thumb {
-            background: rgba(245, 239, 228, 0.12);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 3px;
         }
     }
@@ -1176,44 +1224,74 @@ export default defineComponent({
     &__message-list {
         display: flex;
         flex-direction: column;
-        gap: var(--s-4);
+        gap: 6px;
     }
 
     &__composer {
         border-top: 1px solid var(--rule);
-        padding: var(--s-3) var(--s-4);
+        padding: 10px 16px;
         display: flex;
         flex-direction: column;
-        gap: var(--s-3);
+        gap: var(--s-2);
         flex-shrink: 0;
-        background: rgba(245, 239, 228, 0.02);
+        background: var(--ink-850); /* Match site aesthetics */
     }
 
     &__message-input {
         flex: 1;
-        background: var(--ink-800);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-sm);
-        @include discuss-nav-type(var(--bone-50));
+        background: transparent !important;
+        border: none !important;
+        color: #e9edef !important;
+        font-family: var(--font-ui);
+        font-size: 0.95rem;
         font-weight: 400;
-        padding: 0.7rem var(--s-3);
-        transition: border-color var(--dur-fast) var(--ease-out);
+        padding: 10px 4px;
+        min-width: 0;
 
         &:focus {
-            border-color: rgba(255, 90, 31, 0.45);
-            outline: none;
+            outline: none !important;
+        }
+
+        &::placeholder {
+            color: #8696a0;
         }
     }
 
     &__send-btn {
-        width: 38px;
-        height: 38px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
+        background: var(--ember); /* Match site aesthetics (ember) */
+        color: #fff;
+        border: none;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0;
+        padding: 0 0 0 2px;
         flex-shrink: 0;
+        cursor: pointer;
+        transition: transform 0.15s cubic-bezier(0.18, 0.89, 0.32, 1.28), background-color 0.15s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+
+        &:hover {
+            transform: scale(1.06);
+            background: var(--ember-600);
+        }
+        &:active {
+            transform: scale(0.94);
+        }
+        &:disabled {
+            background: var(--ink-800);
+            color: var(--bone-500);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        svg {
+            width: 20px;
+            height: 20px;
+        }
     }
 
     /* Login prompt styling */
@@ -1236,6 +1314,35 @@ export default defineComponent({
         .login-prompt-btn {
             white-space: nowrap;
         }
+    }
+}
+
+.discuss-composer-input-wrapper {
+    display: flex;
+    align-items: center;
+    background: var(--ink-800); /* Match site aesthetics */
+    border: none;
+    border-radius: 24px;
+    flex: 1;
+    padding-inline: 12px;
+    gap: 8px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+.discuss-composer-btn {
+    background: transparent;
+    border: none;
+    color: #8696a0; /* WhatsApp icons */
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    flex-shrink: 0;
+
+    &:hover {
+        color: #e9edef;
     }
 }
 
@@ -1273,27 +1380,27 @@ export default defineComponent({
 /* Chat bubble styling */
 .discuss-msg {
     display: flex;
-    gap: var(--s-3);
-    align-items: flex-start;
-    max-width: 85%;
+    gap: 8px;
+    align-items: flex-end;
+    max-width: 75%;
+    margin-bottom: 4px;
+    animation: messageFadeIn 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
 
     &--self {
         align-self: flex-end;
         flex-direction: row-reverse;
-        max-width: 85%;
+        max-width: 75%;
 
         .discuss-msg__body {
             align-items: flex-end;
         }
 
         .discuss-msg__bubble {
-            background: rgba(255, 90, 31, 0.1);
-            border-color: rgba(255, 90, 31, 0.28);
-            border-radius: var(--r-md) var(--r-sm) var(--r-md) var(--r-md);
-        }
-
-        .discuss-msg__meta {
-            flex-direction: row-reverse;
+            background: rgba(255, 90, 31, 0.15); /* Ember tinted dark bubble */
+            border: 1px solid rgba(255, 90, 31, 0.3);
+            border-radius: 8px 0 8px 8px;
+            color: #e9edef;
+            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
         }
 
         .discuss-msg__actions {
@@ -1304,19 +1411,20 @@ export default defineComponent({
     &--movie-card {
         max-width: 100%;
         width: 100%;
+        animation: none;
     }
 
     &--reported {
         opacity: 0.6;
         .discuss-msg__bubble {
-            background: rgba(239, 68, 68, 0.03) !important;
-            border-color: rgba(239, 68, 68, 0.2) !important;
+            background: rgba(239, 68, 68, 0.1) !important;
+            border: 1px solid rgba(239, 68, 68, 0.3) !important;
         }
     }
 
     &__avatar {
-        width: 34px;
-        height: 34px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -1324,7 +1432,8 @@ export default defineComponent({
         flex-shrink: 0;
         overflow: hidden;
         background: var(--ink-800);
-        border: 1px solid var(--rule);
+        border: none;
+        margin-bottom: 2px;
     }
 
     &__avatar-img {
@@ -1337,31 +1446,56 @@ export default defineComponent({
     &__body {
         display: flex;
         flex-direction: column;
-        gap: var(--s-1);
+        gap: 2px;
+        max-width: 100%;
 
         &--full {
             width: 100%;
         }
     }
 
-    &__meta {
+    &__bubble {
+        background: var(--ink-800); /* Match site aesthetics */
+        border: 1px solid var(--rule);
+        border-radius: 0 8px 8px 8px;
+        padding: 6px 8px 6px 10px;
+        word-break: break-word;
+        box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 80px;
+
+        &--movie {
+            border-radius: 8px;
+            background: rgba(245, 239, 228, 0.04);
+            border: 1px solid var(--rule);
+        }
+    }
+
+    &__bubble-header {
         display: flex;
         align-items: center;
-        gap: var(--s-2);
-        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 2px;
     }
 
     &__username {
-        @include discuss-nav-type(var(--bone-50));
+        font-family: var(--font-ui);
+        font-size: 0.75rem;
+        font-weight: 600;
     }
 
     &__badge {
-        @include discuss-nav-type(var(--ember));
-        font-size: var(--fs-xs);
-        background: rgba(255, 90, 31, 0.06);
-        padding: 0.1rem 0.45rem;
-        border-radius: var(--r-pill);
-        border: 1px solid rgba(255, 90, 31, 0.15);
+        font-family: var(--font-ui);
+        font-size: 0.65rem;
+        font-weight: 500;
+        background: rgba(255, 90, 31, 0.12);
+        color: var(--ember);
+        padding: 0px 5px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 90, 31, 0.25);
     }
 
     &__topic-badge {
@@ -1372,32 +1506,37 @@ export default defineComponent({
         border: 1px solid var(--rule);
     }
 
-    &__time {
-        font-family: var(--font-mono);
-        font-size: var(--fs-xs);
-        font-weight: 500;
-        color: var(--bone-300);
-        text-transform: uppercase;
-        letter-spacing: 0;
-    }
-
-    &__bubble {
-        background: rgba(245, 239, 228, 0.04);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-sm) var(--r-md) var(--r-md) var(--r-md);
-        padding: 0.6rem 0.85rem;
-        word-break: break-word;
-
-        &--movie {
-            border-radius: var(--r-sm);
-        }
-    }
-
     &__text {
         margin: 0;
-        @include discuss-nav-type(var(--bone-200));
+        font-family: var(--font-ui);
+        font-size: 0.88rem;
         font-weight: 400;
-        line-height: 1.45;
+        line-height: 1.4;
+        color: #e9edef;
+    }
+
+    &__bubble-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+        align-self: flex-end;
+        margin-top: 1px;
+    }
+
+    &__time {
+        font-family: var(--font-ui);
+        font-size: 0.65rem;
+        font-weight: 400;
+        color: #8696a0;
+        text-transform: none;
+    }
+
+    &__status {
+        display: flex;
+        align-items: center;
+        color: #53bdeb; /* WhatsApp blue ticks */
+        flex-shrink: 0;
     }
 
     &__movie-footer {
@@ -1635,6 +1774,17 @@ export default defineComponent({
 @keyframes shimmer {
     100% {
         transform: translateX(100%);
+    }
+}
+
+@keyframes messageFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 </style>

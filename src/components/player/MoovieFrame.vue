@@ -78,6 +78,7 @@ interface HubStream {
     quality: string
     type: string
     headers?: Record<string, string>
+    providerName?: string
 }
 
 interface HubSearchResult {
@@ -339,6 +340,7 @@ export default defineComponent({
             for (const group of data.results || []) {
                 for (const stream of group.streams || []) {
                     if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = 'https://proxy.moovie.fun' + stream.proxyUrl
+                    stream.providerName = group.providerName
                     all.push(stream)
                 }
             }
@@ -362,6 +364,8 @@ export default defineComponent({
             return rank + typeBonus
         }
 
+        const PROVIDER_PRIORITY = ['Poseidon', 'Athena', 'Zeus']
+
         function pickBest(streams: HubStream[]): HubStream | null {
             if (!streams.length) return null
             let best = streams[0]
@@ -383,12 +387,8 @@ export default defineComponent({
                 const all = await fetchStreams()
                 streams.value = all
                 if (!all.length) throw new Error('No streamable sources found')
-                const best = pickBest(all)
-                const idx = best ? all.indexOf(best) : 0
-                selectedStreamIndex.value = idx
-                const target = best || all[0]
                 await ensureProxySetting()
-                await tryPlayStream(target)
+                await tryProviderChain(all)
                 updateQualityBtn()
                 loading.value = false
                 console.debug('[MoovieFrame] doLoad done')
@@ -397,6 +397,33 @@ export default defineComponent({
                 error.value = e.message || 'Failed to load stream'
                 loading.value = false; stopMessages()
             }
+        }
+
+        async function tryProviderChain(all: HubStream[]) {
+            const tried = new Set<string>()
+            for (const provider of PROVIDER_PRIORITY) {
+                const group = all.filter(s => s.providerName === provider)
+                if (!group.length) continue
+                const best = pickBest(group)
+                if (!best) continue
+                tried.add(provider)
+                try {
+                    await tryPlayStream(best)
+                    return
+                } catch (e) {
+                    console.debug('[MoovieFrame]', provider, 'failed, trying next:', (e as Error).message)
+                }
+            }
+            // Fallback: try any remaining untried stream
+            const remaining = all.filter(s => !tried.has(s.providerName!))
+            const fallback = pickBest(remaining)
+            if (fallback) {
+                try {
+                    await tryPlayStream(fallback)
+                    return
+                } catch { /* give up */ }
+            }
+            throw new Error('All providers failed')
         }
 
         async function tryPlayStream(s: HubStream) {

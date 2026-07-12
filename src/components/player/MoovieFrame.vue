@@ -56,10 +56,10 @@ import { startProgressTracking } from '../../composables/useProgress'
 import { getSupabaseClient } from '../../lib/supabase'
 
 const HUB_VPS = 'https://proxy.moovie.fun/api/search'
+const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
 
         let proxyEnabled = true
         let proxyFetched = false
-        let currentHeaders: Record<string, string> | null = null
 
         async function ensureProxySetting() {
             if (proxyFetched) return
@@ -230,33 +230,15 @@ export default defineComponent({
             container.appendChild(video)
 
             if (isHls && HlsCtor && HlsCtor.isSupported()) {
-                const hlsConfig: any = {
+                hlsInstance = new HlsCtor({
                     enableWorker: true,
                     maxBufferLength: 30,
                     maxMaxBufferLength: 60,
-                }
-                if (currentHeaders) {
-                    hlsConfig.xhrSetup = (xhr: XMLHttpRequest) => {
-                        for (const [k, v] of Object.entries(currentHeaders!)) {
-                            xhr.setRequestHeader(k, v)
-                        }
-                    }
-                }
-                hlsInstance = new HlsCtor(hlsConfig)
+                })
                 hlsInstance.loadSource(url)
                 hlsInstance.attachMedia(video)
             } else {
-                if (currentHeaders) {
-                    const res = await fetch(url, { headers: currentHeaders as Record<string, string> })
-                    if (res.ok) {
-                        const blob = await res.blob()
-                        video.src = URL.createObjectURL(blob)
-                    } else {
-                        throw new Error(`CDN returned ${res.status}`)
-                    }
-                } else {
-                    video.src = url
-                }
+                video.src = url
             }
 
             const isNarrow = window.matchMedia('(max-width: 1023px)').matches
@@ -419,16 +401,25 @@ export default defineComponent({
 
         async function tryPlayStream(s: HubStream) {
             const useProxy = proxyEnabled && !!s.proxyUrl
-            const playUrl = useProxy ? s.proxyUrl! : s.url
-            const headers = !useProxy && s.headers ? (s.headers as Record<string, string>) : null
-            currentHeaders = headers
+            let playUrl: string
+            if (useProxy) {
+                playUrl = s.proxyUrl!
+            } else if (s.headers && Object.keys(s.headers).length) {
+                const ue = encodeURIComponent(s.url)
+                const params = new URLSearchParams({ url: ue })
+                if (s.headers.Referer) params.set('referer', s.headers.Referer)
+                if (s.headers.Origin) params.set('origin', s.headers.Origin)
+                if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
+                playUrl = `${CF_HEADER_PROXY}/?${params}`
+            } else {
+                playUrl = s.url
+            }
             console.debug('[MoovieFrame] tryPlayStream:', s.name, s.quality, playUrl)
             try {
                 await mountPlayer(playUrl)
             } catch (e) {
                 if (!useProxy && s.proxyUrl && proxyEnabled) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
-                    currentHeaders = null
                     await mountPlayer(s.proxyUrl)
                 } else {
                     throw e

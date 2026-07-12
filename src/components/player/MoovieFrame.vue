@@ -405,8 +405,7 @@ export default defineComponent({
             if (useProxy) {
                 playUrl = s.proxyUrl!
             } else if (s.headers && Object.keys(s.headers).length) {
-                const ue = encodeURIComponent(s.url)
-                const params = new URLSearchParams({ url: ue })
+                const params = new URLSearchParams({ url: s.url })
                 if (s.headers.Referer) params.set('referer', s.headers.Referer)
                 if (s.headers.Origin) params.set('origin', s.headers.Origin)
                 if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])

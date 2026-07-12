@@ -172,7 +172,7 @@ export default defineComponent({
         function streamUrl(s: HubStream): string {
             if (proxyEnabled && s.proxyUrl) return s.proxyUrl
             if (s.headers && Object.keys(s.headers).length) {
-                const params = new URLSearchParams({ url: encodeURIComponent(s.url) })
+                const params = new URLSearchParams({ url: s.url })
                 if (s.headers.Referer) params.set('referer', s.headers.Referer)
                 if (s.headers.Origin) params.set('origin', s.headers.Origin)
                 if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
@@ -273,7 +273,7 @@ export default defineComponent({
             if (useProxy) {
                 playUrl = stream.proxyUrl
             } else if (stream.headers && Object.keys(stream.headers).length) {
-                const params = new URLSearchParams({ url: encodeURIComponent(stream.url) })
+                const params = new URLSearchParams({ url: stream.url })
                 if (stream.headers.Referer) params.set('referer', stream.headers.Referer)
                 if (stream.headers.Origin) params.set('origin', stream.headers.Origin)
                 if (stream.headers['User-Agent']) params.set('ua', stream.headers['User-Agent'])

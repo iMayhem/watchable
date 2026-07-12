@@ -54,6 +54,22 @@
                     </li>
                 </ul>
 
+                <div v-if="!loading && !error" class="moovie-frame__seekbar">
+                    <input
+                        type="range"
+                        class="moovie-frame__seek-input"
+                        min="0"
+                        :max="duration || 0"
+                        step="0.1"
+                        :value="currentTime"
+                        @input="seek"
+                        aria-label="Seek"
+                    />
+                    <div class="moovie-frame__seek-track">
+                        <div class="moovie-frame__seek-fill" :style="{ width: duration ? (currentTime / duration * 100) + '%' : '0%' }" />
+                    </div>
+                </div>
+
                 <div v-if="!loading && !error" class="moovie-frame__controls">
                     <div class="moovie-frame__controls-left">
                         <button class="moovie-frame__ctrl-btn" @click="togglePlay" aria-label="Play/Pause">
@@ -860,6 +876,13 @@ export default defineComponent({
             return `${m}:${s.toString().padStart(2, '0')}`
         }
 
+        function seek(e: Event) {
+            const video = videoRef.value
+            if (!video) return
+            const val = parseFloat((e.target as HTMLInputElement).value)
+            if (isFinite(val)) video.currentTime = val
+        }
+
         function setPlaybackSpeed(speed: number) {
             playbackSpeed.value = speed
             settingsSection.value = null
@@ -900,7 +923,7 @@ export default defineComponent({
             document.removeEventListener('fullscreenchange', onFullscreenChange)
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, qualityOpen, buffering, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, setPlaybackSpeed, togglePiP }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, qualityOpen, buffering, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, setPlaybackSpeed, togglePiP }
     },
 })
 </script>
@@ -1011,6 +1034,49 @@ export default defineComponent({
 }
 
 @keyframes moovie-spin { to { transform: rotate(360deg); } }
+
+.moovie-frame__seekbar {
+    position: absolute;
+    bottom: 44px;
+    left: 0;
+    right: 0;
+    z-index: 25;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    pointer-events: none;
+    cursor: pointer;
+}
+
+.moovie-frame__seek-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+    pointer-events: auto;
+    margin: 0;
+}
+
+.moovie-frame__seek-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.moovie-frame__seek-fill {
+    height: 100%;
+    background: var(--ember, #ff5a1f);
+    border-radius: 2px;
+    transition: width 0.1s linear;
+    pointer-events: none;
+}
 
 .moovie-frame__controls {
     position: absolute;

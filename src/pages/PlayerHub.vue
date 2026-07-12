@@ -150,28 +150,28 @@ import 'plyr/dist/plyr.css'
 import { useHubScraper, type HubStream } from '../composables/useHubScraper'
 import { getSupabaseClient } from '../lib/supabase'
 
-let proxyEnabled = true
-let proxyFetched = false
-
-async function ensureProxySetting() {
-    if (proxyFetched) return
-    proxyFetched = true
-    try {
-        const client = await getSupabaseClient()
-        const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
-        if (data) proxyEnabled = data.value === 'true'
-    } catch { /* keep default */ }
-}
-
-function streamUrl(s: HubStream): string {
-    return proxyEnabled && s.proxyUrl ? s.proxyUrl : s.url
-}
-
 export default defineComponent({
     name: 'PlayerHub',
     setup() {
         const router = useRouter()
         const { loading, error, results, totalStreams, search } = useHubScraper()
+
+        let proxyEnabled = true
+        let proxyFetched = false
+
+        async function ensureProxySetting() {
+            if (proxyFetched) return
+            proxyFetched = true
+            try {
+                const client = await getSupabaseClient()
+                const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
+                if (data) proxyEnabled = data.value === 'true'
+            } catch { /* keep default */ }
+        }
+
+        function streamUrl(s: HubStream): string {
+            return proxyEnabled && s.proxyUrl ? s.proxyUrl : s.url
+        }
 
         const searchQuery = ref('550')
         const mediaType = ref('movie')
@@ -309,7 +309,7 @@ export default defineComponent({
             loading, results, totalStreams, searched,
             timing, activeStreamUrl, activeTitle, playbackError,
             artContainer, bloomRef,
-            doSearch, playStream, copyUrl, clearResults, goBack,
+            doSearch, playStream, copyUrl, streamUrl, clearResults, goBack,
         }
     },
 })

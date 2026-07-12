@@ -60,6 +60,15 @@
                     </li>
                 </ul>
 
+                <div v-if="!loading && !error && visibleCues.length" class="moovie-frame__subtitle-overlay" :style="subtitleOverlayStyle">
+                    <p
+                        v-for="(cue, i) in visibleCues"
+                        :key="i"
+                        class="moovie-frame__subtitle-cue"
+                        :style="subtitleCueStyle"
+                    >{{ cue.text }}</p>
+                </div>
+
                 <div v-if="!loading && !error" class="moovie-frame__seekbar">
                     <input
                         type="range"
@@ -169,7 +178,7 @@
                             @click="settingsSection = 'captions'"
                         >
                             <span class="moovie-frame__settings-item-label">Captions</span>
-                            <span class="moovie-frame__settings-item-value">{{ currentSubtitleLabel }}</span>
+                            <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : 'Off' }}</span>
                             <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                         </button>
                     </template>
@@ -252,6 +261,97 @@
                         >
                             <span>{{ track.name }}<span v-if="track.lang" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
                         </button>
+                        <div class="moovie-frame__settings-divider" />
+                        <button
+                            class="moovie-frame__settings-item"
+                            @click="settingsSection = 'captions-style'"
+                        >
+                            <span class="moovie-frame__settings-item-label">Style</span>
+                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                        </button>
+                    </template>
+
+                    <template v-if="settingsSection === 'captions-style'">
+                        <div class="moovie-frame__settings-label">Font Size</div>
+                        <div class="moovie-frame__settings-options">
+                            <button
+                                v-for="s in FONT_SIZES"
+                                :key="s"
+                                class="moovie-frame__settings-chip"
+                                :class="{ 'is-active': subFontSize === s }"
+                                @click="setSubStyle('fontSize', s)"
+                            >{{ s }}</button>
+                        </div>
+                        <div class="moovie-frame__settings-label">Opacity</div>
+                        <div class="moovie-frame__settings-options">
+                            <button
+                                v-for="o in OPACITIES"
+                                :key="o"
+                                class="moovie-frame__settings-chip"
+                                :class="{ 'is-active': subOpacity === o }"
+                                @click="setSubStyle('opacity', o)"
+                            >{{ Math.round(o * 100) }}%</button>
+                        </div>
+                        <div class="moovie-frame__settings-label">Text Color</div>
+                        <div class="moovie-frame__settings-options">
+                            <button
+                                v-for="c in TEXT_COLORS"
+                                :key="c"
+                                class="moovie-frame__settings-chip moovie-frame__settings-chip--color"
+                                :class="{ 'is-active': subTextColor === c }"
+                                :style="{ background: c }"
+                                @click="setSubStyle('textColor', c)"
+                            />
+                        </div>
+                        <div class="moovie-frame__settings-label">Background Opacity</div>
+                        <div class="moovie-frame__settings-options">
+                            <button
+                                v-for="o in OPACITIES"
+                                :key="o"
+                                class="moovie-frame__settings-chip"
+                                :class="{ 'is-active': subBgOpacity === o }"
+                                @click="setSubStyle('bgOpacity', o)"
+                            >{{ Math.round(o * 100) }}%</button>
+                        </div>
+                        <div class="moovie-frame__settings-label">Background Color</div>
+                        <div class="moovie-frame__settings-options">
+                            <button
+                                v-for="c in BG_COLORS"
+                                :key="c"
+                                class="moovie-frame__settings-chip moovie-frame__settings-chip--color"
+                                :class="{ 'is-active': subBgColor === c }"
+                                :style="{ background: c, borderColor: c === '#ffffff' || c === '#f0eee3' ? 'rgba(255,255,255,0.3)' : undefined }"
+                                @click="setSubStyle('bgColor', c)"
+                            />
+                        </div>
+                        <div class="moovie-frame__settings-label">Background Blur</div>
+                        <div class="moovie-frame__settings-options">
+                            <button
+                                v-for="b in BG_BLURS"
+                                :key="b"
+                                class="moovie-frame__settings-chip"
+                                :class="{ 'is-active': subBgBlur === b }"
+                                @click="setSubStyle('bgBlur', b)"
+                            >{{ b === 0 ? 'Off' : Math.round(b * 100) + '%' }}</button>
+                        </div>
+                        <div class="moovie-frame__settings-label">Bold</div>
+                        <div class="moovie-frame__settings-options">
+                            <button
+                                class="moovie-frame__settings-chip"
+                                :class="{ 'is-active': subBold }"
+                                @click="setSubStyle('bold', !subBold)"
+                            >{{ subBold ? 'On' : 'Off' }}</button>
+                        </div>
+                        <div class="moovie-frame__settings-label">Position</div>
+                        <div class="moovie-frame__settings-options moovie-frame__settings-options--center">
+                            <button class="moovie-frame__settings-chip moovie-frame__settings-chip--icon" @click="setSubStyle('position', Math.min(95, subPosition + 5))" aria-label="Move up">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 14l5-5 5 5z"/></svg>
+                            </button>
+                            <span class="moovie-frame__settings-pos-value">{{ subPosition }}%</span>
+                            <button class="moovie-frame__settings-chip moovie-frame__settings-chip--icon" @click="setSubStyle('position', Math.max(5, subPosition - 5))" aria-label="Move down">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                            </button>
+                        </div>
                     </template>
 
                     <template v-if="settingsSection === 'speed'">
@@ -291,12 +391,34 @@ interface WyzieSub {
     format: string
 }
 
-function srtToVtt(srt: string): string {
-    let vtt = 'WEBVTT\n\n'
-    vtt += srt
-        .replace(/\r\n/g, '\n')
-        .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
-    return vtt
+interface SrtCue {
+    start: number
+    end: number
+    text: string
+}
+
+function parseSrt(text: string): SrtCue[] {
+    const blocks = text.trim().replace(/\r\n/g, '\n').split(/\n\n+/)
+    const cues: SrtCue[] = []
+    for (const block of blocks) {
+        const lines = block.split('\n').filter(Boolean)
+        if (lines.length < 2) continue
+        const timeLine = lines.find(l => l.includes('-->'))
+        if (!timeLine) continue
+        const m = timeLine.match(
+            /(\d{1,2}):(\d{2}):(\d{2})[.,](\d+)\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[.,](\d+)/
+        )
+        if (!m) continue
+        const start = +m[1] * 3600 + +m[2] * 60 + +m[3] + parseInt(m[4].padEnd(3, '0')) / 1000
+        const end = +m[5] * 3600 + +m[6] * 60 + +m[7] + parseInt(m[8].padEnd(3, '0')) / 1000
+        const text = lines.slice(lines.indexOf(timeLine) + 1).join('\n').trim()
+        if (text) cues.push({ start, end, text })
+    }
+    return cues
+}
+
+function parseVtt(text: string): SrtCue[] {
+    return parseSrt(text.replace(/^WEBVTT\n*/i, '').replace(/\n\n+/g, '\n\n'))
 }
 
 interface ProviderStatus {
@@ -365,11 +487,44 @@ export default defineComponent({
         const selectedAudioTrack = ref(-1)
         const subtitleTracks = ref<{ id: number; name: string; lang?: string; isWyzie?: boolean }[]>([])
         const selectedSubtitleTrack = ref(-1)
+        const captionSrtData = ref('')
+        const subFontSize = ref('medium')
+        const subTextColor = ref('#ffffff')
+        const subOpacity = ref(1)
+        const subBgOpacity = ref(0.5)
+        const subBgColor = ref('#000000')
+        const subBgBlur = ref(0.5)
+        const subBold = ref(false)
+        const subPosition = ref(5)
+        const FONT_SIZES = ['small', 'medium', 'large', 'x-large'] as const
+        const BG_COLORS = ['#000000', '#0f0f0f', '#1a1a2e', '#16213e', '#2d2d2d', '#3d0000', '#004d40', '#4a148c']
+        const TEXT_COLORS = ['#ffffff', '#f0eee3', '#ffd54f', '#ff8a65', '#81c784', '#64b5f6', '#ce93d8', '#f48fb1']
+        const BG_BLURS = [0, 0.25, 0.5, 0.75, 1]
+        const OPACITIES = [0.25, 0.5, 0.75, 1]
         const hlsQualities = ref<{ id: number; label: string; height: number }[]>([])
         const selectedHlsQuality = ref(-1)
         const WYZIE_TRACK_OFFSET = 1000
-        let wyzieBlobUrls: string[] = []
-        let wyzieTrackElements: HTMLTrackElement[] = []
+
+        const visibleCues = computed(() => {
+            if (!captionSrtData.value) return []
+            const now = currentTime.value
+            return parseSrt(captionSrtData.value).filter(c => c.start <= now && c.end >= now)
+        })
+
+        const fontSizeMap: Record<string, string> = { small: '1.1em', medium: '1.5em', large: '2em', 'x-large': '2.8em' }
+
+        const subtitleOverlayStyle = computed(() => ({
+            bottom: `${subPosition.value}%`,
+        }))
+
+        const subtitleCueStyle = computed(() => ({
+            color: subTextColor.value,
+            fontSize: fontSizeMap[subFontSize.value] || '1.5em',
+            opacity: subOpacity.value,
+            fontWeight: subBold.value ? 'bold' : 'normal' as any,
+            backgroundColor: `rgba(0,0,0,${subBgOpacity.value})`,
+            backdropFilter: subBgBlur.value > 0 ? `blur(${Math.floor(subBgBlur.value * 32)}px)` : 'none',
+        }))
         const playing = ref(false)
         const currentTime = ref(0)
         const duration = ref(0)
@@ -460,10 +615,7 @@ export default defineComponent({
             if (videoRef.value) { videoRef.value.removeAttribute('src'); videoRef.value.load() }
             audioTracks.value = []
             subtitleTracks.value = []
-            for (const el of wyzieTrackElements) { el.remove() }
-            wyzieTrackElements = []
-            for (const url of wyzieBlobUrls) { URL.revokeObjectURL(url) }
-            wyzieBlobUrls = []
+            captionSrtData.value = ''
         }
 
         async function mountPlayer(url: string) {
@@ -912,58 +1064,20 @@ export default defineComponent({
             const subs = await fetchWyzieSubtitles()
             if (!subs.length) { console.debug('[Wyzie] no subtitles found'); return }
             console.debug('[Wyzie] subs count:', subs.length)
-            const video = videoRef.value
-            if (!video) { console.debug('[Wyzie] no video element'); return }
-            for (const el of wyzieTrackElements) { el.remove() }
-            wyzieTrackElements = []
-            for (const url of wyzieBlobUrls) { URL.revokeObjectURL(url) }
-            wyzieBlobUrls = []
 
-            const filtered = subs
-                .filter(s => s.language === 'en' || s.language === 'english')
-                .slice(0, 10)
-            if (!filtered.length) {
-                console.debug('[Wyzie] no English subs, showing first 5')
-                filtered.push(...subs.slice(0, 5))
-            }
+            const filtered = subs.slice(0, 15)
+            const wyzieTracks: ({ id: number; name: string; lang?: string; isWyzie: boolean } & { _srtUrl: string })[] = []
 
-            const wyzieTracks: { id: number; name: string; lang?: string; isWyzie: boolean }[] = []
-
-            const results = await Promise.allSettled(
-                filtered.map(async (sub, i) => {
-                    const trackId = WYZIE_TRACK_OFFSET + i
-                    let blobUrl: string | null = null
-                    for (const subUrl of [sub.url, `${HUB_BASE}/api/proxy?destination=${encodeURIComponent(sub.url)}`]) {
-                        try {
-                            const r = await fetch(subUrl)
-                            if (!r.ok) continue
-                            const text = await r.text()
-                            if (!text) continue
-                            const vtt = srtToVtt(text)
-                            blobUrl = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }))
-                            break
-                        } catch { /* try next */ }
-                    }
-                    if (!blobUrl) return null
-                    wyzieBlobUrls.push(blobUrl)
-                    return { trackId, blobUrl, sub }
+            for (let i = 0; i < filtered.length; i++) {
+                const sub = filtered[i]
+                const trackId = WYZIE_TRACK_OFFSET + i
+                wyzieTracks.push({
+                    id: trackId,
+                    name: sub.display || sub.language || `Sub ${trackId}`,
+                    lang: sub.language,
+                    isWyzie: true,
+                    _srtUrl: sub.url,
                 })
-            )
-
-            for (const result of results) {
-                if (result.status !== 'fulfilled' || !result.value) continue
-                const { trackId, blobUrl, sub } = result.value
-
-                const track = document.createElement('track')
-                track.kind = 'captions'
-                track.label = sub.display || sub.language || `Track ${trackId - WYZIE_TRACK_OFFSET}`
-                track.srclang = sub.language || 'en'
-                track.src = blobUrl
-                track.default = false
-                video.appendChild(track)
-                wyzieTrackElements.push(track)
-
-                wyzieTracks.push({ id: trackId, name: sub.display || sub.language || `Sub ${trackId}`, lang: sub.language, isWyzie: true })
             }
 
             if (!wyzieTracks.length) { console.debug('[Wyzie] no tracks created'); return }
@@ -1043,29 +1157,43 @@ export default defineComponent({
             }
         }
 
-        function selectSubtitleTrack(index: number) {
+        async function selectSubtitleTrack(index: number) {
             selectedSubtitleTrack.value = index
+            captionSrtData.value = ''
             if (index === -1) {
-                for (const el of wyzieTrackElements) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
                 return
             }
             if (index >= WYZIE_TRACK_OFFSET) {
-                const wi = index - WYZIE_TRACK_OFFSET
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
-                for (let i = 0; i < wyzieTrackElements.length; i++) {
-                    wyzieTrackElements[i].track.mode = i === wi ? 'showing' : 'disabled'
+                const wi = index - WYZIE_TRACK_OFFSET
+                const track = subtitleTracks.value.find(t => t.id === index)
+                if (track && (track as any)._srtUrl) {
+                    try {
+                        const r = await fetch((track as any)._srtUrl)
+                        if (r.ok) captionSrtData.value = await r.text()
+                    } catch { /* ignore */ }
                 }
             } else {
-                for (const el of wyzieTrackElements) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = index
                 }
             }
+        }
+
+        function setSubStyle(key: 'fontSize' | 'textColor' | 'opacity' | 'bgOpacity' | 'bgColor' | 'bgBlur' | 'bold' | 'position', val: any) {
+            if (key === 'fontSize') subFontSize.value = val
+            else if (key === 'textColor') subTextColor.value = val
+            else if (key === 'opacity') subOpacity.value = val
+            else if (key === 'bgOpacity') subBgOpacity.value = val
+            else if (key === 'bgColor') subBgColor.value = val
+            else if (key === 'bgBlur') subBgBlur.value = val
+            else if (key === 'bold') subBold.value = val
+            else if (key === 'position') { subPosition.value = Math.round(Math.max(5, Math.min(95, val))) }
         }
 
         function selectHlsQuality(index: number) {
@@ -1091,13 +1219,13 @@ export default defineComponent({
         }
 
         function toggleFullscreen() {
-            const video = videoRef.value
-            if (!video) return
+            const el = rootRef.value
+            if (!el) return
             if (document.fullscreenElement) {
                 document.exitFullscreen()
                 isFullscreen.value = false
             } else {
-                video.requestFullscreen().then(() => isFullscreen.value = true).catch(() => {})
+                el.requestFullscreen().then(() => isFullscreen.value = true).catch(() => {})
             }
         }
 
@@ -1168,7 +1296,7 @@ export default defineComponent({
             document.removeEventListener('keydown', onKeydown)
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP }
     },
 })
 </script>
@@ -1207,6 +1335,12 @@ export default defineComponent({
         @media (min-width: 1024px) { padding: 0; }
     }
 
+    &:fullscreen &__stage,
+    &:-webkit-full-screen &__stage {
+        padding: 0;
+        max-width: 100%;
+    }
+
     &__player {
         position: relative;
         aspect-ratio: 16 / 9;
@@ -1216,12 +1350,48 @@ export default defineComponent({
         box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--rule);
     }
 
+    &:fullscreen &__player,
+    &:-webkit-full-screen &__player {
+        aspect-ratio: unset;
+        border-radius: 0;
+        box-shadow: none;
+        height: 100dvh;
+        width: 100vw;
+    }
+
+    &:fullscreen &__bloom,
+    &:-webkit-full-screen &__bloom { display: none; }
+
     &__video {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: contain;
+    }
+
+    &__subtitle-overlay {
+        position: absolute;
+        left: 0;
+        right: 0;
+        z-index: 8;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+        transition: bottom 0.2s;
+        padding: 0 8%;
+    }
+
+    &__subtitle-cue {
+        margin: 2px 0;
+        padding: 4px 14px;
+        border-radius: 4px;
+        text-align: center;
+        line-height: 1.4;
+        font-family: var(--font-ui);
+        text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+        word-break: break-word;
     }
 
     &__center-btn {
@@ -1575,5 +1745,64 @@ export default defineComponent({
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
     .moovie-frame__spinner { animation: none !important; }
+}
+
+.moovie-frame__settings-label {
+    padding: 0.5rem 0.65rem 0.25rem;
+    font-size: var(--fs-xs);
+    font-family: var(--font-mono);
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.moovie-frame__settings-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 0 0.65rem 0.5rem;
+}
+
+.moovie-frame__settings-chip {
+    padding: 0.25rem 0.6rem;
+    background: rgba(255,255,255,0.08);
+    border: 0;
+    border-radius: var(--r-pill);
+    color: #f0eee3;
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    transition: background 0.1s;
+    &:hover { background: rgba(255,255,255,0.16); }
+    &.is-active { background: var(--ember, #ff5a1f); color: #000; font-weight: 600; }
+    &--icon {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-content: center;
+        padding: 0;
+    }
+    &--color {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.15);
+        &.is-active { border-color: #fff; box-shadow: 0 0 0 2px var(--ember); }
+    }
+}
+
+.moovie-frame__settings-options--center {
+    align-items: center;
+    justify-content: center;
+}
+
+.moovie-frame__settings-pos-value {
+    font-size: var(--fs-sm);
+    font-family: var(--font-ui);
+    color: #f0eee3;
+    min-width: 40px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
 }
 </style>

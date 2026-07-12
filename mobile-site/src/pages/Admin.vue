@@ -284,6 +284,18 @@
                         </label>
                     </div>
 
+                    <div class="admin-page__field">
+                        <label class="admin-page__label" style="display:flex;align-items:center;gap:0.75rem;text-transform:none;font-weight:400;font-size:0.85rem">
+                            <span>🔄 Stream Proxy</span>
+                            <label class="admin-page__toggle" style="margin-left:auto">
+                                <input v-model="streamProxyEnabled" type="checkbox" class="admin-page__toggle-input">
+                                <span class="admin-page__toggle-track">
+                                    <span class="admin-page__toggle-knob" />
+                                </span>
+                            </label>
+                        </label>
+                    </div>
+
                     <button type="submit" class="admin-page__btn" :disabled="saveLoading" @click="handleSaveSettings" style="margin-top:0.5rem">
                         <span>{{ saveLoading ? 'Saving...' : 'Save Settings' }}</span>
                     </button>
@@ -427,6 +439,11 @@ async function loadDashboardSettings() {
         supportBtnHidden.value = data?.value === 'true'
     } catch { /* ignore */ }
 
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
+        if (data) streamProxyEnabled.value = data.value === 'true'
+    } catch { /* ignore */ }
+
     await loadServerOrder()
 }
 
@@ -503,6 +520,7 @@ async function handleSaveSettings() {
         await client.from('app_settings').upsert({ key: 'ads_pc_enabled', value: String(adsPcEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'ads_mobile_enabled', value: String(adsMobileEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'support_btn_hidden', value: String(supportBtnHidden.value), updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'stream_proxy_enabled', value: String(streamProxyEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
 
         showToast('Settings updated successfully!')
     } catch {
@@ -584,6 +602,7 @@ async function handleSave4K() {
 const adsPcEnabled = ref(false)
 const adsMobileEnabled = ref(false)
 const supportBtnHidden = ref(false)
+const streamProxyEnabled = ref(true)
 
 // ── Donations ────────────────────────────────────────────────────────────────────
 const donationRaised = ref(0)

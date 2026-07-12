@@ -479,6 +479,21 @@
                             </label>
                             <p class="admin-page__hint" style="margin-top:0.5rem">Hides the Support button on both PC and mobile.</p>
                         </div>
+
+                        <div class="admin-page__ad-card">
+                            <div class="admin-page__ad-card-header">
+                                <span class="admin-page__ad-icon">🔄</span>
+                                <span class="admin-page__ad-label">Stream Proxy</span>
+                            </div>
+                            <label class="admin-page__toggle">
+                                <input v-model="streamProxyEnabled" type="checkbox" class="admin-page__toggle-input">
+                                <span class="admin-page__toggle-track">
+                                    <span class="admin-page__toggle-knob" />
+                                </span>
+                                <span class="admin-page__toggle-text">{{ streamProxyEnabled ? 'Enabled' : 'Disabled' }}</span>
+                            </label>
+                            <p class="admin-page__hint" style="margin-top:0.5rem">Route video streams through VPS proxy. Turn off if VPS is overloaded.</p>
+                        </div>
                     </div>
 
                     <button type="button" class="admin-page__btn" :disabled="saveLoading" style="margin-top:1rem" @click="handleSaveSettings">
@@ -562,6 +577,7 @@ const pollVoteCounts = ref<Record<number, number>>({})
 const adsPcEnabled = ref(false)
 const adsMobileEnabled = ref(false)
 const supportBtnHidden = ref(false)
+const streamProxyEnabled = ref(true)
 const clearCacheLoading = ref(false)
 
 // ── Donations ────────────────────────────────────────────────────────────────────
@@ -696,6 +712,11 @@ async function loadDashboardSettings() {
         supportBtnHidden.value = data?.value === 'true'
     } catch { /* ignore */ }
 
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
+        if (data) streamProxyEnabled.value = data.value === 'true'
+    } catch { /* ignore */ }
+
     await loadServerOrder()
 }
 
@@ -772,6 +793,7 @@ async function handleSaveSettings() {
         await client.from('app_settings').upsert({ key: 'ads_pc_enabled', value: String(adsPcEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'ads_mobile_enabled', value: String(adsMobileEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'support_btn_hidden', value: String(supportBtnHidden.value), updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'stream_proxy_enabled', value: String(streamProxyEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
 
         showToast('Settings updated successfully!')
     } catch {

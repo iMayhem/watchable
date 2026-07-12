@@ -2,7 +2,6 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
-import { cloudflareFunctionsDev } from '../vite-plugins/cloudflare-functions-dev';
 
 const useRootNodeModules = existsSync(resolve(__dirname, '../node_modules/vue'));
 const nodeModulesPath = useRootNodeModules ? '../node_modules' : './node_modules';
@@ -10,7 +9,6 @@ const nodeModulesPath = useRootNodeModules ? '../node_modules' : './node_modules
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    cloudflareFunctionsDev(),
     vue({
       template: {
         compilerOptions: {

@@ -53,9 +53,22 @@ import 'plyr/dist/plyr.css'
 import { useWebImage } from '../../utils/useWebImage'
 import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
+import { getSupabaseClient } from '../../lib/supabase'
 
 const HUB_VPS = 'https://proxy.moovie.fun/api/search'
-const HUB_PROXY = '/api/moovie-hub'
+
+let proxyEnabled = true
+let proxyFetched = false
+
+async function ensureProxySetting() {
+    if (proxyFetched) return
+    proxyFetched = true
+    try {
+        const client = await getSupabaseClient()
+        const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
+        if (data) proxyEnabled = data.value === 'true'
+    } catch { /* keep default */ }
+}
 
 interface HubStream {
     name: string
@@ -286,7 +299,7 @@ export default defineComponent({
             const qs = `q=${encodeURIComponent(id)}&type=${type}${type === 'tv' && props.season > 0 ? `&season=${props.season}` : ''}${type === 'tv' && props.episode > 0 ? `&episode=${props.episode}` : ''}`
             let res: Response | null = null
             let usedUrl = ''
-            for (const base of [HUB_VPS, HUB_PROXY]) {
+            for (const base of [HUB_VPS]) {
                 usedUrl = `${base}?${qs}`
                 console.debug('[MoovieFrame] fetchStreams trying:', usedUrl)
                 try {
@@ -372,8 +385,9 @@ export default defineComponent({
                 const idx = best ? all.indexOf(best) : 0
                 selectedStreamIndex.value = idx
                 const target = best || all[0]
+                await ensureProxySetting()
                 console.debug('[MoovieFrame] doLoad stream:', target.name, target.quality, target.proxyUrl || target.url)
-                await mountPlayer(target.proxyUrl || target.url)
+                await mountPlayer(proxyEnabled && target.proxyUrl ? target.proxyUrl : target.url)
                 updateQualityBtn()
                 loading.value = false
                 console.debug('[MoovieFrame] doLoad done')
@@ -414,7 +428,7 @@ export default defineComponent({
             selectedStreamIndex.value = idx
             updateQualityBtn()
             const stream = streams.value[idx]
-            await mountPlayer(stream.proxyUrl || stream.url)
+            await mountPlayer(proxyEnabled && stream.proxyUrl ? stream.proxyUrl : stream.url)
         }
 
         const startTrackingIfNeeded = () => {

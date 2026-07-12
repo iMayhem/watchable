@@ -108,7 +108,7 @@
                                     <button
                                         type="button"
                                         class="stream-row__play"
-                                        :class="{ 'is-active': activeStreamUrl === stream.proxyUrl }"
+                                        :class="{ 'is-active': activeStreamUrl === streamUrl(stream) }"
                                         @click="playStream(stream)"
                                     >
                                         ▶
@@ -122,7 +122,7 @@
                                         type="button"
                                         class="stream-row__copy"
                                         title="Copy URL"
-                                        @click="copyUrl(stream.proxyUrl || stream.url)"
+                                        @click="copyUrl(stream)"
                                     >
                                         📋
                                     </button>
@@ -148,6 +148,24 @@ import { useRouter } from 'vue-router'
 import Plyr from 'plyr'
 import 'plyr/dist/plyr.css'
 import { useHubScraper, type HubStream } from '../composables/useHubScraper'
+import { getSupabaseClient } from '../lib/supabase'
+
+let proxyEnabled = true
+let proxyFetched = false
+
+async function ensureProxySetting() {
+    if (proxyFetched) return
+    proxyFetched = true
+    try {
+        const client = await getSupabaseClient()
+        const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
+        if (data) proxyEnabled = data.value === 'true'
+    } catch { /* keep default */ }
+}
+
+function streamUrl(s: HubStream): string {
+    return proxyEnabled && s.proxyUrl ? s.proxyUrl : s.url
+}
 
 export default defineComponent({
     name: 'PlayerHub',
@@ -239,15 +257,16 @@ export default defineComponent({
         }
 
         function playStream(stream: HubStream) {
-            const playUrl = stream.proxyUrl || stream.url
+            ensureProxySetting()
+            const playUrl = streamUrl(stream)
             activeStreamUrl.value = playUrl
             activeTitle.value = `${stream._providerName} · ${stream.quality || 'Auto'}`
             playbackError.value = ''
             mountPlayer(playUrl)
         }
 
-        function copyUrl(url: string) {
-            navigator.clipboard.writeText(url).catch(() => {})
+        function copyUrl(stream: HubStream) {
+            navigator.clipboard.writeText(streamUrl(stream)).catch(() => {})
         }
 
         function clearResults() {

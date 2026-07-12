@@ -911,6 +911,22 @@
                 </div>
             </div>
 
+            <div class="curation-section">
+                <h2 class="section-title">Stream Proxy</h2>
+                <p style="color:var(--bone-300);font-size:0.85rem;margin-bottom:1rem">Route video streams through your VPS proxy to avoid CORS / IP blocks. Turn off if VPS is overloaded.</p>
+
+                <div class="ad-row">
+                    <div class="ad-row__label"><span>🔄</span> Proxy video streams</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="stream-proxy-toggle" onchange="saveStreamProxySetting()">
+                        <span class="toggle-slider">
+                            <span class="toggle-knob"></span>
+                        </span>
+                        <span class="toggle-status" id="stream-proxy-status">Enabled</span>
+                    </label>
+                </div>
+            </div>
+
             <div class="server-grid">
                 <div class="server-grid-item"><strong>ID</strong><strong>Sweet Name</strong></div>
                 <div class="server-grid-item"><span>moovie</span><span>Moovie</span></div>
@@ -1111,6 +1127,9 @@
 
             // Load ad settings
             loadAdSettings();
+
+            // Load stream proxy setting
+            loadStreamProxySetting();
 
             // Load server order
             loadServerOrder();
@@ -1977,6 +1996,37 @@
             } catch (err) {
                 console.error(err);
                 showToast('Failed to save settings', false);
+            }
+        }
+
+        async function loadStreamProxySetting() {
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'stream_proxy_enabled')
+                    .single();
+                const enabled = data?.value !== 'false';
+                document.getElementById('stream-proxy-toggle').checked = enabled;
+                document.getElementById('stream-proxy-status').textContent = enabled ? 'Enabled' : 'Disabled';
+            } catch (err) {
+                console.warn('Could not load stream proxy setting:', err);
+            }
+        }
+
+        async function saveStreamProxySetting() {
+            const checked = document.getElementById('stream-proxy-toggle').checked;
+            document.getElementById('stream-proxy-status').textContent = checked ? 'Enabled' : 'Disabled';
+            try {
+                await supabaseClient.from('app_settings').upsert({
+                    key: 'stream_proxy_enabled',
+                    value: checked ? 'true' : 'false',
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'key' });
+                showToast('Proxy setting saved!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to save proxy setting', false);
             }
         }
 

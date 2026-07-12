@@ -1314,6 +1314,7 @@ export default defineComponent({
         gap: var(--s-2);
         flex-shrink: 0;
         background: var(--ink-850); /* Match site aesthetics */
+        position: relative;
     }
 
     &__message-input {

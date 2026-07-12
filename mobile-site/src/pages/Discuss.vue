@@ -641,7 +641,8 @@ onMounted(() => {
         display: grid;
         gap: var(--s-2);
         padding: 6px 4px;
-    }
+        position: relative;
+     }
 
     &__login-prompt {
         display: flex;

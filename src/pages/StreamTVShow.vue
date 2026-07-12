@@ -77,7 +77,9 @@
             <div class="watch-stage__theater">
                 <div class="watch-stage__player-container">
                     <StreamFrame
+                        v-slot:default
                         v-if="!isMoovieServer"
+                        :key="`stream-${currentSeason}-${currentEpisode}`"
                         :embed-url="currentEmbedUrl"
                         :title="show?.name || 'Stream'"
                         :backdrop-path="show?.backdrop_path || ''"
@@ -90,6 +92,7 @@
                     />
                     <MoovieFrame
                         v-else
+                        :key="`moovie-${currentSeason}-${currentEpisode}`"
                         :media-id="showId"
                         media-type="tv"
                         :season="currentSeason"

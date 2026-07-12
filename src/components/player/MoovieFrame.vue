@@ -709,6 +709,7 @@ export default defineComponent({
             const params = new URLSearchParams({ tmdbId: id, type: props.mediaType })
             if (props.season > 0) params.set('season', String(props.season))
             if (props.episode > 0) params.set('episode', String(props.episode))
+            params.set('_cb', String(Date.now()))
             return `${HUB_BASE}/scrape?${params}`
         }
 
@@ -888,7 +889,7 @@ export default defineComponent({
             const id = String(props.mediaId)
             if (!id) throw new Error('No media ID')
             const type = props.mediaType
-            const qs = `q=${encodeURIComponent(id)}&type=${type}${type === 'tv' && props.season > 0 ? `&season=${props.season}` : ''}${type === 'tv' && props.episode > 0 ? `&episode=${props.episode}` : ''}`
+            const qs = `q=${encodeURIComponent(id)}&type=${type}${type === 'tv' && props.season > 0 ? `&season=${props.season}` : ''}${type === 'tv' && props.episode > 0 ? `&episode=${props.episode}` : ''}&_cb=${Date.now()}`
             let res: Response | null = null
             let usedUrl = ''
             for (const base of [`${HUB_BASE}/api/search`]) {

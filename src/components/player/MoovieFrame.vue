@@ -4,20 +4,32 @@
 
         <div class="moovie-frame__stage">
             <div class="moovie-frame__player">
-                <div ref="artContainer" class="moovie-frame__art" />
-
-                <div v-if="loading" class="moovie-frame__overlay">
-                    <div class="moovie-frame__skeleton" aria-hidden="true" />
-                    <div class="moovie-frame__loader">
-                        <div class="moovie-frame__spinner" aria-hidden="true" />
-                        <p class="meta">{{ loadingLabel }}</p>
-                    </div>
-                </div>
+                <video ref="videoRef" class="moovie-frame__video" />
 
                 <div v-if="error && !loading" class="moovie-frame__overlay moovie-frame__overlay--error">
                     <p class="eyebrow">Hub Error</p>
                     <h3>{{ error }}</h3>
                     <button type="button" class="moovie-frame__retry" @click="retry">Retry</button>
+                </div>
+
+                <div v-if="loading && providers.length && !error" class="moovie-frame__scraper-status">
+                    <div class="moovie-frame__scraper-handle">Scraping</div>
+                    <div
+                        v-for="p in providers"
+                        :key="p.id"
+                        class="moovie-frame__provider"
+                        :class="`is-${p.status}`"
+                    >
+                        <span class="moovie-frame__provider-icon">
+                            <span v-if="p.status === 'pending'" class="moovie-frame__spinner moovie-frame__spinner--sm" />
+                            <span v-else-if="p.status === 'success'" class="moovie-frame__check">✓</span>
+                            <span v-else-if="p.status === 'failure'" class="moovie-frame__cross">✕</span>
+                            <span v-else-if="p.status === 'notfound'" class="moovie-frame__dash">–</span>
+                            <span v-else class="moovie-frame__dot">○</span>
+                        </span>
+                        <span class="moovie-frame__provider-name">{{ p.name }}</span>
+                        <span v-if="p.status === 'pending'" class="moovie-frame__provider-pct">{{ p.percentage }}%</span>
+                    </div>
                 </div>
 
                 <ul
@@ -41,6 +53,172 @@
                         </button>
                     </li>
                 </ul>
+
+                <div v-if="!loading && !error" class="moovie-frame__controls">
+                    <div class="moovie-frame__controls-left">
+                        <button class="moovie-frame__ctrl-btn" @click="togglePlay" aria-label="Play/Pause">
+                            <svg v-if="!playing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21" /></svg>
+                            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                        </button>
+                        <span class="moovie-frame__time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+                    </div>
+                    <div class="moovie-frame__controls-right">
+                        <button class="moovie-frame__ctrl-btn" @click="toggleMute" aria-label="Mute">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" /><path v-if="!muted" d="M15.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" /><path v-if="!muted" d="M19 12c0 2.97-1.65 5.54-4 6.71v2.06c3.45-1.28 6-4.56 6-8.77s-2.55-7.49-6-8.77v2.06c2.35 1.17 4 3.74 4 6.71z" /><line v-if="muted" x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+                        </button>
+                        <button
+                            class="moovie-frame__ctrl-btn moovie-frame__three-dot-btn"
+                            :class="{ 'is-open': settingsOpen }"
+                            @click.stop="settingsOpen ? (settingsOpen = false, settingsSection = null) : (settingsOpen = true, qualityOpen = false)"
+                            aria-label="Settings"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
+                            </svg>
+                        </button>
+                        <button class="moovie-frame__ctrl-btn" @click="toggleFullscreen" aria-label="Fullscreen">
+                            <svg v-if="!isFullscreen" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+                            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="settingsOpen" class="moovie-frame__settings-panel" @click.stop>
+                    <div class="moovie-frame__settings-header">
+                        <button
+                            v-if="settingsSection"
+                            class="moovie-frame__settings-back"
+                            @click="settingsSection = null"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                        </button>
+                        <span>{{ settingsSection ? settingsSection.charAt(0).toUpperCase() + settingsSection.slice(1) : 'Settings' }}</span>
+                    </div>
+
+                    <template v-if="!settingsSection">
+                        <button
+                            class="moovie-frame__settings-item"
+                            @click="settingsSection = 'speed'"
+                        >
+                            <span class="moovie-frame__settings-item-label">Playback Speed</span>
+                            <span class="moovie-frame__settings-item-value">{{ playbackSpeed }}x</span>
+                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                        </button>
+                        <button
+                            class="moovie-frame__settings-item"
+                            @click="togglePiP"
+                        >
+                            <span class="moovie-frame__settings-item-label">Picture-in-Picture</span>
+                            <span class="moovie-frame__settings-item-value">{{ isPiP ? 'On' : 'Off' }}</span>
+                        </button>
+                        <div class="moovie-frame__settings-divider" />
+                        <button
+                            class="moovie-frame__settings-item"
+                            @click="settingsSection = 'server'"
+                        >
+                            <span class="moovie-frame__settings-item-label">Server</span>
+                            <span class="moovie-frame__settings-item-value">{{ selectedServer || 'Auto' }}</span>
+                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                        </button>
+                        <button
+                            class="moovie-frame__settings-item"
+                            @click="settingsSection = 'quality'; qualityOpen = false"
+                        >
+                            <span class="moovie-frame__settings-item-label">Quality</span>
+                            <span class="moovie-frame__settings-item-value">{{ activeQualityLabel }}</span>
+                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                        </button>
+                        <button
+                            class="moovie-frame__settings-item"
+                            @click="settingsSection = 'audio'"
+                        >
+                            <span class="moovie-frame__settings-item-label">Audio</span>
+                            <span class="moovie-frame__settings-item-value">{{ currentAudioLabel }}</span>
+                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                        </button>
+                        <button
+                            class="moovie-frame__settings-item"
+                            @click="settingsSection = 'captions'"
+                        >
+                            <span class="moovie-frame__settings-item-label">Captions</span>
+                            <span class="moovie-frame__settings-item-value">{{ currentSubtitleLabel }}</span>
+                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                        </button>
+                    </template>
+
+                    <template v-if="settingsSection === 'server'">
+                        <button
+                            v-for="server in availableServers"
+                            :key="server.name"
+                            class="moovie-frame__settings-item"
+                            :class="{
+                                'is-active': selectedServer === server.name,
+                                'is-dimmed': !server.hasStreams,
+                            }"
+                            @click="selectServer(server.name)"
+                        >
+                            <span class="moovie-frame__settings-item-status" :class="`is-${server.hasStreams ? 'success' : server.status}`">
+                                {{ server.hasStreams ? '✓' : server.status === 'pending' ? '⟳' : server.status === 'failure' ? '✕' : server.status === 'notfound' ? '–' : '○' }}
+                            </span>
+                            <span>{{ server.name }}</span>
+                        </button>
+                    </template>
+
+                    <template v-if="settingsSection === 'quality'">
+                        <button
+                            v-for="(q, i) in uniqueQualities"
+                            :key="i"
+                            class="moovie-frame__settings-item"
+                            :class="{ 'is-active': selectedQualityIndex === i }"
+                            @click="selectQuality(i)"
+                        >
+                            <span>{{ q }}</span>
+                        </button>
+                    </template>
+
+                    <template v-if="settingsSection === 'audio'">
+                        <button
+                            v-for="track in audioTracks"
+                            :key="track.id"
+                            class="moovie-frame__settings-item"
+                            :class="{ 'is-active': selectedAudioTrack === track.id }"
+                            @click="selectAudioTrack(track.id)"
+                        >
+                            <span>{{ track.name }}<span v-if="track.lang" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
+                        </button>
+                    </template>
+
+                    <template v-if="settingsSection === 'captions'">
+                        <button
+                            class="moovie-frame__settings-item"
+                            :class="{ 'is-active': selectedSubtitleTrack === -1 }"
+                            @click="selectSubtitleTrack(-1)"
+                        >
+                            <span>Off</span>
+                        </button>
+                        <button
+                            v-for="track in subtitleTracks"
+                            :key="track.id"
+                            class="moovie-frame__settings-item"
+                            :class="{ 'is-active': selectedSubtitleTrack === track.id }"
+                            @click="selectSubtitleTrack(track.id)"
+                        >
+                            <span>{{ track.name }}<span v-if="track.lang" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
+                        </button>
+                    </template>
+
+                    <template v-if="settingsSection === 'speed'">
+                        <button
+                            v-for="spd in PLAYBACK_SPEEDS"
+                            :key="spd"
+                            class="moovie-frame__settings-item"
+                            :class="{ 'is-active': playbackSpeed === spd }"
+                            @click="setPlaybackSpeed(spd)"
+                        >
+                            <span>{{ spd }}x</span>
+                        </button>
+                    </template>
+                </div>
             </div>
         </div>
     </div>
@@ -48,15 +226,37 @@
 
 <script lang="ts">
 import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue'
-import Plyr from 'plyr'
-import 'plyr/dist/plyr.css'
 import { useWebImage } from '../../utils/useWebImage'
 import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
 import { getSupabaseClient } from '../../lib/supabase'
 
-const HUB_VPS = 'https://proxy.moovie.fun/api/search'
+const HUB_BASE = 'https://proxy.moovie.fun'
 const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
+
+interface ProviderStatus {
+    id: string
+    name: string
+    status: 'waiting' | 'pending' | 'success' | 'failure' | 'notfound'
+    percentage: number
+    error?: string
+}
+
+interface HubStream {
+    name: string
+    url: string
+    proxyUrl: string
+    quality: string
+    type: string
+    headers?: Record<string, string>
+    providerName?: string
+    qualities?: string[]
+}
+
+function parseQuality(q: string): number {
+    const n = parseInt(q.toLowerCase().replace(/p$/, ''))
+    return isNaN(n) ? -1 : n
+}
 
         let proxyEnabled = true
         let proxyFetched = false
@@ -71,27 +271,6 @@ const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
             } catch { /* keep default */ }
         }
 
-interface HubStream {
-    name: string
-    url: string
-    proxyUrl: string
-    quality: string
-    type: string
-    headers?: Record<string, string>
-    providerName?: string
-}
-
-interface HubSearchResult {
-    provider: string
-    providerName: string
-    streams: HubStream[]
-}
-
-interface HubSearchResponse {
-    results: HubSearchResult[]
-    totalStreams: number
-}
-
 export default defineComponent({
     name: 'MoovieFrame',
     props: {
@@ -105,16 +284,30 @@ export default defineComponent({
     },
     setup(props) {
         const rootRef = ref<HTMLElement | null>(null)
-        const artContainer = ref<HTMLElement | null>(null)
+        const videoRef = ref<HTMLVideoElement | null>(null)
         const qualityRootRef = ref<HTMLElement | null>(null)
         const loading = ref(false)
         const error = ref('')
-        const loadingLabel = ref('Resolving stream…')
         const streams = ref<HubStream[]>([])
         const selectedStreamIndex = ref(0)
         const qualityOpen = ref(false)
         const buffering = ref(false)
-        let plyrInstance: Plyr | null = null
+        const settingsOpen = ref(false)
+        const settingsSection = ref<string | null>(null)
+        const selectedServer = ref('')
+        const audioTracks = ref<{ id: number; name: string; lang?: string }[]>([])
+        const selectedAudioTrack = ref(-1)
+        const subtitleTracks = ref<{ id: number; name: string; lang?: string }[]>([])
+        const selectedSubtitleTrack = ref(-1)
+        const playing = ref(false)
+        const currentTime = ref(0)
+        const duration = ref(0)
+        const muted = ref(false)
+        const playbackSpeed = ref(1)
+        const isPiP = ref(false)
+        const isFullscreen = ref(false)
+        const playbackStarted = ref(false)
+        const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
         let hlsInstance: any = null
         let stopTracking: (() => void) | null = null
 
@@ -140,34 +333,31 @@ export default defineComponent({
             return streams.value[selectedStreamIndex.value]?.quality || 'Auto'
         })
 
+        const availableServers = computed(() => {
+            return providers.value.map(p => ({
+                name: p.name,
+                status: p.status,
+                hasStreams: streams.value.some(s => s.providerName === p.name),
+            }))
+        })
+
+        const currentAudioLabel = computed(() => {
+            const track = audioTracks.value.find(t => t.id === selectedAudioTrack.value)
+            return track?.name || 'Unknown'
+        })
+
+        const currentSubtitleLabel = computed(() => {
+            if (selectedSubtitleTrack.value === -1) return 'Off'
+            const track = subtitleTracks.value.find(t => t.id === selectedSubtitleTrack.value)
+            return track?.name || 'Unknown'
+        })
+
         useAmbientColor(computed(() => props.backdropPath || props.posterPath || null), rootRef)
 
         const ambientImage = ref('')
         const computeAmbient = () => {
             const path = props.backdropPath || props.posterPath
             ambientImage.value = path ? useWebImage(path, 'large') : ''
-        }
-
-        const loadingMessages = [
-            'Resolving stream…',
-            'Contacting hub…',
-            'Fetching sources…',
-            'Preparing player…',
-        ]
-        let messageTimer: number | null = null
-
-        const startMessages = () => {
-            if (messageTimer) clearInterval(messageTimer)
-            let i = 0
-            loadingLabel.value = loadingMessages[0]
-            messageTimer = window.setInterval(() => {
-                i = (i + 1) % loadingMessages.length
-                loadingLabel.value = loadingMessages[i]
-            }, 2000)
-        }
-
-        const stopMessages = () => {
-            if (messageTimer) { clearInterval(messageTimer); messageTimer = null }
         }
 
         const loadHlsJs = (() => {
@@ -187,21 +377,14 @@ export default defineComponent({
         })()
 
         function destroyPlayer() {
-            if (plyrInstance) {
-                try { plyrInstance.destroy() } catch {}; plyrInstance = null
-            }
             if (hlsInstance) { try { hlsInstance.destroy() } catch {}; hlsInstance = null }
-            if (artContainer.value) artContainer.value.innerHTML = ''
-            stopMessages()
+            if (videoRef.value) { videoRef.value.removeAttribute('src'); videoRef.value.load() }
+            audioTracks.value = []
+            subtitleTracks.value = []
         }
 
         async function mountPlayer(url: string) {
             console.debug('[MoovieFrame] mountPlayer url:', url)
-            const container = artContainer.value
-            if (!container) {
-                console.debug('[MoovieFrame] mountPlayer no container')
-                return
-            }
             destroyPlayer()
             qualityOpen.value = false
             buffering.value = true
@@ -210,16 +393,18 @@ export default defineComponent({
             const HlsCtor = (window as any).Hls
             const isHls = url.includes('.m3u8') || url.includes('m3u8')
 
-            const video = document.createElement('video')
+            const video = videoRef.value
+            if (!video) { console.debug('[MoovieFrame] mountPlayer no video element'); return }
+
+            video.removeAttribute('src')
             video.controls = false
             video.playsInline = true
             video.autoplay = true
-            video.style.width = '100%'
-            video.style.height = '100%'
-            video.style.objectFit = 'contain'
-            video.className = 'plyr-video-element'
+            video.playbackRate = playbackSpeed.value
 
-            const onBufferEnd = () => { buffering.value = false }
+            const onBufferEnd = () => { buffering.value = false; playing.value = !video.paused }
+            const onTimeUpdate = () => { currentTime.value = video.currentTime; duration.value = video.duration || 0 }
+            const onPlayPause = () => { playing.value = !video.paused }
             video.addEventListener('waiting', () => { buffering.value = true })
             video.addEventListener('playing', onBufferEnd)
             video.addEventListener('canplay', onBufferEnd)
@@ -227,8 +412,13 @@ export default defineComponent({
             video.addEventListener('seeked', onBufferEnd)
             video.addEventListener('error', onBufferEnd)
             video.addEventListener('abort', onBufferEnd)
-
-            container.appendChild(video)
+            video.addEventListener('timeupdate', onTimeUpdate)
+            video.addEventListener('play', onPlayPause)
+            video.addEventListener('pause', onPlayPause)
+            video.addEventListener('volumechange', () => { muted.value = video.muted })
+            video.addEventListener('durationchange', onTimeUpdate)
+            video.addEventListener('enterpictureinpicture', () => { isPiP.value = true })
+            video.addEventListener('leavepictureinpicture', () => { isPiP.value = false })
 
             if (isHls && HlsCtor && HlsCtor.isSupported()) {
                 hlsInstance = new HlsCtor({
@@ -238,113 +428,227 @@ export default defineComponent({
                 })
                 hlsInstance.loadSource(url)
                 hlsInstance.attachMedia(video)
+
+                hlsInstance.on(HlsCtor.Events.AUDIO_TRACKS_UPDATED, () => {
+                    audioTracks.value = (hlsInstance.audioTracks || []).map((t: any, i: number) => ({
+                        id: i,
+                        name: t.name || t.lang || `Track ${i}`,
+                        lang: t.lang,
+                    }))
+                    selectedAudioTrack.value = hlsInstance.audioTrack ?? -1
+                })
+                hlsInstance.on(HlsCtor.Events.SUBTITLE_TRACKS_UPDATED, () => {
+                    subtitleTracks.value = (hlsInstance.subtitleTracks || []).map((t: any, i: number) => ({
+                        id: i,
+                        name: t.name || t.lang || `Track ${i}`,
+                        lang: t.lang,
+                    }))
+                    selectedSubtitleTrack.value = hlsInstance.subtitleTrack ?? -1
+                })
+                hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
+                    if (data.fatal) {
+                        console.error('[MoovieFrame] HLS fatal error:', data.type, data.details)
+                        buffering.value = false
+                        error.value = `HLS error: ${data.details}`
+                    }
+                })
             } else {
                 video.src = url
             }
-
-            const isNarrow = window.matchMedia('(max-width: 1023px)').matches
-            plyrInstance = new Plyr(video, {
-                autoplay: true,
-                controls: isNarrow
-                    ? ['play-large', 'play', 'progress', 'current-time', 'duration', 'settings', 'pip', 'fullscreen']
-                    : ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
-                settings: ['speed'],
-            })
-
-            void injectQualityButton()
         }
 
-        function injectQualityButton() {
-            if (!plyrInstance || uniqueQualities.value.length <= 1) return
-            const controls = plyrInstance.elements?.controls
-            if (!controls) return
-            const settingsBtn = controls.querySelector('[data-plyr="settings"]')
-            if (!settingsBtn) return
-            if (controls.querySelector('.moovie-frame__quality-btn')) return
+        const providers = ref<ProviderStatus[]>([])
+        let eventSource: EventSource | null = null
 
-            const btn = document.createElement('button')
-            btn.className = 'plyr__controls__item plyr__control moovie-frame__quality-btn'
-            btn.type = 'button'
-            btn.setAttribute('data-plyr', 'quality')
-            btn.innerHTML = `<span class="plyr__sr-only">Quality</span>`
-            const label = document.createElement('span')
-            label.className = 'moovie-frame__quality-label'
-            btn.appendChild(label)
-
-            const updateBtnLabel = () => {
-                const q = streams.value[selectedStreamIndex.value]?.quality || 'Auto'
-                label.textContent = q
-                btn.classList.toggle('has-menu', uniqueQualities.value.length > 1)
-            }
-            updateBtnLabel()
-
-            const toggle = (e: MouseEvent) => {
-                e.stopPropagation()
-                if (uniqueQualities.value.length > 1) qualityOpen.value = !qualityOpen.value
-            }
-            btn.addEventListener('click', toggle)
-
-            settingsBtn.parentNode?.insertBefore(btn, settingsBtn)
-
-            const checkControls = () => {
-                const existing = controls.querySelector('.moovie-frame__quality-btn')
-                if (!existing) {
-                    settingsBtn.parentNode?.insertBefore(btn, settingsBtn)
-                }
-            }
-            plyrInstance.on('controlsshown', checkControls)
-        }
-
-        async function fetchStreams() {
+        function buildScrapeUrl(): string {
             const id = String(props.mediaId)
-            if (!id) return []
+            if (!id) return ''
+            const params = new URLSearchParams({ tmdbId: id, type: props.mediaType })
+            if (props.season > 0) params.set('season', String(props.season))
+            if (props.episode > 0) params.set('episode', String(props.episode))
+            return `${HUB_BASE}/scrape?${params}`
+        }
+
+        function cancelScrape() {
+            if (eventSource) { eventSource.close(); eventSource = null }
+        }
+
+        function scrapeViaSSE(): Promise<HubStream[]> {
+            return new Promise((resolve, reject) => {
+                providers.value = []
+                const url = buildScrapeUrl()
+                if (!url) { reject(new Error('No media ID')); return }
+
+                const providerMap = new Map<string, ProviderStatus>()
+                const allStreams: HubStream[] = []
+                let resolved = false
+                let hasAnyOutput = false
+
+                function finish() {
+                    if (resolved) return
+                    resolved = true
+                    if (eventSource) { eventSource.close(); eventSource = null }
+                    if (allStreams.length) {
+                        resolve(allStreams)
+                    } else {
+                        reject(new Error('No streamable sources found'))
+                    }
+                }
+
+                eventSource = new EventSource(url)
+
+                const SCRAPER_NAMES: Record<string, string> = {
+                    vaplayer: 'Poseidon',
+                    'moovie-catalog': 'Athena',
+                    streamvault: 'Zeus',
+                    vidrift: 'Hades',
+                }
+
+                eventSource.addEventListener('init', (e: MessageEvent) => {
+                    try {
+                        const data = JSON.parse(e.data)
+                        console.debug('[MoovieFrame] init sourceIds:', data.sourceIds)
+                        const ids: string[] = data.sourceIds || []
+                        providerMap.clear()
+                        for (const id of ids) {
+                            const name = SCRAPER_NAMES[id] || id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, ' ')
+                            providerMap.set(id, { id, name, status: 'waiting', percentage: 0 })
+                        }
+                        providers.value = [...providerMap.values()]
+                    } catch { /* ignore */ }
+                })
+
+                eventSource.addEventListener('start', (e: MessageEvent) => {
+                    const id = JSON.parse(e.data)
+                    console.debug('[MoovieFrame] start:', id)
+                    const ps = providerMap.get(id)
+                    if (ps) { ps.status = 'pending'; ps.percentage = 0; providers.value = [...providerMap.values()] }
+                })
+
+                eventSource.addEventListener('update', (e: MessageEvent) => {
+                    try {
+                        const data = JSON.parse(e.data)
+                        const ps = providerMap.get(data.id)
+                        if (ps) {
+                            ps.percentage = data.percentage || 0
+                            if (data.status) ps.status = data.status
+                            if (data.error) ps.error = data.error
+                            providers.value = [...providerMap.values()]
+                        }
+                    } catch { /* ignore */ }
+                })
+
+                eventSource.addEventListener('completed', (e: MessageEvent) => {
+                    try {
+                        const data = JSON.parse(e.data)
+                        console.debug('[MoovieFrame] completed event:', data.sourceId, 'keys:', Object.keys(data), 'stream type:', typeof data.stream, 'streams type:', typeof data.streams)
+                        if (data.stream) console.debug('[MoovieFrame]  stream keys:', Object.keys(data.stream))
+                        if (data.streams) console.debug('[MoovieFrame]  streams length:', data.streams?.length)
+                        const ps = providerMap.get(data.sourceId)
+                        if (ps) { ps.status = 'success'; providers.value = [...providerMap.values()] }
+
+                        const rawStreams = data.streams || (data.stream ? [data.stream] : [])
+                        console.debug('[MoovieFrame] completed:', data.sourceId, 'rawStreams count:', rawStreams.length)
+                        for (const mw of rawStreams) {
+                            const isHls = mw.type === 'hls' || !!mw.playlist
+                            const streamUrl = isHls ? (mw.playlist || '') : (mw.url || '')
+                            const qualities = mw.qualities || {}
+                            const qualityLabels = Object.keys(qualities)
+                            const bestQuality = qualityLabels.length ? qualityLabels.sort((a, b) => parseQuality(b) - parseQuality(a))[0] : 'Auto'
+                            const bestEntry = bestQuality !== 'Auto' ? qualities[bestQuality] : null
+
+                            const stream: HubStream = {
+                                name: mw.name || data.sourceId,
+                                url: streamUrl || (bestEntry?.url || ''),
+                                proxyUrl: mw.proxyUrl || '',
+                                quality: bestQuality,
+                                type: isHls ? 'm3u8' : (bestEntry?.type || 'mp4'),
+                                headers: mw.headers,
+                                providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId,
+                                qualities: qualityLabels.length ? qualityLabels : undefined,
+                            }
+                            if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
+                            if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
+
+                            if (!stream.url && !stream.proxyUrl) {
+                                console.debug('[MoovieFrame]  skipped empty stream for', data.sourceId)
+                                continue
+                            }
+
+                            allStreams.push(stream)
+                            streams.value = [...allStreams]
+                            hasAnyOutput = true
+                            console.debug('[MoovieFrame]  added stream:', stream.name, stream.quality, stream.url?.slice(0,80))
+                        }
+                        if (!rawStreams.length) {
+                            if (ps) { ps.status = 'notfound'; providers.value = [...providerMap.values()] }
+                            return
+                        }
+
+                        if (!playbackStarted.value) {
+                            playbackStarted.value = true
+                            loading.value = false
+                            const best = pickBest(allStreams)
+                            if (best) {
+                                tryPlayStream(best).catch(e => console.error('[MoovieFrame] early playback error:', e))
+                            }
+                        }
+                    } catch { /* ignore */ }
+                })
+
+                eventSource.addEventListener('done', () => {
+                    if (!playbackStarted.value && allStreams.length) {
+                        playbackStarted.value = true
+                        loading.value = false
+                        const best = pickBest(allStreams)
+                        if (best) {
+                            tryPlayStream(best).catch(e => console.error('[MoovieFrame] done playback error:', e))
+                        }
+                    }
+                    finish()
+                })
+                eventSource.addEventListener('noOutput', () => { if (!hasAnyOutput) finish() })
+                eventSource.addEventListener('error', () => { /* keep waiting — reconnect is automatic */ })
+            })
+        }
+
+        async function fetchStreams(): Promise<HubStream[]> {
+            providers.value = []
+            cancelScrape()
+            try {
+                return await scrapeViaSSE()
+            } catch (e) {
+                console.debug('[MoovieFrame] SSE failed, falling back to REST:', (e as Error).message)
+            }
+            // Fallback to REST endpoint
+            const id = String(props.mediaId)
+            if (!id) throw new Error('No media ID')
             const type = props.mediaType
             const qs = `q=${encodeURIComponent(id)}&type=${type}${type === 'tv' && props.season > 0 ? `&season=${props.season}` : ''}${type === 'tv' && props.episode > 0 ? `&episode=${props.episode}` : ''}`
             let res: Response | null = null
             let usedUrl = ''
-            for (const base of [HUB_VPS]) {
+            for (const base of [`${HUB_BASE}/api/search`]) {
                 usedUrl = `${base}?${qs}`
-                console.debug('[MoovieFrame] fetchStreams trying:', usedUrl)
                 try {
                     const r = await fetch(usedUrl)
-                    if (!r.ok) {
-                        console.debug('[MoovieFrame] fetchStreams', base, 'status:', r.status)
-                        continue
-                    }
-                    // Cloudflare may return 200 with an HTML challenge page — skip if not JSON
-                    const ct = r.headers.get('content-type') || ''
-                    if (!ct.includes('application/json')) {
-                        const preview = await r.text()
-                        console.debug('[MoovieFrame] fetchStreams', base, 'non-JSON response (type:', ct, ') preview:', preview.slice(0, 120))
-                        continue
-                    }
+                    if (!r.ok) continue
+                    if (!r.headers.get('content-type')?.includes('application/json')) continue
                     res = r
                     break
-                } catch (e) {
-                    console.debug('[MoovieFrame] fetchStreams', base, 'failed:', (e as Error).message)
-                }
+                } catch { /* try next */ }
             }
-            if (!res) throw new Error('All hub endpoints failed — try again later')
-            console.debug('[MoovieFrame] fetchStreams resolved:', usedUrl, 'status:', res.status)
-            
+            if (!res) throw new Error('All hub endpoints failed')
             const text = await res.text()
-            console.debug('[MoovieFrame] fetchStreams raw response (first 500):', text.slice(0, 500))
-            let data: HubSearchResponse
-            try {
-                data = JSON.parse(text)
-            } catch {
-                console.debug('[MoovieFrame] fetchStreams JSON parse failed, response starts with:', text.slice(0, 100))
-                throw new Error('Hub returned invalid JSON')
-            }
+            let data: any
+            try { data = JSON.parse(text) } catch { throw new Error('Hub returned invalid JSON') }
             const all: HubStream[] = []
             for (const group of data.results || []) {
                 for (const stream of group.streams || []) {
-                    if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = 'https://proxy.moovie.fun' + stream.proxyUrl
+                    if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
                     stream.providerName = group.providerName
                     all.push(stream)
                 }
             }
-            console.debug('[MoovieFrame] fetchStreams parsed streams:', all.length)
             return all
         }
 
@@ -382,20 +686,22 @@ export default defineComponent({
 
         async function doLoad() {
             console.debug('[MoovieFrame] doLoad start')
-            destroyPlayer(); loading.value = true; error.value = ''; startMessages()
+            destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false
             try {
+                await ensureProxySetting()
                 const all = await fetchStreams()
                 streams.value = all
                 if (!all.length) throw new Error('No streamable sources found')
-                await ensureProxySetting()
+                if (playbackStarted.value) { loading.value = false; return }
                 await tryProviderChain(all)
-                updateQualityBtn()
                 loading.value = false
                 console.debug('[MoovieFrame] doLoad done')
             } catch (e: any) {
                 console.debug('[MoovieFrame] doLoad error:', e.message)
-                error.value = e.message || 'Failed to load stream'
-                loading.value = false; stopMessages()
+                if (!playbackStarted.value) {
+                    error.value = e.message || 'Failed to load stream'
+                }
+                loading.value = false
             }
         }
 
@@ -455,22 +761,18 @@ export default defineComponent({
 
         function retry() { void doLoad() }
 
-        function toggleQuality() {
-            if (uniqueQualities.value.length > 1) qualityOpen.value = !qualityOpen.value
-        }
-
         function onClickOutside(e: MouseEvent) {
-            if (!qualityOpen.value) return
             const target = e.target as Node
-            if (qualityRootRef.value?.contains(target)) return
-            if ((target as Element)?.closest?.('.moovie-frame__quality-btn')) return
-            qualityOpen.value = false
-        }
-
-        function updateQualityBtn() {
-            const btn = document.querySelector('.moovie-frame__quality-btn .moovie-frame__quality-label')
-            if (btn) {
-                btn.textContent = streams.value[selectedStreamIndex.value]?.quality || 'Auto'
+            if (qualityOpen.value && !qualityRootRef.value?.contains(target)) {
+                qualityOpen.value = false
+            }
+            if (settingsOpen.value) {
+                const panel = rootRef.value?.querySelector('.moovie-frame__settings-panel')
+                const btn = rootRef.value?.querySelector('.moovie-frame__three-dot-btn')
+                if (panel && !panel.contains(target) && btn && !btn.contains(target)) {
+                    settingsOpen.value = false
+                    settingsSection.value = null
+                }
             }
         }
 
@@ -480,13 +782,101 @@ export default defineComponent({
             const idx = streams.value.findIndex(s => s.quality === q)
             if (idx < 0) return
             qualityOpen.value = false
+            settingsOpen.value = false
             selectedStreamIndex.value = idx
-            updateQualityBtn()
             const stream = streams.value[idx]
             await tryPlayStream(stream)
         }
 
-        const startTrackingIfNeeded = () => {
+        async function selectServer(provider: string) {
+            selectedServer.value = provider
+            settingsOpen.value = false
+            settingsSection.value = null
+            console.debug('[MoovieFrame] selectServer:', provider)
+            console.debug('[MoovieFrame]  all providerNames in streams:', [...new Set(streams.value.map(s => s.providerName))])
+            const group = streams.value.filter(s => s.providerName === provider)
+            console.debug('[MoovieFrame]  matching streams:', group.length)
+            if (!group.length) return
+            const best = pickBest(group)
+            if (!best) {
+                console.debug('[MoovieFrame] pickBest returned null for provider:', provider)
+                return
+            }
+            console.debug('[MoovieFrame]  picked stream:', best.name, best.quality, 'url:', (best.url || best.proxyUrl || '').slice(0, 80))
+            if (!best.url && !best.proxyUrl) {
+                console.debug('[MoovieFrame] stream has no URL for provider:', provider)
+                return
+            }
+            try {
+                await tryPlayStream(best)
+                console.debug('[MoovieFrame] switched to server:', provider)
+            } catch (e) {
+                console.error('[MoovieFrame] failed to switch to server:', provider, e)
+            }
+        }
+
+        function selectAudioTrack(index: number) {
+            selectedAudioTrack.value = index
+            if (hlsInstance && hlsInstance.audioTrack !== undefined) {
+                hlsInstance.audioTrack = index
+            }
+        }
+
+        function selectSubtitleTrack(index: number) {
+            selectedSubtitleTrack.value = index
+            if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
+                hlsInstance.subtitleTrack = index
+            }
+        }
+
+        function togglePlay() {
+            const video = videoRef.value
+            if (!video) return
+            if (video.paused) { video.play() } else { video.pause() }
+        }
+
+        function toggleMute() {
+            const video = videoRef.value
+            if (!video) return
+            video.muted = !video.muted
+            muted.value = video.muted
+        }
+
+        function toggleFullscreen() {
+            const el = rootRef.value
+            if (!el) return
+            if (document.fullscreenElement) {
+                document.exitFullscreen()
+                isFullscreen.value = false
+            } else {
+                el.requestFullscreen().then(() => isFullscreen.value = true).catch(() => {})
+            }
+        }
+
+        function formatTime(t: number): string {
+            if (!t || !isFinite(t)) return '0:00'
+            const m = Math.floor(t / 60)
+            const s = Math.floor(t % 60)
+            return `${m}:${s.toString().padStart(2, '0')}`
+        }
+
+        function setPlaybackSpeed(speed: number) {
+            playbackSpeed.value = speed
+            settingsSection.value = null
+            if (videoRef.value) videoRef.value.playbackRate = speed
+        }
+
+        function togglePiP() {
+            const video = videoRef.value
+            if (!video) return
+            if (document.pictureInPictureElement) {
+                document.exitPictureInPicture()
+            } else {
+                video.requestPictureInPicture().catch(() => {})
+            }
+        }
+
+        function startTrackingIfNeeded() {
             if (stopTracking) { stopTracking(); stopTracking = null }
             if (props.mediaId) {
                 stopTracking = startProgressTracking(props.mediaId, props.mediaType, props.mediaType === 'tv' ? props.season : undefined, props.mediaType === 'tv' ? props.episode : undefined)
@@ -496,10 +886,21 @@ export default defineComponent({
         watch(() => [props.mediaId, props.mediaType, props.season, props.episode], () => { if (props.mediaId) { void doLoad(); startTrackingIfNeeded() } })
         watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
 
-        onMounted(() => { computeAmbient(); startTrackingIfNeeded(); void doLoad(); document.addEventListener('click', onClickOutside) })
-        onUnmounted(() => { destroyPlayer(); if (stopTracking) { stopTracking(); stopTracking = null }; document.removeEventListener('click', onClickOutside) })
+        function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
 
-        return { rootRef, artContainer, qualityRootRef, loading, error, loadingLabel, ambientImage, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, qualityOpen, buffering, retry, selectQuality, toggleQuality }
+        onMounted(() => {
+            computeAmbient(); startTrackingIfNeeded(); void doLoad()
+            document.addEventListener('click', onClickOutside)
+            document.addEventListener('fullscreenchange', onFullscreenChange)
+        })
+        onUnmounted(() => {
+            cancelScrape(); destroyPlayer()
+            if (stopTracking) { stopTracking(); stopTracking = null }
+            document.removeEventListener('click', onClickOutside)
+            document.removeEventListener('fullscreenchange', onFullscreenChange)
+        })
+
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, qualityOpen, buffering, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, setPlaybackSpeed, togglePiP }
     },
 })
 </script>
@@ -547,25 +948,12 @@ export default defineComponent({
         box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--rule);
     }
 
-    &__art {
+    &__video {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
-        :deep(video) { width: 100%; height: 100%; object-fit: contain; }
-        :deep(.plyr) {
-            width: 100%;
-            height: 100%;
-            --plyr-color-main: #ff5a1f;
-            --plyr-video-control-background-hover: rgba(255, 90, 31, 0.15);
-            --plyr-range-fill-background: #ff5a1f;
-            --plyr-progress-loading-background: rgba(255, 90, 31, 0.35);
-            --plyr-tooltip-background: rgba(0, 0, 0, 0.92);
-            --plyr-tooltip-color: #f0eee3;
-            --plyr-menu-color: #f0eee3;
-            --plyr-menu-background: rgba(15, 15, 15, 0.98);
-            --plyr-menu-back-arrow-color: rgba(255, 255, 255, 0.6);
-        }
+        object-fit: contain;
     }
 
     &__overlay {
@@ -576,14 +964,6 @@ export default defineComponent({
         &--error h3 { color: #ff8f8f; }
     }
 
-    &__skeleton {
-        position: absolute; inset: 0;
-        background: linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0) 70%) var(--ink-800);
-        background-size: 220% 100%;
-        animation: shimmer 2.4s infinite ease-in-out;
-    }
-
-    &__loader { position: relative; z-index: 1; display: grid; gap: var(--s-3); justify-items: center; color: var(--bone-200); }
     &__spinner { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--rule-strong); border-top-color: var(--ember); animation: spin 1.1s linear infinite; }
 
     &__retry {
@@ -592,35 +972,6 @@ export default defineComponent({
         border-radius: var(--r-pill); font-family: var(--font-ui); font-weight: 600; cursor: pointer;
         transition: background-color 0.15s, transform 0.15s;
         &:hover { background: var(--ember-600); transform: translateY(-1px); }
-    }
-
-    &__quality-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        padding: 0 6px;
-        background: none;
-        border: 0;
-        color: inherit;
-        font-family: var(--font-ui);
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        &.has-menu::after {
-            content: '';
-            display: inline-block;
-            width: 0;
-            height: 0;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
-            border-top: 4px solid currentColor;
-            margin-left: 2px;
-            vertical-align: middle;
-        }
-    }
-
-    &__quality-label {
-        letter-spacing: 0.03em;
     }
 
     &__quality-menu {
@@ -659,112 +1010,222 @@ export default defineComponent({
     .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bone-400); margin: 0; }
 }
 
-@media (hover: hover) and (pointer: fine) {
-    :deep(.plyr__volume) {
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%) scaleY(0);
-        transform-origin: bottom center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 10px 4px;
-        background: rgba(0, 0, 0, 0.9);
-        border-radius: 6px;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.15s ease, transform 0.15s ease;
-        margin-bottom: 8px;
-
-        input[data-plyr="volume"] {
-            transform: rotate(-90deg);
-            width: 80px;
-            height: 4px;
-            min-width: auto;
-            max-width: none;
-            margin: -38px 0;
-            cursor: pointer;
-        }
-    }
-
-    :deep([data-plyr="mute"]:hover + .plyr__volume),
-    :deep(.plyr__volume:hover),
-    :deep([data-plyr="mute"]:focus-visible + .plyr__volume) {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateX(-50%) scaleY(1);
-    }
-
-    :deep(.plyr--video) {
-        overflow: visible;
-    }
-}
-
-:deep(.plyr__tooltip) {
-    background: var(--plyr-tooltip-background);
-    color: var(--plyr-tooltip-color);
-    font-size: 12px;
-    padding: 0.4em 0.7em;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
-    letter-spacing: 0.02em;
-    &::before { border-top-color: var(--plyr-tooltip-background); }
-}
-
-:deep(.plyr__preview-thumb) {
-    background: var(--plyr-tooltip-background);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 6px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    .plyr__preview-thumb__time-container {
-        background: transparent;
-        color: var(--plyr-tooltip-color);
-        font-size: 11px;
-        padding: 4px 6px 6px;
-        letter-spacing: 0.02em;
-    }
-}
-
-:deep(.plyr__progress__buffer) {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-:deep(.plyr__progress__container .plyr__progress__buffer) {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-:deep(.plyr__controls) {
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7) 40%, rgba(0, 0, 0, 0.9));
-}
-
-:deep(.plyr__menu__container) {
-    .plyr__control[role="menuitemradio"] {
-        &[aria-checked="true"]::before { background: #ff5a1f; }
-    }
-    .plyr__control--forward:hover { background: rgba(255, 90, 31, 0.15); }
-}
-
-.is-buffering :deep(.plyr__control--overlaid) {
-    pointer-events: none;
-    svg { display: none; }
-    &::after {
-        content: '';
-        display: block;
-        width: 28px;
-        height: 28px;
-        border: 2px solid rgba(255, 255, 255, 0.15);
-        border-top-color: #fff;
-        border-radius: 50%;
-        animation: moovie-spin 0.8s linear infinite;
-    }
-}
-
 @keyframes moovie-spin { to { transform: rotate(360deg); } }
 
-@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.moovie-frame__controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+    pointer-events: none;
+}
+
+.moovie-frame__controls-left,
+.moovie-frame__controls-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    pointer-events: auto;
+}
+
+.moovie-frame__ctrl-btn {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-content: center;
+    background: none;
+    border: 0;
+    color: #f0eee3;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.1s;
+    &:hover { background: rgba(255, 255, 255, 0.12); }
+}
+
+.moovie-frame__three-dot-btn {
+    &.is-open { background: rgba(255, 90, 31, 0.3); }
+}
+
+.moovie-frame__time {
+    font-size: 0.78rem;
+    font-family: var(--font-ui);
+    color: rgba(255, 255, 255, 0.85);
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.moovie-frame__settings-panel {
+    position: absolute;
+    bottom: 48px;
+    right: 8px;
+    z-index: 30;
+    min-width: 220px;
+    max-width: 280px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: rgba(15, 15, 15, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r-md);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    padding: var(--s-1);
+}
+
+.moovie-frame__settings-header {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    padding: 0.4rem 0.5rem 0.4rem 0.25rem;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: #f0eee3;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: var(--s-1);
+    min-height: 36px;
+}
+
+.moovie-frame__settings-back {
+    background: none;
+    border: 0;
+    color: #f0eee3;
+    cursor: pointer;
+    padding: 2px;
+    display: grid;
+    place-content: center;
+    border-radius: var(--r-sm);
+    &:hover { background: rgba(255, 255, 255, 0.08); }
+}
+
+.moovie-frame__settings-item {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    background: none;
+    border: 0;
+    border-radius: var(--r-sm);
+    color: #f0eee3;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+    &:hover { background: rgba(255, 255, 255, 0.08); }
+    &.is-active { color: #ff5a1f; font-weight: 600; }
+}
+
+.moovie-frame__settings-item-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.moovie-frame__settings-item-value {
+    font-size: var(--fs-xs);
+    color: rgba(255, 255, 255, 0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+.moovie-frame__settings-item-hint {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: var(--fs-xs);
+}
+
+.moovie-frame__settings-chevron {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.moovie-frame__settings-divider {
+    height: 1px;
+    margin: 4px 8px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.moovie-frame__scraper-status {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 24px;
+    pointer-events: none;
+}
+
+.moovie-frame__scraper-handle {
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 4px;
+}
+
+.moovie-frame__provider {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    pointer-events: auto;
+    min-width: 140px;
+}
+.moovie-frame__provider.is-pending { background: rgba(255,90,31,0.2); }
+.moovie-frame__provider.is-success { background: rgba(34,197,94,0.2); }
+.moovie-frame__provider.is-failure { background: rgba(239,68,68,0.2); }
+
+.moovie-frame__provider-icon {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-content: center;
+    flex-shrink: 0;
+}
+.moovie-frame__provider-icon .moovie-frame__spinner--sm {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+}
+.moovie-frame__check { color: #4ade80; font-size: 14px; }
+.moovie-frame__cross { color: #f87171; font-size: 12px; }
+.moovie-frame__dash  { color: #a1a1aa; font-size: 14px; }
+.moovie-frame__dot   { color: #52525b; font-size: 11px; }
+
+.moovie-frame__provider-name {
+    flex: 1;
+    text-align: left;
+    color: var(--bone-200);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.moovie-frame__provider-pct {
+    color: var(--ember);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.7rem;
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-    .moovie-frame__skeleton, .moovie-frame__spinner { animation: none !important; }
+    .moovie-frame__spinner { animation: none !important; }
 }
 </style>

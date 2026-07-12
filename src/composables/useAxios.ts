@@ -12,7 +12,7 @@ const BASE_URL = 'https://proxy.moovie.fun/tmdb-api/3/'
 const API_KEY = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672'
 
 const CACHE_NAME = 'tmdb-api-cache-v2'; // v2: bumped to invalidate stale week-long entries
-const ONE_DAY_MS = 24 * 60 * 60 * 1000; // Cache for 1 day — keeps posters/trending fresh
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000; // Cache for 7 days — Cloudflare edge caching
 
 async function getCachedResponse(config: any): Promise<any | null> {
     if (config.method !== 'get' && config.method !== 'GET') return null;
@@ -31,7 +31,7 @@ async function getCachedResponse(config: any): Promise<any | null> {
             if (dateHeader) {
                 const cachedTime = new Date(dateHeader).getTime();
                 const now = Date.now();
-                if (now - cachedTime < ONE_DAY_MS) {
+                if (now - cachedTime < ONE_WEEK_MS) {
                     const data = await cachedRes.json();
                     return {
                         data,

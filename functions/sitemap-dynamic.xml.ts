@@ -120,7 +120,7 @@ ${xmlEntries}
   return new Response(sitemapXml, {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=86400', // Cache for 1 day
+      'Cache-Control': 'public, max-age=604800', // Cache for 7 days
       'Access-Control-Allow-Origin': '*'
     }
   });

@@ -12,10 +12,7 @@
                                 <h2 class="discuss-chat__panel-title">Open chat</h2>
                             </div>
                             <div class="discuss-chat__user-badge">
-                                <template v-if="guestName || isLoggedIn">
-                                    <span class="meta">Chatting as <strong>{{ isLoggedIn ? '@' + currentUsername : guestName }}</strong></span>
-                                </template>
-                                <span v-else class="meta">Join the conversation</span>
+                                <span class="meta">Chatting as <strong>{{ isLoggedIn ? '@' + currentUsername : 'Anonymous' }}</strong></span>
                             </div>
                         </header>
 
@@ -70,16 +67,7 @@
                                                 </span>
                                             </div>
                                         </div>
-                                        <div class="discuss-msg__actions">
-                                            <button 
-                                                v-if="!c.isReported"
-                                                @click="openReportModal(c)" 
-                                                class="discuss-msg__report-btn"
-                                            >
-                                                Report
-                                            </button>
-                                            <span v-else class="discuss-msg__reported-tag">Reported</span>
-                                        </div>
+
                                     </div>
                                 </div>
                             </div>
@@ -100,15 +88,13 @@
                                 </button>
                             </div>
                             <form @submit.prevent="handlePostComment" class="discuss-composer-form discuss-composer-form--stacked">
-                                <div v-if="!isLoggedIn" class="discuss-composer-name-row">
-                                    <input 
-                                        type="text" 
-                                        v-model="guestName" 
-                                        placeholder="Your name (optional)"
-                                        maxlength="30"
-                                        class="discuss-chat__message-input discuss-chat__name-input"
-                                    />
-                                </div>
+                                <p v-if="!isLoggedIn" class="discuss-composer-anon-hint meta">
+                                    Posting as Anonymous.
+                                    <button type="button" class="discuss-composer-signin" @click="showAuthModal = true">
+                                        Sign in
+                                    </button>
+                                    to use your account.
+                                </p>
                                 <div class="discuss-composer-input-row">
                                     <div class="discuss-composer-input-wrapper">
                                         <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis" @click.stop="toggleEmojiPicker('lounge')">
@@ -219,16 +205,7 @@
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div class="discuss-msg__actions">
-                                                <button 
-                                                    v-if="!c.isReported"
-                                                    @click="openReportModal(c)" 
-                                                    class="discuss-msg__report-btn"
-                                                >
-                                                    Report
-                                                </button>
-                                                <span v-else class="discuss-msg__reported-tag">Reported</span>
-                                            </div>
+
                                         </div>
                                     </div>
                                 </div>
@@ -337,12 +314,13 @@
                                         <div class="discuss-msg__body discuss-msg__body--full">
                                             <div class="discuss-msg__meta">
                                                 <span class="discuss-msg__username">{{ c.username }}</span>
-                                                <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
                                                 
                                                 <!-- Category tag displaying target movie name/ID -->
                                                 <router-link :to="getMovieLink(c.media_type, c.media_id)" class="discuss-msg__topic-badge discuss-msg__topic-badge--link">
                                                     {{ getCategoryIcon(c.media_type) }} {{ getMediaName(c.media_type, c.media_id) }}
                                                 </router-link>
+
+                                                <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
                                             </div>
 
                                             <div class="discuss-msg__bubble discuss-msg__bubble--movie">
@@ -358,14 +336,7 @@
                                                     Open thread
                                                 </button>
 
-                                                <button 
-                                                    v-if="!c.isReported"
-                                                    @click="openReportModal(c)" 
-                                                    class="discuss-msg__report-btn"
-                                                >
-                                                    Report
-                                                </button>
-                                                <span v-else class="discuss-msg__reported-tag">Reported</span>
+
                                             </div>
                                         </div>
                                     </div>
@@ -380,49 +351,7 @@
         <!-- Auth Modal Dialog -->
         <AuthModal :isOpen="showAuthModal" @close="showAuthModal = false; checkAuth()" />
 
-        <!-- Report Modal Dialog -->
-        <div v-if="showReportModal" class="report-modal" role="dialog" aria-modal="true">
-            <div class="report-modal__backdrop" @click="closeReportModal"></div>
-            <div class="report-modal__content">
-                <h3 class="report-modal__title">Report Post</h3>
-                <p class="report-modal__desc meta">Why are you flag-reporting this post? It will be saved for moderation.</p>
-                
-                <div class="report-modal__post-preview">
-                    <strong class="meta">{{ reportingComment?.username }}:</strong>
-                    <p class="meta">{{ reportingComment?.content }}</p>
-                </div>
 
-                <form @submit.prevent="submitReport" class="report-form">
-                    <div class="report-form__group">
-                        <label class="report-form__label eyebrow">Reason</label>
-                        <select v-model="reportReason" class="report-form__select" required>
-                            <option value="spam">Spam / Ad links</option>
-                            <option value="abuse">Harassment or Abuse</option>
-                            <option value="spoiler">Spoilers without warning</option>
-                            <option value="inappropriate">Inappropriate text</option>
-                            <option value="other">Other reason</option>
-                        </select>
-                    </div>
-
-                    <div class="report-form__group">
-                        <label class="report-form__label eyebrow">Explanation</label>
-                        <textarea 
-                            v-model="reportDetails" 
-                            placeholder="Add details (optional)..."
-                            rows="3"
-                            class="report-form__textarea"
-                        ></textarea>
-                    </div>
-
-                    <div class="report-modal__buttons">
-                        <button type="button" @click="closeReportModal" class="btn btn-secondary">Cancel</button>
-                        <button type="submit" class="btn btn-primary" :disabled="submittingReport">
-                            {{ submittingReport ? 'Flagging...' : 'Submit Report' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 </template>
 
@@ -463,7 +392,6 @@ export default defineComponent({
         const submittingMovie = ref(false);
         const newCommentText = ref('');
         const newMovieCommentText = ref('');
-        const guestName = ref('');
 
         const showLoungeEmojiPicker = ref(false);
         const showThreadEmojiPicker = ref(false);
@@ -504,12 +432,7 @@ export default defineComponent({
         // Element references
         const chatBox = ref<HTMLElement | null>(null);
 
-        // Reporting State
-        const showReportModal = ref(false);
-        const reportingComment = ref<Comment | null>(null);
-        const reportReason = ref('spam');
-        const reportDetails = ref('');
-        const submittingReport = ref(false);
+
 
         // Movie-specific Discussion State
         const selectedMovieId = ref<string | null>(null);
@@ -924,7 +847,7 @@ export default defineComponent({
 
             const nameToPost = isLoggedIn.value
                 ? `@${currentUsername.value}`
-                : guestName.value.trim() || 'Anonymous';
+                : 'Anonymous';
 
             try {
                 const supabase = await getSupabaseClient();
@@ -955,55 +878,7 @@ export default defineComponent({
             }
         };
 
-        // Report actions
-        const openReportModal = (comment: Comment) => {
-            reportingComment.value = comment;
-            reportReason.value = 'spam';
-            reportDetails.value = '';
-            showReportModal.value = true;
-        };
 
-        const closeReportModal = () => {
-            showReportModal.value = false;
-            reportingComment.value = null;
-        };
-
-        const submitReport = async () => {
-            if (!reportingComment.value) return;
-            submittingReport.value = true;
-
-            const reporterName = isLoggedIn.value ? `@${currentUsername.value}` : 'Anonymous Guest';
-
-            try {
-                const supabase = await getSupabaseClient();
-                await supabase
-                    .from('movora_reports')
-                    .insert([
-                        {
-                            comment_id: reportingComment.value.id,
-                            reported_by: reporterName,
-                            reason: reportReason.value,
-                            details: reportDetails.value.trim(),
-                            comment_content: reportingComment.value.content,
-                            comment_author: reportingComment.value.username,
-                            created_at: new Date().toISOString()
-                        }
-                    ]);
-
-                // Update UI states
-                const target = comments.value.find(c => c.id === reportingComment.value!.id);
-                if (target) target.isReported = true;
-                const mTarget = movieComments.value.find(c => c.id === reportingComment.value!.id);
-                if (mTarget) mTarget.isReported = true;
-
-                alert('Thank you. The post has been flagged and reported.');
-                closeReportModal();
-            } catch (e) {
-                console.error('Report submission failed:', e);
-            } finally {
-                submittingReport.value = false;
-            }
-        };
 
         const formatTimeAgo = (dateStr: string) => {
             const date = new Date(dateStr);
@@ -1012,13 +887,13 @@ export default defineComponent({
 
             if (seconds < 60) return 'Just now';
             const minutes = Math.floor(seconds / 60);
-            if (minutes < 60) return `${minutes}m ago`;
+            if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
             const hours = Math.floor(minutes / 60);
-            if (hours < 24) return `${hours}h ago`;
+            if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
             const days = Math.floor(hours / 24);
             if (days === 1) return 'Yesterday';
-            if (days < 7) return `${days}d ago`;
-            
+            if (days < 7) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         };
 
@@ -1062,7 +937,6 @@ export default defineComponent({
             newCommentText,
             newMovieCommentText,
             submittingMovie,
-            guestName,
             isLoggedIn,
             currentUsername,
             showAuthModal,
@@ -1079,15 +953,7 @@ export default defineComponent({
             // Composer Actions
             handlePostComment,
 
-            // Reporting
-            showReportModal,
-            reportingComment,
-            reportReason,
-            reportDetails,
-            submittingReport,
-            openReportModal,
-            closeReportModal,
-            submitReport,
+
 
             // Movie-specific Discussion
             selectedMovieId,
@@ -1534,9 +1400,22 @@ export default defineComponent({
         }
     }
 
+    &__meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        margin-bottom: 4px;
+
+        .discuss-msg__time {
+            margin-left: auto;
+            white-space: nowrap;
+        }
+    }
+
     &__bubble {
-        background: var(--ink-800); /* Match site aesthetics */
-        border: 1px solid var(--rule);
+        background: rgba(255, 90, 31, 0.15); /* Ember tinted dark bubble */
+        border: 1px solid rgba(255, 90, 31, 0.3);
         border-radius: 0 8px 8px 8px;
         padding: 6px 8px 6px 10px;
         word-break: break-word;

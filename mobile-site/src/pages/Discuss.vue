@@ -63,14 +63,6 @@
                                     </span>
                                 </div>
                             </div>
-                            <button
-                                v-if="!c.isReported && !isSelf(c.username)"
-                                type="button"
-                                class="m-discuss__report"
-                                @click="openReportModal(c)"
-                            >
-                                Report
-                            </button>
                         </article>
                     </div>
                 </div>
@@ -88,11 +80,7 @@
                             {{ emoji }}
                         </button>
                     </div>
-                    <div v-if="!isLoggedIn" class="m-discuss__login-prompt">
-                        <p class="meta">Sign in to post in the chat.</p>
-                        <button type="button" class="m-discuss__signin" @click="showAuthModal = true">Sign In</button>
-                    </div>
-                    <form v-else class="m-discuss__form" @submit.prevent="handlePostComment">
+                    <form class="m-discuss__form" @submit.prevent="handlePostComment">
                         <div class="m-discuss__input-wrapper">
                             <button type="button" class="m-discuss__composer-btn" aria-label="Emojis" @click.stop="toggleEmojiPicker('lounge')">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -117,6 +105,10 @@
                             </svg>
                         </button>
                     </form>
+                    <p v-if="!isLoggedIn" class="discuss-composer-anon-hint meta m-discuss__anon-hint">
+                        Posting as Anonymous.
+                        <button type="button" class="discuss-composer-signin" @click="showAuthModal = true">Sign In</button> to use your account.
+                    </p>
                 </footer>
             </section>
 
@@ -161,14 +153,6 @@
                                         @click="viewMovieDiscussion(c.media_type || 'movie', c.media_id || '')"
                                     >
                                         Open thread
-                                    </button>
-                                    <button
-                                        v-if="!c.isReported"
-                                        type="button"
-                                        class="m-discuss__report"
-                                        @click="openReportModal(c)"
-                                    >
-                                        Report
                                     </button>
                                 </div>
                             </div>
@@ -278,35 +262,7 @@
 
         <AuthModal :is-open="showAuthModal" @close="showAuthModal = false; checkAuth()" />
 
-        <div v-if="showReportModal" class="m-discuss__modal" role="dialog" aria-modal="true">
-            <div class="m-discuss__modal-backdrop" @click="closeReportModal" />
-            <div class="m-discuss__modal-card">
-                <h2 class="m-discuss__modal-title">Report post</h2>
-                <p class="meta">Why are you flagging this post?</p>
-                <form class="m-discuss__report-form" @submit.prevent="submitReport">
-                    <label class="m-discuss__field">
-                        <span class="eyebrow">Reason</span>
-                        <select v-model="reportReason" class="m-discuss__select" required>
-                            <option value="spam">Spam / Ad links</option>
-                            <option value="abuse">Harassment or Abuse</option>
-                            <option value="spoiler">Spoilers without warning</option>
-                            <option value="inappropriate">Inappropriate text</option>
-                            <option value="other">Other reason</option>
-                        </select>
-                    </label>
-                    <label class="m-discuss__field">
-                        <span class="eyebrow">Details</span>
-                        <textarea v-model="reportDetails" class="m-discuss__textarea" rows="3" placeholder="Optional" />
-                    </label>
-                    <div class="m-discuss__modal-actions">
-                        <button type="button" class="m-discuss__cancel" @click="closeReportModal">Cancel</button>
-                        <button type="submit" class="m-discuss__send" :disabled="submittingReport">
-                            {{ submittingReport ? 'Flagging…' : 'Submit' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+
     </MobileShell>
 </template>
 
@@ -344,13 +300,6 @@ const {
     getCategoryIcon,
     checkAuth,
     handlePostComment,
-    showReportModal,
-    reportReason,
-    reportDetails,
-    submittingReport,
-    openReportModal,
-    closeReportModal,
-    submitReport,
     selectedMovieId,
     selectedMovieType,
     selectedMovieComments,
@@ -538,8 +487,8 @@ onMounted(() => {
     }
 
     &__bubble {
-        background: var(--ink-800); /* Match site aesthetics */
-        border: 1px solid var(--rule);
+        background: rgba(255, 90, 31, 0.15); /* Ember tinted dark bubble */
+        border: 1px solid rgba(255, 90, 31, 0.3);
         border-radius: 0 8px 8px 8px;
         padding: 6px 8px 6px 10px;
         word-break: break-word;
@@ -563,6 +512,20 @@ onMounted(() => {
         font-family: var(--font-ui);
         font-size: 0.72rem;
         font-weight: 600;
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 2px;
+
+        .meta {
+            margin-left: auto;
+            white-space: nowrap;
+            font-size: 0.65rem;
+            color: #8696a0;
+        }
     }
 
     &__topic {

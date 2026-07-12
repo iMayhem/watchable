@@ -62,11 +62,7 @@ export function useDiscussPage() {
 
     const chatBox = ref<HTMLElement | null>(null);
 
-    const showReportModal = ref(false);
-    const reportingComment = ref<DiscussComment | null>(null);
-    const reportReason = ref('spam');
-    const reportDetails = ref('');
-    const submittingReport = ref(false);
+
 
     const selectedMovieId = ref<string | null>(null);
     const selectedMovieType = ref('movie');
@@ -437,19 +433,17 @@ export function useDiscussPage() {
     };
 
     const handlePostComment = async () => {
-        if (!isLoggedIn.value) {
-            showAuthModal.value = true;
-            return;
-        }
         if (!newCommentText.value.trim()) return;
         submitting.value = true;
+
+        const nameToPost = isLoggedIn.value ? `@${currentUsername.value}` : 'Anonymous';
 
         try {
             const supabase = await getSupabaseClient();
             const { data, error } = await supabase
                 .from('movora_chat')
                 .insert([{
-                    username: `@${currentUsername.value}`,
+                    username: nameToPost,
                     content: newCommentText.value.trim()
                 }])
                 .select()
@@ -469,48 +463,7 @@ export function useDiscussPage() {
         }
     };
 
-    const openReportModal = (comment: DiscussComment) => {
-        reportingComment.value = comment;
-        reportReason.value = 'spam';
-        reportDetails.value = '';
-        showReportModal.value = true;
-    };
 
-    const closeReportModal = () => {
-        showReportModal.value = false;
-        reportingComment.value = null;
-    };
-
-    const submitReport = async () => {
-        if (!reportingComment.value) return;
-        submittingReport.value = true;
-
-        const reporterName = isLoggedIn.value ? `@${currentUsername.value}` : 'Anonymous Guest';
-
-        try {
-            const supabase = await getSupabaseClient();
-            await supabase.from('movora_reports').insert([{
-                comment_id: reportingComment.value.id,
-                reported_by: reporterName,
-                reason: reportReason.value,
-                details: reportDetails.value.trim(),
-                comment_content: reportingComment.value.content,
-                comment_author: reportingComment.value.username,
-                created_at: new Date().toISOString()
-            }]);
-
-            const target = comments.value.find(c => c.id === reportingComment.value!.id);
-            if (target) target.isReported = true;
-            const mTarget = movieComments.value.find(c => c.id === reportingComment.value!.id);
-            if (mTarget) mTarget.isReported = true;
-
-            closeReportModal();
-        } catch (e) {
-            console.error('Report submission failed:', e);
-        } finally {
-            submittingReport.value = false;
-        }
-    };
 
     const formatTimeAgo = (dateStr: string) => {
         const date = new Date(dateStr);
@@ -519,12 +472,12 @@ export function useDiscussPage() {
 
         if (seconds < 60) return 'Just now';
         const minutes = Math.floor(seconds / 60);
-        if (minutes < 60) return `${minutes}m ago`;
+        if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
         const hours = Math.floor(minutes / 60);
-        if (hours < 24) return `${hours}h ago`;
+        if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
         const days = Math.floor(hours / 24);
         if (days === 1) return 'Yesterday';
-        if (days < 7) return `${days}d ago`;
+        if (days < 7) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
 
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
@@ -570,14 +523,6 @@ export function useDiscussPage() {
         getCategoryIcon,
         checkAuth,
         handlePostComment,
-        showReportModal,
-        reportingComment,
-        reportReason,
-        reportDetails,
-        submittingReport,
-        openReportModal,
-        closeReportModal,
-        submitReport,
         selectedMovieId,
         selectedMovieType,
         selectedMovieComments,

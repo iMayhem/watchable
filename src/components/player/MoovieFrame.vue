@@ -440,11 +440,6 @@ interface HubStream {
     qualities?: string[]
 }
 
-function parseQuality(q: string): number {
-    const n = parseInt(q.toLowerCase().replace(/p$/, ''))
-    return isNaN(n) ? -1 : n
-}
-
         let proxyEnabled = true
         let proxyFetched = false
 

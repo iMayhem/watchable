@@ -280,6 +280,24 @@ import { getSupabaseClient } from '../../lib/supabase'
 
 const HUB_BASE = 'https://proxy.moovie.fun'
 const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
+const WYZIE_SUBS = 'https://sub.wyzie.io/search'
+const WYZIE_API_KEY = 'wyzie-m3moskoivi4mwobs7167pcscgmtou59j'
+
+interface WyzieSub {
+    id: string
+    url: string
+    display: string
+    language: string
+    format: string
+}
+
+function srtToVtt(srt: string): string {
+    let vtt = 'WEBVTT\n\n'
+    vtt += srt
+        .replace(/\r\n/g, '\n')
+        .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+    return vtt
+}
 
 interface ProviderStatus {
     id: string
@@ -345,10 +363,13 @@ export default defineComponent({
         const selectedServer = ref('')
         const audioTracks = ref<{ id: number; name: string; lang?: string }[]>([])
         const selectedAudioTrack = ref(-1)
-        const subtitleTracks = ref<{ id: number; name: string; lang?: string }[]>([])
+        const subtitleTracks = ref<{ id: number; name: string; lang?: string; isWyzie?: boolean }[]>([])
         const selectedSubtitleTrack = ref(-1)
         const hlsQualities = ref<{ id: number; label: string; height: number }[]>([])
         const selectedHlsQuality = ref(-1)
+        const WYZIE_TRACK_OFFSET = 1000
+        let wyzieBlobUrls: string[] = []
+        let wyzieTrackElements: HTMLTrackElement[] = []
         const playing = ref(false)
         const currentTime = ref(0)
         const duration = ref(0)
@@ -439,6 +460,10 @@ export default defineComponent({
             if (videoRef.value) { videoRef.value.removeAttribute('src'); videoRef.value.load() }
             audioTracks.value = []
             subtitleTracks.value = []
+            for (const el of wyzieTrackElements) { el.remove() }
+            wyzieTrackElements = []
+            for (const url of wyzieBlobUrls) { URL.revokeObjectURL(url) }
+            wyzieBlobUrls = []
         }
 
         async function mountPlayer(url: string) {
@@ -845,13 +870,99 @@ export default defineComponent({
             console.debug('[MoovieFrame] tryPlayStream:', s.name, s.quality, playUrl)
             try {
                 await mountPlayer(playUrl)
+                loadWyzieSubtitles().catch(() => {})
             } catch (e) {
                 if (!useProxy && s.proxyUrl && proxyEnabled) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
                     await mountPlayer(s.proxyUrl)
+                    loadWyzieSubtitles().catch(() => {})
                 } else {
                     throw e
                 }
+            }
+        }
+
+        async function fetchWyzieSubtitles(): Promise<WyzieSub[]> {
+            const id = String(props.mediaId)
+            if (!id) { console.debug('[Wyzie] no mediaId'); return [] }
+            const params = new URLSearchParams({ id, key: WYZIE_API_KEY })
+            if (props.mediaType === 'tv' && props.season > 0 && props.episode > 0) {
+                params.set('season', String(props.season))
+                params.set('episode', String(props.episode))
+            }
+            const url = `${WYZIE_SUBS}?${params}`
+            const proxyUrl = `${HUB_BASE}/api/proxy?destination=${encodeURIComponent(url)}`
+            console.debug('[Wyzie] fetching:', url)
+            for (const tryUrl of [url, proxyUrl]) {
+                try {
+                    const res = await fetch(tryUrl)
+                    if (!res.ok) { console.debug('[Wyzie] fetch failed:', tryUrl, res.status); continue }
+                    const data = await res.json()
+                    console.debug('[Wyzie] got', Array.isArray(data) ? data.length : 'non-array', 'results')
+                    return Array.isArray(data) ? data : []
+                } catch (e) {
+                    console.debug('[Wyzie] fetch error:', tryUrl, e)
+                }
+            }
+            return []
+        }
+
+        function srtUrlToVttBlob(subUrl: string): Promise<string | null> {
+            return fetch(subUrl).then(r => {
+                if (!r.ok) return null
+                return r.text()
+            }).then(text => {
+                if (!text) return null
+                const vtt = srtToVtt(text)
+                const blob = new Blob([vtt], { type: 'text/vtt' })
+                return URL.createObjectURL(blob)
+            }).catch(() => null)
+        }
+
+        async function loadWyzieSubtitles() {
+            console.debug('[Wyzie] loading subtitles...')
+            const subs = await fetchWyzieSubtitles()
+            if (!subs.length) { console.debug('[Wyzie] no subtitles found'); return }
+            console.debug('[Wyzie] subs count:', subs.length)
+            const video = videoRef.value
+            if (!video) { console.debug('[Wyzie] no video element'); return }
+            for (const el of wyzieTrackElements) { el.remove() }
+            wyzieTrackElements = []
+            for (const url of wyzieBlobUrls) { URL.revokeObjectURL(url) }
+            wyzieBlobUrls = []
+
+            const wyzieTracks: { id: number; name: string; lang?: string; isWyzie: boolean }[] = []
+
+            for (let i = 0; i < subs.length; i++) {
+                const sub = subs[i]
+                console.debug('[Wyzie] fetching sub content:', sub.url)
+                const blobUrl = await srtUrlToVttBlob(sub.url)
+                if (!blobUrl) { console.debug('[Wyzie] failed to convert sub:', sub.display); continue }
+                wyzieBlobUrls.push(blobUrl)
+
+                const track = document.createElement('track')
+                track.kind = 'captions'
+                track.label = sub.display || sub.language || `Track ${i}`
+                track.srclang = sub.language || 'en'
+                track.src = blobUrl
+                track.default = false
+                video.appendChild(track)
+                wyzieTrackElements.push(track)
+
+                const trackId = WYZIE_TRACK_OFFSET + i
+                wyzieTracks.push({ id: trackId, name: sub.display || sub.language || `Sub ${i}`, lang: sub.language, isWyzie: true })
+            }
+
+            if (!wyzieTracks.length) { console.debug('[Wyzie] no tracks created'); return }
+            console.debug('[Wyzie] tracks created:', wyzieTracks.length)
+
+            subtitleTracks.value = [
+                ...subtitleTracks.value,
+                ...wyzieTracks,
+            ]
+
+            if (selectedSubtitleTrack.value === -1 && wyzieTracks.length) {
+                selectSubtitleTrack(wyzieTracks[0].id)
             }
         }
 
@@ -921,8 +1032,26 @@ export default defineComponent({
 
         function selectSubtitleTrack(index: number) {
             selectedSubtitleTrack.value = index
-            if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
-                hlsInstance.subtitleTrack = index
+            if (index === -1) {
+                for (const el of wyzieTrackElements) { el.track.mode = 'disabled' }
+                if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
+                    hlsInstance.subtitleTrack = -1
+                }
+                return
+            }
+            if (index >= WYZIE_TRACK_OFFSET) {
+                const wi = index - WYZIE_TRACK_OFFSET
+                if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
+                    hlsInstance.subtitleTrack = -1
+                }
+                for (let i = 0; i < wyzieTrackElements.length; i++) {
+                    wyzieTrackElements[i].track.mode = i === wi ? 'showing' : 'disabled'
+                }
+            } else {
+                for (const el of wyzieTrackElements) { el.track.mode = 'disabled' }
+                if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
+                    hlsInstance.subtitleTrack = index
+                }
             }
         }
 
@@ -973,6 +1102,12 @@ export default defineComponent({
             if (isFinite(val)) video.currentTime = val
         }
 
+        function seekBy(seconds: number) {
+            const video = videoRef.value
+            if (!video || !isFinite(video.duration)) return
+            video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds))
+        }
+
         function setPlaybackSpeed(speed: number) {
             playbackSpeed.value = speed
             settingsSection.value = null
@@ -999,21 +1134,28 @@ export default defineComponent({
         watch(() => [props.mediaId, props.mediaType, props.season, props.episode], () => { if (props.mediaId) { void doLoad(); startTrackingIfNeeded() } })
         watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
 
+        function onKeydown(e: KeyboardEvent) {
+            if (e.key === 'ArrowRight') { seekBy(10); e.preventDefault() }
+            if (e.key === 'ArrowLeft') { seekBy(-10); e.preventDefault() }
+        }
+
         function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
 
         onMounted(() => {
             computeAmbient(); startTrackingIfNeeded(); void doLoad()
             document.addEventListener('click', onClickOutside)
             document.addEventListener('fullscreenchange', onFullscreenChange)
+            document.addEventListener('keydown', onKeydown)
         })
         onUnmounted(() => {
             cancelScrape(); destroyPlayer()
             if (stopTracking) { stopTracking(); stopTracking = null }
             document.removeEventListener('click', onClickOutside)
             document.removeEventListener('fullscreenchange', onFullscreenChange)
+            document.removeEventListener('keydown', onKeydown)
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, setPlaybackSpeed, togglePiP }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP }
     },
 })
 </script>

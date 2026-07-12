@@ -187,6 +187,7 @@ export default defineComponent({
 
         let plyrInstance: Plyr | null = null
         let hlsInstance: any = null
+        let currentHeaders: Record<string, string> | null = null
 
         const loadHlsJs = (() => {
             let promise: Promise<void> | null = null
@@ -235,15 +236,37 @@ export default defineComponent({
             container.appendChild(video)
 
             if (isHls && HlsCtor && HlsCtor.isSupported()) {
-                hlsInstance = new HlsCtor({
+                const hlsConfig: any = {
                     enableWorker: true,
                     maxBufferLength: 30,
                     maxMaxBufferLength: 60,
-                })
+                }
+                if (currentHeaders) {
+                    hlsConfig.xhrSetup = (xhr: XMLHttpRequest) => {
+                        for (const [k, v] of Object.entries(currentHeaders!)) {
+                            xhr.setRequestHeader(k, v)
+                        }
+                    }
+                }
+                hlsInstance = new HlsCtor(hlsConfig)
                 hlsInstance.loadSource(url)
                 hlsInstance.attachMedia(video)
             } else {
-                video.src = url
+                if (currentHeaders) {
+                    try {
+                        const res = await fetch(url, { headers: currentHeaders as Record<string, string> })
+                        if (res.ok) {
+                            const blob = await res.blob()
+                            video.src = URL.createObjectURL(blob)
+                        } else {
+                            video.src = url
+                        }
+                    } catch {
+                        video.src = url
+                    }
+                } else {
+                    video.src = url
+                }
             }
 
             plyrInstance = new Plyr(video, {
@@ -258,7 +281,9 @@ export default defineComponent({
 
         function playStream(stream: HubStream) {
             ensureProxySetting()
-            const playUrl = streamUrl(stream)
+            const useProxy = proxyEnabled && !!stream.proxyUrl
+            const playUrl = useProxy ? stream.proxyUrl : stream.url
+            currentHeaders = !useProxy && stream.headers ? stream.headers : null
             activeStreamUrl.value = playUrl
             activeTitle.value = `${stream._providerName} · ${stream.quality || 'Auto'}`
             playbackError.value = ''
@@ -266,6 +291,7 @@ export default defineComponent({
         }
 
         function copyUrl(stream: HubStream) {
+            ensureProxySetting()
             navigator.clipboard.writeText(streamUrl(stream)).catch(() => {})
         }
 

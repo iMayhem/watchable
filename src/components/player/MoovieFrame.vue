@@ -57,18 +57,19 @@ import { getSupabaseClient } from '../../lib/supabase'
 
 const HUB_VPS = 'https://proxy.moovie.fun/api/search'
 
-let proxyEnabled = true
-let proxyFetched = false
+        let proxyEnabled = true
+        let proxyFetched = false
+        let currentHeaders: Record<string, string> | null = null
 
-async function ensureProxySetting() {
-    if (proxyFetched) return
-    proxyFetched = true
-    try {
-        const client = await getSupabaseClient()
-        const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
-        if (data) proxyEnabled = data.value === 'true'
-    } catch { /* keep default */ }
-}
+        async function ensureProxySetting() {
+            if (proxyFetched) return
+            proxyFetched = true
+            try {
+                const client = await getSupabaseClient()
+                const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
+                if (data) proxyEnabled = data.value === 'true'
+            } catch { /* keep default */ }
+        }
 
 interface HubStream {
     name: string
@@ -76,6 +77,7 @@ interface HubStream {
     proxyUrl: string
     quality: string
     type: string
+    headers?: Record<string, string>
 }
 
 interface HubSearchResult {
@@ -228,15 +230,37 @@ export default defineComponent({
             container.appendChild(video)
 
             if (isHls && HlsCtor && HlsCtor.isSupported()) {
-                hlsInstance = new HlsCtor({
+                const hlsConfig: any = {
                     enableWorker: true,
                     maxBufferLength: 30,
                     maxMaxBufferLength: 60,
-                })
+                }
+                if (currentHeaders) {
+                    hlsConfig.xhrSetup = (xhr: XMLHttpRequest) => {
+                        for (const [k, v] of Object.entries(currentHeaders!)) {
+                            xhr.setRequestHeader(k, v)
+                        }
+                    }
+                }
+                hlsInstance = new HlsCtor(hlsConfig)
                 hlsInstance.loadSource(url)
                 hlsInstance.attachMedia(video)
             } else {
-                video.src = url
+                if (currentHeaders) {
+                    try {
+                        const res = await fetch(url, { headers: currentHeaders as Record<string, string> })
+                        if (res.ok) {
+                            const blob = await res.blob()
+                            video.src = URL.createObjectURL(blob)
+                        } else {
+                            video.src = url
+                        }
+                    } catch {
+                        video.src = url
+                    }
+                } else {
+                    video.src = url
+                }
             }
 
             const isNarrow = window.matchMedia('(max-width: 1023px)').matches
@@ -386,8 +410,11 @@ export default defineComponent({
                 selectedStreamIndex.value = idx
                 const target = best || all[0]
                 await ensureProxySetting()
-                console.debug('[MoovieFrame] doLoad stream:', target.name, target.quality, target.proxyUrl || target.url)
-                await mountPlayer(proxyEnabled && target.proxyUrl ? target.proxyUrl : target.url)
+                const useProxy = proxyEnabled && target.proxyUrl
+                const playUrl = useProxy ? target.proxyUrl : target.url
+                currentHeaders = !useProxy && target.headers ? target.headers : null
+                console.debug('[MoovieFrame] doLoad stream:', target.name, target.quality, playUrl)
+                await mountPlayer(playUrl)
                 updateQualityBtn()
                 loading.value = false
                 console.debug('[MoovieFrame] doLoad done')
@@ -428,7 +455,10 @@ export default defineComponent({
             selectedStreamIndex.value = idx
             updateQualityBtn()
             const stream = streams.value[idx]
-            await mountPlayer(proxyEnabled && stream.proxyUrl ? stream.proxyUrl : stream.url)
+            const useProxy = proxyEnabled && stream.proxyUrl
+            const playUrl = useProxy ? stream.proxyUrl : stream.url
+            currentHeaders = !useProxy && stream.headers ? stream.headers : null
+            await mountPlayer(playUrl)
         }
 
         const startTrackingIfNeeded = () => {

@@ -78,7 +78,7 @@
                 <div class="watch-stage__player-container">
                     <StreamFrame
                         v-if="!isMoovieServer"
-                        :key="`stream-${currentSeason}-${currentEpisode}`"
+                        :key="'stream-' + currentSeason + '-' + currentEpisode"
                         :embed-url="currentEmbedUrl"
                         :title="show?.name || 'Stream'"
                         :backdrop-path="show?.backdrop_path || ''"
@@ -91,7 +91,7 @@
                     />
                     <MoovieFrame
                         v-else
-                        :key="`moovie-${currentSeason}-${currentEpisode}`"
+                        :key="'moovie-' + currentSeason + '-' + currentEpisode"
                         :media-id="showId"
                         media-type="tv"
                         :season="currentSeason"
@@ -99,6 +99,8 @@
                         :title="show?.name || 'Stream'"
                         :backdrop-path="show?.backdrop_path || ''"
                         :poster-path="show?.poster_path || ''"
+                        @next-episode="goToNextEpisode"
+                        @prev-episode="goToPreviousEpisode"
                     />
                     
 

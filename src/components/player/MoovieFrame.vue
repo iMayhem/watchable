@@ -93,9 +93,15 @@
 
                 <div v-if="!loading && !error" class="moovie-frame__controls">
                     <div class="moovie-frame__controls-left">
+                        <button v-if="mediaType === 'tv'" class="moovie-frame__ctrl-btn" @click="$emit('prev-episode')" aria-label="Previous Episode">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4" /><rect x="5" y="4" width="2" height="16" rx="0.5" /></svg>
+                        </button>
                         <button class="moovie-frame__ctrl-btn" @click="togglePlay" aria-label="Play/Pause">
                             <svg v-if="!playing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21" /></svg>
                             <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                        </button>
+                        <button v-if="mediaType === 'tv'" class="moovie-frame__ctrl-btn" @click="$emit('next-episode')" aria-label="Next Episode">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20" /><rect x="17" y="4" width="2" height="16" rx="0.5" /></svg>
                         </button>
                         <span class="moovie-frame__time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
                     </div>
@@ -460,7 +466,8 @@ export default defineComponent({
         backdropPath: { type: String, default: '' },
         posterPath: { type: String, default: '' },
     },
-    setup(props) {
+    emits: ['next-episode', 'prev-episode'],
+    setup(props, ctx) {
         const rootRef = ref<HTMLElement | null>(null)
         const videoRef = ref<HTMLVideoElement | null>(null)
         const qualityRootRef = ref<HTMLElement | null>(null)
@@ -645,6 +652,11 @@ export default defineComponent({
             video.addEventListener('durationchange', onTimeUpdate)
             video.addEventListener('enterpictureinpicture', () => { isPiP.value = true })
             video.addEventListener('leavepictureinpicture', () => { isPiP.value = false })
+            video.addEventListener('ended', () => {
+                if (props.mediaType === 'tv') {
+                    ctx.emit('next-episode')
+                }
+            })
 
             if (isHls && HlsCtor && HlsCtor.isSupported()) {
                 hlsInstance = new HlsCtor({

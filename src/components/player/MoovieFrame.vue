@@ -153,7 +153,7 @@
                             @click="settingsSection = 'quality'; qualityOpen = false"
                         >
                             <span class="moovie-frame__settings-item-label">Quality</span>
-                            <span class="moovie-frame__settings-item-value">{{ activeQualityLabel }}</span>
+                            <span class="moovie-frame__settings-item-value">{{ hlsQualityLabel }}</span>
                             <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                         </button>
                         <button
@@ -202,6 +202,25 @@
                         >
                             <span>{{ q }}</span>
                         </button>
+                        <template v-if="!uniqueQualities.length && hlsQualities.length">
+                            <div class="moovie-frame__settings-divider" />
+                            <button
+                                class="moovie-frame__settings-item"
+                                :class="{ 'is-active': selectedHlsQuality === -1 }"
+                                @click="selectHlsQuality(-1)"
+                            >
+                                <span>Auto</span>
+                            </button>
+                            <button
+                                v-for="q in hlsQualities"
+                                :key="q.id"
+                                class="moovie-frame__settings-item"
+                                :class="{ 'is-active': selectedHlsQuality === q.id }"
+                                @click="selectHlsQuality(q.id)"
+                            >
+                                <span>{{ q.label }}</span>
+                            </button>
+                        </template>
                     </template>
 
                     <template v-if="settingsSection === 'audio'">
@@ -328,6 +347,8 @@ export default defineComponent({
         const selectedAudioTrack = ref(-1)
         const subtitleTracks = ref<{ id: number; name: string; lang?: string }[]>([])
         const selectedSubtitleTrack = ref(-1)
+        const hlsQualities = ref<{ id: number; label: string; height: number }[]>([])
+        const selectedHlsQuality = ref(-1)
         const playing = ref(false)
         const currentTime = ref(0)
         const duration = ref(0)
@@ -360,6 +381,14 @@ export default defineComponent({
 
         const activeQualityLabel = computed(() => {
             return streams.value[selectedStreamIndex.value]?.quality || 'Auto'
+        })
+
+        const hlsQualityLabel = computed(() => {
+            const sq = streams.value[selectedStreamIndex.value]?.quality
+            if (sq && sq !== 'Auto') return sq
+            if (selectedHlsQuality.value === -1) return 'Auto'
+            const q = hlsQualities.value.find(l => l.id === selectedHlsQuality.value)
+            return q?.label || 'Auto'
         })
 
         const availableServers = computed(() => {
@@ -457,6 +486,23 @@ export default defineComponent({
                 })
                 hlsInstance.loadSource(url)
                 hlsInstance.attachMedia(video)
+
+                hlsInstance.on(HlsCtor.Events.MANIFEST_PARSED, () => {
+                    const levels: { id: number; label: string; height: number }[] = []
+                    if (hlsInstance.levels) {
+                        for (let i = 0; i < hlsInstance.levels.length; i++) {
+                            const l = hlsInstance.levels[i]
+                            levels.push({ id: i, label: l.height ? `${l.height}p` : `Level ${i}`, height: l.height || 0 })
+                        }
+                    }
+                    levels.sort((a, b) => b.height - a.height)
+                    hlsQualities.value = levels
+                    selectedHlsQuality.value = hlsInstance.currentLevel ?? -1
+                })
+
+                hlsInstance.on(HlsCtor.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
+                    selectedHlsQuality.value = data.level
+                })
 
                 hlsInstance.on(HlsCtor.Events.AUDIO_TRACKS_UPDATED, () => {
                     audioTracks.value = (hlsInstance.audioTracks || []).map((t: any, i: number) => ({
@@ -579,35 +625,56 @@ export default defineComponent({
                         const rawStreams = data.streams || (data.stream ? [data.stream] : [])
                         console.debug('[MoovieFrame] completed:', data.sourceId, 'rawStreams count:', rawStreams.length)
                         for (const mw of rawStreams) {
-                            const isHls = mw.type === 'hls' || !!mw.playlist
-                            const streamUrl = isHls ? (mw.playlist || '') : (mw.url || '')
                             const qualities = mw.qualities || {}
                             const qualityLabels = Object.keys(qualities)
-                            const bestQuality = qualityLabels.length ? qualityLabels.sort((a, b) => parseQuality(b) - parseQuality(a))[0] : 'Auto'
-                            const bestEntry = bestQuality !== 'Auto' ? qualities[bestQuality] : null
+                            const isHls = mw.type === 'hls' || !!mw.playlist
 
-                            const stream: HubStream = {
-                                name: mw.name || data.sourceId,
-                                url: streamUrl || (bestEntry?.url || ''),
-                                proxyUrl: mw.proxyUrl || '',
-                                quality: bestQuality,
-                                type: isHls ? 'm3u8' : (bestEntry?.type || 'mp4'),
-                                headers: mw.headers,
-                                providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId,
-                                qualities: qualityLabels.length ? qualityLabels : undefined,
+                            if (qualityLabels.length) {
+                                for (const qLabel of qualityLabels) {
+                                    const entry = qualities[qLabel]
+                                    if (!entry) continue
+                                    const streamUrl = (entry.playlist || entry.url || '')
+                                    if (!streamUrl && !mw.proxyUrl) continue
+
+                                    const stream: HubStream = {
+                                        name: mw.name || data.sourceId,
+                                        url: streamUrl,
+                                        proxyUrl: mw.proxyUrl || '',
+                                        quality: qLabel,
+                                        type: (entry.type || 'hls') === 'hls' ? 'm3u8' : 'mp4',
+                                        headers: mw.headers,
+                                        providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId,
+                                        qualities: qualityLabels,
+                                    }
+                                    if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
+                                    if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
+                                    allStreams.push(stream)
+                                    streams.value = [...allStreams]
+                                    hasAnyOutput = true
+                                    console.debug('[MoovieFrame]  added quality stream:', qLabel, streamUrl.slice(0, 80))
+                                }
+                            } else {
+                                const streamUrl = isHls ? (mw.playlist || '') : (mw.url || '')
+                                const stream: HubStream = {
+                                    name: mw.name || data.sourceId,
+                                    url: streamUrl || '',
+                                    proxyUrl: mw.proxyUrl || '',
+                                    quality: 'Auto',
+                                    type: isHls ? 'm3u8' : (mw.type || 'mp4'),
+                                    headers: mw.headers,
+                                    providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId,
+                                }
+                                if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
+                                if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
+                                if (!stream.url && !stream.proxyUrl) {
+                                    console.debug('[MoovieFrame]  skipped empty stream for', data.sourceId)
+                                    continue
+                                }
+                                allStreams.push(stream)
+                                streams.value = [...allStreams]
+                                hasAnyOutput = true
+                                console.debug('[MoovieFrame]  added stream:', stream.name, stream.quality, stream.url?.slice(0, 80))
                             }
-                            if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
-                            if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
-
-                            if (!stream.url && !stream.proxyUrl) {
-                                console.debug('[MoovieFrame]  skipped empty stream for', data.sourceId)
-                                continue
-                            }
-
-                            allStreams.push(stream)
-                            streams.value = [...allStreams]
-                            hasAnyOutput = true
-                            console.debug('[MoovieFrame]  added stream:', stream.name, stream.quality, stream.url?.slice(0,80))
                         }
                         if (!rawStreams.length) {
                             if (ps) { ps.status = 'notfound'; providers.value = [...providerMap.values()] }
@@ -812,6 +879,7 @@ export default defineComponent({
             if (idx < 0) return
             qualityOpen.value = false
             settingsOpen.value = false
+            settingsSection.value = null
             selectedStreamIndex.value = idx
             const stream = streams.value[idx]
             await tryPlayStream(stream)
@@ -855,6 +923,15 @@ export default defineComponent({
             selectedSubtitleTrack.value = index
             if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                 hlsInstance.subtitleTrack = index
+            }
+        }
+
+        function selectHlsQuality(index: number) {
+            selectedHlsQuality.value = index
+            settingsOpen.value = false
+            settingsSection.value = null
+            if (hlsInstance && hlsInstance.loadLevel !== undefined) {
+                hlsInstance.loadLevel = index
             }
         }
 
@@ -936,7 +1013,7 @@ export default defineComponent({
             document.removeEventListener('fullscreenchange', onFullscreenChange)
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, setPlaybackSpeed, togglePiP }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, setPlaybackSpeed, togglePiP }
     },
 })
 </script>
@@ -1236,6 +1313,7 @@ export default defineComponent({
     transition: background 0.1s;
     &:hover { background: rgba(255, 255, 255, 0.08); }
     &.is-active { color: #ff5a1f; font-weight: 600; }
+    &.is-dimmed { opacity: 0.4; pointer-events: none; }
 }
 
 .moovie-frame__settings-item-label {

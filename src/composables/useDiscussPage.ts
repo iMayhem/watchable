@@ -150,6 +150,16 @@ export function useDiscussPage() {
         return resolvedNames.value[key] || 'Loading...';
     };
 
+    const getMovieLink = (type: string, id: string) => {
+        if (type === 'tv') {
+            return `/tv-show/${id}`;
+        } else if (type === 'anime') {
+            return `/anime/${id}`;
+        } else {
+            return `/movie/${id}`;
+        }
+    };
+
     const scrollMovieChatToBottom = () => {
         nextTick(() => {
             if (movieChatBox.value) {
@@ -580,6 +590,7 @@ export function useDiscussPage() {
         viewMovieDiscussion,
         closeMovieDiscussion,
         postSelectedMovieComment,
+        getMovieLink,
         
         // Emoji Picker additions
         showLoungeEmojiPicker,

@@ -149,10 +149,10 @@
                                     <span class="m-discuss__user">{{ c.username }}</span>
                                     <span class="meta">{{ formatTimeAgo(c.created_at) }}</span>
                                 </div>
-                                <span class="m-discuss__topic">
+                                <router-link :to="getMovieLink(c.media_type || 'movie', c.media_id || '')" class="m-discuss__topic m-discuss__topic--link">
                                     {{ getCategoryIcon(c.media_type || 'movie') }}
                                     {{ getMediaName(c.media_type || 'movie', c.media_id || '') }}
-                                </span>
+                                </router-link>
                                 <p class="m-discuss__text">{{ c.content }}</p>
                                 <div class="m-discuss__review-actions">
                                     <button
@@ -186,7 +186,9 @@
                     <div>
                         <p class="eyebrow">Title thread</p>
                         <h1 class="m-discuss__title m-discuss__title--truncate">
-                            {{ getMediaName(selectedMovieType, selectedMovieId) }}
+                            <router-link :to="getMovieLink(selectedMovieType, selectedMovieId)" class="m-discuss__title-link">
+                                {{ getMediaName(selectedMovieType, selectedMovieId) }}
+                            </router-link>
                         </h1>
                     </div>
                 </div>
@@ -365,7 +367,8 @@ const {
     showThreadEmojiPicker,
     popularEmojis,
     toggleEmojiPicker,
-    insertEmoji
+    insertEmoji,
+    getMovieLink
 } = useDiscussPage();
 
 const { updateSeo } = useSeo();
@@ -438,6 +441,19 @@ onMounted(() => {
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 14rem;
+        }
+    }
+
+    &__title-link {
+        color: var(--bone-50);
+        text-decoration: none;
+        transition: color 0.2s ease;
+
+        &:active,
+        &:hover {
+            color: var(--ember);
+            text-decoration: underline;
+            text-underline-offset: 4px;
         }
     }
 
@@ -556,6 +572,17 @@ onMounted(() => {
         border-radius: var(--r-pill);
         background: var(--ink-800);
         font-size: 0.72rem;
+        text-decoration: none;
+        color: var(--bone-200);
+        transition: all 0.2s ease;
+
+        &--link:active,
+        &--link:hover {
+            background: rgba(255, 90, 31, 0.1);
+            border-color: rgba(255, 90, 31, 0.3);
+            color: var(--ember) !important;
+            text-decoration: none;
+        }
     }
 
     &__text {

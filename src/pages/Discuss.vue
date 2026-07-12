@@ -156,7 +156,9 @@
                                     <div class="discuss-chat__thread-copy">
                                         <p class="eyebrow discuss-chat__eyebrow">Title thread</p>
                                         <h2 class="discuss-chat__panel-title discuss-chat__panel-title--truncate">
-                                            {{ getMediaName(selectedMovieType, selectedMovieId) }}
+                                            <router-link :to="getMovieLink(selectedMovieType, selectedMovieId)" class="discuss-chat__panel-title-link">
+                                                {{ getMediaName(selectedMovieType, selectedMovieId) }}
+                                            </router-link>
                                         </h2>
                                     </div>
                                 </div>
@@ -338,9 +340,9 @@
                                                 <span class="discuss-msg__time meta">{{ formatTimeAgo(c.created_at) }}</span>
                                                 
                                                 <!-- Category tag displaying target movie name/ID -->
-                                                <span class="discuss-msg__topic-badge">
+                                                <router-link :to="getMovieLink(c.media_type, c.media_id)" class="discuss-msg__topic-badge discuss-msg__topic-badge--link">
                                                     {{ getCategoryIcon(c.media_type) }} {{ getMediaName(c.media_type, c.media_id) }}
-                                                </span>
+                                                </router-link>
                                             </div>
 
                                             <div class="discuss-msg__bubble discuss-msg__bubble--movie">
@@ -1225,6 +1227,18 @@ export default defineComponent({
         }
     }
 
+    &__panel-title-link {
+        color: var(--bone-50);
+        text-decoration: none;
+        transition: color 0.2s ease;
+
+        &:hover {
+            color: var(--ember);
+            text-decoration: underline;
+            text-underline-offset: 4px;
+        }
+    }
+
     &__user-badge {
         @include discuss-nav-type(var(--bone-300));
         flex-shrink: 0;
@@ -1569,6 +1583,15 @@ export default defineComponent({
         padding: 0.15rem 0.55rem;
         border-radius: var(--r-pill);
         border: 1px solid var(--rule);
+        text-decoration: none;
+        transition: all 0.2s ease;
+
+        &--link:hover {
+            background: rgba(255, 90, 31, 0.1);
+            border-color: rgba(255, 90, 31, 0.3);
+            color: var(--ember) !important;
+            text-decoration: none;
+        }
     }
 
     &__text {

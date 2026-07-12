@@ -417,10 +417,6 @@ function parseSrt(text: string): SrtCue[] {
     return cues
 }
 
-function parseVtt(text: string): SrtCue[] {
-    return parseSrt(text.replace(/^WEBVTT\n*/i, '').replace(/\n\n+/g, '\n\n'))
-}
-
 interface ProviderStatus {
     id: string
     name: string
@@ -1165,7 +1161,6 @@ export default defineComponent({
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
-                const wi = index - WYZIE_TRACK_OFFSET
                 const track = subtitleTracks.value.find(t => t.id === index)
                 if (track && (track as any)._srtUrl) {
                     try {

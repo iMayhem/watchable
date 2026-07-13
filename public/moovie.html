@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Moovie · CineStream</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css">
+    <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #fff;
+            overflow: hidden;
+        }
+        #player-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+        .status-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #0b0a08;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .status-spinner {
+            width: 44px;
+            height: 44px;
+            border: 3px solid rgba(255, 90, 31, 0.15);
+            border-top-color: #ff5a1f;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 1.25rem;
+        }
+        .status-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0 0 0.5rem;
+            color: #f5efe4;
+        }
+        .status-subtitle {
+            font-size: 0.95rem;
+            color: #9ca3af;
+            max-width: 400px;
+            line-height: 1.5;
+            margin: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .plyr { width: 100% !important; height: 100% !important; background: #000 !important; }
+        .plyr__video-wrapper { height: 100% !important; width: 100% !important; display: flex; align-items: center; justify-content: center; }
+        .plyr-video-element { width: 100% !important; height: 100% !important; object-fit: contain !important; }
+        .plyr__controls {
+            background: rgba(11, 10, 8, 0.8) !important;
+            backdrop-filter: blur(14px) saturate(1.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 10px !important;
+            margin: 24px !important;
+            padding: 10px 16px !important;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 10 !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+        }
+        .plyr__control {
+            color: rgba(255, 90, 31, 0.8) !important;
+        }
+        .plyr__control:hover, .plyr__control[aria-expanded="true"] {
+            background: rgba(255, 90, 31, 0.1) !important;
+            color: #ff723f !important;
+            filter: drop-shadow(0 0 4px rgba(255, 90, 31, 0.6)) !important;
+        }
+        .plyr__progress input[type='range'] { color: #ff5a1f !important; }
+    </style>
+</head>
+<body>
+    <div id="player-container">
+        <div id="status-overlay" class="status-overlay">
+            <div id="status-spinner" class="status-spinner"></div>
+            <div id="status-icon" style="display:none;font-size:3rem;margin-bottom:1rem;">!</div>
+            <h2 id="status-title" class="status-title">Starting Moovie stream…</h2>
+            <p id="status-subtitle" class="status-subtitle">Connecting to Moovie catalogue resolver</p>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const tmdbId = urlParams.get('tmdb_id') || '';
+        const season = urlParams.get('season') || '';
+        const episode = urlParams.get('episode') || '';
+
+        const overlay = document.getElementById('status-overlay');
+        const spinner = document.getElementById('status-spinner');
+        const icon = document.getElementById('status-icon');
+        const title = document.getElementById('status-title');
+        const subtitle = document.getElementById('status-subtitle');
+
+        function showError(msg) {
+            spinner.style.display = 'none';
+            icon.style.display = 'block';
+            title.textContent = 'Moovie stream failed';
+            subtitle.textContent = msg || 'Could not resolve a playable stream.';
+        }
+
+        async function initPlayer() {
+            if (!tmdbId) {
+                showError('Missing tmdb_id parameter.');
+                return;
+            }
+
+            const type = season && episode ? 'tv' : 'movie';
+            const params = new URLSearchParams({
+                action: 'resolve',
+                type,
+                id: tmdbId,
+                se: season || '0',
+                ep: episode || '0',
+                server: '1'
+            });
+
+            try {
+                subtitle.textContent = 'Fetching stream from catalogue resolver…';
+                const res = await fetch('/api/moovie-catalog?' + params.toString());
+                const text = await res.text();
+                let data;
+                try { data = JSON.parse(text); } catch (e) {
+                    throw new Error('Resolver returned invalid response.');
+                }
+                if (!res.ok) throw new Error(data.error || 'Resolve failed (' + res.status + ')');
+                if (!data.streams || !data.streams.length) {
+                    throw new Error('No playable streams found.');
+                }
+
+                overlay.style.display = 'none';
+
+                const streamUrl = data.streams[0].url;
+                const video = document.createElement('video');
+                video.controls = false;
+                video.playsInline = true;
+                video.autoplay = true;
+                video.className = 'plyr-video-element';
+                video.crossOrigin = 'anonymous';
+                document.getElementById('player-container').appendChild(video);
+
+                const isDash = streamUrl.includes('.mpd');
+                const isHls = streamUrl.includes('.m3u8');
+
+                if (isHls && typeof Hls !== 'undefined' && Hls.isSupported()) {
+                    const hls = new Hls({ maxMaxBufferLength: 30, enableWorker: true });
+                    hls.loadSource(streamUrl);
+                    hls.attachMedia(video);
+                } else if (isDash && typeof dashjs !== 'undefined') {
+                    const player = dashjs.MediaPlayer().create();
+                    player.initialize(video, streamUrl, true);
+                } else {
+                    video.src = streamUrl;
+                }
+
+                new Plyr(video, {
+                    autoplay: true,
+                    controls: [
+                        'play-large', 'play', 'progress', 'current-time',
+                        'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'
+                    ],
+                    settings: ['quality', 'speed', 'loop']
+                });
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        if (typeof Hls === 'undefined') {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+            s.onload = initPlayer;
+            document.head.appendChild(s);
+        } else {
+            window.addEventListener('DOMContentLoaded', initPlayer);
+        }
+    </script>
+</body>
+</html>

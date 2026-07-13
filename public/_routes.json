@@ -4,6 +4,8 @@
   "exclude": [
     "/assets/*",
     "/party/*",
+    "/moovie",
+    "/moovie.html",
     "/icons/*",
     "/favicon.svg",
     "/manifest.json",

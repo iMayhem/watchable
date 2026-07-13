@@ -258,6 +258,7 @@ import {
     getCachedTmdbArtworkByTmdbId,
     resolveAnimeRouteIds,
     resolveAnilistIdForPlayback,
+    resolveAnimeTmdbMeta,
     resolveAnimeTmdbEpisodesByTmdbId,
     resolveAnimeTmdbMetaByTmdbId,
     resolvePreferredTmdbSeason,
@@ -658,8 +659,28 @@ export default defineComponent({
                     }
                 }
 
-                const show = await fetchTmdbAnimeShowDetails(tmdbId);
+                let show = await fetchTmdbAnimeShowDetails(tmdbId);
                 if (generation !== loadGeneration) return;
+
+                // If TMDB lookup failed and we have an AniList ID (from ?ani=), resolve TMDB ID from it
+                if (!tmdbArtwork.value?.tmdbId && !show && anilistIdRef.value && anilistIdRef.value !== routeId) {
+                    const anilistRes = await fetchAnimeById(anilistIdRef.value).catch(() => null);
+                    const anilistMedia = anilistRes?.data?.Media;
+                    if (anilistMedia) {
+                        const meta = await resolveAnimeTmdbMeta(anilistIdRef.value, anilistMedia, { deferFranchise: true });
+                        const correctTmdbId = meta?.tmdbId;
+                        if (correctTmdbId && correctTmdbId !== tmdbId) {
+                            tmdbId = correctTmdbId;
+                            animeId.value = tmdbId;
+                            suppressRouteReload.value = true;
+                            await router.replace(paths.streamAnime(tmdbId, currentEpisode.value, anilistIdRef.value));
+                            if (generation !== loadGeneration) return;
+                            await loadTmdbArtworkByTmdbId(tmdbId, generation);
+                            if (generation !== loadGeneration) return;
+                        }
+                    }
+                    show = await fetchTmdbAnimeShowDetails(tmdbId);
+                }
 
                 if (show) {
                     tmdbShow.value = show;

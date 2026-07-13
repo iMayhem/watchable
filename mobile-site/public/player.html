@@ -73,66 +73,15 @@
             to { transform: rotate(360deg); }
         }
 
-        /* ── Plyr Custom Styling & Sleek Overrides ── */
-        .plyr {
-            width: 100% !important;
-            height: 100% !important;
-            background: #000 !important;
-        }
-
-        .plyr__video-wrapper {
-            height: 100% !important;
-            width: 100% !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .plyr-video-element {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
-        }
-
-        /* Floating control bar logic for Plyr controls */
-        .plyr__controls {
-            background: rgba(11, 10, 8, 0.8) !important;
-            backdrop-filter: blur(14px) saturate(1.2) !important;
-            -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
-            border-radius: 10px !important;
-            margin: 24px !important; /* Float 24px inside from all edges */
-            padding: 10px 16px !important;
-            position: absolute !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            z-index: 10 !important;
-            transition: opacity 0.3s ease, transform 0.3s ease !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
-        }
-
-        /* Style Plyr buttons to be warm/orange desaturated */
-        .plyr__control {
-            color: rgba(255, 90, 31, 0.8) !important;
-            transition: color 0.2s ease, transform 0.15s ease !important;
-        }
-
-        .plyr__control:hover, .plyr__control[aria-expanded="true"] {
-            background: rgba(255, 90, 31, 0.1) !important;
-            color: #ff723f !important;
-            filter: drop-shadow(0 0 4px rgba(255, 90, 31, 0.6)) !important;
-        }
-
-        /* Plyr progress bar slider overrides */
-        .plyr__progress input[type='range'] {
-            color: #ff5a1f !important;
+        video {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            object-fit: contain;
         }
     </style>
-    <!-- Plyr & HlsJS CDNs -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css">
+    <!-- HlsJS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.min.js"></script>
     <script>
       window.op=window.op||function(){var n=[];return new Proxy(function(){arguments.length&&n.push([].slice.call(arguments))},{get:function(t,r){return"q"===r?n:function(){n.push([r].concat([].slice.call(arguments)))}} ,has:function(t,r){return"q"===r}}) }();
       window.op('init', {
@@ -174,7 +123,7 @@
             statusSpinner.style.display = 'none';
             statusIcon.style.display = 'block';
             statusTitle.textContent = 'Unable to strike direct stream';
-            statusSubtitle.textContent = msg || 'All resolution streams returned offline status.';
+            statusSubtitle.textContent = msg || 'All resolution mirrors returned offline status.';
         }
 
         async function initPlayer() {
@@ -205,15 +154,13 @@
                 // Hide loader
                 statusOverlay.style.display = 'none';
 
-                // Setup Plyr with HLS support
                 const firstOption = data.options[0];
                 const format = firstOption.format || 'm3u8';
                 
                 const video = document.createElement('video');
-                video.controls = false;
+                video.controls = true;
                 video.playsInline = true;
                 video.autoplay = true;
-                video.className = 'plyr-video-element';
                 document.getElementById('player-container').appendChild(video);
 
                 if (format === 'm3u8' && Hls.isSupported()) {
@@ -226,24 +173,6 @@
                 } else {
                     video.src = firstOption.url;
                 }
-
-                const player = new Plyr(video, {
-                    autoplay: true,
-                    controls: [
-                        'play-large',
-                        'play',
-                        'progress',
-                        'current-time',
-                        'duration',
-                        'mute',
-                        'volume',
-                        'settings',
-                        'pip',
-                        'airplay',
-                        'fullscreen'
-                    ],
-                    settings: ['quality', 'speed', 'loop']
-                });
 
             } catch (err) {
                 showError(err.message);

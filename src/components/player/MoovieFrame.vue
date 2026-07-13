@@ -1976,4 +1976,33 @@ export default defineComponent({
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
+
+@media (max-width: 640px) {
+    .moovie-frame__settings-panel {
+        max-width: calc(100vw - 16px);
+        right: 8px;
+        max-height: 50vh;
+        padding: 0.4rem;
+    }
+    .moovie-frame__settings-item {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    .moovie-frame__settings-chip {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    .moovie-frame__settings-header {
+        padding: 0.3rem 0.4rem 0.3rem 0.2rem;
+        min-height: 30px;
+        font-size: 0.8rem;
+    }
+    .moovie-frame__settings-options {
+        gap: 0.25rem;
+    }
+    .moovie-frame__settings-label {
+        font-size: 0.75rem;
+        margin-bottom: 0.2rem;
+    }
+}
 </style>

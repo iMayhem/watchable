@@ -2,8 +2,8 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getSupabaseClient } from '../lib/supabase'
 
-const SCRIPT_ID = 'monetag-ad-script'
-const AD_DOMAIN = 'al5sm.com'
+const SCRIPT_ID = 'adsterra-ad-script'
+const AD_DOMAIN = 'chewsever.com'
 
 let pollingId: ReturnType<typeof setInterval> | null = null
 let pollCount = 0
@@ -26,7 +26,7 @@ function injectAd() {
     if (document.getElementById(SCRIPT_ID)) return
     const script = document.createElement('script')
     script.id = SCRIPT_ID
-    script.textContent = `(function(s){s.dataset.zone='11222206';s.src='https://${AD_DOMAIN}/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
+    script.src = `https://${AD_DOMAIN}/1a/26/00/1a260038e7b9a9e1d5c9855789406aec.js`
     document.head.appendChild(script)
 }
 

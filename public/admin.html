@@ -1528,7 +1528,7 @@
 
                 // Save Wyzie API Keys
                 const wyzieInputs = document.querySelectorAll('.wyzie-key-input')
-                const wyzieKeys = Array.from(wyzieInputs).map(i => (i as HTMLInputElement).value.trim()).filter(Boolean)
+                const wyzieKeys = Array.from(wyzieInputs).map(i => i.value.trim()).filter(Boolean)
                 const { error: wyzieKeysError } = await supabaseClient
                     .from('app_settings')
                     .upsert({ key: 'wyzie_api_keys', value: JSON.stringify(wyzieKeys), updated_at: new Date() }, { onConflict: 'key' })
@@ -2138,7 +2138,7 @@
             container.appendChild(row)
         }
 
-        function removeWyzieKey(btn: HTMLElement) {
+        function removeWyzieKey(btn) {
             const row = btn.closest('.wyzie-key-row')
             if (row && document.querySelectorAll('.wyzie-key-row').length > 1) {
                 row.remove()
@@ -2158,7 +2158,7 @@
                 const container = document.getElementById('wyzie-keys-container')
                 container.innerHTML = ''
                 if (Array.isArray(keys) && keys.length) {
-                    keys.forEach((k: string) => addWyzieKey(k))
+                    keys.forEach((k) => addWyzieKey(k))
                 } else {
                     addWyzieKey('wyzie-m3moskoivi4mwobs7167pcscgmtou59j')
                     addWyzieKey('wyzie-hcgpzwraxp8a73dkdponr2vudh4ojsm3')

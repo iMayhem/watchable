@@ -78,7 +78,6 @@
                 <div class="watch-stage__player-container">
                     <StreamFrame
                         v-if="!isMoovieServer"
-                        :key="'stream-' + currentSeason + '-' + currentEpisode"
                         :embed-url="currentEmbedUrl"
                         :title="show?.name || 'Stream'"
                         :backdrop-path="show?.backdrop_path || ''"
@@ -91,7 +90,6 @@
                     />
                     <MoovieFrame
                         v-else
-                        :key="'moovie-' + currentSeason + '-' + currentEpisode"
                         :media-id="showId"
                         media-type="tv"
                         :season="currentSeason"
@@ -424,11 +422,15 @@ export default defineComponent({
 
         const changeEpisode = async (next: number) => {
             if (next < 1 || next === currentEpisode.value) return;
+            console.log('[EPISODE] changeEpisode called: from', currentEpisode.value, 'to', next, 'season:', currentSeason.value)
             currentEpisode.value = next;
+            console.log('[EPISODE] currentEpisode set to', currentEpisode.value)
             resumeTimestamp.value = getResumeTimestamp(showId.value, 'tv', currentSeason.value, next);
             currentEpisodeDetails.value =
                 seasonEpisodes.value.find((ep) => ep.episode_number === next) || null;
+            console.log('[EPISODE] calling updateRoute...')
             await updateRoute();
+            console.log('[EPISODE] updateRoute done')
             nextTick(() => { resumeTimestamp.value = 0; });
         };
 
@@ -542,6 +544,7 @@ export default defineComponent({
             async (next) => {
                 const nextSeason = parseInt(next.season as string);
                 const nextEpisode = parseInt(next.episode as string);
+                console.log('[EPISODE] route.params watcher fired: id:', next.id, 'season:', nextSeason, 'episode:', nextEpisode, '| current season:', currentSeason.value, 'current ep:', currentEpisode.value)
                 if (next.id !== showId.value) {
                     showId.value = next.id as string;
                     await loadShow();
@@ -549,9 +552,12 @@ export default defineComponent({
                     nextSeason !== currentSeason.value ||
                     nextEpisode !== currentEpisode.value
                 ) {
+                    console.log('[EPISODE] route watcher updating season/episode from route')
                     currentSeason.value = nextSeason || 1;
                     currentEpisode.value = nextEpisode || 1;
                     await loadSeason();
+                } else {
+                    console.log('[EPISODE] route watcher: no change detected, skipping')
                 }
             },
             { deep: true }

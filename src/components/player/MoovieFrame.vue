@@ -39,25 +39,54 @@
                 </div>
 
                 <ul
-                    v-if="!loading && !error && qualityOpen && uniqueQualities.length > 1"
+                    v-if="!loading && !error && qualityOpen && (uniqueQualities.length > 1 || hlsQualities.length > 0)"
                     ref="qualityRootRef"
                     class="moovie-frame__quality-menu"
                 >
-                    <li
-                        v-for="(q, i) in uniqueQualities"
-                        :key="i"
-                        role="option"
-                        :aria-selected="selectedQualityIndex === i"
-                    >
-                        <button
-                            type="button"
-                            class="moovie-frame__quality-item"
-                            :class="{ 'is-active': selectedQualityIndex === i }"
-                            @click.stop="selectQuality(i)"
+                    <template v-if="hlsQualities.length > 0">
+                        <li role="option" :aria-selected="selectedHlsQuality === -1">
+                            <button
+                                type="button"
+                                class="moovie-frame__quality-item"
+                                :class="{ 'is-active': selectedHlsQuality === -1 }"
+                                @click.stop="selectHlsQuality(-1)"
+                            >
+                                Auto
+                            </button>
+                        </li>
+                        <li
+                            v-for="q in hlsQualities"
+                            :key="q.id"
+                            role="option"
+                            :aria-selected="selectedHlsQuality === q.id"
                         >
-                            {{ q }}
-                        </button>
-                    </li>
+                            <button
+                                type="button"
+                                class="moovie-frame__quality-item"
+                                :class="{ 'is-active': selectedHlsQuality === q.id }"
+                                @click.stop="selectHlsQuality(q.id)"
+                            >
+                                {{ q.label }}
+                            </button>
+                        </li>
+                    </template>
+                    <template v-else-if="uniqueQualities.length > 1">
+                        <li
+                            v-for="(q, i) in uniqueQualities"
+                            :key="i"
+                            role="option"
+                            :aria-selected="selectedQualityIndex === i"
+                        >
+                            <button
+                                type="button"
+                                class="moovie-frame__quality-item"
+                                :class="{ 'is-active': selectedQualityIndex === i }"
+                                @click.stop="selectQuality(i)"
+                            >
+                                {{ q }}
+                            </button>
+                        </li>
+                    </template>
                 </ul>
 
                 <div v-if="!loading && !error && visibleCues.length" class="moovie-frame__subtitle-overlay" :style="subtitleOverlayStyle">
@@ -208,17 +237,7 @@
                     </template>
 
                     <template v-if="settingsSection === 'quality'">
-                        <button
-                            v-for="(q, i) in uniqueQualities"
-                            :key="i"
-                            class="moovie-frame__settings-item"
-                            :class="{ 'is-active': selectedQualityIndex === i }"
-                            @click="selectQuality(i)"
-                        >
-                            <span>{{ q }}</span>
-                        </button>
-                        <template v-if="!uniqueQualities.length && hlsQualities.length">
-                            <div class="moovie-frame__settings-divider" />
+                        <template v-if="hlsQualities.length > 0">
                             <button
                                 class="moovie-frame__settings-item"
                                 :class="{ 'is-active': selectedHlsQuality === -1 }"
@@ -234,6 +253,17 @@
                                 @click="selectHlsQuality(q.id)"
                             >
                                 <span>{{ q.label }}</span>
+                            </button>
+                        </template>
+                        <template v-else>
+                            <button
+                                v-for="(q, i) in uniqueQualities"
+                                :key="i"
+                                class="moovie-frame__settings-item"
+                                :class="{ 'is-active': selectedQualityIndex === i }"
+                                @click="selectQuality(i)"
+                            >
+                                <span>{{ q }}</span>
                             </button>
                         </template>
                     </template>
@@ -481,8 +511,9 @@ export default defineComponent({
         const settingsOpen = ref(false)
         const settingsSection = ref<string | null>(null)
         const selectedServer = ref('')
-        const audioTracks = ref<{ id: number; name: string; lang?: string }[]>([])
+        const audioTracks = ref<{ id: number; name: string; lang?: string; _catalogId?: string }[]>([])
         const selectedAudioTrack = ref(-1)
+        const languageVariants = ref<{ language: string; catalogId: string; media_type: string; season: number; episode: number }[]>([])
         const subtitleTracks = ref<{ id: number; name: string; lang?: string; isWyzie?: boolean }[]>([])
         const selectedSubtitleTrack = ref(-1)
         const captionSrtData = ref('')
@@ -617,7 +648,7 @@ export default defineComponent({
         }
 
         async function mountPlayer(url: string) {
-            console.debug('[MoovieFrame] mountPlayer url:', url)
+            console.log('[MOVIEFRAME] mountPlayer - season:', props.season, 'episode:', props.episode, 'url:', url.slice(0, 120))
             destroyPlayer()
             qualityOpen.value = false
             buffering.value = true
@@ -677,7 +708,12 @@ export default defineComponent({
                     }
                     levels.sort((a, b) => b.height - a.height)
                     hlsQualities.value = levels
-                    selectedHlsQuality.value = hlsInstance.currentLevel ?? -1
+                    if (levels.length > 0) {
+                        hlsInstance.loadLevel = levels[0].id
+                        selectedHlsQuality.value = levels[0].id
+                    } else {
+                        selectedHlsQuality.value = hlsInstance.currentLevel ?? -1
+                    }
                 })
 
                 hlsInstance.on(HlsCtor.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
@@ -685,11 +721,15 @@ export default defineComponent({
                 })
 
                 hlsInstance.on(HlsCtor.Events.AUDIO_TRACKS_UPDATED, () => {
-                    audioTracks.value = (hlsInstance.audioTracks || []).map((t: any, i: number) => ({
-                        id: i,
-                        name: t.name || t.lang || `Track ${i}`,
-                        lang: t.lang,
-                    }))
+                    const preservedVariants = audioTracks.value.filter(t => (t as any)._catalogId)
+                    audioTracks.value = [
+                        ...(hlsInstance.audioTracks || []).map((t: any, i: number) => ({
+                            id: i,
+                            name: t.name || t.lang || `Track ${i}`,
+                            lang: t.lang,
+                        })),
+                        ...preservedVariants,
+                    ]
                     selectedAudioTrack.value = hlsInstance.audioTrack ?? -1
                 })
                 hlsInstance.on(HlsCtor.Events.SUBTITLE_TRACKS_UPDATED, () => {
@@ -722,7 +762,9 @@ export default defineComponent({
             if (props.season > 0) params.set('season', String(props.season))
             if (props.episode > 0) params.set('episode', String(props.episode))
             params.set('_cb', String(Date.now()))
-            return `${HUB_BASE}/scrape?${params}`
+            const url = `${HUB_BASE}/scrape?${params}`
+            console.log('[MOVIEFRAME] buildScrapeUrl:', url, 'season:', props.season, 'episode:', props.episode)
+            return url
         }
 
         function cancelScrape() {
@@ -856,6 +898,24 @@ export default defineComponent({
                                 hasAnyOutput = true
                                 console.debug('[MoovieFrame]  added stream:', stream.name, stream.quality, stream.url?.slice(0, 80))
                             }
+
+                            if (mw._languageVariants && Array.isArray(mw._languageVariants)) {
+                                for (const lv of mw._languageVariants) {
+                                    if (!languageVariants.value.find(v => v.catalogId === lv.catalogId)) {
+                                        const exists = audioTracks.value.find(t => (t as any)._catalogId === lv.catalogId)
+                                        if (!exists) {
+                                            audioTracks.value.push({
+                                                id: 2000 + audioTracks.value.length,
+                                                name: lv.language,
+                                                lang: lv.language,
+                                                _catalogId: lv.catalogId,
+                                            })
+                                            languageVariants.value.push({ ...lv })
+                                            console.debug('[MoovieFrame]  added language variant:', lv.language, lv.catalogId)
+                                        }
+                                    }
+                                }
+                            }
                         }
                         if (!rawStreams.length) {
                             if (ps) { ps.status = 'notfound'; providers.value = [...providerMap.values()] }
@@ -863,22 +923,28 @@ export default defineComponent({
                         }
 
                         if (!playbackStarted.value) {
-                            playbackStarted.value = true
-                            loading.value = false
                             const best = pickBest(allStreams)
                             if (best) {
+                                console.log('[MOVIEFRAME] SSE completed - starting early playback, streams count:', allStreams.length, 'season:', props.season, 'episode:', props.episode)
+                                playbackStarted.value = true
+                                loading.value = false
+                                console.log('[MOVIEFRAME] SSE early playback picked:', best.name, best.quality, 'url:', (best.url || best.proxyUrl || '').slice(0, 100))
                                 tryPlayStream(best).catch(e => console.error('[MoovieFrame] early playback error:', e))
                             }
+                        } else {
+                            console.log('[MOVIEFRAME] SSE completed but playbackStarted already true (season:', props.season, 'ep:', props.episode, ')')
                         }
                     } catch { /* ignore */ }
                 })
 
                 eventSource.addEventListener('done', () => {
+                    console.log('[MOVIEFRAME] SSE done event - playbackStarted:', playbackStarted.value, 'streams:', allStreams.length)
                     if (!playbackStarted.value && allStreams.length) {
                         playbackStarted.value = true
                         loading.value = false
                         const best = pickBest(allStreams)
                         if (best) {
+                            console.log('[MOVIEFRAME] done handler starting playback with:', best.name, best.quality)
                             tryPlayStream(best).catch(e => console.error('[MoovieFrame] done playback error:', e))
                         }
                     }
@@ -962,14 +1028,16 @@ export default defineComponent({
         }
 
         async function doLoad() {
-            console.debug('[MoovieFrame] doLoad start')
+            console.log('[MOVIEFRAME] doLoad start - season:', props.season, 'episode:', props.episode)
             destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false
             try {
                 await ensureProxySetting()
                 const all = await fetchStreams()
+                console.log('[MOVIEFRAME] doLoad got', all.length, 'streams')
                 streams.value = all
                 if (!all.length) throw new Error('No streamable sources found')
-                if (playbackStarted.value) { loading.value = false; return }
+                if (playbackStarted.value) { console.log('[MOVIEFRAME] doLoad: playback already started by SSE, skipping tryProviderChain'); loading.value = false; return }
+                console.log('[MOVIEFRAME] doLoad calling tryProviderChain')
                 await tryProviderChain(all)
                 loading.value = false
                 console.debug('[MoovieFrame] doLoad done')
@@ -1023,7 +1091,7 @@ export default defineComponent({
             } else {
                 playUrl = s.url
             }
-            console.debug('[MoovieFrame] tryPlayStream:', s.name, s.quality, playUrl)
+            console.log('[MOVIEFRAME] tryPlayStream - name:', s.name, 'quality:', s.quality, 'season:', props.season, 'episode:', props.episode, 'url:', (playUrl || '').slice(0, 120))
             try {
                 await mountPlayer(playUrl)
                 loadWyzieSubtitles().catch(() => {})
@@ -1154,10 +1222,35 @@ export default defineComponent({
             }
         }
 
-        function selectAudioTrack(index: number) {
+        async function selectAudioTrack(index: number) {
             selectedAudioTrack.value = index
             if (hlsInstance && hlsInstance.audioTrack !== undefined) {
                 hlsInstance.audioTrack = index
+            }
+            const track = audioTracks.value.find(t => t.id === index)
+            if (track && (track as any)._catalogId) {
+                const lv = languageVariants.value.find(v => v.catalogId === (track as any)._catalogId)
+                if (lv) {
+                    const resp = await fetch(`${HUB_BASE}/api/resolve-variant?provider=moovie-catalog&id=${encodeURIComponent(lv.catalogId)}&type=${lv.media_type}&season=${lv.season}&episode=${lv.episode}`)
+                    if (resp.ok) {
+                        const variantData = await resp.json()
+                        const streamUrl = variantData.url || variantData.streamUrl || ''
+                        if (streamUrl) {
+                            loading.value = false
+                            buffering.value = true
+                            const s: HubStream = {
+                                name: lv.language,
+                                url: streamUrl,
+                                proxyUrl: variantData.proxyUrl || '',
+                                quality: variantData.quality || 'Auto',
+                                type: (variantData.type || streamUrl).endsWith('.m3u8') ? 'm3u8' : 'mp4',
+                                headers: variantData.headers,
+                                providerName: 'Athena',
+                            }
+                            await tryPlayStream(s)
+                        }
+                    }
+                }
             }
         }
 
@@ -1277,6 +1370,17 @@ export default defineComponent({
 
         watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
 
+        watch(() => [props.season, props.episode], (newVals, oldVals) => {
+            const newS = newVals[0], newE = newVals[1]
+            const oldS = oldVals?.[0], oldE = oldVals?.[1]
+            console.log('[MOVIEFRAME] watcher: season', oldS, '->', newS, 'episode', oldE, '->', newE, 'mediaId:', props.mediaId)
+            if (props.mediaId) {
+                console.log('[MOVIEFRAME] watcher calling doLoad()')
+                void doLoad();
+                startTrackingIfNeeded();
+            }
+        }, { immediate: true })
+
         function onKeydown(e: KeyboardEvent) {
             if (e.key === 'ArrowRight') { seekBy(10); e.preventDefault() }
             if (e.key === 'ArrowLeft') { seekBy(-10); e.preventDefault() }
@@ -1285,7 +1389,7 @@ export default defineComponent({
         function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
 
         onMounted(() => {
-            computeAmbient(); startTrackingIfNeeded(); void doLoad()
+            computeAmbient(); startTrackingIfNeeded()
             document.addEventListener('click', onClickOutside)
             document.addEventListener('fullscreenchange', onFullscreenChange)
             document.addEventListener('keydown', onKeydown)

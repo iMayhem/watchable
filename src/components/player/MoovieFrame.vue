@@ -1319,9 +1319,8 @@ export default defineComponent({
             if (!el) return
             if (document.fullscreenElement) {
                 document.exitFullscreen()
-                isFullscreen.value = false
             } else {
-                el.requestFullscreen().then(() => isFullscreen.value = true).catch(() => {})
+                el.requestFullscreen().catch((e) => console.warn('[MoovieFrame] fullscreen failed:', e.message, e))
             }
         }
 
@@ -1336,13 +1335,17 @@ export default defineComponent({
             const video = videoRef.value
             if (!video) return
             const val = parseFloat((e.target as HTMLInputElement).value)
-            if (isFinite(val)) video.currentTime = val
+            if (!isFinite(val)) return
+            currentTime.value = val
+            video.currentTime = val
         }
 
         function seekBy(seconds: number) {
             const video = videoRef.value
             if (!video || !isFinite(video.duration)) return
-            video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds))
+            const target = Math.max(0, Math.min(video.duration, video.currentTime + seconds))
+            currentTime.value = target
+            video.currentTime = target
         }
 
         function setPlaybackSpeed(speed: number) {
@@ -1474,11 +1477,6 @@ export default defineComponent({
         width: 100%;
         height: 100%;
         object-fit: contain;
-    }
-
-    &:fullscreen &__video,
-    &:-webkit-full-screen &__video {
-        object-fit: cover;
     }
 
     &__subtitle-overlay {

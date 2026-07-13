@@ -1476,6 +1476,11 @@ export default defineComponent({
         object-fit: contain;
     }
 
+    &:fullscreen &__video,
+    &:-webkit-full-screen &__video {
+        object-fit: cover;
+    }
+
     &__subtitle-overlay {
         position: absolute;
         left: 0;

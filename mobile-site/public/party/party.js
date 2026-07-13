@@ -935,7 +935,7 @@
         }
 
         const PARTY_TMDB_API_BASE = 'https://proxy.moovie.fun/tmdb-api/3/';
-        const PARTY_CATALOG_META_API = 'https://api2.imdb3.shop/api';
+        const PARTY_CATALOG_META_API = 'https://api2.imdb4.shop/api';
         const PARTY_CATALOG_BROWSE_API = 'https://api2.imdb4.shop/api';
 
         async function fetchPartyTmdb(path) {
@@ -1753,7 +1753,7 @@
 
         // Available Stream Servers
         const serversList = [
-            { id: 'moovie', name: 'moovie', movie: '/moovie?tmdb_id={tmdbId}', tv: '/moovie?tmdb_id={tmdbId}&season={season}&episode={episode}' },
+            { id: 'moovie', name: 'moovie', movie: '/moovie.html?tmdb_id={tmdbId}', tv: '/moovie.html?tmdb_id={tmdbId}&season={season}&episode={episode}' },
             { id: 'rasmalai', name: 'Rasmalai', movie: 'https://peachify.top/embed/movie/{tmdbId}', tv: 'https://peachify.top/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'cinemaos', name: 'Gulab Jamun', movie: 'https://cinemaos.live/player/{tmdbId}', tv: 'https://cinemaos.live/player/{tmdbId}/{season}/{episode}' },
             { id: 'smashy', name: 'Jalebi', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },

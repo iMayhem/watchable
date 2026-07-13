@@ -1,15 +1,16 @@
 // Moovie catalogue stream resolver + player HTML proxy.
 
 const CATALOG_SECRET = 'net###@@sss';
-const CATALOG_API = 'https://api2.imdb3.shop/api';
+const CATALOG_API = 'https://api2.imdb4.shop/api';
 const CATALOG_REFERER = 'https://netmirror.global/';
 const CATALOG_ORIGIN = 'https://netmirror.global';
 
 const PLAYER_HOSTS = {
-  1: 'spedostream2.shop',
+  1: 'speed.watch22.shop',
   2: 'play.watch22.shop',
   3: 'play.watch21.shop',
   5: 'test.watch22.shop',
+  6: 'playnew.watch21.shop',
 };
 
 const UA =
@@ -319,18 +320,135 @@ async function fetchCatalogJson(url, options = {}) {
   return data;
 }
 
+const TMDB_API_KEY = '439c478a771f35c05022f9feabcca01c';
+const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+
+async function getTmdbTitles(id, type) {
+  const titles = new Set();
+  let targetYear = null;
+  try {
+    const mediaType = type === 'tv' ? 'tv' : 'movie';
+    const url = `${TMDB_BASE_URL}/${mediaType}/${id}?api_key=${TMDB_API_KEY}`;
+    const resp = await fetch(url);
+    if (resp.ok) {
+      const data = await resp.json();
+      const primary = data?.title || data?.name || null;
+      if (primary) titles.add(primary);
+
+      const yearStr = data?.release_date || data?.first_air_date || '';
+      const yearMatch = yearStr.match(/^(\d{4})/);
+      if (yearMatch) targetYear = parseInt(yearMatch[1], 10);
+    }
+
+    const altUrl = `${TMDB_BASE_URL}/${mediaType}/${id}/alternative_titles?api_key=${TMDB_API_KEY}`;
+    const altResp = await fetch(altUrl);
+    if (altResp.ok) {
+      const altData = await altResp.json();
+      const list = altData?.titles || altData?.results || [];
+      for (const item of list) {
+        const alt = item.title || item.name;
+        if (alt) titles.add(alt);
+      }
+    }
+  } catch (e) {
+    console.error('[MoovieCatalog] getTmdbTitles error:', e.message);
+  }
+  return { titles: Array.from(titles), year: targetYear };
+}
+
+function cleanText(txt) {
+  return String(txt || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+
 async function fetchMetadata(type, id) {
-  const data = await fetchCatalogJson(`${CATALOG_API}/${type}/${id}`, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  const meta = data?.results?.[0];
-  if (!meta) {
-    throw new Error('No metadata found for this ID');
+  console.log('[DEBUG fetchMetadata] Resolving type:', type, 'id:', id);
+  let cleanId = String(id);
+  let isCatalogIdOnly = false;
+  if (cleanId.startsWith('cat_')) {
+    cleanId = cleanId.slice(4);
+    isCatalogIdOnly = true;
   }
 
-  return meta;
+  if (!isCatalogIdOnly && /^\d+$/.test(cleanId)) {
+    const tmdb = await getTmdbTitles(cleanId, type);
+    console.log('[DEBUG fetchMetadata] getTmdbTitles results:', tmdb);
+    const expectedType = type === 'tv' ? 'tv' : 'movie';
+    for (const title of tmdb.titles) {
+      try {
+        const encoded = encodeURIComponent(title.trim()).replace(/%20/g, '+');
+        const searchData = await fetchCatalogJson(`${CATALOG_API}/search2/${encoded}?page=0`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const results = searchData?.results || [];
+        console.log('[DEBUG fetchMetadata] Search catalog for:', title, 'returned', results.length, 'results');
+        for (const r of results) {
+          const rType = r.media_type === 'tv' ? 'tv' : 'movie';
+          if (rType !== expectedType) {
+            console.log('[DEBUG fetchMetadata] Skipping type mismatch:', r.title, 'rType:', rType, 'expected:', expectedType);
+            continue;
+          }
+
+          if (tmdb.year && r.release_date) {
+            const catYMatch = r.release_date.match(/(\d{4})/);
+            if (catYMatch) {
+              const catYr = parseInt(catYMatch[1], 10);
+              const maxDiff = type === 'movie' ? 2 : 10;
+              if (Math.abs(tmdb.year - catYr) > maxDiff) {
+                console.log('[DEBUG fetchMetadata] Skipping year mismatch:', r.title, 'catYr:', catYr, 'tmdb.year:', tmdb.year);
+                continue;
+              }
+            }
+          }
+
+          const parsed = parseCatalogTitle(r.title || '');
+          const cleanCatalog = cleanText(parsed.displayTitle);
+          const cleanTarget = cleanText(title);
+          if (cleanCatalog === cleanTarget) {
+            console.log('[DEBUG fetchMetadata] Found match catalog ID:', r.id, 'title:', r.title);
+            const matchData = await fetchCatalogJson(`${CATALOG_API}/${expectedType}/${r.id}`, {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            const meta = matchData?.results?.[0];
+            if (meta && meta.subjectid) {
+              console.log('[DEBUG fetchMetadata] Successfully resolved meta:', meta.title, 'catalog ID:', meta.id);
+              return meta;
+            }
+          } else {
+            console.log('[DEBUG fetchMetadata] Title mismatch: cleanCatalog:', cleanCatalog, 'cleanTarget:', cleanTarget);
+          }
+        }
+      } catch (err) {
+        console.log('[DEBUG fetchMetadata] Error in search loop for title:', title, 'err:', err.message);
+      }
+    }
+  }
+
+  // Fallback: direct fetch assuming id is catalog ID
+  console.log('[DEBUG fetchMetadata] Falling back to direct ID lookup for catalog ID:', cleanId);
+  try {
+    const data = await fetchCatalogJson(`${CATALOG_API}/${type}/${cleanId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    const meta = data?.results?.[0];
+    if (meta && meta.subjectid) {
+      return meta;
+    }
+  } catch (e) {
+    console.log('[DEBUG fetchMetadata] Direct ID lookup failed:', e.message);
+  }
+
+  throw new Error('No metadata found for this ID');
 }
 
 function decodeEmbedFilesdlUrl(embedUrl) {
@@ -469,6 +587,7 @@ async function tryResolveAttempt(meta, attempt, server) {
 
 async function resolveCatalogStream(type, id, season, episode, server) {
   let meta = await fetchMetadata(type, id);
+  id = "cat_" + String(meta.id);
   let canonicalType = canonicalMediaType(meta, type);
 
   if (canonicalType !== type) {

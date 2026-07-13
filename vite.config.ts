@@ -90,6 +90,13 @@ export default defineConfig({
   server: {
     hmr: {
       overlay: false // Disable error overlay for better performance
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8788',
+        changeOrigin: true,
+        secure: false,
+      }
     }
   },
   

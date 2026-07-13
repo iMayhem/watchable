@@ -99,53 +99,67 @@
             }
 
             const type = season && episode ? 'tv' : 'movie';
-            const params = new URLSearchParams({
-                action: 'resolve',
-                type,
-                id: tmdbId,
-                se: season || '0',
-                ep: episode || '0',
-                server: '1'
-            });
+            const serverIds = ['1', '2', '3', '6'];
+            let success = false;
+            let lastError = null;
 
-            try {
-                subtitle.textContent = 'Fetching stream from catalogue resolver…';
-                const res = await fetch('/api/moovie-catalog?' + params.toString());
-                const text = await res.text();
-                let data;
-                try { data = JSON.parse(text); } catch (e) {
-                    throw new Error('Resolver returned invalid response.');
+            for (const serverId of serverIds) {
+                try {
+                    subtitle.textContent = `Fetching stream from catalogue resolver (Server ${serverId})…`;
+                    const params = new URLSearchParams({
+                        action: 'resolve',
+                        type,
+                        id: tmdbId,
+                        se: season || '0',
+                        ep: episode || '0',
+                        server: serverId
+                    });
+
+                    const res = await fetch('/api/moovie-catalog?' + params.toString());
+                    const text = await res.text();
+                    let data;
+                    try { data = JSON.parse(text); } catch (e) {
+                        throw new Error('Resolver returned invalid response.');
+                    }
+                    if (!res.ok) throw new Error(data.error || 'Resolve failed (' + res.status + ')');
+                    if (!data.streams || !data.streams.length) {
+                        throw new Error('No playable streams found.');
+                    }
+
+                    overlay.style.display = 'none';
+
+                    const streamUrl = data.streams[0].url;
+                    const video = document.createElement('video');
+                    video.controls = true;
+                    video.playsInline = true;
+                    video.autoplay = true;
+                    video.crossOrigin = 'anonymous';
+                    document.getElementById('player-container').appendChild(video);
+
+                    const isDash = streamUrl.includes('.mpd');
+                    const isHls = streamUrl.includes('.m3u8');
+
+                    if (isHls && typeof Hls !== 'undefined' && Hls.isSupported()) {
+                        const hls = new Hls({ maxMaxBufferLength: 30, enableWorker: true });
+                        hls.loadSource(streamUrl);
+                        hls.attachMedia(video);
+                    } else if (isDash && typeof dashjs !== 'undefined') {
+                        const player = dashjs.MediaPlayer().create();
+                        player.initialize(video, streamUrl, true);
+                    } else {
+                        video.src = streamUrl;
+                    }
+
+                    success = true;
+                    break;
+                } catch (err) {
+                    console.warn(`Server ${serverId} failed:`, err.message);
+                    lastError = err.message;
                 }
-                if (!res.ok) throw new Error(data.error || 'Resolve failed (' + res.status + ')');
-                if (!data.streams || !data.streams.length) {
-                    throw new Error('No playable streams found.');
-                }
+            }
 
-                overlay.style.display = 'none';
-
-                const streamUrl = data.streams[0].url;
-                const video = document.createElement('video');
-                video.controls = true;
-                video.playsInline = true;
-                video.autoplay = true;
-                video.crossOrigin = 'anonymous';
-                document.getElementById('player-container').appendChild(video);
-
-                const isDash = streamUrl.includes('.mpd');
-                const isHls = streamUrl.includes('.m3u8');
-
-                if (isHls && typeof Hls !== 'undefined' && Hls.isSupported()) {
-                    const hls = new Hls({ maxMaxBufferLength: 30, enableWorker: true });
-                    hls.loadSource(streamUrl);
-                    hls.attachMedia(video);
-                } else if (isDash && typeof dashjs !== 'undefined') {
-                    const player = dashjs.MediaPlayer().create();
-                    player.initialize(video, streamUrl, true);
-                } else {
-                    video.src = streamUrl;
-                }
-            } catch (err) {
-                showError(err.message);
+            if (!success) {
+                showError(lastError || 'All catalogue servers returned offline status.');
             }
         }
 

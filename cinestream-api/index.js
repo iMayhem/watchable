@@ -14,6 +14,10 @@ if (!fs.existsSync(IMAGE_CACHE_DIR)) fs.mkdirSync(IMAGE_CACHE_DIR, { recursive: 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
 const PROXY_MOVIE_BASE = 'https://proxy.moovie.fun/tmdb-image/t/p/';
 const TMDB_ALLOWED_HOSTS = ['image.tmdb.org', 'proxy.moovie.fun'];
+const ANILIST_API = 'https://graphql.anilist.co';
+
+const ANILIST_CACHE_DIR = path.join(__dirname, 'anilist-cache');
+if (!fs.existsSync(ANILIST_CACHE_DIR)) fs.mkdirSync(ANILIST_CACHE_DIR, { recursive: true });
 
 app.use(cors());
 app.use(express.json());
@@ -500,6 +504,73 @@ app.post('/api/tmdb-image-proxy/clear-cache', async (req, res) => {
         res.json({ success: true, deleted });
     } catch (err) {
         console.error('[TMDB Image Proxy] Clear cache error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Anilist GraphQL proxy with disk cache — caches ALL POST body hashes for 1 hour.
+app.post('/api/anilist-proxy', async (req, res) => {
+    const body = req.body;
+    if (!body || !body.query) {
+        return res.status(400).json({ error: 'Missing query in request body' });
+    }
+
+    const raw = JSON.stringify(body);
+    const cacheKey = crypto.createHash('md5').update(raw).digest('hex');
+    const cachePath = path.join(ANILIST_CACHE_DIR, cacheKey);
+
+    // Disk cache hit
+    if (fs.existsSync(cachePath)) {
+        const stat = fs.statSync(cachePath);
+        const age = (Date.now() - stat.mtimeMs) / 1000;
+        if (age < 43200) {
+            const cached = fs.readFileSync(cachePath, 'utf-8');
+            res.setHeader('X-Cache', 'HIT');
+            res.setHeader('Cache-Control', 'public, max-age=43200');
+            return res.json(JSON.parse(cached));
+        }
+    }
+
+    try {
+        const response = await axios.post(ANILIST_API, body, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            timeout: 10000,
+        });
+
+        if (response.status === 200 && response.data) {
+            try {
+                fs.writeFileSync(cachePath, JSON.stringify(response.data));
+            } catch (err) {
+                console.error('[Anilist Proxy] Cache write error:', err.message);
+            }
+        }
+
+        res.setHeader('X-Cache', 'MISS');
+        res.setHeader('Cache-Control', 'public, max-age=43200');
+        res.json(response.data);
+    } catch (err) {
+        console.error('[Anilist Proxy] Fetch error:', err.message);
+        // Return a 502 — caller should fall back to direct Anilist
+        res.status(502).json({ error: 'Failed to fetch from Anilist' });
+    }
+});
+
+app.post('/api/anilist-proxy/clear-cache', async (req, res) => {
+    try {
+        const files = fs.readdirSync(ANILIST_CACHE_DIR);
+        let deleted = 0;
+        for (const file of files) {
+            try {
+                fs.unlinkSync(path.join(ANILIST_CACHE_DIR, file));
+                deleted++;
+            } catch { /* skip */ }
+        }
+        res.json({ success: true, deleted });
+    } catch (err) {
+        console.error('[Anilist Proxy] Clear cache error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });

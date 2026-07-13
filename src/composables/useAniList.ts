@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { getVpsProxyBaseUrl } from '../utils/useWebImage';
 
 export interface AniListFuzzyDate {
   year: number | null;
@@ -57,6 +58,103 @@ export interface AnimeResponse {
 
 const ANILIST_API = 'https://graphql.anilist.co';
 
+// Client-side in-memory cache (aggressive TTL to reduce API calls)
+interface CacheEntry {
+    data: unknown;
+    ts: number;
+}
+const anilistCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours
+
+function cacheKey(query: string, variables: Record<string, unknown>): string {
+    const hash = query.replace(/\s+/g, ' ').trim() + JSON.stringify(variables);
+    let h = 0;
+    for (let i = 0; i < hash.length; i++) {
+        h = ((h << 5) - h) + hash.charCodeAt(i);
+        h |= 0;
+    }
+    return String(h);
+}
+
+function getCached(key: string): unknown | null {
+    const entry = anilistCache.get(key);
+    if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
+    anilistCache.delete(key);
+    return null;
+}
+
+function setCache(key: string, data: unknown) {
+    anilistCache.set(key, { data, ts: Date.now() });
+    // Evict oldest entries if cache grows too large
+    if (anilistCache.size > 500) {
+        const oldest = [...anilistCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+        if (oldest) anilistCache.delete(oldest[0]);
+    }
+}
+
+export async function queryAniListApi(query: string, variables: Record<string, unknown> = {}) {
+    const ck = cacheKey(query, variables);
+    const cached = getCached(ck);
+    if (cached) return cached;
+
+    const vpsUrl = getVpsProxyBaseUrl();
+
+    // Try VPS proxy first, fall back to direct Anilist
+    let response: Response | null = null;
+    if (vpsUrl) {
+        try {
+            const baseUrl = vpsUrl.replace(/\/+$/, '');
+            response = await fetch(`${baseUrl}/api/anilist-proxy`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, variables }),
+            });
+            if (!response.ok) {
+                console.warn('[AniList] VPS proxy returned', response.status, '— falling back to direct');
+                response = null;
+            }
+        } catch (err) {
+            console.warn('[AniList] VPS proxy failed — falling back to direct:', err);
+            response = null;
+        }
+    }
+
+    if (!response) {
+        response = await fetch(ANILIST_API, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                query,
+                variables
+            })
+        });
+    }
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+        throw new Error(`AniList API error: ${response.status} ${response.statusText}`);
+    }
+
+    if (payload?.errors?.length) {
+        const message = payload.errors
+            .map((entry: { message?: string }) => entry.message)
+            .filter(Boolean)
+            .join('; ');
+        throw new Error(message || 'AniList API returned errors');
+    }
+
+    if (!payload?.data) {
+        throw new Error('AniList API returned no data');
+    }
+
+    setCache(ck, payload);
+    return payload;
+}
+
 const ANIME_BROWSE_MEDIA_FIELDS = `
   id
   idMal
@@ -79,40 +177,6 @@ const ANIME_BROWSE_MEDIA_FIELDS = `
   format
   status
 `;
-
-export async function queryAniListApi(query: string, variables: Record<string, unknown> = {}) {
-  const response = await fetch(ANILIST_API, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify({
-      query,
-      variables
-    })
-  });
-
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(`AniList API error: ${response.status} ${response.statusText}`);
-  }
-
-  if (payload?.errors?.length) {
-    const message = payload.errors
-      .map((entry: { message?: string }) => entry.message)
-      .filter(Boolean)
-      .join('; ');
-    throw new Error(message || 'AniList API returned errors');
-  }
-
-  if (!payload?.data) {
-    throw new Error('AniList API returned no data');
-  }
-
-  return payload;
-}
 
 /** TV anime catalogue pages — series only, no feature films. */
 export async function fetchAnimeBrowseMedia(options: {

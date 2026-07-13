@@ -1,5 +1,6 @@
 import useAxios from './useAxios';
 import { buildAnimeplayAnilistEmbedUrl } from './useAnimeplay';
+import { queryAniListApi } from './useAniList';
 
 export interface AnimeTmdbEpisode {
     /** User-facing episode index (absolute for long runners, in-season otherwise). */
@@ -535,46 +536,41 @@ async function resolveAnilistFranchise(
 
         let media = item.media;
         if (!media) {
-            try {
-                const query = `
-                  query ($id: Int) {
-                    Media(id: $id, type: ANIME) {
-                      id
-                      title {
-                        romaji
-                        english
-                        native
-                      }
-                      seasonYear
-                      format
-                      episodes
-                      relations {
-                        edges {
-                          relationType
-                          node {
-                            id
-                            title {
-                              romaji
-                              english
-                              native
-                            }
-                            type
-                            format
-                            seasonYear
-                            episodes
-                          }
+            const query = `
+              query ($id: Int) {
+                Media(id: $id, type: ANIME) {
+                  id
+                  title {
+                    romaji
+                    english
+                    native
+                  }
+                  seasonYear
+                  format
+                  episodes
+                  relations {
+                    edges {
+                      relationType
+                      node {
+                        id
+                        title {
+                          romaji
+                          english
+                          native
                         }
+                        type
+                        format
+                        seasonYear
+                        episodes
                       }
                     }
                   }
-                `;
-                const res = await fetch('https://graphql.anilist.co', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, variables: { id: item.id } })
-                });
-                const json = await res.json();
-                media = json?.data?.Media;
+                }
+              }
+            `;
+            try {
+                const payload = await queryAniListApi(query, { id: item.id });
+                media = payload?.data?.Media;
             } catch (err) {
                 console.warn('Failed to fetch franchise media:', item.id, err);
             }
@@ -966,56 +962,51 @@ export async function resolveAnimeTmdbMetaByTmdbId(
 
         const searchTitle = show.name || show.original_name;
         if (searchTitle) {
-            try {
-                const query = `
-                  query ($search: String) {
-                    Page(page: 1, perPage: 1) {
-                      media(search: $search, type: ANIME, format_in: [TV, ONA, SPECIAL]) {
-                        id
-                        title {
-                          romaji
-                          english
-                          native
-                        }
-                        seasonYear
-                        format
-                        episodes
-                        relations {
-                          edges {
-                            relationType
-                            node {
-                              id
-                              title {
-                                romaji
-                                english
-                                native
-                              }
-                              type
-                              format
-                              seasonYear
-                              episodes
-                            }
+            const query = `
+              query ($search: String) {
+                Page(page: 1, perPage: 1) {
+                  media(search: $search, type: ANIME, format_in: [TV, ONA, SPECIAL]) {
+                    id
+                    title {
+                      romaji
+                      english
+                      native
+                    }
+                    seasonYear
+                    format
+                    episodes
+                    relations {
+                      edges {
+                        relationType
+                        node {
+                          id
+                          title {
+                            romaji
+                            english
+                            native
                           }
+                          type
+                          format
+                          seasonYear
+                          episodes
                         }
                       }
                     }
                   }
-                `;
-                const res = await fetch('https://graphql.anilist.co', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, variables: { search: searchTitle } })
-                });
-                const json = await res.json();
-                const matchedMedia = json?.data?.Page?.media?.[0];
-                if (matchedMedia) {
-                    registerTmdbAnilistPlaybackId(tmdbId, matchedMedia.id);
-                    await populateSeasonTabsAnilistIds(matchedMedia.id, matchedMedia, result);
-                    artworkCache.set(matchedMedia.id, result);
                 }
-            } catch (err) {
-                console.warn('Failed to search AniList for TMDB show:', searchTitle, err);
-            }
+              }
+            `;
+            try {
+                const payload = await queryAniListApi(query, { search: searchTitle });
+                    const matchedMedia = payload?.data?.Page?.media?.[0];
+                    if (matchedMedia) {
+                        registerTmdbAnilistPlaybackId(tmdbId, matchedMedia.id);
+                        await populateSeasonTabsAnilistIds(matchedMedia.id, matchedMedia, result);
+                        artworkCache.set(matchedMedia.id, result);
+                    }
+                } catch (err) {
+                    console.warn('Failed to search AniList for TMDB show:', searchTitle, err);
+                }
         }
 
         if (result.tmdbId) {
@@ -1180,33 +1171,25 @@ async function searchAnilistIdForTmdbShow(tmdbId: number): Promise<number | null
     )];
 
     for (const search of titles) {
-        try {
-            const query = `
-              query ($search: String, $year: Int) {
-                Page(page: 1, perPage: 5) {
-                  media(
-                    search: $search,
-                    type: ANIME,
-                    format_in: [TV, ONA, SPECIAL, MOVIE],
-                    seasonYear: $year
-                  ) {
-                    id
-                    seasonYear
-                    format
-                  }
-                }
+        const query = `
+          query ($search: String, $year: Int) {
+            Page(page: 1, perPage: 5) {
+              media(
+                search: $search,
+                type: ANIME,
+                format_in: [TV, ONA, SPECIAL, MOVIE],
+                seasonYear: $year
+              ) {
+                id
+                seasonYear
+                format
               }
-            `;
-            const res = await fetch('https://graphql.anilist.co', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query,
-                    variables: { search, year: year || null }
-                })
-            });
-            const json = await res.json();
-            const candidates = json?.data?.Page?.media || [];
+            }
+          }
+        `;
+        try {
+            const payload = await queryAniListApi(query, { search, year: year || null });
+            const candidates = payload?.data?.Page?.media || [];
             if (!candidates.length) continue;
 
             const hit = (year

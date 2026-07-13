@@ -1,9 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const IMAGE_CACHE_DIR = path.join(__dirname, 'tmdb-image-cache');
+if (!fs.existsSync(IMAGE_CACHE_DIR)) fs.mkdirSync(IMAGE_CACHE_DIR, { recursive: true });
+
+const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
+const PROXY_MOVIE_BASE = 'https://proxy.moovie.fun/tmdb-image/t/p/';
+const TMDB_ALLOWED_HOSTS = ['image.tmdb.org', 'proxy.moovie.fun'];
 
 app.use(cors());
 app.use(express.json());
@@ -406,6 +416,94 @@ app.get('/api/cinestream/proxy', async (req, res) => {
   }
 });
 
+app.get('/api/tmdb-image-proxy', async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: 'Missing url parameter' });
+
+    try {
+        const parsed = new URL(url);
+        if (!TMDB_ALLOWED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
+            return res.status(403).json({ error: 'URL not allowed' });
+        }
+    } catch {
+        return res.status(400).json({ error: 'Invalid url' });
+    }
+
+    const cacheKey = crypto.createHash('md5').update(url).digest('hex');
+    const cachePath = path.join(IMAGE_CACHE_DIR, cacheKey);
+
+    // Check disk cache
+    if (fs.existsSync(cachePath)) {
+        const stat = fs.statSync(cachePath);
+        const age = (Date.now() - stat.mtimeMs) / 1000;
+        if (age < 86400) {
+            const ext = path.extname(url) || '.jpg';
+            const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+            res.setHeader('Content-Type', mime);
+            res.setHeader('X-Cache', 'HIT');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            return res.sendFile(cachePath);
+        }
+    }
+
+    // Fetch from TMDB CDN with fallback chain
+    const sources = [url, url.replace(TMDB_IMAGE_BASE, PROXY_MOVIE_BASE)];
+    let lastErr = null;
+    let response = null;
+
+    for (const src of sources) {
+        try {
+            response = await axios.get(src, {
+                responseType: 'arraybuffer',
+                timeout: 8000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Referer': 'https://www.themoviedb.org/',
+                }
+            });
+            if (response.status === 200) break;
+        } catch (err) {
+            lastErr = err;
+            console.error(`[TMDB Image Proxy] Failed for ${src}: ${err.message}`);
+        }
+    }
+
+    if (!response) {
+        return res.status(502).json({ error: 'Failed to fetch image from all sources', detail: lastErr?.message });
+    }
+
+    // Cache to disk
+    try {
+        fs.writeFileSync(cachePath, response.data);
+    } catch (err) {
+        console.error('[TMDB Image Proxy] Cache write error:', err.message);
+    }
+
+    const ext = path.extname(url) || '.jpg';
+    const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('X-Cache', 'MISS');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(response.data);
+});
+
+app.post('/api/tmdb-image-proxy/clear-cache', async (req, res) => {
+    try {
+        const files = fs.readdirSync(IMAGE_CACHE_DIR);
+        let deleted = 0;
+        for (const file of files) {
+            try {
+                fs.unlinkSync(path.join(IMAGE_CACHE_DIR, file));
+                deleted++;
+            } catch { /* skip */ }
+        }
+        res.json({ success: true, deleted });
+    } catch (err) {
+        console.error('[TMDB Image Proxy] Clear cache error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
-  console.log(`CineStream Microservice running on port ${PORT}`);
+    console.log(`CineStream Microservice running on port ${PORT}`);
 });

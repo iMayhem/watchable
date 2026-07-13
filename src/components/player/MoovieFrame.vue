@@ -305,6 +305,23 @@
                             <span class="moovie-frame__settings-item-label">Search subtitles</span>
                         </button>
                         <div class="moovie-frame__settings-divider" />
+                        <div class="moovie-frame__settings-label">Sync</div>
+                        <div class="moovie-frame__settings-options moovie-frame__settings-sync">
+                            <button
+                                class="moovie-frame__settings-chip"
+                                @click="subtitleOffset = Math.round((subtitleOffset - 0.5) * 10) / 10"
+                            >–0.5s</button>
+                            <span class="moovie-frame__settings-sync-value">{{ subtitleOffset > 0 ? '+' : '' }}{{ subtitleOffset.toFixed(1) }}s</span>
+                            <button
+                                class="moovie-frame__settings-chip"
+                                @click="subtitleOffset = Math.round((subtitleOffset + 0.5) * 10) / 10"
+                            >+0.5s</button>
+                            <button
+                                class="moovie-frame__settings-chip moovie-frame__settings-chip--reset"
+                                @click="subtitleOffset = 0"
+                            >Reset</button>
+                        </div>
+                        <div class="moovie-frame__settings-divider" />
                         <button
                             class="moovie-frame__settings-item"
                             @click="settingsSection = 'captions-style'"
@@ -527,6 +544,7 @@ export default defineComponent({
         const subtitleTracks = ref<{ id: number; name: string; lang?: string; isWyzie?: boolean }[]>([])
         const selectedSubtitleTrack = ref(-1)
         const captionSrtData = ref('')
+        const subtitleOffset = ref(0)
         const subFontSize = ref('medium')
         const subTextColor = ref('#ffffff')
         const subOpacity = ref(1)
@@ -546,7 +564,7 @@ export default defineComponent({
 
         const visibleCues = computed(() => {
             if (!captionSrtData.value) return []
-            const now = currentTime.value
+            const now = currentTime.value + subtitleOffset.value
             return parseSrt(captionSrtData.value).filter(c => c.start <= now && c.end >= now)
         })
 
@@ -1467,7 +1485,7 @@ export default defineComponent({
             document.removeEventListener('keydown', onKeydown)
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, subtitleCache, captionSrtData, loadWyzieSubtitles }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, subtitleCache, captionSrtData, subtitleOffset, loadWyzieSubtitles }
     },
 })
 </script>
@@ -1975,6 +1993,29 @@ export default defineComponent({
     min-width: 40px;
     text-align: center;
     font-variant-numeric: tabular-nums;
+}
+
+.moovie-frame__settings-sync {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 0.65rem 0.5rem;
+}
+
+.moovie-frame__settings-sync-value {
+    font-size: var(--fs-sm);
+    font-family: var(--font-ui);
+    color: #f0eee3;
+    min-width: 48px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.moovie-frame__settings-chip--reset {
+    margin-left: auto;
+    background: rgba(255, 90, 31, 0.2);
+    color: var(--ember, #ff5a1f);
+    &:hover { background: rgba(255, 90, 31, 0.35); }
 }
 
 @media (max-width: 640px) {

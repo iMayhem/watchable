@@ -41,6 +41,8 @@ import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
 import { getContentMode } from './composables/useContentMode';
 import { useAdScript } from './composables/useAdScript';
+import { getSupabaseClient } from './lib/supabase';
+import { setVpsProxyBaseUrl } from './utils/useWebImage';
 import ContentModeGate from './components/navigation/ContentModeGate.vue';
 import OpeningSplash from './components/navigation/OpeningSplash.vue';
 import BannerBar from './components/navigation/BannerBar.vue';
@@ -149,8 +151,19 @@ const initIdle = async () => {
 
 useAdScript('pc');
 
-onMounted(() => {
+onMounted(async () => {
     loadGlobalSettings();
+    try {
+        const supabase = await getSupabaseClient();
+        const { data } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'vps_proxy_base_url')
+            .single();
+        if (data?.value) {
+            setVpsProxyBaseUrl(data.value);
+        }
+    } catch { /* no VPS proxy configured */ }
     if ('requestIdleCallback' in window) {
         requestIdleCallback(() => initIdle());
     } else {

@@ -6,6 +6,15 @@ import { getSettings } from '../composables/useSettings';
 
 // TMDB posters/backdrops load directly from image.tmdb.org (browser → TMDB CDN).
 const TMDB_BASE = 'https://proxy.moovie.fun/tmdb-image/t/p/';
+let vpsProxyBaseUrl = '';
+
+export function setVpsProxyBaseUrl(url: string) {
+    vpsProxyBaseUrl = url;
+}
+
+export function getVpsProxyBaseUrl(): string {
+    return vpsProxyBaseUrl;
+}
 
 const ANILIST_CDN_PATTERN = /(?:^https?:\/\/)(?:[\w-]+\.)?anilist\.co\//i;
 
@@ -145,11 +154,17 @@ function normalizeTmdbPath(path: string): string {
 
 /**
  * TMDB image URL (direct CDN). Path must include size token, e.g. w342/abc.jpg
+ * Uses VPS proxy when configured, falls back to proxy.moovie.fun.
  */
 export function buildProxiedImageUrl(tmdbPath: string): string {
     if (!tmdbPath) return '';
     const path = normalizeTmdbPath(tmdbPath);
     const clean = path.startsWith('/') ? path.slice(1) : path;
+    if (vpsProxyBaseUrl) {
+        const tmdbUrl = `https://image.tmdb.org/t/p/${clean}`;
+        const vpsUrl = vpsProxyBaseUrl.replace(/\/+$/, '');
+        return `${vpsUrl}/api/tmdb-image-proxy?url=${encodeURIComponent(tmdbUrl)}`;
+    }
     return `${TMDB_BASE}${clean}`;
 }
 

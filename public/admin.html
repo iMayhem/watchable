@@ -716,6 +716,12 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 2rem;">
+                    <label class="form-label" for="vps-proxy-url">VPS TMDB Image Proxy URL</label>
+                    <input type="url" id="vps-proxy-url" class="form-input" placeholder="https://vps.example.com:3000">
+                    <p class="subtitle" style="font-size: 0.75rem; margin-top: 0.25rem;">Proxies and caches TMDB poster images through your VPS to bypass geo-blocks. Leave empty to use the default proxy. Must point to the cinestream-api server.</p>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
                     <label class="form-label">Groq API Keys (3 Slots for Auto-Failover)</label>
                     <input type="password" id="groq-key-1" class="form-input" placeholder="Groq API Key Slot 1" style="margin-bottom: 0.5rem;">
                     <input type="password" id="groq-key-2" class="form-input" placeholder="Groq API Key Slot 2" style="margin-bottom: 0.5rem;">
@@ -988,6 +994,20 @@
                     <span>🗑️ Clear Cache Now</span>
                 </button>
             </div>
+
+            <!-- Clear VPS TMDB Image Cache Section -->
+            <div class="cache-card">
+                <div class="cache-info">
+                    <span class="cache-icon">🖥️</span>
+                    <div>
+                        <strong class="cache-title">Clear VPS TMDB Image Cache</strong>
+                        <p class="subtitle" style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--bone-300);">Deletes the cached TMDB poster images on your VPS. Images will be re-fetched on next request.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-danger" id="clear-vps-cache-btn" onclick="handleClearVpsCache(event)">
+                    <span>🗑️ Clear VPS Image Cache</span>
+                </button>
+            </div>
         </section>
     </div>
 
@@ -1106,6 +1126,19 @@
                 }
             } catch (err) {
                 console.warn('Could not retrieve current TMDB image quality:', err);
+            }
+
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'vps_proxy_base_url')
+                    .single();
+                if (data && data.value) {
+                    document.getElementById('vps-proxy-url').value = data.value;
+                }
+            } catch (err) {
+                console.warn('Could not retrieve VPS proxy URL:', err);
             }
 
             try {
@@ -1501,6 +1534,13 @@
                     .upsert({ key: 'wyzie_api_keys', value: JSON.stringify(wyzieKeys), updated_at: new Date() }, { onConflict: 'key' })
                 if (wyzieKeysError) throw wyzieKeysError
 
+                // Save VPS Proxy URL
+                const vpsUrl = document.getElementById('vps-proxy-url').value.trim();
+                const { error: vpsError } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'vps_proxy_base_url', value: vpsUrl, updated_at: new Date() }, { onConflict: 'key' });
+                if (vpsError) throw vpsError;
+
                 // Save new passcode if provided
                 if (newPasscode) {
                     const { error: passcodeError } = await supabaseClient
@@ -1548,6 +1588,35 @@
             } catch (err) {
                 console.error(err);
                 showToast('Failed to clear cache globally', false);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function handleClearVpsCache(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('clear-vps-cache-btn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span>Clearing VPS cache...</span>';
+
+            try {
+                const vpsUrl = document.getElementById('vps-proxy-url').value.trim();
+                if (!vpsUrl) {
+                    showToast('VPS proxy URL not configured', false);
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    return;
+                }
+                const baseUrl = vpsUrl.replace(/\/+$/, '');
+                const res = await fetch(`${baseUrl}/api/tmdb-image-proxy/clear-cache`, { method: 'POST' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                showToast(`✅ VPS image cache cleared (${data.deleted} files)`);
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to clear VPS image cache', false);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;

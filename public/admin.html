@@ -724,6 +724,18 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 2rem;">
+                    <label class="form-label">Wyzie Subtitle API Keys</label>
+                    <div id="wyzie-keys-container">
+                        <div class="wyzie-key-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center">
+                            <input type="password" class="form-input wyzie-key-input" style="flex:1" placeholder="Wyzie API Key">
+                            <button type="button" class="btn btn-sm btn-danger wyzie-remove-btn" onclick="removeWyzieKey(this)" style="display:none">&times;</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="addWyzieKey()" style="margin-top:0.25rem">+ Add Key</button>
+                    <p class="subtitle" style="font-size: 0.75rem; margin-top: 0.25rem;">Keys are tried in order. If one gets rate-limited (429), the next key is used automatically. At least 2 keys recommended.</p>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
                     <label class="form-label" for="new-passcode-input">Change Passcode (Optional)</label>
                     <input type="password" id="new-passcode-input" class="form-input" placeholder="Enter new passcode to update">
                 </div>
@@ -1131,6 +1143,9 @@
             // Load stream proxy setting
             loadStreamProxySetting();
 
+            // Load Wyzie API keys
+            loadWyzieApiKeys();
+
             // Load server order
             loadServerOrder();
         }
@@ -1477,6 +1492,14 @@
                     .upsert({ key: 'groq_keys', value: JSON.stringify(groqKeys), updated_at: new Date() }, { onConflict: 'key' });
 
                 if (groqKeysError) throw groqKeysError;
+
+                // Save Wyzie API Keys
+                const wyzieInputs = document.querySelectorAll('.wyzie-key-input')
+                const wyzieKeys = Array.from(wyzieInputs).map(i => (i as HTMLInputElement).value.trim()).filter(Boolean)
+                const { error: wyzieKeysError } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'wyzie_api_keys', value: JSON.stringify(wyzieKeys), updated_at: new Date() }, { onConflict: 'key' })
+                if (wyzieKeysError) throw wyzieKeysError
 
                 // Save new passcode if provided
                 if (newPasscode) {
@@ -2027,6 +2050,54 @@
             } catch (err) {
                 console.error(err);
                 showToast('Failed to save proxy setting', false);
+            }
+        }
+
+        // ==========================================
+        // WYZIE SUBTITLE API KEYS
+        // ==========================================
+
+        function addWyzieKey(value = '') {
+            const container = document.getElementById('wyzie-keys-container')
+            const row = document.createElement('div')
+            row.className = 'wyzie-key-row'
+            row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center'
+            row.innerHTML = `
+                <input type="password" class="form-input wyzie-key-input" style="flex:1" placeholder="Wyzie API Key" value="${value.replace(/"/g, '&quot;')}">
+                <button type="button" class="btn btn-sm btn-danger wyzie-remove-btn" onclick="removeWyzieKey(this)">&times;</button>
+            `
+            container.appendChild(row)
+        }
+
+        function removeWyzieKey(btn: HTMLElement) {
+            const row = btn.closest('.wyzie-key-row')
+            if (row && document.querySelectorAll('.wyzie-key-row').length > 1) {
+                row.remove()
+            } else {
+                showToast('Need at least one key row', false)
+            }
+        }
+
+        async function loadWyzieApiKeys() {
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'wyzie_api_keys')
+                    .single()
+                const keys = data?.value ? JSON.parse(data.value) : ['wyzie-m3moskoivi4mwobs7167pcscgmtou59j', 'wyzie-hcgpzwraxp8a73dkdponr2vudh4ojsm3']
+                const container = document.getElementById('wyzie-keys-container')
+                container.innerHTML = ''
+                if (Array.isArray(keys) && keys.length) {
+                    keys.forEach((k: string) => addWyzieKey(k))
+                } else {
+                    addWyzieKey('wyzie-m3moskoivi4mwobs7167pcscgmtou59j')
+                    addWyzieKey('wyzie-hcgpzwraxp8a73dkdponr2vudh4ojsm3')
+                }
+            } catch (err) {
+                console.warn('Could not load Wyzie keys, using defaults:', err)
+                addWyzieKey('wyzie-m3moskoivi4mwobs7167pcscgmtou59j')
+                addWyzieKey('wyzie-hcgpzwraxp8a73dkdponr2vudh4ojsm3')
             }
         }
 

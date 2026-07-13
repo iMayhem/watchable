@@ -213,7 +213,7 @@
                             @click="settingsSection = 'captions'"
                         >
                             <span class="moovie-frame__settings-item-label">Captions</span>
-                            <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : 'Off' }}</span>
+                            <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : subtitleCache.size ? 'Off' : 'Search' }}</span>
                             <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                         </button>
                     </template>
@@ -296,6 +296,13 @@
                             @click="selectSubtitleTrack(track.id)"
                         >
                             <span>{{ track.name }}<span v-if="track.lang" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
+                        </button>
+                        <button
+                            v-if="!subtitleTracks.length"
+                            class="moovie-frame__settings-item"
+                            @click="loadWyzieSubtitles()"
+                        >
+                            <span class="moovie-frame__settings-item-label">Search subtitles</span>
                         </button>
                         <div class="moovie-frame__settings-divider" />
                         <button
@@ -408,7 +415,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineComponent, onMounted, onUnmounted, ref, shallowReactive, watch } from 'vue'
 import { useWebImage } from '../../utils/useWebImage'
 import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
@@ -417,7 +424,10 @@ import { getSupabaseClient } from '../../lib/supabase'
 const HUB_BASE = 'https://proxy.moovie.fun'
 const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
 const WYZIE_SUBS = 'https://sub.wyzie.io/search'
-const WYZIE_API_KEY = 'wyzie-m3moskoivi4mwobs7167pcscgmtou59j'
+const WYZIE_API_KEYS_DEFAULT = [
+    'wyzie-m3moskoivi4mwobs7167pcscgmtou59j',
+    'wyzie-hcgpzwraxp8a73dkdponr2vudh4ojsm3',
+]
 
 interface WyzieSub {
     id: string
@@ -1106,26 +1116,69 @@ export default defineComponent({
             }
         }
 
+        const subtitleCache = shallowReactive(new Map<string, { ts: number; data: WyzieSub[] }>())
+        const SUB_CACHE_TTL = 30 * 60 * 1000
+
+        function b64url(str: string): string {
+            try { return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') } catch { return '' }
+        }
+
+        let wyzieKeysFetched = false
+        let wyzieApiKeys: string[] = []
+
+        async function ensureWyzieKeys() {
+            if (wyzieKeysFetched) return
+            wyzieKeysFetched = true
+            try {
+                const client = await getSupabaseClient()
+                const { data } = await client.from('app_settings').select('value').eq('key', 'wyzie_api_keys').single()
+                if (data) {
+                    const parsed = JSON.parse(data.value)
+                    if (Array.isArray(parsed) && parsed.length) {
+                        wyzieApiKeys = parsed
+                        return
+                    }
+                }
+            } catch { /* use defaults */ }
+            wyzieApiKeys = [...WYZIE_API_KEYS_DEFAULT]
+        }
+
         async function fetchWyzieSubtitles(): Promise<WyzieSub[]> {
             const id = String(props.mediaId)
             if (!id) { console.debug('[Wyzie] no mediaId'); return [] }
-            const params = new URLSearchParams({ id, key: WYZIE_API_KEY })
-            if (props.mediaType === 'tv' && props.season > 0 && props.episode > 0) {
-                params.set('season', String(props.season))
-                params.set('episode', String(props.episode))
+            const cacheKey = `${id}-${props.season}-${props.episode}`
+            const cached = subtitleCache.get(cacheKey)
+            if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) {
+                console.debug('[Wyzie] cache hit')
+                return cached.data
             }
-            const url = `${WYZIE_SUBS}?${params}`
-            const proxyUrl = `${HUB_BASE}/api/proxy?destination=${encodeURIComponent(url)}`
-            console.debug('[Wyzie] fetching:', url)
-            for (const tryUrl of [url, proxyUrl]) {
-                try {
-                    const res = await fetch(tryUrl)
-                    if (!res.ok) { console.debug('[Wyzie] fetch failed:', tryUrl, res.status); continue }
-                    const data = await res.json()
-                    console.debug('[Wyzie] got', Array.isArray(data) ? data.length : 'non-array', 'results')
-                    return Array.isArray(data) ? data : []
-                } catch (e) {
-                    console.debug('[Wyzie] fetch error:', tryUrl, e)
+            await ensureWyzieKeys()
+            for (const key of wyzieApiKeys) {
+                const params = new URLSearchParams({ id, key })
+                if (props.mediaType === 'tv' && props.season > 0 && props.episode > 0) {
+                    params.set('season', String(props.season))
+                    params.set('episode', String(props.episode))
+                }
+                const url = `${WYZIE_SUBS}?${params}`
+                const proxyUrl = `${HUB_BASE}/proxy?u=${b64url(url)}`
+                console.debug('[Wyzie] trying key:', key.slice(0, 12) + '...')
+                for (const tryUrl of [url, proxyUrl]) {
+                    try {
+                        const res = await fetch(tryUrl, { signal: AbortSignal.timeout(8000) })
+                        if (res.status === 429) { console.debug('[Wyzie] rate limited for key:', key.slice(0, 12) + '...'); break }
+                        if (!res.ok) { console.debug('[Wyzie] fetch failed:', tryUrl, res.status); continue }
+                        const text = await res.text()
+                        let data: any
+                        try { data = JSON.parse(text) } catch { data = null }
+                        if (Array.isArray(data)) {
+                            console.debug('[Wyzie] got', data.length, 'subtitles')
+                            subtitleCache.set(cacheKey, { ts: Date.now(), data })
+                            return data
+                        }
+                        console.debug('[Wyzie] non-array response, trying next')
+                    } catch (e: any) {
+                        console.debug('[Wyzie] fetch error:', tryUrl, e?.message || e)
+                    }
                 }
             }
             return []
@@ -1269,10 +1322,14 @@ export default defineComponent({
                 }
                 const track = subtitleTracks.value.find(t => t.id === index)
                 if (track && (track as any)._srtUrl) {
-                    try {
-                        const r = await fetch((track as any)._srtUrl)
-                        if (r.ok) captionSrtData.value = await r.text()
-                    } catch { /* ignore */ }
+                    const srtUrl = (track as any)._srtUrl as string
+                    const proxySrtUrl = `${HUB_BASE}/proxy?u=${b64url(srtUrl)}`
+                    for (const tryUrl of [srtUrl, proxySrtUrl]) {
+                        try {
+                            const r = await fetch(tryUrl)
+                            if (r.ok) { captionSrtData.value = await r.text(); break }
+                        } catch { /* try next */ }
+                    }
                 }
             } else {
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
@@ -1377,6 +1434,11 @@ export default defineComponent({
             const newS = newVals[0], newE = newVals[1]
             const oldS = oldVals?.[0], oldE = oldVals?.[1]
             console.log('[MOVIEFRAME] watcher: season', oldS, '->', newS, 'episode', oldE, '->', newE, 'mediaId:', props.mediaId)
+            if (newS !== oldS || newE !== oldE) {
+                subtitleCache.clear()
+                subtitleTracks.value = []
+                captionSrtData.value = ''
+            }
             if (props.mediaId) {
                 console.log('[MOVIEFRAME] watcher calling doLoad()')
                 void doLoad();
@@ -1405,7 +1467,7 @@ export default defineComponent({
             document.removeEventListener('keydown', onKeydown)
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, subtitleCache, captionSrtData, loadWyzieSubtitles }
     },
 })
 </script>

@@ -604,6 +604,25 @@ async function handleSendChat(event) {
     }
 }
 
+async function loadChatHistory() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('yt_chat_messages')
+            .select('*')
+            .eq('room_id', GLOBAL_ROOM_ID)
+            .order('created_at', { ascending: true })
+            .limit(50);
+        if (error) throw error;
+        if (data) {
+            data.forEach(function(msg) {
+                appendChatMessage(msg.user_name, msg.message, msg.user_name === currentUserName ? 'me' : 'other');
+            });
+        }
+    } catch (e) {
+        console.warn('[chat] failed to load history:', e.message || e);
+    }
+}
+
 function insertEmoji(emoji) {
     const input = document.getElementById('chat-input');
     input.value += emoji;
@@ -673,6 +692,7 @@ async function ensureGlobalRoom() {
 
     showRoomView(activeRoom);
     joinRealtimeChannel(activeRoom.id);
+    loadChatHistory();
     initYtPlayer(activeRoom.video_id || '');
     renderQueue();
     renderSkipButton();

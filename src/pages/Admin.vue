@@ -124,7 +124,7 @@
 
                         <div class="admin-page__field">
                             <label class="admin-page__label">YouTube Data API Keys (Auto-Failover)</label>
-                            <div v-for="(key, i) in youtubeApiKeys" :key="i" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center">
+                            <div v-for="(_, i) in youtubeApiKeys" :key="i" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center">
                                 <input v-model="youtubeApiKeys[i]" type="password" class="admin-page__input" style="flex:1" placeholder="YouTube API Key">
                                 <button type="button" class="admin-page__btn admin-page__btn--sm admin-page__btn--danger" @click="removeYoutubeKey(i)" v-if="youtubeApiKeys.length > 1">&times;</button>
                             </div>

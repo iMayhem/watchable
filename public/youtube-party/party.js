@@ -650,6 +650,23 @@ function generateId() {
 }
 
 // ── Global Room ──
+async function refreshRoomState() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('youtube_rooms')
+            .select('current_time, is_playing, video_id')
+            .eq('id', GLOBAL_ROOM_ID)
+            .maybeSingle();
+        if (data && !error) {
+            activeRoom.current_time = data.current_time || 0;
+            activeRoom.is_playing = data.is_playing;
+            if (data.video_id) activeRoom.video_id = data.video_id;
+        }
+    } catch (e) {
+        console.warn('[sync] refreshRoomState failed:', e.message || e);
+    }
+}
+
 async function ensureGlobalRoom() {
     try {
         const { data, error } = await supabaseClient
@@ -693,6 +710,7 @@ async function ensureGlobalRoom() {
     showRoomView(activeRoom);
     joinRealtimeChannel(activeRoom.id);
     loadChatHistory();
+    await refreshRoomState();
     initYtPlayer(activeRoom.video_id || '');
     renderQueue();
     renderSkipButton();

@@ -74,6 +74,12 @@ CREATE POLICY "yt_chat_public_insert" ON yt_chat_messages
     TO anon, authenticated
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "yt_chat_public_select" ON yt_chat_messages;
+CREATE POLICY "yt_chat_public_select" ON yt_chat_messages
+    FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
 DROP POLICY IF EXISTS "yt_chat_public_delete" ON yt_chat_messages;
 CREATE POLICY "yt_chat_public_delete" ON yt_chat_messages
     FOR DELETE

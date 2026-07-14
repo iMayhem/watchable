@@ -237,12 +237,7 @@ function initYtPlayer(videoId) {
 function loadYoutubeVideo(videoId) {
     if (!videoId) return;
     if (ytPlayer && ytReady) {
-        ytPlayer.cueVideoById(videoId);
-        setTimeout(function() {
-            if (ytPlayer && ytReady) {
-                ytPlayer.playVideo();
-            }
-        }, 100);
+        ytPlayer.loadVideoById(videoId);
     } else {
         initYtPlayer(videoId);
     }

@@ -61,7 +61,6 @@
                         @focus="prefetchPrimaryNav(item)"
                     >
                         {{ item.label }}
-                        <span v-if="item.label === 'Discover'" class="site-header__new-badge">NEW</span>
                     </router-link>
                     <div
                         v-else
@@ -162,6 +161,20 @@
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
                     <span class="site-header__party-label">Together</span>
+                </router-link>
+
+                <router-link
+                    v-if="!isNetflixMode"
+                    to="/youtube-party"
+                    class="site-header__party-btn site-header__yt-btn"
+                    :class="{ 'is-active': isYtPartyRoute }"
+                    aria-label="YouTube Party"
+                    title="YouTube Party"
+                >
+                    <svg viewBox="0 0 24 24" fill="currentColor" class="site-header__party-icon">
+                        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0C.488 3.45.029 5.804 0 12c.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0C23.512 20.55 23.971 18.196 24 12c-.029-6.185-.484-8.549-4.385-8.816zM9 16V8l8 4-8 4z"/>
+                    </svg>
+                    <span class="site-header__party-label">YouTube <span class="site-header__new-badge">NEW</span></span>
                 </router-link>
 
                 <template v-if="!isNetflixMode">
@@ -304,7 +317,6 @@
                             <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
                             <span class="site-header__drawer-label">
                                 {{ item.label }}
-                                <span v-if="item.label === 'Discover'" class="site-header__new-badge">NEW</span>
                             </span>
                         </router-link>
                         <template v-else>
@@ -518,6 +530,7 @@ export default defineComponent({
             getNetflixCatalogue();
         const isNetflixMode = computed(() => contentMode.value === 'netflix');
         const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
+        const isYtPartyRoute = computed(() => route.path === '/youtube-party' || route.path.startsWith('/youtube-party/'));
         const scrolled = ref(false);
         const { splashActive } = useOpeningSplash();
 
@@ -884,6 +897,7 @@ export default defineComponent({
 
             isNetflixMode,
             isPartyRoute,
+            isYtPartyRoute,
             netflixNavLeading,
             netflixNavTrailing,
             isMovieSectionActive,
@@ -1109,7 +1123,7 @@ export default defineComponent({
 
     &__new-badge {
         background: var(--ember);
-        color: var(--ink-950) !important;
+        color: var(--ink-900) !important;
         font-size: 0.55rem;
         font-weight: 850;
         padding: 0.1rem 0.3rem;
@@ -1274,6 +1288,12 @@ export default defineComponent({
         font-weight: 800;
         border-radius: 10px;
         line-height: 1;
+    }
+
+    &__yt-btn {
+        @media (max-width: 860px) {
+            display: none;
+        }
     }
 
     &__party-btn {

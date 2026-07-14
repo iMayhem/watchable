@@ -730,6 +730,13 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 2rem;">
+                    <label class="form-label">YouTube Data API Keys (Auto-Failover)</label>
+                    <div id="youtube-keys-container"></div>
+                    <button type="button" class="btn btn-sm" onclick="addYoutubeKey()" style="margin-top:0.25rem">+ Add Key</button>
+                    <p class="subtitle" style="font-size: 0.75rem; margin-top: 0.25rem;">Keys are tried in order. If one gets rate-limited (quota exceeded), the next key is used automatically.</p>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
                     <label class="form-label">Wyzie Subtitle API Keys</label>
                     <div id="wyzie-keys-container">
                         <div class="wyzie-key-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center">
@@ -1179,6 +1186,9 @@
             // Load Wyzie API keys
             loadWyzieApiKeys();
 
+            // Load YouTube API keys
+            loadYoutubeApiKeys();
+
             // Load server order
             loadServerOrder();
         }
@@ -1525,6 +1535,14 @@
                     .upsert({ key: 'groq_keys', value: JSON.stringify(groqKeys), updated_at: new Date() }, { onConflict: 'key' });
 
                 if (groqKeysError) throw groqKeysError;
+
+                // Save YouTube API Keys
+                const ytInputs = document.querySelectorAll('.youtube-key-input')
+                const ytKeys = Array.from(ytInputs).map(i => i.value.trim()).filter(Boolean)
+                const { error: ytKeysError } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'youtube_api_keys', value: JSON.stringify(ytKeys), updated_at: new Date() }, { onConflict: 'key' })
+                if (ytKeysError) throw ytKeysError
 
                 // Save Wyzie API Keys
                 const wyzieInputs = document.querySelectorAll('.wyzie-key-input')
@@ -2119,6 +2137,52 @@
             } catch (err) {
                 console.error(err);
                 showToast('Failed to save proxy setting', false);
+            }
+        }
+
+        // ==========================================
+        // YOUTUBE API KEYS
+        // ==========================================
+
+        function addYoutubeKey(value = '') {
+            const container = document.getElementById('youtube-keys-container')
+            const row = document.createElement('div')
+            row.className = 'youtube-key-row'
+            row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center'
+            row.innerHTML = `
+                <input type="password" class="form-input youtube-key-input" style="flex:1" placeholder="YouTube Data API Key" value="${value.replace(/"/g, '&quot;')}">
+                <button type="button" class="btn btn-sm btn-danger youtube-remove-btn" onclick="removeYoutubeKey(this)">&times;</button>
+            `
+            container.appendChild(row)
+        }
+
+        function removeYoutubeKey(btn) {
+            const row = btn.closest('.youtube-key-row')
+            if (row && document.querySelectorAll('.youtube-key-row').length > 1) {
+                row.remove()
+            } else {
+                showToast('Need at least one key row', false)
+            }
+        }
+
+        async function loadYoutubeApiKeys() {
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'youtube_api_keys')
+                    .single()
+                const keys = data?.value ? JSON.parse(data.value) : ['']
+                const container = document.getElementById('youtube-keys-container')
+                container.innerHTML = ''
+                if (Array.isArray(keys) && keys.length) {
+                    keys.forEach((k) => addYoutubeKey(k))
+                } else {
+                    addYoutubeKey('')
+                }
+            } catch (err) {
+                console.warn('Could not load YouTube keys:', err)
+                addYoutubeKey('')
             }
         }
 

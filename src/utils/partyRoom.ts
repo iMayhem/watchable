@@ -1,5 +1,5 @@
-export type PartyMediaType = 'movie' | 'tv' | 'anime';
-export type PartySource = 'global' | 'netflix';
+export type PartyMediaType = 'movie' | 'tv' | 'anime' | 'youtube';
+export type PartySource = 'global' | 'netflix' | 'youtube';
 
 export interface PartyRoomInput {
     id: string | number;

@@ -123,6 +123,16 @@
                         </div>
 
                         <div class="admin-page__field">
+                            <label class="admin-page__label">YouTube Data API Keys (Auto-Failover)</label>
+                            <div v-for="(key, i) in youtubeApiKeys" :key="i" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center">
+                                <input v-model="youtubeApiKeys[i]" type="password" class="admin-page__input" style="flex:1" placeholder="YouTube API Key">
+                                <button type="button" class="admin-page__btn admin-page__btn--sm admin-page__btn--danger" @click="removeYoutubeKey(i)" v-if="youtubeApiKeys.length > 1">&times;</button>
+                            </div>
+                            <button type="button" class="admin-page__btn admin-page__btn--sm" @click="addYoutubeKey">+ Add Key</button>
+                            <p class="admin-page__hint">Keys are tried in order. If one gets rate-limited (quota exceeded), the next key is used automatically.</p>
+                        </div>
+
+                        <div class="admin-page__field">
                             <label class="admin-page__label" for="new-passcode">Change Passcode (Optional)</label>
                             <input id="new-passcode" v-model="newPasscode" type="password" class="admin-page__input" placeholder="Enter new passcode to update">
                         </div>
@@ -550,6 +560,8 @@ const settings = reactive({
     groqKeys: ['', '', '']
 })
 
+const youtubeApiKeys = ref<string[]>([''])
+
 // ── Notifications ──────────────────────────────────────────────────────────────
 const notifTitle = ref('')
 const notifMessage = ref('')
@@ -685,6 +697,16 @@ async function loadDashboardSettings() {
         }
     } catch { /* ignore */ }
 
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'youtube_api_keys').single()
+        if (data?.value) {
+            const keys = JSON.parse(data.value)
+            if (Array.isArray(keys) && keys.length) {
+                youtubeApiKeys.value = keys
+            }
+        }
+    } catch { /* ignore */ }
+
     await load4KCuration()
 
     try {
@@ -784,6 +806,9 @@ async function handleSaveSettings() {
         const keys = settings.groqKeys.filter(Boolean)
         await client.from('app_settings').upsert({ key: 'groq_keys', value: JSON.stringify(keys), updated_at: new Date() }, { onConflict: 'key' })
 
+        const ytKeys = youtubeApiKeys.value.filter(Boolean)
+        await client.from('app_settings').upsert({ key: 'youtube_api_keys', value: JSON.stringify(ytKeys), updated_at: new Date() }, { onConflict: 'key' })
+
         if (newPasscode.value) {
             await client.from('app_settings').upsert({ key: 'admin_passcode', value: newPasscode.value, updated_at: new Date() }, { onConflict: 'key' })
             adminPasscode = newPasscode.value
@@ -800,6 +825,16 @@ async function handleSaveSettings() {
         showToast('Failed to update settings in Supabase', false)
     } finally {
         saveLoading.value = false
+    }
+}
+
+function addYoutubeKey() {
+    youtubeApiKeys.value.push('')
+}
+
+function removeYoutubeKey(index: number) {
+    if (youtubeApiKeys.value.length > 1) {
+        youtubeApiKeys.value.splice(index, 1)
     }
 }
 

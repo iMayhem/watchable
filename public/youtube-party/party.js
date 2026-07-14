@@ -237,8 +237,12 @@ function initYtPlayer(videoId) {
 function loadYoutubeVideo(videoId) {
     if (!videoId) return;
     if (ytPlayer && ytReady) {
-        ytPlayer.loadVideoById(videoId);
-        ytPlayer.playVideo();
+        ytPlayer.cueVideoById(videoId);
+        setTimeout(function() {
+            if (ytPlayer && ytReady) {
+                ytPlayer.playVideo();
+            }
+        }, 100);
     } else {
         initYtPlayer(videoId);
     }
@@ -398,12 +402,10 @@ function updateYtRoomQueue() {
 async function updateYtRoomVideo(videoId) {
     if (!activeRoom) return;
     activeRoom.video_id = videoId;
-    activeRoom.is_playing = false;
     activeRoom.current_time = 0;
     try {
         await supabaseClient.from('youtube_rooms').update({
             video_id: videoId,
-            is_playing: false,
             current_time: 0,
             queue: JSON.stringify(videoQueue),
             skip_votes: JSON.stringify(skipVotes),

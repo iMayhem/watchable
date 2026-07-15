@@ -1,5 +1,5 @@
 <template>
-    <div ref="rootRef" class="moovie-frame" :class="{ 'has-error': error, 'is-buffering': buffering }">
+    <div ref="rootRef" class="moovie-frame" :class="{ 'has-error': error, 'is-buffering': buffering, 'is-controls-hidden': controlsHidden }">
         <div v-if="ambientImage" class="moovie-frame__bloom" :style="{ backgroundImage: `url(${ambientImage})` }" aria-hidden="true" />
 
         <div class="moovie-frame__stage">
@@ -561,6 +561,18 @@ export default defineComponent({
         const hlsQualities = ref<{ id: number; label: string; height: number }[]>([])
         const selectedHlsQuality = ref(-1)
         const WYZIE_TRACK_OFFSET = 1000
+
+        const controlsHidden = ref(false)
+        let idleTimer: ReturnType<typeof setTimeout> | null = null
+        function resetIdleTimer() {
+            controlsHidden.value = false
+            if (idleTimer) clearTimeout(idleTimer)
+            idleTimer = setTimeout(function() {
+                if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
+                    controlsHidden.value = true
+                }
+            }, 3000)
+        }
 
         const visibleCues = computed(() => {
             if (!captionSrtData.value) return []
@@ -1465,6 +1477,7 @@ export default defineComponent({
         }, { immediate: true })
 
         function onKeydown(e: KeyboardEvent) {
+            if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); togglePlay() }
             if (e.key === 'ArrowRight') { seekBy(10); e.preventDefault() }
             if (e.key === 'ArrowLeft') { seekBy(-10); e.preventDefault() }
         }
@@ -1476,16 +1489,28 @@ export default defineComponent({
             document.addEventListener('click', onClickOutside)
             document.addEventListener('fullscreenchange', onFullscreenChange)
             document.addEventListener('keydown', onKeydown)
+            const root = rootRef.value
+            if (root) {
+                root.addEventListener('mousemove', resetIdleTimer)
+                root.addEventListener('touchstart', resetIdleTimer)
+            }
+            resetIdleTimer()
         })
         onUnmounted(() => {
+            if (idleTimer) clearTimeout(idleTimer)
             cancelScrape(); destroyPlayer()
             if (stopTracking) { stopTracking(); stopTracking = null }
             document.removeEventListener('click', onClickOutside)
             document.removeEventListener('fullscreenchange', onFullscreenChange)
             document.removeEventListener('keydown', onKeydown)
+            const root = rootRef.value
+            if (root) {
+                root.removeEventListener('mousemove', resetIdleTimer)
+                root.removeEventListener('touchstart', resetIdleTimer)
+            }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, subtitleCache, captionSrtData, subtitleOffset, loadWyzieSubtitles }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, subtitleCache, captionSrtData, subtitleOffset, loadWyzieSubtitles, controlsHidden }
     },
 })
 </script>
@@ -1550,6 +1575,13 @@ export default defineComponent({
 
     &:fullscreen &__bloom,
     &:-webkit-full-screen &__bloom { display: none; }
+
+    &.is-controls-hidden {
+        .moovie-frame__center-btn,
+        .moovie-frame__seekbar,
+        .moovie-frame__controls,
+        .moovie-frame__quality-menu { opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    }
 
     &__video {
         position: absolute;
@@ -1665,6 +1697,7 @@ export default defineComponent({
     padding: 0 10px;
     pointer-events: none;
     cursor: pointer;
+    opacity: 1; transition: opacity 0.3s;
 }
 
 .moovie-frame__seek-input {
@@ -1730,6 +1763,7 @@ export default defineComponent({
     padding: 6px 10px;
     background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
     pointer-events: none;
+    opacity: 1; transition: opacity 0.3s;
 }
 
 .moovie-frame__controls-left,

@@ -485,9 +485,8 @@ const othersNav: NavItem[] = [
         num: 5
     },
     { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 6 },
-    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 7 },
-    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 },
-    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 }
+    { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 7 },
+    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 8 }
 ];
 
 const primaryNav: NavItem[] = [
@@ -511,11 +510,12 @@ const primaryNav: NavItem[] = [
         match: p => p === '/anime' || p.startsWith('/anime/'),
         num: 4
     },
+    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 5 },
     {
         label: 'Others',
         path: '',
         match: p => othersNav.some(n => n.match(p)),
-        num: 5
+        num: 6
     }
 ];
 

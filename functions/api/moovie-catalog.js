@@ -701,6 +701,21 @@ export async function onRequest(context) {
     return jsonResponse({ error: 'Automated access is not permitted' }, 403);
   }
 
+  const cache = caches.default;
+  const cacheKey = new Request(context.request.url, {
+    method: 'GET',
+    headers: context.request.headers
+  });
+  let cachedResponse = await cache.match(cacheKey);
+  if (cachedResponse) {
+    const headers = new Headers(cachedResponse.headers);
+    headers.set('X-Cache', 'HIT');
+    return new Response(cachedResponse.body, {
+      status: cachedResponse.status,
+      headers: headers
+    });
+  }
+
   const { searchParams } = new URL(context.request.url);
   const action = searchParams.get('action') || 'resolve';
   const type = searchParams.get('type') || 'movie';
@@ -757,10 +772,19 @@ export async function onRequest(context) {
 
       try {
         const data = await fetchCatalogJson(url);
-        return jsonResponse({
+        const response = jsonResponse({
           results: data?.results || [],
           pager: data?.pager || null,
         });
+        const cached = new Response(response.body, {
+          status: response.status,
+          headers: {
+            ...Object.fromEntries(response.headers),
+            'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200',
+          }
+        });
+        context.waitUntil(cache.put(cacheKey, cached.clone()));
+        return cached;
       } catch (err) {
         return jsonResponse(
           {
@@ -781,7 +805,7 @@ export async function onRequest(context) {
         return jsonResponse({ error: 'type must be movie or tv' }, 400);
       }
       const meta = await fetchMetadata(type, id);
-      return jsonResponse({
+      const metaResponse = jsonResponse({
         meta: {
           id: meta.id,
           title: (meta.title || '').trim(),
@@ -808,6 +832,15 @@ export async function onRequest(context) {
           cn: meta.cn || null,
         },
       });
+      const metaCached = new Response(metaResponse.body, {
+        status: metaResponse.status,
+        headers: {
+          ...Object.fromEntries(metaResponse.headers),
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200',
+        }
+      });
+      context.waitUntil(cache.put(cacheKey, metaCached.clone()));
+      return metaCached;
     }
 
     if (!id) {
@@ -835,7 +868,16 @@ export async function onRequest(context) {
     }
 
     const result = await resolveCatalogStream(type, id, season, episode, server);
-    return jsonResponse(result);
+    const resolveResponse = jsonResponse(result);
+    const resolveCached = new Response(resolveResponse.body, {
+      status: resolveResponse.status,
+      headers: {
+        ...Object.fromEntries(resolveResponse.headers),
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200',
+      }
+    });
+    context.waitUntil(cache.put(cacheKey, resolveCached.clone()));
+    return resolveCached;
   } catch (err) {
     return jsonResponse({ error: err.message || 'Moovie stream resolve failed' }, 500);
   }

@@ -1,7 +1,17 @@
 const MOBILE_UA =
   /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|iPad|Tablet/i;
 
+const BOT_UA =
+  /bot|crawler|spider|robot|crawling|lighthouse|headless|phantom|selenium|puppeteer|playwright|bytespider|petalbot|gptbot|claudebot|anthropic|semrush|ahrefs|mj12bot|dotbot|yandexbot|bingbot|slurp|duckduckbot|baiduspider|scrapy|curl|wget|python|requests|httpie|go-http-client|okhttp|java|ruby|php|perl|libwww|wwww|nutch|archive/i;
+
 const DESKTOP_SITE_APEX = new Set(['moovie.fun', 'localhost', '127.0.0.1']);
+
+function isBotRequest(request: Request): boolean {
+  const ua = (request.headers.get('User-Agent') || '').trim().toLowerCase();
+  if (!ua) return true;
+  if (BOT_UA.test(ua)) return true;
+  return false;
+}
 
 function normalizeApexHost(hostname: string): string {
   return hostname.toLowerCase().replace(/^www\./i, '');
@@ -53,6 +63,10 @@ export async function onRequest(context: {
   request: Request;
   next: () => Response | Promise<Response>;
 }) {
+  if (isBotRequest(context.request)) {
+    return new Response('Forbidden', { status: 403 });
+  }
+
   const url = new URL(context.request.url);
   const hostname = url.hostname;
 

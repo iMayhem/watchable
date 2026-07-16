@@ -1514,6 +1514,12 @@ export default defineComponent({
 
         watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
 
+        watch(settingsSection, (section) => {
+            if (section === 'captions' && !subtitleTracks.value.length) {
+                loadOsSubtitles()
+            }
+        })
+
         watch(() => [props.season, props.episode], (newVals, oldVals) => {
             const newS = newVals[0], newE = newVals[1]
             const oldS = oldVals?.[0], oldE = oldVals?.[1]

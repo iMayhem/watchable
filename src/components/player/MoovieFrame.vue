@@ -300,7 +300,7 @@
                         <button
                             v-if="!subtitleTracks.length"
                             class="moovie-frame__settings-item"
-                            @click="loadWyzieSubtitles()"
+                            @click="loadOsSubtitles()"
                         >
                             <span class="moovie-frame__settings-item-label">Search subtitles</span>
                         </button>
@@ -440,13 +440,29 @@ import { getSupabaseClient } from '../../lib/supabase'
 
 const HUB_BASE = 'https://proxy.moovie.fun'
 const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
-const WYZIE_SUBS = 'https://sub.wyzie.io/search'
-const WYZIE_API_KEYS_DEFAULT = [
-    'wyzie-m3moskoivi4mwobs7167pcscgmtou59j',
-    'wyzie-hcgpzwraxp8a73dkdponr2vudh4ojsm3',
-]
+const OPENSUBTITLES_API = 'https://api.opensubtitles.com/api/v1'
 
-interface WyzieSub {
+const OS_LANG_MAP: Record<string, string> = {
+    en: 'English', fr: 'French', de: 'German', es: 'Spanish', pt: 'Portuguese',
+    ptbr: 'Portuguese (BR)', it: 'Italian', nl: 'Dutch', pl: 'Polish', ru: 'Russian',
+    ja: 'Japanese', ko: 'Korean', zh: 'Chinese', zhtw: 'Chinese (TW)', ar: 'Arabic',
+    tr: 'Turkish', sv: 'Swedish', no: 'Norwegian', da: 'Danish', fi: 'Finnish',
+    cs: 'Czech', sk: 'Slovak', hu: 'Hungarian', ro: 'Romanian', bg: 'Bulgarian',
+    el: 'Greek', he: 'Hebrew', hi: 'Hindi', th: 'Thai', vi: 'Vietnamese',
+    id: 'Indonesian', ms: 'Malay', tl: 'Filipino', uk: 'Ukrainian', sr: 'Serbian',
+    hr: 'Croatian', sl: 'Slovenian', lt: 'Lithuanian', lv: 'Latvian', et: 'Estonian',
+    is: 'Icelandic', mt: 'Maltese', ga: 'Irish', sq: 'Albanian', mk: 'Macedonian',
+    bs: 'Bosnian', ca: 'Catalan', gl: 'Galician', eu: 'Basque', af: 'Afrikaans',
+    sw: 'Swahili', ta: 'Tamil', te: 'Telugu', ml: 'Malayalam', kn: 'Kannada',
+    mr: 'Marathi', gu: 'Gujarati', bn: 'Bengali', pa: 'Punjabi', ur: 'Urdu',
+    fa: 'Persian', ka: 'Georgian', hy: 'Armenian', az: 'Azerbaijani', kk: 'Kazakh',
+    uz: 'Uzbek', mn: 'Mongolian', ne: 'Nepali', si: 'Sinhala', km: 'Khmer',
+    lo: 'Lao', my: 'Burmese', am: 'Amharic', ha: 'Hausa', yo: 'Yoruba',
+    ig: 'Igbo', zu: 'Zulu', xh: 'Xhosa', st: 'Sesotho', tn: 'Tswana',
+    rw: 'Kinyarwanda', ny: 'Chichewa', mg: 'Malagasy', cy: 'Welsh', lb: 'Luxembourgish',
+}
+
+interface OsSubEntry {
     id: string
     url: string
     display: string
@@ -541,7 +557,7 @@ export default defineComponent({
         const audioTracks = ref<{ id: number; name: string; lang?: string; _catalogId?: string }[]>([])
         const selectedAudioTrack = ref(-1)
         const languageVariants = ref<{ language: string; catalogId: string; media_type: string; season: number; episode: number }[]>([])
-        const subtitleTracks = ref<{ id: number; name: string; lang?: string; isWyzie?: boolean }[]>([])
+        const subtitleTracks = ref<{ id: number; name: string; lang?: string }[]>([])
         const selectedSubtitleTrack = ref(-1)
         const captionSrtData = ref('')
         const subtitleOffset = ref(0)
@@ -560,7 +576,7 @@ export default defineComponent({
         const OPACITIES = [0.25, 0.5, 0.75, 1]
         const hlsQualities = ref<{ id: number; label: string; height: number }[]>([])
         const selectedHlsQuality = ref(-1)
-        const WYZIE_TRACK_OFFSET = 1000
+        const OS_TRACK_OFFSET = 1000
 
         const controlsHidden = ref(false)
         let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -1134,117 +1150,143 @@ export default defineComponent({
             console.log('[MOVIEFRAME] tryPlayStream - name:', s.name, 'quality:', s.quality, 'season:', props.season, 'episode:', props.episode, 'url:', (playUrl || '').slice(0, 120))
             try {
                 await mountPlayer(playUrl)
-                loadWyzieSubtitles().catch(() => {})
+                loadOsSubtitles().catch(() => {})
             } catch (e) {
                 if (!useProxy && s.proxyUrl && proxyEnabled) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
                     await mountPlayer(s.proxyUrl)
-                    loadWyzieSubtitles().catch(() => {})
+                    loadOsSubtitles().catch(() => {})
                 } else {
                     throw e
                 }
             }
         }
 
-        const subtitleCache = shallowReactive(new Map<string, { ts: number; data: WyzieSub[] }>())
+        const subtitleCache = shallowReactive(new Map<string, { ts: number; data: OsSubEntry[] }>())
         const SUB_CACHE_TTL = 30 * 60 * 1000
 
-        function b64url(str: string): string {
-            try { return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') } catch { return '' }
+        let osKeyFetched = false
+        let osApiKeys: string[] = []
+        let osFailedIndex = -1
+
+        function getOsApiKey(): string | null {
+            if (!osApiKeys.length) return null
+            const next = osFailedIndex + 1
+            if (next >= osApiKeys.length) {
+                osFailedIndex = -1
+                return osApiKeys[0]
+            }
+            return osApiKeys[next]
         }
 
-        let wyzieKeysFetched = false
-        let wyzieApiKeys: string[] = []
+        function markOsKeyFailed() {
+            osFailedIndex++
+        }
 
-        async function ensureWyzieKeys() {
-            if (wyzieKeysFetched) return
-            wyzieKeysFetched = true
+        async function ensureOsKey() {
+            if (osKeyFetched) return
+            osKeyFetched = true
             try {
                 const client = await getSupabaseClient()
-                const { data } = await client.from('app_settings').select('value').eq('key', 'wyzie_api_keys').single()
-                if (data) {
+                const { data } = await client.from('app_settings').select('value').eq('key', 'opensubtitles_api_keys').single()
+                if (data?.value) {
                     const parsed = JSON.parse(data.value)
                     if (Array.isArray(parsed) && parsed.length) {
-                        wyzieApiKeys = parsed
+                        osApiKeys = parsed.filter(Boolean)
                         return
                     }
                 }
-            } catch { /* use defaults */ }
-            wyzieApiKeys = [...WYZIE_API_KEYS_DEFAULT]
+            } catch { /* fallback */ }
+            try {
+                const client = await getSupabaseClient()
+                const { data } = await client.from('app_settings').select('value').eq('key', 'opensubtitles_api_key').single()
+                if (data?.value) {
+                    osApiKeys = [data.value]
+                }
+            } catch { /* no keys */ }
         }
 
-        async function fetchWyzieSubtitles(): Promise<WyzieSub[]> {
+        async function fetchOsSubtitles(): Promise<OsSubEntry[]> {
             const id = String(props.mediaId)
-            if (!id) { console.debug('[Wyzie] no mediaId'); return [] }
+            if (!id) { console.debug('[OS] no mediaId'); return [] }
             const cacheKey = `${id}-${props.season}-${props.episode}`
             const cached = subtitleCache.get(cacheKey)
             if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) {
-                console.debug('[Wyzie] cache hit')
+                console.debug('[OS] cache hit')
                 return cached.data
             }
-            await ensureWyzieKeys()
-            for (const key of wyzieApiKeys) {
-                const params = new URLSearchParams({ id, key })
-                if (props.mediaType === 'tv' && props.season > 0 && props.episode > 0) {
-                    params.set('season', String(props.season))
-                    params.set('episode', String(props.episode))
-                }
-                const url = `${WYZIE_SUBS}?${params}`
-                const proxyUrl = `${HUB_BASE}/proxy?u=${b64url(url)}`
-                console.debug('[Wyzie] trying key:', key.slice(0, 12) + '...')
-                for (const tryUrl of [url, proxyUrl]) {
-                    try {
-                        const res = await fetch(tryUrl, { signal: AbortSignal.timeout(8000) })
-                        if (res.status === 429) { console.debug('[Wyzie] rate limited for key:', key.slice(0, 12) + '...'); break }
-                        if (!res.ok) { console.debug('[Wyzie] fetch failed:', tryUrl, res.status); continue }
-                        const text = await res.text()
-                        let data: any
-                        try { data = JSON.parse(text) } catch { data = null }
-                        if (Array.isArray(data)) {
-                            console.debug('[Wyzie] got', data.length, 'subtitles')
-                            subtitleCache.set(cacheKey, { ts: Date.now(), data })
-                            return data
-                        }
-                        console.debug('[Wyzie] non-array response, trying next')
-                    } catch (e: any) {
-                        console.debug('[Wyzie] fetch error:', tryUrl, e?.message || e)
+            await ensureOsKey()
+            if (!osApiKeys.length) { console.debug('[OS] no API keys'); return [] }
+            const params = new URLSearchParams({ tmdb_id: id })
+            if (props.mediaType === 'tv' && props.season > 0 && props.episode > 0) {
+                params.set('season_number', String(props.season))
+                params.set('episode_number', String(props.episode))
+            }
+            const url = `${OPENSUBTITLES_API}/subtitles?${params}`
+            for (let attempt = 0; attempt < osApiKeys.length; attempt++) {
+                const key = getOsApiKey()
+                if (!key) break
+                try {
+                    const res = await fetch(url, {
+                        headers: { 'Api-Key': key, 'Content-Type': 'application/json' },
+                        signal: AbortSignal.timeout(10000)
+                    })
+                    if (res.status === 429 || res.status === 403 || res.status === 401) {
+                        console.debug('[OS] key failed (status', res.status, '), trying next')
+                        markOsKeyFailed()
+                        continue
                     }
+                    if (!res.ok) { console.debug('[OS] fetch failed:', res.status); return [] }
+                    const json = await res.json()
+                    const entries: OsSubEntry[] = (json.data || []).map((item: any) => {
+                        const attr = item.attributes
+                        const file = attr.files?.[0]
+                        const lang = OS_LANG_MAP[attr.language] || attr.language
+                        return {
+                            id: String(attr.subtitle_id),
+                            url: file ? String(file.file_id) : '',
+                            display: lang,
+                            language: lang,
+                            format: attr.file_format || 'srt',
+                        }
+                    })
+                    if (entries.length) {
+                        subtitleCache.set(cacheKey, { ts: Date.now(), data: entries })
+                    }
+                    return entries
+                } catch (e: any) {
+                    console.debug('[OS] fetch error:', e?.message || e)
+                    markOsKeyFailed()
                 }
             }
             return []
         }
 
-        async function loadWyzieSubtitles() {
-            console.debug('[Wyzie] loading subtitles...')
-            const subs = await fetchWyzieSubtitles()
-            if (!subs.length) { console.debug('[Wyzie] no subtitles found'); return }
-            console.debug('[Wyzie] subs count:', subs.length)
-
-            const filtered = subs.slice(0, 15)
-            const wyzieTracks: ({ id: number; name: string; lang?: string; isWyzie: boolean } & { _srtUrl: string })[] = []
-
+        async function loadOsSubtitles() {
+            console.debug('[OS] loading subtitles...')
+            const subs = await fetchOsSubtitles()
+            if (!subs.length) { console.debug('[OS] no subtitles found'); return }
+            const filtered = subs.slice(0, 20)
+            const osTracks: ({ id: number; name: string; lang?: string } & { _fileId: string })[] = []
             for (let i = 0; i < filtered.length; i++) {
                 const sub = filtered[i]
-                const trackId = WYZIE_TRACK_OFFSET + i
-                wyzieTracks.push({
+                const trackId = OS_TRACK_OFFSET + i
+                osTracks.push({
                     id: trackId,
-                    name: sub.display || sub.language || `Sub ${trackId}`,
-                    lang: sub.language,
-                    isWyzie: true,
-                    _srtUrl: sub.url,
+                    name: sub.display,
+                    _fileId: sub.url,
                 })
             }
-
-            if (!wyzieTracks.length) { console.debug('[Wyzie] no tracks created'); return }
-            console.debug('[Wyzie] tracks created:', wyzieTracks.length)
-
+            if (!osTracks.length) return
             subtitleTracks.value = [
                 ...subtitleTracks.value,
-                ...wyzieTracks,
+                ...osTracks,
             ]
-
-            if (selectedSubtitleTrack.value === -1 && wyzieTracks.length) {
-                selectSubtitleTrack(wyzieTracks[0].id)
+            const engIdx = osTracks.findIndex(t => t.name.toLowerCase().startsWith('english'))
+            if (engIdx !== -1) {
+                selectSubtitleTrack(osTracks[engIdx].id)
+            } else if (selectedSubtitleTrack.value === -1 && osTracks.length) {
+                selectSubtitleTrack(osTracks[0].id)
             }
         }
 
@@ -1346,19 +1388,39 @@ export default defineComponent({
                 }
                 return
             }
-            if (index >= WYZIE_TRACK_OFFSET) {
+            if (index >= OS_TRACK_OFFSET) {
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
                 const track = subtitleTracks.value.find(t => t.id === index)
-                if (track && (track as any)._srtUrl) {
-                    const srtUrl = (track as any)._srtUrl as string
-                    const proxySrtUrl = `${HUB_BASE}/proxy?u=${b64url(srtUrl)}`
-                    for (const tryUrl of [srtUrl, proxySrtUrl]) {
+                if (track && (track as any)._fileId) {
+                    const fileId = (track as any)._fileId as string
+                    for (let attempt = 0; attempt < osApiKeys.length; attempt++) {
+                        const key = getOsApiKey()
+                        if (!key) break
                         try {
-                            const r = await fetch(tryUrl)
-                            if (r.ok) { captionSrtData.value = await r.text(); break }
-                        } catch { /* try next */ }
+                            const dlRes = await fetch(`${OPENSUBTITLES_API}/download`, {
+                                method: 'POST',
+                                headers: { 'Api-Key': key, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ file_id: Number(fileId) }),
+                                signal: AbortSignal.timeout(10000)
+                            })
+                            if (dlRes.status === 429 || dlRes.status === 403 || dlRes.status === 401) {
+                                console.debug('[OS] download key failed (status', dlRes.status, '), trying next')
+                                markOsKeyFailed()
+                                continue
+                            }
+                            if (!dlRes.ok) { console.debug('[OS] download failed:', dlRes.status); return }
+                            const dlJson = await dlRes.json()
+                            const link = dlJson.link
+                            if (!link) { console.debug('[OS] no link in download response'); return }
+                            const srtRes = await fetch(link, { signal: AbortSignal.timeout(15000) })
+                            if (srtRes.ok) { captionSrtData.value = await srtRes.text() }
+                            return
+                        } catch (e: any) {
+                            console.debug('[OS] download error:', e?.message || e)
+                            markOsKeyFailed()
+                        }
                     }
                 }
             } else {
@@ -1510,7 +1572,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, subtitleCache, captionSrtData, subtitleOffset, loadWyzieSubtitles, controlsHidden }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, subtitleCache, captionSrtData, subtitleOffset, loadOsSubtitles, controlsHidden }
     },
 })
 </script>

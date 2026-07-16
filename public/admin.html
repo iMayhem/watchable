@@ -749,6 +749,13 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 2rem;">
+                    <label class="form-label">OpenSubtitles API Keys (Auto-Failover)</label>
+                    <div id="os-keys-container"></div>
+                    <button type="button" class="btn btn-sm" onclick="addOsKey()" style="margin-top:0.25rem">+ Add Key</button>
+                    <p class="subtitle" style="font-size: 0.75rem; margin-top: 0.25rem;">Keys are tried in order. If one fails (429/403), the next key is used automatically.</p>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
                     <label class="form-label" for="new-passcode-input">Change Passcode (Optional)</label>
                     <input type="password" id="new-passcode-input" class="form-input" placeholder="Enter new passcode to update">
                 </div>
@@ -1189,6 +1196,9 @@
             // Load YouTube API keys
             loadYoutubeApiKeys();
 
+            // Load OpenSubtitles API keys
+            loadOsApiKeys();
+
             // Load server order
             loadServerOrder();
         }
@@ -1551,6 +1561,14 @@
                     .from('app_settings')
                     .upsert({ key: 'wyzie_api_keys', value: JSON.stringify(wyzieKeys), updated_at: new Date() }, { onConflict: 'key' })
                 if (wyzieKeysError) throw wyzieKeysError
+
+                // Save OpenSubtitles API Keys
+                const osInputs = document.querySelectorAll('.os-key-input')
+                const osKeys = Array.from(osInputs).map(i => i.value.trim()).filter(Boolean)
+                const { error: osKeysError } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'opensubtitles_api_keys', value: JSON.stringify(osKeys), updated_at: new Date() }, { onConflict: 'key' })
+                if (osKeysError) throw osKeysError
 
                 // Save VPS Proxy URL
                 const vpsUrl = document.getElementById('vps-proxy-url').value.trim();
@@ -2231,6 +2249,52 @@
                 console.warn('Could not load Wyzie keys, using defaults:', err)
                 addWyzieKey('wyzie-m3moskoivi4mwobs7167pcscgmtou59j')
                 addWyzieKey('wyzie-hcgpzwraxp8a73dkdponr2vudh4ojsm3')
+            }
+        }
+
+        // ==========================================
+        // OPENSUBTITLES API KEYS
+        // ==========================================
+
+        function addOsKey(value = '') {
+            const container = document.getElementById('os-keys-container')
+            const row = document.createElement('div')
+            row.className = 'os-key-row'
+            row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center'
+            row.innerHTML = `
+                <input type="password" class="form-input os-key-input" style="flex:1" placeholder="OpenSubtitles API Key" value="${value.replace(/"/g, '&quot;')}">
+                <button type="button" class="btn btn-sm btn-danger os-remove-btn" onclick="removeOsKey(this)">&times;</button>
+            `
+            container.appendChild(row)
+        }
+
+        function removeOsKey(btn) {
+            const row = btn.closest('.os-key-row')
+            if (row && document.querySelectorAll('.os-key-row').length > 1) {
+                row.remove()
+            } else {
+                showToast('Need at least one key row', false)
+            }
+        }
+
+        async function loadOsApiKeys() {
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'opensubtitles_api_keys')
+                    .single()
+                const keys = data?.value ? JSON.parse(data.value) : ['']
+                const container = document.getElementById('os-keys-container')
+                container.innerHTML = ''
+                if (Array.isArray(keys) && keys.length) {
+                    keys.forEach((k) => addOsKey(k))
+                } else {
+                    addOsKey('')
+                }
+            } catch (err) {
+                console.warn('Could not load OpenSubtitles keys:', err)
+                addOsKey('')
             }
         }
 

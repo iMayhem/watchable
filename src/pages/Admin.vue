@@ -133,6 +133,16 @@
                         </div>
 
                         <div class="admin-page__field">
+                            <label class="admin-page__label">OpenSubtitles API Keys (Auto-Failover)</label>
+                            <div v-for="(_, i) in osApiKeys" :key="i" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center">
+                                <input v-model="osApiKeys[i]" type="password" class="admin-page__input" style="flex:1" placeholder="OpenSubtitles API Key">
+                                <button type="button" class="admin-page__btn admin-page__btn--sm admin-page__btn--danger" @click="removeOsKey(i)" v-if="osApiKeys.length > 1">&times;</button>
+                            </div>
+                            <button type="button" class="admin-page__btn admin-page__btn--sm" @click="addOsKey">+ Add Key</button>
+                            <p class="admin-page__hint">Keys are tried in order. If one fails (429/403), the next key is used automatically.</p>
+                        </div>
+
+                        <div class="admin-page__field">
                             <label class="admin-page__label" for="new-passcode">Change Passcode (Optional)</label>
                             <input id="new-passcode" v-model="newPasscode" type="password" class="admin-page__input" placeholder="Enter new passcode to update">
                         </div>
@@ -561,6 +571,7 @@ const settings = reactive({
 })
 
 const youtubeApiKeys = ref<string[]>([''])
+const osApiKeys = ref<string[]>([''])
 
 // ── Notifications ──────────────────────────────────────────────────────────────
 const notifTitle = ref('')
@@ -707,6 +718,16 @@ async function loadDashboardSettings() {
         }
     } catch { /* ignore */ }
 
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'opensubtitles_api_keys').single()
+        if (data?.value) {
+            const keys = JSON.parse(data.value)
+            if (Array.isArray(keys) && keys.length) {
+                osApiKeys.value = keys
+            }
+        }
+    } catch { /* ignore */ }
+
     await load4KCuration()
 
     try {
@@ -809,6 +830,9 @@ async function handleSaveSettings() {
         const ytKeys = youtubeApiKeys.value.filter(Boolean)
         await client.from('app_settings').upsert({ key: 'youtube_api_keys', value: JSON.stringify(ytKeys), updated_at: new Date() }, { onConflict: 'key' })
 
+        const osKeys = osApiKeys.value.filter(Boolean)
+        await client.from('app_settings').upsert({ key: 'opensubtitles_api_keys', value: JSON.stringify(osKeys), updated_at: new Date() }, { onConflict: 'key' })
+
         if (newPasscode.value) {
             await client.from('app_settings').upsert({ key: 'admin_passcode', value: newPasscode.value, updated_at: new Date() }, { onConflict: 'key' })
             adminPasscode = newPasscode.value
@@ -835,6 +859,16 @@ function addYoutubeKey() {
 function removeYoutubeKey(index: number) {
     if (youtubeApiKeys.value.length > 1) {
         youtubeApiKeys.value.splice(index, 1)
+    }
+}
+
+function addOsKey() {
+    osApiKeys.value.push('')
+}
+
+function removeOsKey(index: number) {
+    if (osApiKeys.value.length > 1) {
+        osApiKeys.value.splice(index, 1)
     }
 }
 

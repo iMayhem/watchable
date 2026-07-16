@@ -54,13 +54,14 @@ export function useAdScript(type: 'pc' | 'mobile') {
     async function refresh() {
         const isSettingEnabled = await fetchAdSetting(key)
         const isAllowedPage = route.path === '/' || route.path.includes('/search')
+        const locallyDisabled = typeof localStorage !== 'undefined' && localStorage.getItem('ads_hidden') === 'true'
         
         // Update global window variable for interceptor
         if (typeof window !== 'undefined') {
-            (window as any).adsAllowed = isSettingEnabled && isAllowedPage;
+            (window as any).adsAllowed = isSettingEnabled && isAllowedPage && !locallyDisabled;
         }
 
-        if (isSettingEnabled && isAllowedPage) {
+        if (isSettingEnabled && isAllowedPage && !locallyDisabled) {
             if (!enabled.value) {
                 injectAd()
                 enabled.value = true

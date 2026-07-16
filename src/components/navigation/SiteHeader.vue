@@ -233,6 +233,30 @@
                     </div>
                 </template>
 
+                <div ref="settingsContainer" class="site-header__settings-container">
+                    <button
+                        class="site-header__icon-btn site-header__settings-btn"
+                        type="button"
+                        aria-label="Settings"
+                        title="Settings"
+                        @click="toggleSettingsDropdown"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                    </button>
+                    <div v-if="isSettingsDropdownOpen" class="settings-dropdown">
+                        <div class="settings-dropdown__header eyebrow">Settings</div>
+                        <div class="settings-dropdown__list">
+                            <label class="settings-dropdown__item">
+                                <span class="settings-dropdown__label">Hide Ads</span>
+                                <input type="checkbox" class="settings-dropdown__toggle" :checked="adsHidden" @change="toggleAdsHidden">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
                 <button
                     class="site-header__icon-btn site-header__menu"
                     type="button"
@@ -599,6 +623,26 @@ export default defineComponent({
             console.log('[🎯 SiteHeader] Region change request sent');
         };
 
+        // Settings dropdown
+        const settingsContainer = ref<HTMLElement | null>(null);
+        const isSettingsDropdownOpen = ref(false);
+        const adsHidden = ref(localStorage.getItem('ads_hidden') === 'true');
+
+        const toggleSettingsDropdown = (e: Event) => {
+            e.stopPropagation();
+            isSettingsDropdownOpen.value = !isSettingsDropdownOpen.value;
+        };
+
+        const closeSettingsDropdown = () => {
+            isSettingsDropdownOpen.value = false;
+        };
+
+        const toggleAdsHidden = () => {
+            adsHidden.value = !adsHidden.value;
+            localStorage.setItem('ads_hidden', String(adsHidden.value));
+            window.location.reload();
+        };
+
         const getFlagEmoji = (code: string) => {
             switch (code) {
                 case 'global': return '🌐';
@@ -798,6 +842,10 @@ export default defineComponent({
                 closeRegionDropdown();
             }
 
+            if (settingsContainer.value && !settingsContainer.value.contains(target)) {
+                closeSettingsDropdown();
+            }
+
             if (othersContainer.value && !othersContainer.value.contains(target)) {
                 closeOthersDropdown();
             }
@@ -884,6 +932,13 @@ export default defineComponent({
             toggleRegionDropdown,
             selectRegion,
             getFlagEmoji,
+
+            // Settings dropdown
+            settingsContainer,
+            isSettingsDropdownOpen,
+            adsHidden,
+            toggleSettingsDropdown,
+            toggleAdsHidden,
 
             // Others dropdown
             isOthersDropdownOpen,
@@ -1731,6 +1786,66 @@ export default defineComponent({
         height: 14px;
         color: var(--ember);
     }
+}
+
+.settings-dropdown {
+    position: absolute;
+    top: calc(100% + var(--s-2));
+    right: 0;
+    width: 200px;
+    background: rgba(26, 24, 21, 0.95);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-md);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(16px);
+    overflow: hidden;
+    z-index: 100;
+    animation: dropdown-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &__header {
+        padding: var(--s-3) var(--s-4) var(--s-2);
+        color: var(--bone-400);
+        font-size: 0.625rem;
+        border-bottom: 1px solid var(--rule);
+        text-align: left;
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        padding: var(--s-2);
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    &__item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--s-3) var(--s-3);
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        transition: background-color var(--dur-fast);
+        &:hover { background: var(--surface-tint); }
+    }
+
+    &__label {
+        font-size: var(--fs-sm);
+        color: var(--bone-200);
+        font-weight: 500;
+    }
+
+    &__toggle {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--ember);
+        cursor: pointer;
+    }
+}
+
+.site-header__settings-container {
+    position: relative;
+    @media (max-width: 860px) { display: none; }
 }
 
 .others-dropdown {

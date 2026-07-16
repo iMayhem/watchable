@@ -1150,10 +1150,12 @@ export default defineComponent({
             console.log('[MOVIEFRAME] tryPlayStream - name:', s.name, 'quality:', s.quality, 'season:', props.season, 'episode:', props.episode, 'url:', (playUrl || '').slice(0, 120))
             try {
                 await mountPlayer(playUrl)
+                loadOsSubtitles().catch(() => {})
             } catch (e) {
                 if (!useProxy && s.proxyUrl && proxyEnabled) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
                     await mountPlayer(s.proxyUrl)
+                    loadOsSubtitles().catch(() => {})
                 } else {
                     throw e
                 }
@@ -1513,12 +1515,6 @@ export default defineComponent({
         }
 
         watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
-
-        watch(settingsSection, (section) => {
-            if (section === 'captions' && !subtitleTracks.value.length) {
-                loadOsSubtitles()
-            }
-        })
 
         watch(() => [props.season, props.episode], (newVals, oldVals) => {
             const newS = newVals[0], newE = newVals[1]

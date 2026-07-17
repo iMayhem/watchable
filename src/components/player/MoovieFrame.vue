@@ -446,6 +446,8 @@ export default defineComponent({
                     out.push(q)
                 }
             }
+            out.sort((a, b) => (qualityRank[a.toUpperCase().trim()] ?? 0) - (qualityRank[b.toUpperCase().trim()] ?? 0))
+            out.reverse()
             return out
         })
 
@@ -518,9 +520,11 @@ export default defineComponent({
             wyzieBlobUrls = []
             audioTracks.value = []
             subtitleTracks.value = []
+            hlsQualities.value = []
+            selectedHlsQuality.value = -1
         }
 
-        async function mountPlayer(url: string) {
+        async function mountPlayer(url: string, streamType?: string) {
             console.log('[MOVIEFRAME] mountPlayer - season:', props.season, 'episode:', props.episode, 'url:', url.slice(0, 120))
             destroyPlayer()
             qualityOpen.value = false
@@ -528,7 +532,7 @@ export default defineComponent({
 
             await loadHlsJs()
             const HlsCtor = (window as any).Hls
-            const isHls = url.includes('.m3u8') || url.includes('m3u8')
+            const isHls = streamType === 'm3u8' || url.includes('.m3u8') || url.includes('m3u8')
 
             const video = videoRef.value
             if (!video) { console.debug('[MoovieFrame] mountPlayer no video element'); return }
@@ -967,16 +971,20 @@ export default defineComponent({
             console.log('[MOVIEFRAME] tryPlayStream - name:', s.name, 'quality:', s.quality, 'season:', props.season, 'episode:', props.episode, 'url:', (playUrl || '').slice(0, 120))
             try {
                 await Promise.all([
-                    mountPlayer(playUrl),
+                    mountPlayer(playUrl, s.type),
                     loadWyzieSubtitles().catch(() => {}),
                 ])
+                const si = streams.value.indexOf(s)
+                if (si >= 0) selectedStreamIndex.value = si
             } catch (e) {
                 if (!useProxy && s.proxyUrl && proxyEnabled) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
                     await Promise.all([
-                        mountPlayer(s.proxyUrl),
+                        mountPlayer(s.proxyUrl, s.type),
                         loadWyzieSubtitles().catch(() => {}),
                     ])
+                    const si = streams.value.indexOf(s)
+                    if (si >= 0) selectedStreamIndex.value = si
                 } else {
                     throw e
                 }

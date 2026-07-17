@@ -8,20 +8,6 @@ const AD_DOMAIN = 'dc9xwpjprguup.cloudfront.net'
 
 let pollingId: ReturnType<typeof setInterval> | null = null
 let pollCount = 0
-let originalOpen: typeof window.open | null = null
-
-// Initialize window.open interceptor to prevent popups when ads are turned off
-if (typeof window !== 'undefined') {
-    (window as any).adsAllowed = false;
-    originalOpen = window.open;
-    window.open = function () {
-        if (!(window as any).adsAllowed) {
-            console.log('[🛡️ AdBlocker] Blocked ad popup window.open');
-            return null;
-        }
-        return originalOpen ? originalOpen.apply(this, arguments as any) : null;
-    };
-}
 
 function injectAd() {
     if (document.getElementById(SCRIPT_ID)) return
@@ -68,11 +54,6 @@ export function useAdScript(type: 'pc' | 'mobile') {
         const isSettingEnabled = await fetchAdSetting(key)
         const isAllowedPage = route.path === '/' || route.path.includes('/search')
         const locallyDisabled = typeof localStorage !== 'undefined' && localStorage.getItem('ads_hidden') === 'true'
-        
-        // Update global window variable for interceptor
-        if (typeof window !== 'undefined') {
-            (window as any).adsAllowed = isSettingEnabled && isAllowedPage && !locallyDisabled;
-        }
 
         if (isSettingEnabled && isAllowedPage && !locallyDisabled) {
             if (!enabled.value) {
@@ -88,7 +69,7 @@ export function useAdScript(type: 'pc' | 'mobile') {
                 
                 // If the setting itself was turned off in the admin panel, reload the page to clear listeners
                 if (!isSettingEnabled) {
-                    console.log('[🛡️ AdBlocker] Ads toggled off in admin, reloading page to clean up...');
+                    console.log('[Ads] Toggled off in admin, reloading page to clean up...');
                     window.location.reload()
                 }
             }

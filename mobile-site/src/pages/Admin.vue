@@ -260,7 +260,7 @@
 
                     <div class="admin-page__field">
                         <label class="admin-page__label" style="display:flex;align-items:center;gap:0.75rem;text-transform:none;font-weight:400;font-size:0.85rem">
-                            <span>📢 Adsterra PC</span>
+                            <span>📢 Ads PC</span>
                             <label class="admin-page__toggle" style="margin-left:auto">
                                 <input v-model="adsPcEnabled" type="checkbox" class="admin-page__toggle-input">
                                 <span class="admin-page__toggle-track">
@@ -272,7 +272,7 @@
 
                     <div class="admin-page__field">
                         <label class="admin-page__label" style="display:flex;align-items:center;gap:0.75rem;text-transform:none;font-weight:400;font-size:0.85rem">
-                            <span>📢 Adsterra Mobile</span>
+                            <span>📢 Ads Mobile</span>
                             <label class="admin-page__toggle" style="margin-left:auto">
                                 <input v-model="adsMobileEnabled" type="checkbox" class="admin-page__toggle-input">
                                 <span class="admin-page__toggle-track">

@@ -2,8 +2,8 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getSupabaseClient } from '../lib/supabase'
 
-const SCRIPT_ID = 'adsterra-ad-script'
-const AD_DOMAIN = 'chewsever.com'
+const SCRIPT_ID = 'cf-ad-script'
+const AD_DOMAIN = 'dc9xwpjprguup.cloudfront.net'
 
 let pollingId: ReturnType<typeof setInterval> | null = null
 let pollCount = 0
@@ -26,7 +26,8 @@ function injectAd() {
     if (document.getElementById(SCRIPT_ID)) return
     const script = document.createElement('script')
     script.id = SCRIPT_ID
-    script.src = `https://${AD_DOMAIN}/1a/26/00/1a260038e7b9a9e1d5c9855789406aec.js`
+    script.setAttribute('data-cfasync', 'false')
+    script.src = `https://${AD_DOMAIN}/?pwxcd=1436467`
     document.head.appendChild(script)
 }
 

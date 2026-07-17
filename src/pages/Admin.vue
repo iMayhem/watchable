@@ -458,7 +458,7 @@
                         <div class="admin-page__ad-card">
                             <div class="admin-page__ad-card-header">
                                 <span class="admin-page__ad-icon">📢</span>
-                                <span class="admin-page__ad-label">Adsterra PC</span>
+                                <span class="admin-page__ad-label">Ads PC</span>
                             </div>
                             <label class="admin-page__toggle">
                                 <input v-model="adsPcEnabled" type="checkbox" class="admin-page__toggle-input">
@@ -467,13 +467,13 @@
                                 </span>
                                 <span class="admin-page__toggle-text">{{ adsPcEnabled ? 'Enabled' : 'Disabled' }}</span>
                             </label>
-                            <p class="admin-page__hint" style="margin-top:0.5rem">Adsterra ads on desktop site.</p>
+                            <p class="admin-page__hint" style="margin-top:0.5rem">Ads on desktop site.</p>
                         </div>
 
                         <div class="admin-page__ad-card">
                             <div class="admin-page__ad-card-header">
                                 <span class="admin-page__ad-icon">📢</span>
-                                <span class="admin-page__ad-label">Adsterra Mobile</span>
+                                <span class="admin-page__ad-label">Ads Mobile</span>
                             </div>
                             <label class="admin-page__toggle">
                                 <input v-model="adsMobileEnabled" type="checkbox" class="admin-page__toggle-input">
@@ -482,7 +482,7 @@
                                 </span>
                                 <span class="admin-page__toggle-text">{{ adsMobileEnabled ? 'Enabled' : 'Disabled' }}</span>
                             </label>
-                            <p class="admin-page__hint" style="margin-top:0.5rem">Adsterra ads on mobile site.</p>
+                            <p class="admin-page__hint" style="margin-top:0.5rem">Ads on mobile site.</p>
                         </div>
 
                         <div class="admin-page__ad-card">

@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { getSupabaseClient } from '../lib/supabase'
 
 const SCRIPT_ID = 'cf-ad-script'
+const FLOATER_SCRIPT_ID = 'cf-ad-floater'
 const AD_DOMAIN = 'dc9xwpjprguup.cloudfront.net'
 
 let pollingId: ReturnType<typeof setInterval> | null = null
@@ -31,9 +32,20 @@ function injectAd() {
     document.head.appendChild(script)
 }
 
+function injectFloater() {
+    if (document.getElementById(FLOATER_SCRIPT_ID)) return
+    const script = document.createElement('script')
+    script.id = FLOATER_SCRIPT_ID
+    script.setAttribute('data-cfasync', 'false')
+    script.src = `https://${AD_DOMAIN}/?pwxcd=1448933`
+    document.head.appendChild(script)
+}
+
 function removeAd() {
-    const wrapper = document.getElementById(SCRIPT_ID)
-    if (wrapper) wrapper.remove()
+    ;[SCRIPT_ID, FLOATER_SCRIPT_ID].forEach(id => {
+        const el = document.getElementById(id)
+        if (el) el.remove()
+    })
     document.querySelectorAll(`script[src*="${AD_DOMAIN}"]`).forEach(el => el.remove())
 }
 
@@ -65,6 +77,7 @@ export function useAdScript(type: 'pc' | 'mobile') {
         if (isSettingEnabled && isAllowedPage && !locallyDisabled) {
             if (!enabled.value) {
                 injectAd()
+                injectFloater()
                 enabled.value = true
             }
         } else {

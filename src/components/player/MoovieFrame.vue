@@ -323,8 +323,151 @@ import { getSupabaseClient } from '../../lib/supabase'
 
 const HUB_BASE = 'https://proxy.moovie.fun'
 const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
+// Language-variant hub — same VPS as HUB_BASE, mirrors smov's providers.peestream.in
+const STREAMSCRAPER_HUB = 'https://proxy.moovie.fun'
 const WYZIE_SUBS = 'https://sub.wyzie.io/search'
 const WYZIE_API_KEY = 'wyzie-m3moskoivi4mwobs7167pcscgmtou59j'
+
+interface LanguageVariant {
+    language: string
+    label: string
+    provider: string
+    id: string           // format "provider:catalogId"
+    type: 'movie' | 'show'
+    season?: number
+    episode?: number
+}
+
+/** Mirror of smov fetchLanguageVariants — parallel multi-provider search */
+async function fetchLanguageVariantsFromHub(
+    title: string,
+    type: 'movie' | 'show',
+    tmdbId?: string | number,
+    season?: number,
+    episode?: number
+): Promise<LanguageVariant[]> {
+    try {
+        const providers = ['moovie-catalog', 'homecine', 'zetflix']
+        const promises: Promise<LanguageVariant[]>[] = providers.map(async (provider) => {
+            try {
+                const params = new URLSearchParams({ q: title, type, provider })
+                if (tmdbId) params.set('tmdbId', String(tmdbId))
+                if (season != null) params.set('season', String(season))
+                if (episode != null) params.set('episode', String(episode))
+                const ctrl = new AbortController()
+                const t = setTimeout(() => ctrl.abort(), 15_000)
+                try {
+                    const res = await fetch(`${STREAMSCRAPER_HUB}/api/search?${params}`, { signal: ctrl.signal })
+                    if (!res.ok) return []
+                    const json = await res.json().catch(() => null)
+                    if (!json || typeof json !== 'object') return []
+                    const items: any[] = json.results?.reduce?.((acc: any[], r: any) => {
+                        const v = r.streams?.[0]?._languageVariants
+                        if (v) acc.push(...v)
+                        return acc
+                    }, []) ?? []
+                    return items.map((v: any): LanguageVariant => ({
+                        language: v.language ?? 'unknown',
+                        label: v.language ?? 'Unknown',
+                        provider,
+                        id: `${provider}:${v.catalogId ?? v.id ?? ''}`,
+                        type: v.media_type === 'tv' ? 'show' : (v.type ?? type),
+                        season: v.season,
+                        episode: v.episode,
+                    }))
+                } finally {
+                    clearTimeout(t)
+                }
+            } catch { return [] }
+        })
+
+        // French (fss), German (streamkiste), Chinese (iyf) — movie only, matches smov
+        const idStr = tmdbId ? String(tmdbId) : ''
+        if (type === 'movie' && idStr) {
+            const specialEndpoints: Array<{ key: string; language: string; provider: string }> = [
+                { key: 'fss', language: 'french',  provider: 'fss' },
+                { key: 'de',  language: 'german',  provider: 'streamkiste' },
+                { key: 'zh',  language: 'chinese', provider: 'iyf' },
+            ]
+            for (const ep of specialEndpoints) {
+                promises.push((async () => {
+                    try {
+                        const params = new URLSearchParams({ tmdbId: idStr, type, title })
+                        const ctrl = new AbortController()
+                        const t = setTimeout(() => ctrl.abort(), 30_000)
+                        try {
+                            const res = await fetch(`${STREAMSCRAPER_HUB}/api/variants/${ep.key}?${params}`, { signal: ctrl.signal })
+                            if (!res.ok) return []
+                            const json = await res.json().catch(() => null)
+                            if (!json?.variants?.length) return []
+                            return json.variants.map((v: any): LanguageVariant => ({
+                                language: v.language || ep.language,
+                                label: v.label || ep.language.charAt(0).toUpperCase() + ep.language.slice(1),
+                                provider: ep.provider,
+                                id: `${ep.provider}:${v.id || idStr}`,
+                                type: 'movie',
+                            }))
+                        } finally { clearTimeout(t) }
+                    } catch { return [] }
+                })())
+            }
+        }
+
+        const results = await Promise.all(promises)
+        const allVariants = results.flat()
+
+        // Dedup by id; when same language has multiple providers, append provider name
+        const counts = new Map<string, number>()
+        for (const v of allVariants) {
+            const lk = `${v.language.toLowerCase()}:${v.episode ?? ''}`
+            counts.set(lk, (counts.get(lk) ?? 0) + 1)
+        }
+        const seen = new Set<string>()
+        const unique: LanguageVariant[] = []
+        for (const v of allVariants) {
+            if (seen.has(v.id)) continue
+            seen.add(v.id)
+            const lk = `${v.language.toLowerCase()}:${v.episode ?? ''}`
+            unique.push({
+                ...v,
+                label: (counts.get(lk) ?? 0) > 1 ? `${v.label} · ${v.provider}` : v.label,
+            })
+        }
+        return unique
+    } catch { return [] }
+}
+
+/** Mirror of smov resolveLanguageVariantUrl — resolves provider:id to a playable URL */
+async function resolveLanguageVariantUrl(
+    id: string,
+    type: 'movie' | 'show',
+    season?: number,
+    episode?: number
+): Promise<{ url: string; type: 'm3u8' | 'mp4'; proxyUrl?: string } | null> {
+    try {
+        let provider = 'moovie-catalog'
+        let actualId = id
+        if (id.includes(':')) {
+            const idx = id.indexOf(':')
+            provider = id.substring(0, idx)
+            actualId = id.substring(idx + 1)
+        }
+        const params = new URLSearchParams({ provider, id: actualId, type })
+        if (season != null) params.set('season', String(season))
+        if (episode != null) params.set('episode', String(episode))
+        const res = await fetch(`${STREAMSCRAPER_HUB}/api/resolve-variant?${params}`)
+        if (!res.ok) return null
+        const json = await res.json().catch(() => null)
+        if (!json) return null
+        const url = json.proxyUrl
+            ? STREAMSCRAPER_HUB + json.proxyUrl
+            : (json.url || '')
+        if (!url) return null
+        const responseType = String(json.type ?? '').toLowerCase()
+        const isHls = responseType === 'm3u8' || responseType === 'hls' || url.includes('.m3u8')
+        return { url, type: isHls ? 'm3u8' : 'mp4', proxyUrl: json.proxyUrl ? STREAMSCRAPER_HUB + json.proxyUrl : undefined }
+    } catch { return null }
+}
 
 interface WyzieSub {
     id: string
@@ -402,7 +545,8 @@ export default defineComponent({
         const selectedServer = ref('')
         const audioTracks = ref<{ id: number; name: string; lang?: string; _catalogId?: string }[]>([])
         const selectedAudioTrack = ref(-1)
-        const languageVariants = ref<{ language: string; catalogId: string; media_type: string; season: number; episode: number }[]>([])
+        const languageVariants = ref<LanguageVariant[]>([])
+        let langVariantFetchKey = ''
         const subtitleTracks = ref<{ id: number; name: string; lang?: string; isWyzie?: boolean; subUrl?: string }[]>([])
         const selectedSubtitleTrack = ref(-1)
         let wyzieBlobUrls: string[] = []
@@ -789,17 +933,27 @@ export default defineComponent({
 
                             if (mw._languageVariants && Array.isArray(mw._languageVariants)) {
                                 for (const lv of mw._languageVariants) {
-                                    if (!languageVariants.value.find(v => v.catalogId === lv.catalogId)) {
-                                        const exists = audioTracks.value.find(t => (t as any)._catalogId === lv.catalogId)
+                                    const variantId = `moovie-catalog:${lv.catalogId}`
+                                    const existsInVariants = languageVariants.value.some(v => v.id === variantId)
+                                    if (!existsInVariants) {
+                                        const exists = audioTracks.value.some(t => (t as any)._catalogId === lv.catalogId || (t as any)._variantId === variantId)
                                         if (!exists) {
                                             audioTracks.value.push({
                                                 id: 2000 + audioTracks.value.length,
                                                 name: lv.language,
                                                 lang: lv.language,
                                                 _catalogId: lv.catalogId,
+                                            } as any)
+                                            languageVariants.value.push({
+                                                language: lv.language,
+                                                label: lv.language,
+                                                provider: 'moovie-catalog',
+                                                id: variantId,
+                                                type: props.mediaType === 'tv' ? 'show' : 'movie',
+                                                season: props.season,
+                                                episode: props.episode,
                                             })
-                                            languageVariants.value.push({ ...lv })
-                                            console.debug('[MoovieFrame]  added language variant:', lv.language, lv.catalogId)
+                                            console.debug('[MoovieFrame]  added language variant from SSE:', lv.language, lv.catalogId)
                                         }
                                     }
                                 }
@@ -918,8 +1072,11 @@ export default defineComponent({
         async function doLoad() {
             console.log('[MOVIEFRAME] doLoad start - season:', props.season, 'episode:', props.episode)
             destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false
+            langVariantFetchKey = '' // reset so variant fetch fires fresh
             try {
                 await ensureProxySetting()
+                // Fire language variant fetch in parallel — mirrors smov's useAutoFetchLanguageVariants
+                void triggerLanguageVariantFetch()
                 const all = await fetchStreams()
                 console.log('[MOVIEFRAME] doLoad got', all.length, 'streams')
                 streams.value = all
@@ -1124,34 +1281,86 @@ export default defineComponent({
 
         async function selectAudioTrack(index: number) {
             selectedAudioTrack.value = index
-            if (hlsInstance && hlsInstance.audioTrack !== undefined) {
+
+            // HLS native audio track switch (e.g. dubbed HLS streams)
+            if (hlsInstance && hlsInstance.audioTrack !== undefined && index < 2000) {
                 hlsInstance.audioTrack = index
+                return
             }
+
+            // Language variant resolve (smov-style multi-provider)
             const track = audioTracks.value.find(t => t.id === index)
-            if (track && (track as any)._catalogId) {
-                const lv = languageVariants.value.find(v => v.catalogId === (track as any)._catalogId)
-                if (lv) {
-                    const resp = await fetch(`${HUB_BASE}/api/resolve-variant?provider=moovie-catalog&id=${encodeURIComponent(lv.catalogId)}&type=${lv.media_type}&season=${lv.season}&episode=${lv.episode}`)
-                    if (resp.ok) {
-                        const variantData = await resp.json()
-                        const streamUrl = variantData.url || variantData.streamUrl || ''
-                        if (streamUrl) {
-                            loading.value = false
-                            buffering.value = true
-                            const s: HubStream = {
-                                name: lv.language,
-                                url: streamUrl,
-                                proxyUrl: variantData.proxyUrl || '',
-                                quality: variantData.quality || 'Auto',
-                                type: (variantData.type || streamUrl).endsWith('.m3u8') ? 'm3u8' : 'mp4',
-                                headers: variantData.headers,
-                                providerName: 'Athena',
-                            }
-                            await tryPlayStream(s)
-                        }
-                    }
-                }
+            const variantId = (track as any)?._variantId || (track as any)?._catalogId
+            if (!variantId) return
+
+            const lv = languageVariants.value.find(v => v.id === variantId || (v as any).catalogId === variantId)
+            if (!lv) return
+
+            console.debug('[MoovieFrame] selectAudioTrack: resolving variant', lv.id, 'type:', lv.type)
+            buffering.value = true
+
+            const resolved = await resolveLanguageVariantUrl(
+                lv.id,
+                lv.type,
+                lv.season,
+                lv.episode
+            )
+            if (!resolved?.url) {
+                console.warn('[MoovieFrame] selectAudioTrack: could not resolve variant URL for', lv.id)
+                buffering.value = false
+                return
             }
+
+            console.debug('[MoovieFrame] selectAudioTrack: playing', lv.label, resolved.url.slice(0, 80))
+            const s: HubStream = {
+                name: lv.label,
+                url: resolved.url,
+                proxyUrl: resolved.proxyUrl || '',
+                quality: 'Auto',
+                type: resolved.type,
+                providerName: lv.provider,
+            }
+            await tryPlayStream(s)
+        }
+
+        /** Fetch language variants from all providers (smov logic) and populate audioTracks */
+        async function triggerLanguageVariantFetch() {
+            if (!props.mediaId || !props.title) return
+
+            const key = `${props.mediaId}-${props.mediaType}-${props.season ?? 0}-${props.episode ?? 0}`
+            if (langVariantFetchKey === key) return
+            langVariantFetchKey = key
+
+            // Clear previous hub-sourced audio tracks (keep HLS native ones id < 2000)
+            audioTracks.value = audioTracks.value.filter(t => t.id < 2000)
+            languageVariants.value = []
+
+            console.debug('[MoovieFrame] triggerLanguageVariantFetch: fetching for', props.title, props.mediaType, props.mediaId)
+
+            const variants = await fetchLanguageVariantsFromHub(
+                props.title,
+                props.mediaType === 'tv' ? 'show' : 'movie',
+                props.mediaId,
+                props.mediaType === 'tv' ? props.season : undefined,
+                props.mediaType === 'tv' ? props.episode : undefined
+            )
+
+            if (langVariantFetchKey !== key) return  // stale — props changed
+
+            console.debug('[MoovieFrame] triggerLanguageVariantFetch: got', variants.length, 'variants')
+            if (!variants.length) return
+
+            languageVariants.value = variants
+
+            // Keep existing HLS native audio tracks, add hub variants at id >= 2000
+            const existingHlsTracks = audioTracks.value.filter(t => t.id < 2000)
+            const variantTracks = variants.map((v, i) => ({
+                id: 2000 + i,
+                name: v.label,
+                lang: v.language,
+                _variantId: v.id,
+            }))
+            audioTracks.value = [...existingHlsTracks, ...variantTracks]
         }
 
         async function selectSubtitleTrack(index: number) {

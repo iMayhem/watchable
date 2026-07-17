@@ -89,15 +89,6 @@
                     </template>
                 </ul>
 
-                <div v-if="!loading && !error && visibleCues.length" class="moovie-frame__subtitle-overlay" :style="subtitleOverlayStyle">
-                    <p
-                        v-for="(cue, i) in visibleCues"
-                        :key="i"
-                        class="moovie-frame__subtitle-cue"
-                        :style="subtitleCueStyle"
-                    >{{ cue.text }}</p>
-                </div>
-
                 <div v-if="!loading && !error" class="moovie-frame__seekbar">
                     <input
                         type="range"
@@ -210,10 +201,10 @@
                         </button>
                         <button
                             class="moovie-frame__settings-item"
-                            @click="settingsSection = 'captions'"
+                            @click="settingsSection = 'subtitles'"
                         >
-                            <span class="moovie-frame__settings-item-label">Captions</span>
-                            <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : subtitleCache.size ? 'Off' : 'Search' }}</span>
+                            <span class="moovie-frame__settings-item-label">Subtitles</span>
+                            <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : 'Search' }}</span>
                             <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                         </button>
                     </template>
@@ -280,7 +271,7 @@
                         </button>
                     </template>
 
-                    <template v-if="settingsSection === 'captions'">
+                    <template v-if="settingsSection === 'subtitles'">
                         <button
                             class="moovie-frame__settings-item"
                             :class="{ 'is-active': selectedSubtitleTrack === -1 }"
@@ -300,118 +291,10 @@
                         <button
                             v-if="!subtitleTracks.length"
                             class="moovie-frame__settings-item"
-                            @click="loadOsSubtitles()"
+                            @click="loadWyzieSubtitles()"
                         >
                             <span class="moovie-frame__settings-item-label">Search subtitles</span>
                         </button>
-                        <div class="moovie-frame__settings-divider" />
-                        <div class="moovie-frame__settings-label">Sync</div>
-                        <div class="moovie-frame__settings-options moovie-frame__settings-sync">
-                            <button
-                                class="moovie-frame__settings-chip"
-                                @click="subtitleOffset = Math.round((subtitleOffset - 0.5) * 10) / 10"
-                            >–0.5s</button>
-                            <span class="moovie-frame__settings-sync-value">{{ subtitleOffset > 0 ? '+' : '' }}{{ subtitleOffset.toFixed(1) }}s</span>
-                            <button
-                                class="moovie-frame__settings-chip"
-                                @click="subtitleOffset = Math.round((subtitleOffset + 0.5) * 10) / 10"
-                            >+0.5s</button>
-                            <button
-                                class="moovie-frame__settings-chip moovie-frame__settings-chip--reset"
-                                @click="subtitleOffset = 0"
-                            >Reset</button>
-                        </div>
-                        <div class="moovie-frame__settings-divider" />
-                        <button
-                            class="moovie-frame__settings-item"
-                            @click="settingsSection = 'captions-style'"
-                        >
-                            <span class="moovie-frame__settings-item-label">Style</span>
-                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                        </button>
-                    </template>
-
-                    <template v-if="settingsSection === 'captions-style'">
-                        <div class="moovie-frame__settings-label">Font Size</div>
-                        <div class="moovie-frame__settings-options">
-                            <button
-                                v-for="s in FONT_SIZES"
-                                :key="s"
-                                class="moovie-frame__settings-chip"
-                                :class="{ 'is-active': subFontSize === s }"
-                                @click="setSubStyle('fontSize', s)"
-                            >{{ s }}</button>
-                        </div>
-                        <div class="moovie-frame__settings-label">Opacity</div>
-                        <div class="moovie-frame__settings-options">
-                            <button
-                                v-for="o in OPACITIES"
-                                :key="o"
-                                class="moovie-frame__settings-chip"
-                                :class="{ 'is-active': subOpacity === o }"
-                                @click="setSubStyle('opacity', o)"
-                            >{{ Math.round(o * 100) }}%</button>
-                        </div>
-                        <div class="moovie-frame__settings-label">Text Color</div>
-                        <div class="moovie-frame__settings-options">
-                            <button
-                                v-for="c in TEXT_COLORS"
-                                :key="c"
-                                class="moovie-frame__settings-chip moovie-frame__settings-chip--color"
-                                :class="{ 'is-active': subTextColor === c }"
-                                :style="{ background: c }"
-                                @click="setSubStyle('textColor', c)"
-                            />
-                        </div>
-                        <div class="moovie-frame__settings-label">Background Opacity</div>
-                        <div class="moovie-frame__settings-options">
-                            <button
-                                v-for="o in OPACITIES"
-                                :key="o"
-                                class="moovie-frame__settings-chip"
-                                :class="{ 'is-active': subBgOpacity === o }"
-                                @click="setSubStyle('bgOpacity', o)"
-                            >{{ Math.round(o * 100) }}%</button>
-                        </div>
-                        <div class="moovie-frame__settings-label">Background Color</div>
-                        <div class="moovie-frame__settings-options">
-                            <button
-                                v-for="c in BG_COLORS"
-                                :key="c"
-                                class="moovie-frame__settings-chip moovie-frame__settings-chip--color"
-                                :class="{ 'is-active': subBgColor === c }"
-                                :style="{ background: c, borderColor: c === '#ffffff' || c === '#f0eee3' ? 'rgba(255,255,255,0.3)' : undefined }"
-                                @click="setSubStyle('bgColor', c)"
-                            />
-                        </div>
-                        <div class="moovie-frame__settings-label">Background Blur</div>
-                        <div class="moovie-frame__settings-options">
-                            <button
-                                v-for="b in BG_BLURS"
-                                :key="b"
-                                class="moovie-frame__settings-chip"
-                                :class="{ 'is-active': subBgBlur === b }"
-                                @click="setSubStyle('bgBlur', b)"
-                            >{{ b === 0 ? 'Off' : Math.round(b * 100) + '%' }}</button>
-                        </div>
-                        <div class="moovie-frame__settings-label">Bold</div>
-                        <div class="moovie-frame__settings-options">
-                            <button
-                                class="moovie-frame__settings-chip"
-                                :class="{ 'is-active': subBold }"
-                                @click="setSubStyle('bold', !subBold)"
-                            >{{ subBold ? 'On' : 'Off' }}</button>
-                        </div>
-                        <div class="moovie-frame__settings-label">Position</div>
-                        <div class="moovie-frame__settings-options moovie-frame__settings-options--center">
-                            <button class="moovie-frame__settings-chip moovie-frame__settings-chip--icon" @click="setSubStyle('position', Math.min(95, subPosition + 5))" aria-label="Move up">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 14l5-5 5 5z"/></svg>
-                            </button>
-                            <span class="moovie-frame__settings-pos-value">{{ subPosition }}%</span>
-                            <button class="moovie-frame__settings-chip moovie-frame__settings-chip--icon" @click="setSubStyle('position', Math.max(5, subPosition - 5))" aria-label="Move down">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
-                            </button>
-                        </div>
                     </template>
 
                     <template v-if="settingsSection === 'speed'">
@@ -432,7 +315,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onUnmounted, ref, shallowReactive, watch } from 'vue'
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWebImage } from '../../utils/useWebImage'
 import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
@@ -440,29 +323,10 @@ import { getSupabaseClient } from '../../lib/supabase'
 
 const HUB_BASE = 'https://proxy.moovie.fun'
 const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
-const OPENSUBTITLES_API = 'https://api.opensubtitles.com/api/v1'
+const WYZIE_SUBS = 'https://sub.wyzie.io/search'
+const WYZIE_API_KEY = 'wyzie-m3moskoivi4mwobs7167pcscgmtou59j'
 
-const OS_LANG_MAP: Record<string, string> = {
-    en: 'English', fr: 'French', de: 'German', es: 'Spanish', pt: 'Portuguese',
-    ptbr: 'Portuguese (BR)', it: 'Italian', nl: 'Dutch', pl: 'Polish', ru: 'Russian',
-    ja: 'Japanese', ko: 'Korean', zh: 'Chinese', zhtw: 'Chinese (TW)', ar: 'Arabic',
-    tr: 'Turkish', sv: 'Swedish', no: 'Norwegian', da: 'Danish', fi: 'Finnish',
-    cs: 'Czech', sk: 'Slovak', hu: 'Hungarian', ro: 'Romanian', bg: 'Bulgarian',
-    el: 'Greek', he: 'Hebrew', hi: 'Hindi', th: 'Thai', vi: 'Vietnamese',
-    id: 'Indonesian', ms: 'Malay', tl: 'Filipino', uk: 'Ukrainian', sr: 'Serbian',
-    hr: 'Croatian', sl: 'Slovenian', lt: 'Lithuanian', lv: 'Latvian', et: 'Estonian',
-    is: 'Icelandic', mt: 'Maltese', ga: 'Irish', sq: 'Albanian', mk: 'Macedonian',
-    bs: 'Bosnian', ca: 'Catalan', gl: 'Galician', eu: 'Basque', af: 'Afrikaans',
-    sw: 'Swahili', ta: 'Tamil', te: 'Telugu', ml: 'Malayalam', kn: 'Kannada',
-    mr: 'Marathi', gu: 'Gujarati', bn: 'Bengali', pa: 'Punjabi', ur: 'Urdu',
-    fa: 'Persian', ka: 'Georgian', hy: 'Armenian', az: 'Azerbaijani', kk: 'Kazakh',
-    uz: 'Uzbek', mn: 'Mongolian', ne: 'Nepali', si: 'Sinhala', km: 'Khmer',
-    lo: 'Lao', my: 'Burmese', am: 'Amharic', ha: 'Hausa', yo: 'Yoruba',
-    ig: 'Igbo', zu: 'Zulu', xh: 'Xhosa', st: 'Sesotho', tn: 'Tswana',
-    rw: 'Kinyarwanda', ny: 'Chichewa', mg: 'Malagasy', cy: 'Welsh', lb: 'Luxembourgish',
-}
-
-interface OsSubEntry {
+interface WyzieSub {
     id: string
     url: string
     display: string
@@ -470,30 +334,12 @@ interface OsSubEntry {
     format: string
 }
 
-interface SrtCue {
-    start: number
-    end: number
-    text: string
-}
-
-function parseSrt(text: string): SrtCue[] {
-    const blocks = text.trim().replace(/\r\n/g, '\n').split(/\n\n+/)
-    const cues: SrtCue[] = []
-    for (const block of blocks) {
-        const lines = block.split('\n').filter(Boolean)
-        if (lines.length < 2) continue
-        const timeLine = lines.find(l => l.includes('-->'))
-        if (!timeLine) continue
-        const m = timeLine.match(
-            /(\d{1,2}):(\d{2}):(\d{2})[.,](\d+)\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[.,](\d+)/
-        )
-        if (!m) continue
-        const start = +m[1] * 3600 + +m[2] * 60 + +m[3] + parseInt(m[4].padEnd(3, '0')) / 1000
-        const end = +m[5] * 3600 + +m[6] * 60 + +m[7] + parseInt(m[8].padEnd(3, '0')) / 1000
-        const text = lines.slice(lines.indexOf(timeLine) + 1).join('\n').trim()
-        if (text) cues.push({ start, end, text })
-    }
-    return cues
+function srtToVtt(srt: string): string {
+    let vtt = 'WEBVTT\n\n'
+    vtt += srt
+        .replace(/\r\n/g, '\n')
+        .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+    return vtt
 }
 
 interface ProviderStatus {
@@ -557,26 +403,14 @@ export default defineComponent({
         const audioTracks = ref<{ id: number; name: string; lang?: string; _catalogId?: string }[]>([])
         const selectedAudioTrack = ref(-1)
         const languageVariants = ref<{ language: string; catalogId: string; media_type: string; season: number; episode: number }[]>([])
-        const subtitleTracks = ref<{ id: number; name: string; lang?: string }[]>([])
+        const subtitleTracks = ref<{ id: number; name: string; lang?: string; isWyzie?: boolean; subUrl?: string }[]>([])
         const selectedSubtitleTrack = ref(-1)
-        const captionSrtData = ref('')
-        const subtitleOffset = ref(0)
-        const subFontSize = ref('medium')
-        const subTextColor = ref('#ffffff')
-        const subOpacity = ref(1)
-        const subBgOpacity = ref(0.5)
-        const subBgColor = ref('#000000')
-        const subBgBlur = ref(0.5)
-        const subBold = ref(false)
-        const subPosition = ref(5)
-        const FONT_SIZES = ['small', 'medium', 'large', 'x-large'] as const
-        const BG_COLORS = ['#000000', '#0f0f0f', '#1a1a2e', '#16213e', '#2d2d2d', '#3d0000', '#004d40', '#4a148c']
-        const TEXT_COLORS = ['#ffffff', '#f0eee3', '#ffd54f', '#ff8a65', '#81c784', '#64b5f6', '#ce93d8', '#f48fb1']
-        const BG_BLURS = [0, 0.25, 0.5, 0.75, 1]
-        const OPACITIES = [0.25, 0.5, 0.75, 1]
+        let wyzieBlobUrls: string[] = []
+        const wyzieLoadedTracks = new Map<number, { el: HTMLTrackElement; blobUrl: string }>()
+        let wyzieLoading = false
         const hlsQualities = ref<{ id: number; label: string; height: number }[]>([])
         const selectedHlsQuality = ref(-1)
-        const OS_TRACK_OFFSET = 1000
+        const WYZIE_TRACK_OFFSET = 1000
 
         const controlsHidden = ref(false)
         let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -590,26 +424,6 @@ export default defineComponent({
             }, 3000)
         }
 
-        const visibleCues = computed(() => {
-            if (!captionSrtData.value) return []
-            const now = currentTime.value + subtitleOffset.value
-            return parseSrt(captionSrtData.value).filter(c => c.start <= now && c.end >= now)
-        })
-
-        const fontSizeMap: Record<string, string> = { small: '1.1em', medium: '1.5em', large: '2em', 'x-large': '2.8em' }
-
-        const subtitleOverlayStyle = computed(() => ({
-            bottom: `${subPosition.value}%`,
-        }))
-
-        const subtitleCueStyle = computed(() => ({
-            color: subTextColor.value,
-            fontSize: fontSizeMap[subFontSize.value] || '1.5em',
-            opacity: subOpacity.value,
-            fontWeight: subBold.value ? 'bold' : 'normal' as any,
-            backgroundColor: `rgba(0,0,0,${subBgOpacity.value})`,
-            backdropFilter: subBgBlur.value > 0 ? `blur(${Math.floor(subBgBlur.value * 32)}px)` : 'none',
-        }))
         const playing = ref(false)
         const currentTime = ref(0)
         const duration = ref(0)
@@ -698,9 +512,12 @@ export default defineComponent({
         function destroyPlayer() {
             if (hlsInstance) { try { hlsInstance.destroy() } catch {}; hlsInstance = null }
             if (videoRef.value) { videoRef.value.removeAttribute('src'); videoRef.value.load() }
+            for (const { el } of wyzieLoadedTracks.values()) { el.remove() }
+            wyzieLoadedTracks.clear()
+            for (const url of wyzieBlobUrls) { URL.revokeObjectURL(url) }
+            wyzieBlobUrls = []
             audioTracks.value = []
             subtitleTracks.value = []
-            captionSrtData.value = ''
         }
 
         async function mountPlayer(url: string) {
@@ -1149,139 +966,84 @@ export default defineComponent({
             }
             console.log('[MOVIEFRAME] tryPlayStream - name:', s.name, 'quality:', s.quality, 'season:', props.season, 'episode:', props.episode, 'url:', (playUrl || '').slice(0, 120))
             try {
-                await mountPlayer(playUrl)
-                loadOsSubtitles().catch(() => {})
+                await Promise.all([
+                    mountPlayer(playUrl),
+                    loadWyzieSubtitles().catch(() => {}),
+                ])
             } catch (e) {
                 if (!useProxy && s.proxyUrl && proxyEnabled) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
-                    await mountPlayer(s.proxyUrl)
-                    loadOsSubtitles().catch(() => {})
+                    await Promise.all([
+                        mountPlayer(s.proxyUrl),
+                        loadWyzieSubtitles().catch(() => {}),
+                    ])
                 } else {
                     throw e
                 }
             }
         }
 
-        const subtitleCache = shallowReactive(new Map<string, { ts: number; data: OsSubEntry[] }>())
-        const SUB_CACHE_TTL = 30 * 60 * 1000
-
-        let osKeyFetched = false
-        let osApiKeys: string[] = []
-        let osFailedIndex = -1
-
-        function getOsApiKey(): string | null {
-            if (!osApiKeys.length) return null
-            const next = osFailedIndex + 1
-            if (next >= osApiKeys.length) {
-                osFailedIndex = -1
-                return osApiKeys[0]
-            }
-            return osApiKeys[next]
-        }
-
-        function markOsKeyFailed() {
-            osFailedIndex++
-        }
-
-        async function ensureOsKey() {
-            if (osKeyFetched) return
-            osKeyFetched = true
-            try {
-                const client = await getSupabaseClient()
-                const { data } = await client.from('app_settings').select('value').eq('key', 'opensubtitles_api_keys').single()
-                if (data?.value) {
-                    const parsed = JSON.parse(data.value)
-                    if (Array.isArray(parsed) && parsed.length) {
-                        osApiKeys = parsed.filter(Boolean)
-                        return
-                    }
-                }
-            } catch { /* fallback */ }
-            try {
-                const client = await getSupabaseClient()
-                const { data } = await client.from('app_settings').select('value').eq('key', 'opensubtitles_api_key').single()
-                if (data?.value) {
-                    osApiKeys = [data.value]
-                }
-            } catch { /* no keys */ }
-        }
-
-        async function fetchOsSubtitles(): Promise<OsSubEntry[]> {
+        async function fetchWyzieSubtitles(): Promise<WyzieSub[]> {
             const id = String(props.mediaId)
-            if (!id) { console.debug('[OS] no mediaId'); return [] }
-            const cacheKey = `${id}-${props.season}-${props.episode}`
-            const cached = subtitleCache.get(cacheKey)
-            if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) {
-                console.debug('[OS] cache hit')
-                return cached.data
-            }
-            await ensureOsKey()
-            if (!osApiKeys.length) { console.debug('[OS] no API keys'); return [] }
-            const params = new URLSearchParams({ tmdb_id: id })
+            if (!id) { console.debug('[Wyzie] no mediaId'); return [] }
+            const params = new URLSearchParams({ id, key: WYZIE_API_KEY })
             if (props.mediaType === 'tv' && props.season > 0 && props.episode > 0) {
-                params.set('season_number', String(props.season))
-                params.set('episode_number', String(props.episode))
+                params.set('season', String(props.season))
+                params.set('episode', String(props.episode))
             }
-            const url = `${OPENSUBTITLES_API}/subtitles?${params}`
-            for (let attempt = 0; attempt < osApiKeys.length; attempt++) {
-                const key = getOsApiKey()
-                if (!key) break
-                try {
-                    const res = await fetch(url, {
-                        headers: { 'Api-Key': key, 'Content-Type': 'application/json' },
-                        signal: AbortSignal.timeout(10000)
-                    })
-                    if (res.status === 429 || res.status === 403 || res.status === 401) {
-                        console.debug('[OS] key failed (status', res.status, '), trying next')
-                        markOsKeyFailed()
-                        continue
-                    }
-                    if (!res.ok) { console.debug('[OS] fetch failed:', res.status); return [] }
-                    const json = await res.json()
-                    const entries: OsSubEntry[] = (json.data || []).map((item: any) => {
-                        const attr = item.attributes
-                        const file = attr.files?.[0]
-                        const lang = OS_LANG_MAP[attr.language] || attr.language
-                        return {
-                            id: String(attr.subtitle_id),
-                            url: file ? String(file.file_id) : '',
-                            display: lang,
-                            language: lang,
-                            format: attr.file_format || 'srt',
-                        }
-                    })
-                    if (entries.length) {
-                        subtitleCache.set(cacheKey, { ts: Date.now(), data: entries })
-                    }
-                    return entries
-                } catch (e: any) {
-                    console.debug('[OS] fetch error:', e?.message || e)
-                    markOsKeyFailed()
+            const url = `${WYZIE_SUBS}?${params}`
+            const proxyUrl = `${HUB_BASE}/api/proxy?destination=${encodeURIComponent(url)}`
+            console.debug('[Wyzie] fetching:', url)
+            const results = await Promise.allSettled(
+                [url, proxyUrl].map(u =>
+                    fetch(u, { signal: AbortSignal.timeout(8000) })
+                        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+                )
+            )
+            for (const r of results) {
+                if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+                    console.debug('[Wyzie] got', r.value.length, 'results')
+                    return r.value
                 }
             }
+            console.debug('[Wyzie] all fetch attempts failed')
             return []
         }
 
-        async function loadOsSubtitles() {
-            console.debug('[OS] loading subtitles...')
-            const subs = await fetchOsSubtitles()
-            if (!subs.length) { console.debug('[OS] no subtitles found'); return }
-            const filtered = subs.slice(0, 20)
-            const osTracks: ({ id: number; name: string; lang?: string } & { _fileId: string })[] = []
-            for (let i = 0; i < filtered.length; i++) {
-                const sub = filtered[i]
-                const trackId = OS_TRACK_OFFSET + i
-                osTracks.push({
-                    id: trackId,
-                    name: sub.display,
-                    _fileId: sub.url,
-                })
-            }
-            if (!osTracks.length) return
+        function srtUrlToVttBlob(subUrl: string): Promise<string | null> {
+            return fetch(subUrl).then(r => {
+                if (!r.ok) return null
+                return r.text()
+            }).then(text => {
+                if (!text) return null
+                const vtt = srtToVtt(text)
+                const blob = new Blob([vtt], { type: 'text/vtt' })
+                return URL.createObjectURL(blob)
+            }).catch(() => null)
+        }
+
+        async function loadWyzieSubtitles() {
+            if (wyzieLoading) { console.debug('[Wyzie] already loading, skipping'); return }
+            wyzieLoading = true
+            console.debug('[Wyzie] loading subtitle list...')
+            const subs = await fetchWyzieSubtitles()
+            wyzieLoading = false
+            if (!subs.length) { console.debug('[Wyzie] no subtitles found'); return }
+
+            const wyzieTracks = subs.map((sub, i) => ({
+                id: WYZIE_TRACK_OFFSET + i,
+                name: sub.display || sub.language || `Sub ${i}`,
+                lang: sub.language,
+                isWyzie: true,
+                subUrl: sub.url,
+            }))
+
             subtitleTracks.value = [
-                ...subtitleTracks.value,
-                ...osTracks,
+                ...subtitleTracks.value.filter(t => !(t as any).isWyzie),
+                ...wyzieTracks,
             ]
+
+            console.debug('[Wyzie]', wyzieTracks.length, 'tracks available')
         }
 
         function retry() { void doLoad() }
@@ -1375,65 +1137,48 @@ export default defineComponent({
 
         async function selectSubtitleTrack(index: number) {
             selectedSubtitleTrack.value = index
-            captionSrtData.value = ''
             if (index === -1) {
+                for (const { el } of wyzieLoadedTracks.values()) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
                 return
             }
-            if (index >= OS_TRACK_OFFSET) {
+            if (index >= WYZIE_TRACK_OFFSET) {
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
-                const track = subtitleTracks.value.find(t => t.id === index)
-                if (track && (track as any)._fileId) {
-                    const fileId = (track as any)._fileId as string
-                    for (let attempt = 0; attempt < osApiKeys.length; attempt++) {
-                        const key = getOsApiKey()
-                        if (!key) break
-                        try {
-                            const dlRes = await fetch(`${OPENSUBTITLES_API}/download`, {
-                                method: 'POST',
-                                headers: { 'Api-Key': key, 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ file_id: Number(fileId) }),
-                                signal: AbortSignal.timeout(10000)
-                            })
-                            if (dlRes.status === 429 || dlRes.status === 403 || dlRes.status === 401) {
-                                console.debug('[OS] download key failed (status', dlRes.status, '), trying next')
-                                markOsKeyFailed()
-                                continue
-                            }
-                            if (!dlRes.ok) { console.debug('[OS] download failed:', dlRes.status); return }
-                            const dlJson = await dlRes.json()
-                            const link = dlJson.link
-                            if (!link) { console.debug('[OS] no link in download response'); return }
-                            const srtRes = await fetch(link, { signal: AbortSignal.timeout(15000) })
-                            if (srtRes.ok) { captionSrtData.value = await srtRes.text() }
-                            return
-                        } catch (e: any) {
-                            console.debug('[OS] download error:', e?.message || e)
-                            markOsKeyFailed()
-                        }
-                    }
+                for (const { el } of wyzieLoadedTracks.values()) { el.track.mode = 'disabled' }
+
+                let entry = wyzieLoadedTracks.get(index)
+                if (!entry) {
+                    const trackMeta = subtitleTracks.value.find(t => t.id === index)
+                    if (!trackMeta?.subUrl) { console.debug('[Wyzie] no subUrl for track', index); return }
+                    const video = videoRef.value
+                    if (!video) return
+                    console.debug('[Wyzie] lazy-loading sub:', trackMeta.name)
+                    const blobUrl = await srtUrlToVttBlob(trackMeta.subUrl)
+                    if (!blobUrl) { console.debug('[Wyzie] failed to load sub'); return }
+                    const el = document.createElement('track')
+                    el.kind = 'captions'
+                    el.label = trackMeta.name
+                    el.srclang = trackMeta.lang || 'en'
+                    el.src = blobUrl
+                    el.default = false
+                    video.appendChild(el)
+                    wyzieBlobUrls.push(blobUrl)
+                    entry = { el, blobUrl }
+                    wyzieLoadedTracks.set(index, entry)
                 }
+                entry.el.track.mode = 'showing'
             } else {
+                for (const { el } of wyzieLoadedTracks.values()) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = index
                 }
             }
         }
 
-        function setSubStyle(key: 'fontSize' | 'textColor' | 'opacity' | 'bgOpacity' | 'bgColor' | 'bgBlur' | 'bold' | 'position', val: any) {
-            if (key === 'fontSize') subFontSize.value = val
-            else if (key === 'textColor') subTextColor.value = val
-            else if (key === 'opacity') subOpacity.value = val
-            else if (key === 'bgOpacity') subBgOpacity.value = val
-            else if (key === 'bgColor') subBgColor.value = val
-            else if (key === 'bgBlur') subBgBlur.value = val
-            else if (key === 'bold') subBold.value = val
-            else if (key === 'position') { subPosition.value = Math.round(Math.max(5, Math.min(95, val))) }
-        }
 
         function selectHlsQuality(index: number) {
             selectedHlsQuality.value = index
@@ -1521,9 +1266,7 @@ export default defineComponent({
             const oldS = oldVals?.[0], oldE = oldVals?.[1]
             console.log('[MOVIEFRAME] watcher: season', oldS, '->', newS, 'episode', oldE, '->', newE, 'mediaId:', props.mediaId)
             if (newS !== oldS || newE !== oldE) {
-                subtitleCache.clear()
                 subtitleTracks.value = []
-                captionSrtData.value = ''
             }
             if (props.mediaId) {
                 console.log('[MOVIEFRAME] watcher calling doLoad()')
@@ -1566,7 +1309,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, subFontSize, subTextColor, subOpacity, subBgOpacity, subBgColor, subBgBlur, subBold, subPosition, FONT_SIZES, TEXT_COLORS, BG_COLORS, BG_BLURS, OPACITIES, setSubStyle, visibleCues, subtitleOverlayStyle, subtitleCueStyle, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, subtitleCache, captionSrtData, subtitleOffset, loadOsSubtitles, controlsHidden }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadWyzieSubtitles, controlsHidden }
     },
 })
 </script>
@@ -1645,30 +1388,6 @@ export default defineComponent({
         width: 100%;
         height: 100%;
         object-fit: contain;
-    }
-
-    &__subtitle-overlay {
-        position: absolute;
-        left: 0;
-        right: 0;
-        z-index: 8;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        pointer-events: none;
-        transition: bottom 0.2s;
-        padding: 0 8%;
-    }
-
-    &__subtitle-cue {
-        margin: 2px 0;
-        padding: 4px 14px;
-        border-radius: 4px;
-        text-align: center;
-        line-height: 1.4;
-        font-family: var(--font-ui);
-        text-shadow: 0 1px 4px rgba(0,0,0,0.6);
-        word-break: break-word;
     }
 
     &__center-btn {
@@ -2071,36 +1790,6 @@ export default defineComponent({
     }
 }
 
-.moovie-frame__settings-options--center {
-    align-items: center;
-    justify-content: center;
-}
-
-.moovie-frame__settings-pos-value {
-    font-size: var(--fs-sm);
-    font-family: var(--font-ui);
-    color: #f0eee3;
-    min-width: 40px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-}
-
-.moovie-frame__settings-sync {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 0.65rem 0.5rem;
-}
-
-.moovie-frame__settings-sync-value {
-    font-size: var(--fs-sm);
-    font-family: var(--font-ui);
-    color: #f0eee3;
-    min-width: 48px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-}
-
 .moovie-frame__settings-chip--reset {
     margin-left: auto;
     background: rgba(255, 90, 31, 0.2);
@@ -2110,30 +1799,39 @@ export default defineComponent({
 
 @media (max-width: 640px) {
     .moovie-frame__settings-panel {
-        max-width: calc(100vw - 16px);
-        right: 8px;
-        max-height: 50vh;
-        padding: 0.4rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        max-width: 100%;
+        max-height: 70vh;
+        border-radius: var(--r-md) var(--r-md) 0 0;
+        border-bottom: 0;
+        padding: 0.75rem;
+        z-index: 40;
     }
     .moovie-frame__settings-item {
-        padding: 0.35rem 0.5rem;
-        font-size: 0.8rem;
+        padding: 0.7rem 0.75rem;
+        font-size: 0.9rem;
+        min-height: 44px;
     }
     .moovie-frame__settings-chip {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        min-height: 40px;
     }
     .moovie-frame__settings-header {
-        padding: 0.3rem 0.4rem 0.3rem 0.2rem;
-        min-height: 30px;
-        font-size: 0.8rem;
+        padding: 0.5rem 0.5rem 0.5rem 0.25rem;
+        min-height: 40px;
+        font-size: 0.9rem;
     }
     .moovie-frame__settings-options {
-        gap: 0.25rem;
+        gap: 0.4rem;
     }
     .moovie-frame__settings-label {
-        font-size: 0.75rem;
-        margin-bottom: 0.2rem;
+        font-size: 0.8rem;
+        margin-bottom: 0.3rem;
     }
 }
 </style>

@@ -6,6 +6,11 @@
             <div class="moovie-frame__player">
                 <video ref="videoRef" class="moovie-frame__video" />
 
+                <!-- Loading/Scraping backdrop: native embedded feel -->
+                <transition name="fade">
+                    <div v-if="loading && loadingBackdropUrl" class="moovie-frame__loading-backdrop" :style="{ backgroundImage: `url(${loadingBackdropUrl})` }" />
+                </transition>
+
                 <div v-if="!loading && !error" class="moovie-frame__center-btn" @click="togglePlay">
                     <div v-if="buffering" class="moovie-frame__spinner" />
                     <svg v-else-if="!playing" width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19" /></svg>
@@ -18,23 +23,43 @@
                     <button type="button" class="moovie-frame__retry" @click="retry">Retry</button>
                 </div>
 
-                <div v-if="loading && providers.length && !error" class="moovie-frame__scraper-status">
-                    <div class="moovie-frame__scraper-handle">Scraping</div>
-                    <div
-                        v-for="p in providers"
-                        :key="p.id"
-                        class="moovie-frame__provider"
-                        :class="`is-${p.status}`"
-                    >
-                        <span class="moovie-frame__provider-icon">
-                            <span v-if="p.status === 'pending'" class="moovie-frame__spinner moovie-frame__spinner--sm" />
-                            <span v-else-if="p.status === 'success'" class="moovie-frame__check">✓</span>
-                            <span v-else-if="p.status === 'failure'" class="moovie-frame__cross">✕</span>
-                            <span v-else-if="p.status === 'notfound'" class="moovie-frame__dash">–</span>
-                            <span v-else class="moovie-frame__dot">○</span>
-                        </span>
-                        <span class="moovie-frame__provider-name">{{ p.name }}</span>
-                        <span v-if="p.status === 'pending'" class="moovie-frame__provider-pct">{{ p.percentage }}%</span>
+                <!-- Premium Scraper Overlay -->
+                <div v-if="loading && providers.length && !error" class="moovie-frame__scraper-overlay">
+                    <div class="moovie-frame__scraper-card">
+                        <div class="moovie-frame__scraper-header">
+                            <div class="moovie-frame__scraper-scanner" />
+                            <span class="moovie-frame__scraper-title">Searching Sources</span>
+                            <span class="moovie-frame__scraper-subtitle">Locating high-quality streams...</span>
+                        </div>
+                        <div class="moovie-frame__scraper-grid">
+                            <div
+                                v-for="p in providers"
+                                :key="p.id"
+                                class="moovie-frame__provider-row"
+                                :class="`is-${p.status}`"
+                            >
+                                <div class="moovie-frame__provider-info">
+                                    <span class="moovie-frame__provider-status-icon">
+                                        <span v-if="p.status === 'pending'" class="moovie-frame__provider-spinner" />
+                                        <span v-else-if="p.status === 'success'" class="moovie-frame__check-icon">✓</span>
+                                        <span v-else-if="p.status === 'failure'" class="moovie-frame__cross-icon">✕</span>
+                                        <span v-else-if="p.status === 'notfound'" class="moovie-frame__dash-icon">–</span>
+                                        <span v-else class="moovie-frame__dot-icon">○</span>
+                                    </span>
+                                    <div class="moovie-frame__provider-details">
+                                        <span class="moovie-frame__provider-label">{{ p.name }}</span>
+                                        <div v-if="p.status === 'pending'" class="moovie-frame__provider-progress">
+                                            <div class="moovie-frame__provider-progress-fill" :style="{ width: p.percentage + '%' }" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <span v-if="p.status === 'pending'" class="moovie-frame__provider-pct-val">{{ p.percentage }}%</span>
+                                <span v-else-if="p.status === 'success'" class="moovie-frame__provider-status-text is-success">Ready</span>
+                                <span v-else-if="p.status === 'failure'" class="moovie-frame__provider-status-text is-failed">Failed</span>
+                                <span v-else-if="p.status === 'notfound'" class="moovie-frame__provider-status-text is-notfound">Empty</span>
+                                <span v-else class="moovie-frame__provider-status-text">Queued</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -147,6 +172,7 @@
                 </div>
 
                 <div v-if="settingsOpen" class="moovie-frame__settings-panel" @click.stop>
+                    <div class="moovie-frame__settings-mobile-handle" />
                     <div class="moovie-frame__settings-header">
                         <button
                             v-if="settingsSection"
@@ -644,6 +670,11 @@ export default defineComponent({
 
         useAmbientColor(computed(() => props.backdropPath || props.posterPath || null), rootRef)
 
+        const loadingBackdropUrl = computed(() => {
+            const path = props.backdropPath || props.posterPath
+            return path ? useWebImage(path, 'large') : ''
+        })
+
         const ambientImage = ref('')
         const computeAmbient = () => {
             const path = props.backdropPath || props.posterPath
@@ -1046,14 +1077,24 @@ export default defineComponent({
             '240P': 1, '240': 1,
         }
 
-        function scoreStream(s: HubStream): number {
-            const q = (s.quality || '').toUpperCase().trim()
-            const rank = qualityRank[q] ?? 0
-            const typeBonus = s.type === 'm3u8' || s.url?.includes('.m3u8') ? 0.5 : 0
-            return rank + typeBonus
+        const providerRank: Record<string, number> = {
+            'Poseidon': 3,
+            'Athena': 2,
+            'Zeus': 1,
+            'Hades': 0,
         }
 
-        const PROVIDER_PRIORITY = ['Poseidon', 'Athena', 'Zeus']
+        function scoreStream(s: HubStream): number {
+            const q = (s.quality || '').toUpperCase().trim()
+            const qRank = qualityRank[q] ?? 0
+            const pName = s.providerName || ''
+            const pRank = providerRank[pName] ?? 0
+            const typeBonus = s.type === 'm3u8' || s.url?.includes('.m3u8') ? 0.5 : 0
+            // Quality has highest weight, provider breaks ties, type breaks further ties
+            return (qRank * 10) + pRank + typeBonus
+        }
+
+
 
         function pickBest(streams: HubStream[]): HubStream | null {
             if (!streams.length) return null
@@ -1096,28 +1137,16 @@ export default defineComponent({
         }
 
         async function tryProviderChain(all: HubStream[]) {
-            const tried = new Set<string>()
-            for (const provider of PROVIDER_PRIORITY) {
-                const group = all.filter(s => s.providerName === provider)
-                if (!group.length) continue
-                const best = pickBest(group)
-                if (!best) continue
-                tried.add(provider)
+            // Sort all streams globally: highest quality/score first
+            const sorted = [...all].sort((a, b) => scoreStream(b) - scoreStream(a))
+            console.log('[MOVIEFRAME] tryProviderChain sorted list:', sorted.map(s => `${s.providerName}-${s.quality}`))
+            for (const stream of sorted) {
                 try {
-                    await tryPlayStream(best)
+                    await tryPlayStream(stream)
                     return
                 } catch (e) {
-                    console.debug('[MoovieFrame]', provider, 'failed, trying next:', (e as Error).message)
+                    console.debug('[MoovieFrame] fallback provider failed:', stream.providerName, stream.quality, (e as Error).message)
                 }
-            }
-            // Fallback: try any remaining untried stream
-            const remaining = all.filter(s => !tried.has(s.providerName!))
-            const fallback = pickBest(remaining)
-            if (fallback) {
-                try {
-                    await tryPlayStream(fallback)
-                    return
-                } catch { /* give up */ }
             }
             throw new Error('All providers failed')
         }
@@ -1537,7 +1566,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadWyzieSubtitles, controlsHidden }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadWyzieSubtitles, controlsHidden }
     },
 })
 </script>
@@ -1585,10 +1614,10 @@ export default defineComponent({
     &__player {
         position: relative;
         aspect-ratio: 16 / 9;
-        background: #000;
-        border-radius: var(--r-lg);
+        background: #080808;
+        border-radius: 10px;
         overflow: hidden;
-        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--rule);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
     }
 
     &:fullscreen &__player,
@@ -1608,6 +1637,24 @@ export default defineComponent({
         .moovie-frame__seekbar,
         .moovie-frame__controls,
         .moovie-frame__quality-menu { opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    }
+
+    &.is-buffering {
+        .moovie-frame__center-btn {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+    }
+
+    &__loading-backdrop {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+        filter: brightness(0.25) blur(10px);
+        transform: scale(1.08); /* avoid blurred edges showing white */
+        z-index: 1;
+        pointer-events: none;
     }
 
     &__video {
@@ -1688,19 +1735,22 @@ export default defineComponent({
 
 @keyframes moovie-spin { to { transform: rotate(360deg); } }
 
+@keyframes moovie-spin { to { transform: rotate(360deg); } }
+
 .moovie-frame__seekbar {
     position: absolute;
-    bottom: 42px;
+    bottom: 44px;
     left: 0;
     right: 0;
-    z-index: 25;
-    height: 28px;
+    z-index: 27;
+    height: 32px;
     display: flex;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 var(--s-4);
     pointer-events: none;
     cursor: pointer;
-    opacity: 1; transition: opacity 0.3s;
+    opacity: 1;
+    transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .moovie-frame__seek-input {
@@ -1720,20 +1770,25 @@ export default defineComponent({
 .moovie-frame__seek-track {
     position: relative;
     width: 100%;
-    height: 5px;
-    background: rgba(255, 255, 255, 0.18);
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
     border-radius: 999px;
     overflow: visible;
     pointer-events: none;
-    transition: height 0.15s;
+    transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s;
+    
     .moovie-frame__seekbar:hover &,
-    &.is-active { height: 7px; }
+    &.is-active {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.22);
+    }
 }
 
 .moovie-frame__seek-fill {
     position: relative;
     height: 100%;
-    background: var(--ember, #ff5a1f);
+    background: linear-gradient(90deg, #ff4500 0%, var(--ember, #ff5a1f) 50%, #ff8c00 100%);
+    box-shadow: 0 0 10px rgba(255, 90, 31, 0.4);
     border-radius: 999px;
     pointer-events: none;
     transition: width 0.1s linear;
@@ -1743,15 +1798,18 @@ export default defineComponent({
     position: absolute;
     right: -6px;
     top: 50%;
-    width: 12px;
-    height: 12px;
-    background: #fff;
+    width: 14px;
+    height: 14px;
+    background: #ffffff;
     border-radius: 50%;
     transform: translateY(-50%) scale(0);
-    transition: transform 0.15s;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.2);
+    
     .moovie-frame__seekbar:hover &,
-    .moovie-frame__seek-track.is-active & { transform: translateY(-50%) scale(1); }
+    .moovie-frame__seek-track.is-active & {
+        transform: translateY(-50%) scale(1);
+    }
 }
 
 .moovie-frame__controls {
@@ -1763,88 +1821,135 @@ export default defineComponent({
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 10px;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+    padding: 10px var(--s-4) 14px var(--s-4);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(10, 10, 10, 0.92) 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(4px);
     pointer-events: none;
-    opacity: 1; transition: opacity 0.3s;
+    opacity: 1;
+    transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .moovie-frame__controls-left,
 .moovie-frame__controls-right {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     pointer-events: auto;
 }
 
 .moovie-frame__ctrl-btn {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     display: grid;
     place-content: center;
-    background: none;
+    background: rgba(255, 255, 255, 0);
     border: 0;
-    color: #f0eee3;
+    color: #f3f1e9;
     cursor: pointer;
-    border-radius: 4px;
-    transition: background 0.1s;
-    &:hover { background: rgba(255, 255, 255, 0.12); }
+    border-radius: 8px;
+    transition: background-color 0.2s, transform 0.15s, color 0.2s;
+    
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        transform: scale(1.05);
+    }
+    
+    &:active {
+        transform: scale(0.95);
+    }
 }
 
 .moovie-frame__three-dot-btn {
-    &.is-open { background: rgba(255, 90, 31, 0.3); }
+    &.is-open {
+        background-color: rgba(255, 90, 31, 0.2);
+        color: var(--ember, #ff5a1f);
+        box-shadow: 0 0 12px rgba(255, 90, 31, 0.25);
+    }
 }
 
 .moovie-frame__time {
-    font-size: 0.78rem;
+    font-size: 0.82rem;
     font-family: var(--font-ui);
-    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
     white-space: nowrap;
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
+    margin-left: 6px;
 }
 
 .moovie-frame__settings-panel {
     position: absolute;
-    bottom: 48px;
-    right: 8px;
+    bottom: 56px;
+    right: 12px;
     z-index: 30;
-    min-width: 220px;
-    max-width: 280px;
+    min-width: 240px;
+    max-width: 300px;
     max-height: 60vh;
     overflow-y: auto;
-    background: rgba(15, 15, 15, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--r-md);
-    backdrop-filter: blur(16px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-    padding: var(--s-1);
+    background: radial-gradient(circle at top left, rgba(22, 22, 22, 0.95), rgba(12, 12, 12, 0.99));
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 14px;
+    backdrop-filter: blur(24px) saturate(1.4);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    padding: var(--s-2);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+
+    &::-webkit-scrollbar {
+        width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 99px;
+    }
+}
+
+.moovie-frame__settings-mobile-handle {
+    display: none;
+    @media (max-width: 640px) {
+        display: block;
+        width: 38px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 99px;
+        margin: 2px auto 14px auto;
+        flex-shrink: 0;
+    }
 }
 
 .moovie-frame__settings-header {
     display: flex;
     align-items: center;
     gap: var(--s-1);
-    padding: 0.4rem 0.5rem 0.4rem 0.25rem;
+    padding: 0.4rem 0.5rem 0.5rem 0.25rem;
     font-family: var(--font-ui);
-    font-size: var(--fs-sm);
+    font-size: 0.88rem;
     font-weight: 600;
-    color: #f0eee3;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    margin-bottom: var(--s-1);
-    min-height: 36px;
+    color: #ffffff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    margin-bottom: var(--s-2);
+    min-height: 38px;
 }
 
 .moovie-frame__settings-back {
     background: none;
     border: 0;
-    color: #f0eee3;
+    color: rgba(255, 255, 255, 0.7);
     cursor: pointer;
-    padding: 2px;
+    padding: 4px;
     display: grid;
     place-content: center;
     border-radius: var(--r-sm);
-    &:hover { background: rgba(255, 255, 255, 0.08); }
+    transition: background-color 0.15s, color 0.15s;
+    
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+    }
 }
 
 .moovie-frame__settings-item {
@@ -1852,19 +1957,33 @@ export default defineComponent({
     align-items: center;
     gap: var(--s-2);
     width: 100%;
-    padding: 0.45rem 0.65rem;
+    padding: 0.55rem 0.75rem;
     background: none;
     border: 0;
-    border-radius: var(--r-sm);
-    color: #f0eee3;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.85);
     font-family: var(--font-ui);
-    font-size: var(--fs-sm);
+    font-size: 0.85rem;
     text-align: left;
     cursor: pointer;
-    transition: background 0.1s;
-    &:hover { background: rgba(255, 255, 255, 0.08); }
-    &.is-active { color: #ff5a1f; font-weight: 600; }
-    &.is-dimmed { opacity: 0.4; pointer-events: none; }
+    transition: background-color 0.15s, color 0.15s, transform 0.1s;
+    margin-bottom: 2px;
+    
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.07);
+        color: #ffffff;
+    }
+    
+    &.is-active {
+        color: var(--ember, #ff5a1f);
+        font-weight: 600;
+        background-color: rgba(255, 90, 31, 0.08);
+    }
+    
+    &.is-dimmed {
+        opacity: 0.35;
+        pointer-events: none;
+    }
 }
 
 .moovie-frame__settings-item-label {
@@ -1875,17 +1994,20 @@ export default defineComponent({
 }
 
 .moovie-frame__settings-item-value {
-    font-size: var(--fs-xs);
+    font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.5);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100px;
+    max-width: 120px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1px 6px;
+    border-radius: 4px;
 }
 
 .moovie-frame__settings-item-hint {
     color: rgba(255, 255, 255, 0.4);
-    font-size: var(--fs-xs);
+    font-size: 0.75rem;
 }
 
 .moovie-frame__settings-chevron {
@@ -1895,134 +2017,275 @@ export default defineComponent({
 
 .moovie-frame__settings-divider {
     height: 1px;
-    margin: 4px 8px;
-    background: rgba(255, 255, 255, 0.06);
+    margin: 6px 8px;
+    background: rgba(255, 255, 255, 0.07);
 }
 
-.moovie-frame__scraper-status {
+.moovie-frame__scraper-overlay {
     position: absolute;
     inset: 0;
     z-index: 20;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 24px;
+    display: grid;
+    place-content: center;
+    padding: var(--s-4);
     pointer-events: none;
 }
 
-.moovie-frame__scraper-handle {
-    font-size: 0.65rem;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: rgba(255,255,255,0.4);
-    margin-bottom: 4px;
-}
-
-.moovie-frame__provider {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.85rem;
-    padding: 6px 14px;
-    border-radius: 6px;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(6px);
+.moovie-frame__scraper-card {
+    width: 280px;
+    max-width: 100%;
+    background: radial-gradient(circle at top left, rgba(25, 25, 25, 0.88), rgba(13, 13, 13, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    padding: var(--s-4);
     pointer-events: auto;
-    min-width: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    
+    @media (max-width: 480px) {
+        width: 250px;
+        padding: var(--s-3);
+    }
 }
-.moovie-frame__provider.is-pending { background: rgba(255,90,31,0.2); }
-.moovie-frame__provider.is-success { background: rgba(34,197,94,0.2); }
-.moovie-frame__provider.is-failure { background: rgba(239,68,68,0.2); }
 
-.moovie-frame__provider-icon {
+.moovie-frame__scraper-header {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    padding-bottom: var(--s-2);
+    overflow: hidden;
+}
+
+.moovie-frame__scraper-scanner {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--ember, #ff5a1f), transparent);
+    animation: scanner-loop 2.2s infinite ease-in-out;
+}
+
+@keyframes scanner-loop {
+    0% { left: -60%; }
+    100% { left: 100%; }
+}
+
+.moovie-frame__scraper-title {
+    font-size: 0.9rem;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: 0.01em;
+}
+
+.moovie-frame__scraper-subtitle {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.moovie-frame__scraper-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.moovie-frame__provider-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    transition: background-color 0.25s, border-color 0.25s;
+    
+    &.is-pending {
+        background: rgba(255, 90, 31, 0.06);
+        border-color: rgba(255, 90, 31, 0.18);
+    }
+    &.is-success {
+        background: rgba(34, 197, 94, 0.05);
+        border-color: rgba(34, 197, 94, 0.2);
+    }
+    &.is-failure {
+        background: rgba(239, 68, 68, 0.05);
+        border-color: rgba(239, 68, 68, 0.2);
+    }
+    &.is-notfound {
+        background: rgba(255, 255, 255, 0.01);
+        opacity: 0.7;
+    }
+}
+
+.moovie-frame__provider-info {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    flex: 1;
+    min-width: 0;
+}
+
+.moovie-frame__provider-status-icon {
     width: 18px;
     height: 18px;
     display: grid;
     place-content: center;
     flex-shrink: 0;
 }
-.moovie-frame__provider-icon .moovie-frame__spinner--sm {
-    width: 16px;
-    height: 16px;
-    border-width: 2px;
-}
-.moovie-frame__check { color: #4ade80; font-size: 14px; }
-.moovie-frame__cross { color: #f87171; font-size: 12px; }
-.moovie-frame__dash  { color: #a1a1aa; font-size: 14px; }
-.moovie-frame__dot   { color: #52525b; font-size: 11px; }
 
-.moovie-frame__provider-name {
+.moovie-frame__provider-spinner {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 90, 31, 0.2);
+    border-top-color: var(--ember, #ff5a1f);
+    animation: moovie-spin 0.8s linear infinite;
+}
+
+.moovie-frame__check-icon { color: #22c55e; font-weight: bold; font-size: 13px; }
+.moovie-frame__cross-icon { color: #ef4444; font-weight: bold; font-size: 11px; }
+.moovie-frame__dash-icon  { color: #71717a; font-size: 13px; }
+.moovie-frame__dot-icon   { color: rgba(255,255,255,0.15); font-size: 10px; }
+
+.moovie-frame__provider-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
     flex: 1;
-    text-align: left;
-    color: var(--bone-200);
+    min-width: 0;
+}
+
+.moovie-frame__provider-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    
+    .is-success & {
+        color: #ffffff;
+    }
 }
-.moovie-frame__provider-pct {
-    color: var(--ember);
+
+.moovie-frame__provider-progress {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 99px;
+    overflow: hidden;
+    width: 85%;
+}
+
+.moovie-frame__provider-progress-fill {
+    height: 100%;
+    background: var(--ember, #ff5a1f);
+    border-radius: 99px;
+    transition: width 0.25s ease;
+}
+
+.moovie-frame__provider-pct-val {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--ember, #ff5a1f);
     font-variant-numeric: tabular-nums;
-    font-size: 0.7rem;
+}
+
+.moovie-frame__provider-status-text {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 500;
+    
+    &.is-success {
+        color: #22c55e;
+    }
+    &.is-failed {
+        color: #ef4444;
+    }
+    &.is-notfound {
+        color: #71717a;
+    }
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
 @media (prefers-reduced-motion: reduce) {
-    .moovie-frame__spinner { animation: none !important; }
+    .moovie-frame__spinner, .moovie-frame__scraper-handle { animation: none !important; }
 }
 
 .moovie-frame__settings-label {
-    padding: 0.5rem 0.65rem 0.25rem;
-    font-size: var(--fs-xs);
+    padding: 0.6rem 0.75rem 0.25rem;
+    font-size: 0.72rem;
     font-family: var(--font-mono);
-    color: rgba(255,255,255,0.4);
+    color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.1em;
 }
 
 .moovie-frame__settings-options {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    padding: 0 0.65rem 0.5rem;
+    gap: 6px;
+    padding: 0.25rem 0.75rem 0.5rem;
 }
 
 .moovie-frame__settings-chip {
-    padding: 0.25rem 0.6rem;
-    background: rgba(255,255,255,0.08);
-    border: 0;
+    padding: 0.3rem 0.75rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--r-pill);
-    color: #f0eee3;
+    color: rgba(255, 255, 255, 0.85);
     font-family: var(--font-ui);
-    font-size: var(--fs-xs);
+    font-size: 0.75rem;
     cursor: pointer;
-    transition: background 0.1s;
-    &:hover { background: rgba(255,255,255,0.16); }
-    &.is-active { background: var(--ember, #ff5a1f); color: #000; font-weight: 600; }
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+    }
+    
+    &.is-active {
+        background-color: var(--ember, #ff5a1f);
+        border-color: var(--ember, #ff5a1f);
+        color: #000000;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(255, 90, 31, 0.3);
+    }
+    
     &--icon {
-        width: 30px;
-        height: 30px;
+        width: 32px;
+        height: 32px;
         display: grid;
         place-content: center;
         padding: 0;
     }
+    
     &--color {
         width: 24px;
         height: 24px;
         padding: 0;
         border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.15);
-        &.is-active { border-color: #fff; box-shadow: 0 0 0 2px var(--ember); }
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        &.is-active {
+            border-color: #ffffff;
+            box-shadow: 0 0 0 2px var(--ember, #ff5a1f);
+        }
     }
 }
 
 .moovie-frame__settings-chip--reset {
     margin-left: auto;
-    background: rgba(255, 90, 31, 0.2);
+    background: rgba(255, 90, 31, 0.15);
+    border-color: rgba(255, 90, 31, 0.1);
     color: var(--ember, #ff5a1f);
-    &:hover { background: rgba(255, 90, 31, 0.35); }
+    &:hover {
+        background: rgba(255, 90, 31, 0.25);
+    }
 }
 
 @media (max-width: 640px) {
@@ -2033,33 +2296,34 @@ export default defineComponent({
         right: 0;
         top: auto;
         max-width: 100%;
-        max-height: 70vh;
-        border-radius: var(--r-md) var(--r-md) 0 0;
+        max-height: 75vh;
+        border-radius: 20px 20px 0 0;
         border-bottom: 0;
-        padding: 0.75rem;
+        padding: 1rem 0.75rem 1.5rem 0.75rem;
         z-index: 40;
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
     }
     .moovie-frame__settings-item {
-        padding: 0.7rem 0.75rem;
-        font-size: 0.9rem;
-        min-height: 44px;
+        padding: 0.75rem 0.85rem;
+        font-size: 0.92rem;
+        min-height: 48px;
     }
     .moovie-frame__settings-chip {
-        padding: 0.5rem 0.75rem;
+        padding: 0.55rem 0.9rem;
         font-size: 0.85rem;
         min-height: 40px;
     }
     .moovie-frame__settings-header {
-        padding: 0.5rem 0.5rem 0.5rem 0.25rem;
-        min-height: 40px;
-        font-size: 0.9rem;
+        padding: 0.5rem 0.5rem 0.75rem 0.25rem;
+        min-height: 44px;
+        font-size: 0.95rem;
     }
     .moovie-frame__settings-options {
-        gap: 0.4rem;
+        gap: 0.5rem;
     }
     .moovie-frame__settings-label {
         font-size: 0.8rem;
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.4rem;
     }
 }
 </style>

@@ -436,24 +436,35 @@ export default defineComponent({
         let hlsInstance: any = null
         let stopTracking: (() => void) | null = null
 
+        // Streams visible for the currently active server — if a server is selected,
+        // only show its streams; otherwise fall back to all streams.
+        const activeServerStreams = computed(() => {
+            if (selectedServer.value) {
+                const group = streams.value.filter(s => s.providerName === selectedServer.value)
+                if (group.length) return group
+            }
+            return streams.value
+        })
+
         const uniqueQualities = computed(() => {
             const seen = new Set<string>()
             const out: string[] = []
-            for (const s of streams.value) {
+            for (const s of activeServerStreams.value) {
                 const q = s.quality || 'Auto'
                 if (!seen.has(q)) {
                     seen.add(q)
                     out.push(q)
                 }
             }
-            out.sort((a, b) => (qualityRank[a.toUpperCase().trim()] ?? 0) - (qualityRank[b.toUpperCase().trim()] ?? 0))
-            out.reverse()
             return out
         })
 
         const selectedQualityIndex = computed(() => {
-            const q = streams.value[selectedStreamIndex.value]?.quality
-            return q ? uniqueQualities.value.indexOf(q) : 0
+            const currentStream = streams.value[selectedStreamIndex.value]
+            if (!currentStream) return 0
+            const q = currentStream.quality || 'Auto'
+            const idx = uniqueQualities.value.indexOf(q)
+            return idx >= 0 ? idx : 0
         })
 
         const activeQualityLabel = computed(() => {
@@ -520,11 +531,9 @@ export default defineComponent({
             wyzieBlobUrls = []
             audioTracks.value = []
             subtitleTracks.value = []
-            hlsQualities.value = []
-            selectedHlsQuality.value = -1
         }
 
-        async function mountPlayer(url: string, streamType?: string) {
+        async function mountPlayer(url: string, forceHls = false) {
             console.log('[MOVIEFRAME] mountPlayer - season:', props.season, 'episode:', props.episode, 'url:', url.slice(0, 120))
             destroyPlayer()
             qualityOpen.value = false
@@ -532,7 +541,9 @@ export default defineComponent({
 
             await loadHlsJs()
             const HlsCtor = (window as any).Hls
-            const isHls = streamType === 'm3u8' || url.includes('.m3u8') || url.includes('m3u8')
+            // Use HLS.js if the URL looks like m3u8 OR the caller explicitly says it's HLS
+            // (proxy URLs like proxy.moovie.fun/proxy?id=... carry no extension)
+            const isHls = forceHls || url.includes('.m3u8') || url.includes('m3u8')
 
             const video = videoRef.value
             if (!video) { console.debug('[MoovieFrame] mountPlayer no video element'); return }
@@ -956,6 +967,7 @@ export default defineComponent({
 
         async function tryPlayStream(s: HubStream) {
             const useProxy = proxyEnabled && !!s.proxyUrl
+            const isHlsStream = s.type === 'm3u8' || s.type === 'hls'
             let playUrl: string
             if (useProxy) {
                 playUrl = s.proxyUrl!
@@ -968,23 +980,19 @@ export default defineComponent({
             } else {
                 playUrl = s.url
             }
-            console.log('[MOVIEFRAME] tryPlayStream - name:', s.name, 'quality:', s.quality, 'season:', props.season, 'episode:', props.episode, 'url:', (playUrl || '').slice(0, 120))
+            console.log('[MOVIEFRAME] tryPlayStream - name:', s.name, 'quality:', s.quality, 'type:', s.type, 'forceHls:', isHlsStream, 'season:', props.season, 'episode:', props.episode, 'url:', (playUrl || '').slice(0, 120))
             try {
                 await Promise.all([
-                    mountPlayer(playUrl, s.type),
+                    mountPlayer(playUrl, isHlsStream),
                     loadWyzieSubtitles().catch(() => {}),
                 ])
-                const si = streams.value.indexOf(s)
-                if (si >= 0) selectedStreamIndex.value = si
             } catch (e) {
                 if (!useProxy && s.proxyUrl && proxyEnabled) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
                     await Promise.all([
-                        mountPlayer(s.proxyUrl, s.type),
+                        mountPlayer(s.proxyUrl, isHlsStream),
                         loadWyzieSubtitles().catch(() => {}),
                     ])
-                    const si = streams.value.indexOf(s)
-                    if (si >= 0) selectedStreamIndex.value = si
                 } else {
                     throw e
                 }
@@ -1074,13 +1082,16 @@ export default defineComponent({
         async function selectQuality(index: number) {
             const q = uniqueQualities.value[index]
             if (!q) return
-            const idx = streams.value.findIndex(s => s.quality === q)
-            if (idx < 0) return
+            // Find the stream in the active server's pool first, then fall back globally
+            const pool = activeServerStreams.value
+            const poolIdx = pool.findIndex(s => s.quality === q)
+            const stream = poolIdx >= 0 ? pool[poolIdx] : streams.value.find(s => s.quality === q)
+            if (!stream) return
+            const globalIdx = streams.value.indexOf(stream)
             qualityOpen.value = false
             settingsOpen.value = false
             settingsSection.value = null
-            selectedStreamIndex.value = idx
-            const stream = streams.value[idx]
+            selectedStreamIndex.value = globalIdx >= 0 ? globalIdx : 0
             await tryPlayStream(stream)
         }
 

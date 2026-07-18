@@ -348,22 +348,11 @@ import { startProgressTracking } from '../../composables/useProgress'
 import { getSupabaseClient } from '../../lib/supabase'
 
 const HUB_BASE = 'https://proxy.moovie.fun'
+const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
 // Language-variant hub — same VPS as HUB_BASE, mirrors smov's providers.peestream.in
 const STREAMSCRAPER_HUB = 'https://proxy.moovie.fun'
 const WYZIE_SUBS = 'https://sub.wyzie.io/search'
 const WYZIE_API_KEY = 'wyzie-m3moskoivi4mwobs7167pcscgmtou59j'
-
-/** Base64-URL-safe encode a string — matches Node's Buffer.from(str).toString('base64url') */
-function encodeB64url(str: string): string {
-    try {
-        const b64 = btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_m, p1) =>
-            String.fromCharCode(parseInt(p1, 16))
-        ))
-        return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-    } catch {
-        return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-    }
-}
 
 interface LanguageVariant {
     language: string
@@ -1180,12 +1169,14 @@ export default defineComponent({
                     throw e
                 }
             } else if (s.headers && Object.keys(s.headers).length) {
-                // Use the VPS proxy with base64-encoded url+headers (u+h format)
-                // This matches exactly what server.js /proxy?u=...&h=... expects,
-                // ensuring Referer/Origin/UA are properly forwarded to the upstream.
-                const urlB64 = encodeB64url(s.url)
-                const hdrsB64 = encodeB64url(JSON.stringify(s.headers))
-                playUrl = `${HUB_BASE}/proxy?u=${urlB64}&h=${hdrsB64}`
+                // CF worker rewrites .m3u8 manifest so segments load directly
+                // from the origin (no worker hop per segment). Only the manifest
+                // goes through the worker, so no more Cloudflare rate-limit 429s.
+                const params = new URLSearchParams({ url: s.url })
+                if (s.headers.Referer) params.set('referer', s.headers.Referer)
+                if (s.headers.Origin)  params.set('origin',  s.headers.Origin)
+                if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
+                playUrl = `${CF_HEADER_PROXY}/?${params}`
                 await tryMount(playUrl)
             } else {
                 playUrl = s.url

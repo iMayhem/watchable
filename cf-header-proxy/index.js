@@ -1,3 +1,51 @@
+function rewriteHlsPlaylist(playlist, baseUrl) {
+  let lines = playlist.split('\n');
+
+  // 1. Reorder master playlist variants by bandwidth descending so highest quality plays first
+  if (playlist.includes('#EXT-X-STREAM-INF:')) {
+    const variants = [];
+    const otherLines = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith('#EXT-X-STREAM-INF:')) {
+        const urlLine = i + 1 < lines.length ? lines[i + 1] : '';
+        const bwMatch = line.match(/BANDWIDTH=(\d+)/i);
+        variants.push({
+          bandwidth: bwMatch ? parseInt(bwMatch[1]) : 0,
+          header: line,
+          url: urlLine
+        });
+        i++; // skip the URL line
+      } else {
+        otherLines.push(line);
+      }
+    }
+    if (variants.length > 1) {
+      variants.sort((a, b) => b.bandwidth - a.bandwidth);
+      const reordered = [...otherLines];
+      // Append sorted variants to the end of the other header tags
+      for (const v of variants) {
+        reordered.push(v.header);
+        reordered.push(v.url);
+      }
+      lines = reordered;
+    }
+  }
+
+  // 2. Make all segment/sub-playlist URLs absolute so they bypass the worker hop
+  return lines
+    .map(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return line;
+      try {
+        return new URL(trimmed, baseUrl).href;
+      } catch {
+        return line;
+      }
+    })
+    .join('\n');
+}
+
 export default {
   async fetch(request) {
     const url = new URL(request.url)
@@ -52,21 +100,7 @@ export default {
 
       if (isHls) {
         const baseUrl = new URL(target)
-        const rewritten = bodyText
-          .split('\n')
-          .map(line => {
-            const trimmed = line.trim()
-            if (!trimmed || trimmed.startsWith('#')) return line
-
-            try {
-              // Resolve relative URL against the manifest base
-              const absolute = new URL(trimmed, baseUrl).href
-              return absolute
-            } catch {
-              return line
-            }
-          })
-          .join('\n')
+        const rewritten = rewriteHlsPlaylist(bodyText, baseUrl)
 
         respHeaders.set('Content-Type', ct || 'application/vnd.apple.mpegurl')
         respHeaders.delete('Content-Length') // length changed after rewrite

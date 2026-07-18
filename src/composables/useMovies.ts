@@ -98,7 +98,7 @@ export const handleMovieClick = (id: number) => {
     router.push({name: "Movie", params: {id: id.toString()}})
 }
 export const useMovies = () => {
-    const fetchDiscoverMovies = async (url: string = "https://api.themoviedb.org/3/discover/movie" ) => {
+    const fetchDiscoverMovies = async (url: string = "discover/movie" ) => {
         let loading = ref(false)
         let error = ref("")
         let data = ref<MovieResponse>()
@@ -125,7 +125,7 @@ export const useMovies = () => {
         let data = ref<MovieDetails>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}`)).data
+            const res = (await useAxios().get(`movie/${id}`)).data
             if (res) {
                 data.value = res
             }
@@ -146,7 +146,7 @@ export const useMovies = () => {
         let data = ref<MovieCredit>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}/credits`)).data
+            const res = (await useAxios().get(`movie/${id}/credits`)).data
             if (res) {
                 data.value = res
             }
@@ -167,7 +167,7 @@ export const useMovies = () => {
         let data = ref<MovieImages>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}/images?include_image_language=en`)).data
+            const res = (await useAxios().get(`movie/${id}/images?include_image_language=en`)).data
             if (res) {
                 data.value = res
             }
@@ -188,7 +188,7 @@ export const useMovies = () => {
         let data = ref<MovieResponse>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}/similar?language=en-US&page=1`)).data
+            const res = (await useAxios().get(`movie/${id}/similar?language=en-US&page=1`)).data
             if (res) {
                 data.value = res
             }
@@ -212,7 +212,7 @@ export const useMovies = () => {
         }>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/movie/${id}/videos?language=en-US`)).data
+            const res = (await useAxios().get(`movie/${id}/videos?language=en-US`)).data
             if (res) {
                 data.value = res
             }

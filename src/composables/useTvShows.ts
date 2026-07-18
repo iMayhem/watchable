@@ -177,7 +177,7 @@ export const useTvShows = () => {
             data
         }
     }
-    const fetchDiscoverShows = async (url: string = "https://api.themoviedb.org/3/discover/tv" ) => {
+    const fetchDiscoverShows = async (url: string = "discover/tv" ) => {
         let loading = ref(false)
         let error = ref("")
         let data = ref<TVShowResponse>()
@@ -204,7 +204,7 @@ export const useTvShows = () => {
         let data = ref<TVShowDetails>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/tv/${id}`)).data
+            const res = (await useAxios().get(`tv/${id}`)).data
             if (res) {
                 data.value = res
             }
@@ -225,7 +225,7 @@ export const useTvShows = () => {
         let data = ref<MovieCredit>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/tv/${id}/credits`)).data
+            const res = (await useAxios().get(`tv/${id}/credits`)).data
             if (res) {
                 data.value = res
             }
@@ -246,7 +246,7 @@ export const useTvShows = () => {
         let data = ref<MovieImages>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/tv/${id}/images?include_image_language=en`)).data
+            const res = (await useAxios().get(`tv/${id}/images?include_image_language=en`)).data
             if (res) {
                 data.value = res
             }
@@ -267,7 +267,7 @@ export const useTvShows = () => {
         let data = ref<TVShowResponse>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/tv/${id}/similar?language=en-US&page=1`)).data
+            const res = (await useAxios().get(`tv/${id}/similar?language=en-US&page=1`)).data
             if (res) {
                 data.value = res
             }
@@ -288,7 +288,7 @@ export const useTvShows = () => {
         let data = ref<TVShowSeasonDetails>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/tv/${id}/season/${season}`)).data
+            const res = (await useAxios().get(`tv/${id}/season/${season}`)).data
             if (res) {
                 data.value = res
             }
@@ -312,7 +312,7 @@ export const useTvShows = () => {
         }>()
         try {
             loading.value = true
-            const res = (await useAxios().get(`https://api.themoviedb.org/3/tv/${id}/videos?language=en-US`)).data
+            const res = (await useAxios().get(`tv/${id}/videos?language=en-US`)).data
             if (res) {
                 data.value = res
             }

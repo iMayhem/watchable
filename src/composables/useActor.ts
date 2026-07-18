@@ -49,7 +49,7 @@ const imagesCache = new Map<number, Promise<any>>();
 const creditsCache = new Map<number, Promise<any>>();
 
 export const useActor = () => {
-    const fetchTopActors = async (url: string = "https://api.themoviedb.org/3/trending/person/day" ) => {
+    const fetchTopActors = async (url: string = "trending/person/day" ) => {
         let loading = ref(false)
         let error = ref("")
         let data = ref<ActorResponse>()
@@ -81,7 +81,7 @@ export const useActor = () => {
         try {
             loading.value = true
             if (!detailsCache.has(id)) {
-                detailsCache.set(id, useAxios().get(`https://api.themoviedb.org/3/person/${id}`).then(r => r.data));
+                detailsCache.set(id, useAxios().get(`person/${id}`).then(r => r.data));
             }
             const res = await detailsCache.get(id)!;
             if (res) {
@@ -106,7 +106,7 @@ export const useActor = () => {
         try {
             loading.value = true
             if (!imagesCache.has(id)) {
-                imagesCache.set(id, useAxios().get(`https://api.themoviedb.org/3/person/${id}/images`).then(r => r.data));
+                imagesCache.set(id, useAxios().get(`person/${id}/images`).then(r => r.data));
             }
             const res = await imagesCache.get(id)!;
             if (res) {
@@ -131,7 +131,7 @@ export const useActor = () => {
         try {
             loading.value = true
             if (!creditsCache.has(id)) {
-                creditsCache.set(id, useAxios().get(`https://api.themoviedb.org/3/person/${id}/combined_credits`).then(r => r.data));
+                creditsCache.set(id, useAxios().get(`person/${id}/combined_credits`).then(r => r.data));
             }
             const res = await creditsCache.get(id)!;
             if (res) {

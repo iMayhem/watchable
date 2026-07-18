@@ -185,7 +185,7 @@ export const useSearch = () => {
             if (pageNumber === 1 && query && query.trim()) {
                 void logSearchToSupabase(query);
             }
-            const req = await useAxios().get(`https://api.themoviedb.org/3/search/multi?query=${query}&page=${pageNumber}`)
+            const req = await useAxios().get(`search/multi?query=${query}&page=${pageNumber}`)
             const res = req.data.results
             reqMetaData.value = {
                 page: req.data.page,

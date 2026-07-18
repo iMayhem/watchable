@@ -57,7 +57,7 @@ export const fetchTrailerVideos = async (
 
     try {
         const res = await useAxios().get(
-            `https://api.themoviedb.org/3/${type}/${id}/videos?language=en-US`
+            `${type}/${id}/videos?language=en-US`
         );
         const results = (res.data?.results ?? []) as MovieVideo[];
         const sorted = sortVideos(results);

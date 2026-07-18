@@ -48,7 +48,7 @@ const fetchType = async (t: MediaType): Promise<Genre[]> => {
         return cached;
     }
     const res = await useAxios().get(
-        `https://api.themoviedb.org/3/genre/${t}/list`
+        `genre/${t}/list`
     );
     const genres: Genre[] = res.data?.genres || [];
     writeCache(t, genres);

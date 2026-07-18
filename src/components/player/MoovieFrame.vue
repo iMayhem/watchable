@@ -1154,33 +1154,50 @@ export default defineComponent({
         async function tryPlayStream(s: HubStream) {
             const useProxy = proxyEnabled && !!s.proxyUrl
             const isHlsStream = s.type === 'm3u8' || s.type === 'hls'
+            async function tryMount(url: string) {
+                await Promise.all([
+                    mountPlayer(url, isHlsStream),
+                    loadWyzieSubtitles().catch(() => {}),
+                ])
+            }
+            async function mountViaServerProxy(targetUrl: string, headers: Record<string, string>) {
+                const sp = new URLSearchParams({ destination: targetUrl })
+                if (headers.Referer) sp.set('x-referer', headers.Referer)
+                if (headers.Origin) sp.set('x-origin', headers.Origin)
+                if (headers['User-Agent']) sp.set('x-user-agent', headers['User-Agent'])
+                await tryMount(`${HUB_BASE}/proxy?${sp}`)
+            }
             let playUrl: string
             if (useProxy) {
                 playUrl = s.proxyUrl!
+                try {
+                    await tryMount(playUrl)
+                } catch (e) {
+                    throw e
+                }
             } else if (s.headers && Object.keys(s.headers).length) {
                 const params = new URLSearchParams({ url: s.url })
                 if (s.headers.Referer) params.set('referer', s.headers.Referer)
                 if (s.headers.Origin) params.set('origin', s.headers.Origin)
                 if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
                 playUrl = `${CF_HEADER_PROXY}/?${params}`
+                try {
+                    await tryMount(playUrl)
+                } catch (_e) {
+                    console.debug('[MoovieFrame] cf-header-proxy failed, falling back to server proxy')
+                    await mountViaServerProxy(s.url, s.headers)
+                }
             } else {
                 playUrl = s.url
-            }
-            console.log('[MOVIEFRAME] tryPlayStream - name:', s.name, 'quality:', s.quality, 'type:', s.type, 'forceHls:', isHlsStream, 'season:', props.season, 'episode:', props.episode, 'url:', (playUrl || '').slice(0, 120))
-            try {
-                await Promise.all([
-                    mountPlayer(playUrl, isHlsStream),
-                    loadWyzieSubtitles().catch(() => {}),
-                ])
-            } catch (e) {
-                if (!useProxy && s.proxyUrl && proxyEnabled) {
-                    console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
-                    await Promise.all([
-                        mountPlayer(s.proxyUrl, isHlsStream),
-                        loadWyzieSubtitles().catch(() => {}),
-                    ])
-                } else {
-                    throw e
+                try {
+                    await tryMount(playUrl)
+                } catch (e) {
+                    if (s.proxyUrl && proxyEnabled) {
+                        console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
+                        await tryMount(s.proxyUrl)
+                    } else {
+                        throw e
+                    }
                 }
             }
         }

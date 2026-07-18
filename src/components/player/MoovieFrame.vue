@@ -1194,7 +1194,7 @@ export default defineComponent({
                 params.set('episode', String(props.episode))
             }
             const url = `${WYZIE_SUBS}?${params}`
-            const proxyUrl = `${HUB_BASE}/api/proxy?destination=${encodeURIComponent(url)}`
+            const proxyUrl = `${HUB_BASE}/proxy?destination=${encodeURIComponent(url)}`
             console.debug('[Wyzie] fetching:', url)
             const results = await Promise.allSettled(
                 [url, proxyUrl].map(u =>

@@ -317,7 +317,7 @@
                         <button
                             v-if="!subtitleTracks.length"
                             class="moovie-frame__settings-item"
-                            @click="loadWyzieSubtitles()"
+                            @click="loadOpenSubtitles()"
                         >
                             <span class="moovie-frame__settings-item-label">Search subtitles</span>
                         </button>
@@ -351,8 +351,7 @@ const HUB_BASE = 'https://proxy.moovie.fun'
 const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
 // Language-variant hub — same VPS as HUB_BASE, mirrors smov's providers.peestream.in
 const STREAMSCRAPER_HUB = 'https://proxy.moovie.fun'
-const WYZIE_SUBS = 'https://sub.wyzie.io/search'
-const WYZIE_API_KEY = 'wyzie-m3moskoivi4mwobs7167pcscgmtou59j'
+const OPENSUBTITLES_API = `${HUB_BASE}/api/subtitles`
 
 interface LanguageVariant {
     language: string
@@ -495,12 +494,13 @@ async function resolveLanguageVariantUrl(
     } catch { return null }
 }
 
-interface WyzieSub {
+interface OpenSubtitle {
     id: string
     url: string
-    display: string
     language: string
-    format: string
+    type: string
+    needsProxy: boolean
+    opensubtitles: boolean
 }
 
 function srtToVtt(srt: string): string {
@@ -573,14 +573,14 @@ export default defineComponent({
         const selectedAudioTrack = ref(-1)
         const languageVariants = ref<LanguageVariant[]>([])
         let langVariantFetchKey = ''
-        const subtitleTracks = ref<{ id: number; name: string; lang?: string; isWyzie?: boolean; subUrl?: string }[]>([])
+        const subtitleTracks = ref<{ id: number; name: string; lang?: string; subUrl?: string; needsProxy?: boolean }[]>([])
         const selectedSubtitleTrack = ref(-1)
-        let wyzieBlobUrls: string[] = []
-        const wyzieLoadedTracks = new Map<number, { el: HTMLTrackElement; blobUrl: string }>()
-        let wyzieLoading = false
+        let subBlobUrls: string[] = []
+        const subLoadedTracks = new Map<number, { el: HTMLTrackElement; blobUrl: string }>()
+        let subsLoading = false
         const hlsQualities = ref<{ id: number; label: string; height: number }[]>([])
         const selectedHlsQuality = ref(-1)
-        const WYZIE_TRACK_OFFSET = 1000
+        const OPENSUBS_TRACK_OFFSET = 1000
 
         const controlsHidden = ref(false)
         let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -700,10 +700,10 @@ export default defineComponent({
         function destroyPlayer() {
             if (hlsInstance) { try { hlsInstance.destroy() } catch {}; hlsInstance = null }
             if (videoRef.value) { videoRef.value.removeAttribute('src'); videoRef.value.load() }
-            for (const { el } of wyzieLoadedTracks.values()) { el.remove() }
-            wyzieLoadedTracks.clear()
-            for (const url of wyzieBlobUrls) { URL.revokeObjectURL(url) }
-            wyzieBlobUrls = []
+            for (const { el } of subLoadedTracks.values()) { el.remove() }
+            subLoadedTracks.clear()
+            for (const url of subBlobUrls) { URL.revokeObjectURL(url) }
+            subBlobUrls = []
             audioTracks.value = []
             subtitleTracks.value = []
         }
@@ -1157,7 +1157,7 @@ export default defineComponent({
             async function tryMount(url: string) {
                 await Promise.all([
                     mountPlayer(url, isHlsStream),
-                    loadWyzieSubtitles().catch(() => {}),
+                    loadOpenSubtitles().catch(() => {}),
                 ])
             }
             let playUrl: string
@@ -1193,67 +1193,64 @@ export default defineComponent({
             }
         }
 
-        async function fetchWyzieSubtitles(): Promise<WyzieSub[]> {
+        async function fetchOpenSubtitles(): Promise<OpenSubtitle[]> {
             const id = String(props.mediaId)
-            if (!id) { console.debug('[Wyzie] no mediaId'); return [] }
-            const params = new URLSearchParams({ id, key: WYZIE_API_KEY })
+            if (!id) { console.debug('[OpenSubtitles] no mediaId'); return [] }
+            const params = new URLSearchParams({ tmdbId: id, type: props.mediaType })
             if (props.mediaType === 'tv' && props.season > 0 && props.episode > 0) {
                 params.set('season', String(props.season))
                 params.set('episode', String(props.episode))
             }
-            const url = `${WYZIE_SUBS}?${params}`
-            const proxyUrl = `${HUB_BASE}/proxy?destination=${encodeURIComponent(url)}`
-            console.debug('[Wyzie] fetching:', url)
-            const results = await Promise.allSettled(
-                [url, proxyUrl].map(u =>
-                    fetch(u, { signal: AbortSignal.timeout(8000) })
-                        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-                )
-            )
-            for (const r of results) {
-                if (r.status === 'fulfilled' && Array.isArray(r.value)) {
-                    console.debug('[Wyzie] got', r.value.length, 'results')
-                    return r.value
-                }
+            const url = `${OPENSUBTITLES_API}?${params}`
+            console.debug('[OpenSubtitles] fetching:', url)
+            try {
+                const resp = await fetch(url, { signal: AbortSignal.timeout(10000) })
+                if (!resp.ok) { console.debug('[OpenSubtitles] failed', resp.status); return [] }
+                const data = await resp.json()
+                if (!data.captions || !Array.isArray(data.captions)) return []
+                return data.captions as OpenSubtitle[]
+            } catch (e) {
+                console.debug('[OpenSubtitles] error:', (e as Error).message)
+                return []
             }
-            console.debug('[Wyzie] all fetch attempts failed')
-            return []
         }
 
-        function srtUrlToVttBlob(subUrl: string): Promise<string | null> {
-            return fetch(subUrl).then(r => {
-                if (!r.ok) return null
-                return r.text()
-            }).then(text => {
-                if (!text) return null
+        async function downloadSubtitleBlob(subUrl: string, needsProxy: boolean): Promise<string | null> {
+            const fetchUrl = needsProxy ? `${HUB_BASE}/proxy?destination=${encodeURIComponent(subUrl)}` : subUrl
+            try {
+                const resp = await fetch(fetchUrl, { signal: AbortSignal.timeout(15000) })
+                if (!resp.ok) return null
+                const text = await resp.text()
                 const vtt = srtToVtt(text)
                 const blob = new Blob([vtt], { type: 'text/vtt' })
                 return URL.createObjectURL(blob)
-            }).catch(() => null)
+            } catch {
+                return null
+            }
         }
 
-        async function loadWyzieSubtitles() {
-            if (wyzieLoading) { console.debug('[Wyzie] already loading, skipping'); return }
-            wyzieLoading = true
-            console.debug('[Wyzie] loading subtitle list...')
-            const subs = await fetchWyzieSubtitles()
-            wyzieLoading = false
-            if (!subs.length) { console.debug('[Wyzie] no subtitles found'); return }
+        async function loadOpenSubtitles() {
+            if (subsLoading) { console.debug('[OpenSubtitles] already loading, skipping'); return }
+            subsLoading = true
+            console.debug('[OpenSubtitles] loading subtitle list...')
+            const subs = await fetchOpenSubtitles()
+            subsLoading = false
+            if (!subs.length) { console.debug('[OpenSubtitles] no subtitles found'); return }
 
-            const wyzieTracks = subs.map((sub, i) => ({
-                id: WYZIE_TRACK_OFFSET + i,
-                name: sub.display || sub.language || `Sub ${i}`,
+            const openTracks = subs.map((sub, i) => ({
+                id: OPENSUBS_TRACK_OFFSET + i,
+                name: sub.language || `Sub ${i}`,
                 lang: sub.language,
-                isWyzie: true,
                 subUrl: sub.url,
+                needsProxy: sub.needsProxy,
             }))
 
             subtitleTracks.value = [
-                ...subtitleTracks.value.filter(t => !(t as any).isWyzie),
-                ...wyzieTracks,
+                ...subtitleTracks.value.filter(t => t.id < OPENSUBS_TRACK_OFFSET),
+                ...openTracks,
             ]
 
-            console.debug('[Wyzie]', wyzieTracks.length, 'tracks available')
+            console.debug('[OpenSubtitles]', openTracks.length, 'tracks available')
         }
 
         function retry() { void doLoad() }
@@ -1403,27 +1400,27 @@ export default defineComponent({
         async function selectSubtitleTrack(index: number) {
             selectedSubtitleTrack.value = index
             if (index === -1) {
-                for (const { el } of wyzieLoadedTracks.values()) { el.track.mode = 'disabled' }
+                for (const { el } of subLoadedTracks.values()) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
                 return
             }
-            if (index >= WYZIE_TRACK_OFFSET) {
+            if (index >= OPENSUBS_TRACK_OFFSET) {
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
-                for (const { el } of wyzieLoadedTracks.values()) { el.track.mode = 'disabled' }
+                for (const { el } of subLoadedTracks.values()) { el.track.mode = 'disabled' }
 
-                let entry = wyzieLoadedTracks.get(index)
+                let entry = subLoadedTracks.get(index)
                 if (!entry) {
                     const trackMeta = subtitleTracks.value.find(t => t.id === index)
-                    if (!trackMeta?.subUrl) { console.debug('[Wyzie] no subUrl for track', index); return }
+                    if (!trackMeta?.subUrl) { console.debug('[OpenSubtitles] no subUrl for track', index); return }
                     const video = videoRef.value
                     if (!video) return
-                    console.debug('[Wyzie] lazy-loading sub:', trackMeta.name)
-                    const blobUrl = await srtUrlToVttBlob(trackMeta.subUrl)
-                    if (!blobUrl) { console.debug('[Wyzie] failed to load sub'); return }
+                    console.debug('[OpenSubtitles] lazy-loading sub:', trackMeta.name)
+                    const blobUrl = await downloadSubtitleBlob(trackMeta.subUrl, !!trackMeta.needsProxy)
+                    if (!blobUrl) { console.debug('[OpenSubtitles] failed to load sub'); return }
                     const el = document.createElement('track')
                     el.kind = 'captions'
                     el.label = trackMeta.name
@@ -1431,13 +1428,13 @@ export default defineComponent({
                     el.src = blobUrl
                     el.default = false
                     video.appendChild(el)
-                    wyzieBlobUrls.push(blobUrl)
+                    subBlobUrls.push(blobUrl)
                     entry = { el, blobUrl }
-                    wyzieLoadedTracks.set(index, entry)
+                    subLoadedTracks.set(index, entry)
                 }
                 entry.el.track.mode = 'showing'
             } else {
-                for (const { el } of wyzieLoadedTracks.values()) { el.track.mode = 'disabled' }
+                for (const { el } of subLoadedTracks.values()) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = index
                 }
@@ -1574,7 +1571,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadWyzieSubtitles, controlsHidden }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden }
     },
 })
 </script>

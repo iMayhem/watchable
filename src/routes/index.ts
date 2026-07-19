@@ -310,6 +310,31 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
+        path: '/embed/movie/:id',
+        alias: '/embed/watch/movie/:id',
+        name: 'EmbedMovie',
+        component: StreamMovie,
+        meta: {
+            showInHeader: false,
+            title: 'Embed Movie',
+            bareLayout: true
+        }
+    },
+    {
+        path: '/embed/tv-show/:id/season/:season/episode/:episode',
+        alias: [
+            '/embed/tv/:id/:season/:episode',
+            '/embed/watch/tv/:id/:season/:episode'
+        ],
+        name: 'EmbedTVShow',
+        component: StreamTVShow,
+        meta: {
+            showInHeader: false,
+            title: 'Embed TV Show',
+            bareLayout: true
+        }
+    },
+    {
         'path': '/anime/:id',
         'name': 'AnimeDetail',
         'component': AnimeDetail,

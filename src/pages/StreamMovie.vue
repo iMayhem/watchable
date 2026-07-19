@@ -1,6 +1,6 @@
 <template>
-    <div class="watch-stage">
-        <header class="watch-stage__chrome">
+    <div class="watch-stage" :class="{ 'is-embed': isEmbed }">
+        <header v-if="!isEmbed" class="watch-stage__chrome">
             <div class="watch-stage__chrome-inner">
                 <div class="watch-stage__crumb">
                     <button
@@ -45,8 +45,8 @@
         </header>
 
         <main class="watch-stage__main" id="main">
-            <div class="watch-stage__theater">
-                <div class="watch-stage__player-container">
+            <div class="watch-stage__theater" :class="{ 'is-embed': isEmbed }">
+                <div class="watch-stage__player-container" :class="{ 'is-embed': isEmbed }">
                     <StreamFrame
                         v-if="!isMoovieServer"
                         :embed-url="currentEmbedUrl"
@@ -68,9 +68,7 @@
                 </div>
             </div>
 
-
-
-            <section v-if="movie" class="watch-stage__rack">
+            <section v-if="!isEmbed && movie" class="watch-stage__rack">
                 <CommentsSection :media-id="movie.id" media-type="movie" />
             </section>
         </main>
@@ -105,6 +103,7 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const paths = useAppPaths();
+        const isEmbed = computed(() => Boolean(route.meta.bareLayout));
         const movieId = ref<string>(route.params.id as string);
         const movie = ref<MovieDetails | null>(null);
         const error = ref<string | null>(null);
@@ -223,6 +222,7 @@ export default defineComponent({
         });
 
         return {
+            isEmbed,
             movieId,
             movie,
             currentStreamData,
@@ -247,6 +247,61 @@ export default defineComponent({
     overflow-y: visible;
     background: var(--ink-900);
     color: var(--bone-50);
+
+    &.is-embed {
+        min-height: 100dvh !important;
+        height: 100dvh !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #000 !important;
+
+        .watch-stage__main {
+            height: 100dvh !important;
+            grid-template-rows: 1fr !important;
+            gap: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .watch-stage__theater {
+            max-width: 100% !important;
+            width: 100% !important;
+            height: 100dvh !important;
+            min-height: 100dvh !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+        }
+
+        .watch-stage__player-container {
+            width: 100% !important;
+            height: 100dvh !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+
+            :deep(.stream-frame__player),
+            :deep(.moovie-frame__player) {
+                width: 100% !important;
+                height: 100dvh !important;
+                max-width: 100% !important;
+                max-height: 100dvh !important;
+                aspect-ratio: unset !important;
+                border-radius: 0 !important;
+                border: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            :deep(.stream-frame__stage),
+            :deep(.moovie-frame__stage) {
+                padding: 0 !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+            }
+        }
+    }
 
     // Hide scroll car on all watch/stream pages
     & ~ :global(.scroll-car-container) {

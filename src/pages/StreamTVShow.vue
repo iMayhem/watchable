@@ -1,6 +1,6 @@
 <template>
-    <div class="watch-stage">
-        <header class="watch-stage__chrome">
+    <div class="watch-stage" :class="{ 'is-embed': isEmbed }">
+        <header v-if="!isEmbed" class="watch-stage__chrome">
             <div class="watch-stage__chrome-inner">
                 <div class="watch-stage__crumb">
                     <button
@@ -74,8 +74,8 @@
         </header>
 
         <main class="watch-stage__main" id="main">
-            <div class="watch-stage__theater">
-                <div class="watch-stage__player-container">
+            <div class="watch-stage__theater" :class="{ 'is-embed': isEmbed }">
+                <div class="watch-stage__player-container" :class="{ 'is-embed': isEmbed }">
                     <StreamFrame
                         v-if="!isMoovieServer"
                         :embed-url="currentEmbedUrl"
@@ -105,7 +105,7 @@
                 </div>
             </div>
 
-            <section v-if="availableSeasons.length" class="watch-stage__rack">
+            <section v-if="!isEmbed && availableSeasons.length" class="watch-stage__rack">
                 <EpisodeNavigator
                     :show-id="showId"
                     :available-seasons="availableSeasons"
@@ -137,13 +137,13 @@
 
 
 
-            <section v-if="show" class="watch-stage__rack">
+            <section v-if="!isEmbed && show" class="watch-stage__rack">
                 <CommentsSection :media-id="show.id" media-type="tv" />
             </section>
         </main>
 
         <UpNextDrawer
-            v-if="show && availableSeasons.length"
+            v-if="!isEmbed && show && availableSeasons.length"
             :current-season="currentSeason"
             :current-episode="currentEpisode"
             :season-episodes="seasonEpisodes"
@@ -203,6 +203,7 @@ export default defineComponent({
     setup() {
         const route = useRoute();
         const router = useRouter();
+        const isEmbed = computed(() => Boolean(route.meta.bareLayout));
         const paths = useAppPaths();
         const { fetchTvShow, fetchTvShowBySeason } = useTvShows();
 
@@ -598,7 +599,8 @@ export default defineComponent({
             isLastEpisode,
             previewEpisodes,
             isPreviewLoading,
-            onPreviewSeason
+            onPreviewSeason,
+            isEmbed
         };
     }
 });
@@ -608,11 +610,65 @@ export default defineComponent({
 .watch-stage {
     min-height: 100dvh;
     height: auto;
-    // clip — not hidden — so overflow-y stays visible and the page scrolls (not this box)
     overflow-x: clip;
     overflow-y: visible;
     background: var(--ink-900);
     color: var(--bone-50);
+
+    &.is-embed {
+        min-height: 100dvh !important;
+        height: 100dvh !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #000 !important;
+
+        .watch-stage__main {
+            height: 100dvh !important;
+            grid-template-rows: 1fr !important;
+            gap: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .watch-stage__theater {
+            max-width: 100% !important;
+            width: 100% !important;
+            height: 100dvh !important;
+            min-height: 100dvh !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+        }
+
+        .watch-stage__player-container {
+            width: 100% !important;
+            height: 100dvh !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+
+            :deep(.stream-frame__player),
+            :deep(.moovie-frame__player) {
+                width: 100% !important;
+                height: 100dvh !important;
+                max-width: 100% !important;
+                max-height: 100dvh !important;
+                aspect-ratio: unset !important;
+                border-radius: 0 !important;
+                border: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            :deep(.stream-frame__stage),
+            :deep(.moovie-frame__stage) {
+                padding: 0 !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+            }
+        }
+    }
 
     // Hide scroll car on all watch/stream pages
     & ~ :global(.scroll-car-container) {

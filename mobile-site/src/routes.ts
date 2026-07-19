@@ -152,6 +152,29 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Watch' }
     },
     {
+        path: '/embed/movie/:id',
+        alias: '/embed/watch/movie/:id',
+        name: 'EmbedMovie',
+        component: () => import('./pages/StreamMovie.vue'),
+        meta: {
+            title: 'Embed Movie',
+            bareLayout: true
+        }
+    },
+    {
+        path: '/embed/tv-show/:id/season/:season/episode/:episode',
+        alias: [
+            '/embed/tv/:id/:season/:episode',
+            '/embed/watch/tv/:id/:season/:episode'
+        ],
+        name: 'EmbedTVShow',
+        component: () => import('./pages/StreamTVShow.vue'),
+        meta: {
+            title: 'Embed TV Show',
+            bareLayout: true
+        }
+    },
+    {
         path: '/stream/anime/:id',
         alias: '/watch/anime/:id',
         name: 'StreamAnime',

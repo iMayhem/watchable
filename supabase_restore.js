@@ -56,6 +56,33 @@ async function main() {
             continue;
         }
 
+        // Check if table already has rows in the new database
+        let alreadyHasRows = false;
+        try {
+            const checkRes = await fetch(`${restBase}${table}?select=*&limit=1`, {
+                headers: {
+                    'apikey': newServiceKey,
+                    'Authorization': `Bearer ${newServiceKey}`
+                }
+            });
+            if (checkRes.ok) {
+                const checkData = await checkRes.json();
+                if (checkData && checkData.length > 0) {
+                    alreadyHasRows = true;
+                }
+            }
+        } catch (err) {
+            // Table might not exist or failed to query, proceed normally
+        }
+
+        if (alreadyHasRows) {
+            const skipChoice = await askQuestion(`\nTable "${table}" already has data in your new Supabase. Skip restoring this table? (y/n) [Default: y]: `);
+            if (skipChoice.trim().toLowerCase() !== 'n') {
+                console.log(`Skipping table "${table}".`);
+                continue;
+            }
+        }
+
         console.log(`\nRestoring table "${table}" (${rows.length} rows)...`);
         
         // Upload in batches of 100 to prevent payload size limits

@@ -2734,7 +2734,7 @@
                         </div>
                         <div class="room-info">
                             <div class="room-info-item">🎬 <strong>Playing:</strong> ${safeTitle}</div>
-                            <div class="room-info-item">🕒 <strong>Active:</strong> ${startedLabel}</div>
+                            <div class="room-info-item">🕒 <strong>Started:</strong> ${startedLabel}</div>
                             ${privateRoom ? '<div class="room-info-item">🔒 <strong>Access:</strong> Invite only</div>' : ''}
                         </div>
                         <div class="room-footer">

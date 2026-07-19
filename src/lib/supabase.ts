@@ -3,8 +3,8 @@
 // actually needed (login, register, sync, etc.).  This keeps the entire
 // Supabase bundle out of the initial JS payload for guest visitors.
 
-const DEFAULT_SUPABASE_URL = 'https://eeyiragtylotiwozbgqp.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVleWlyYWd0eWxvdGl3b3piZ3FwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzAyNzYsImV4cCI6MjA5NDk0NjI3Nn0.YB_alc7kt5l09eTfNH0x5q-ayBx-dHS1qE-yzHbRTFg';
+const DEFAULT_SUPABASE_URL = 'https://idwjvciofkvspmumgzmg.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlkd2p2Y2lvZmt2c3BtdW1nem1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjkzNTAsImV4cCI6MjEwMDA0NTM1MH0.MY7UGcPNR3k1-WhdTPN5Mh7bwH_6ACD1XjKBoKb84cU';
 
 let _clientPromise: Promise<any> | null = null;
 

@@ -3,7 +3,7 @@
 Batch-sync AniList anime -> Moovie catalogue links into Supabase.
 
 Usage:
-  export SUPABASE_URL="https://eeyiragtylotiwozbgqp.supabase.co"
+  export SUPABASE_URL="https://idwjvciofkvspmumgzmg.supabase.co"
   export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
   python scripts/sync_anime_catalog_cache.py
 

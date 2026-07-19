@@ -471,7 +471,20 @@
                             <span class="chat-panel-title">Lobby Chat</span>
                         </div>
                         <div id="users-badge-container" class="chat-user-status">
-                            Joined: <strong id="chat-my-name">Guest</strong> (<span id="chat-online-count">0</span> online)
+                            Joined: <strong id="chat-my-name">Guest</strong>
+                            (<button
+                                id="chat-online-count-btn"
+                                class="online-count-btn"
+                                type="button"
+                                title="View participants"
+                                onclick="toggleParticipantsPanel()"
+                            ><span id="chat-online-count">0</span> online</button>)
+                        </div>
+                        <!-- Participants panel (host can transfer control here) -->
+                        <div id="participants-panel" class="participants-panel" hidden>
+                            <div class="participants-panel__list" id="participants-list">
+                                <!-- Populated dynamically -->
+                            </div>
                         </div>
                     </div>
 

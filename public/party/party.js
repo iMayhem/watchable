@@ -185,7 +185,7 @@
          * giveHostControlTo(targetUser)
          * Allows the current host to transfer host control to another participant.
          * Broadcasts a 'moovie_host_transfer' event so all clients update host state.
-         * Also exposed globally so the inline "Make Host" button in chat can call it.
+         * Also exposed globally so the inline "Join Host" button in chat can call it.
          */
         // Flag to prevent the sender from double-processing their own host transfer broadcast echo
         let _hostTransferInFlight = false;
@@ -217,6 +217,7 @@
             });
 
             appendChatMessage('System', `👑 You transferred host control to ${targetUser}.`, 'system');
+            if (channel) updateParticipantsPanel(channel.presenceState());
 
             // Clear the in-flight flag after a short debounce
             setTimeout(() => { _hostTransferInFlight = false; }, 2000);
@@ -2983,6 +2984,7 @@
                         if (activeRoom) markAsPartyHost(activeRoom.id);
                         await syncPresenceTrack();
                         updateRoomPrivacyButton();
+                        if (channel) updateParticipantsPanel(channel.presenceState());
                         appendChatMessage('System', '\ud83d\udc51 You are now the host! You control playback for everyone.', 'system');
                     } else if (data.prevHost === currentUserName) {
                         // We were the host but gave it away — skip if already handled locally
@@ -2993,9 +2995,10 @@
                         isHost = false;
                         await syncPresenceTrack();
                         updateRoomPrivacyButton();
+                        if (channel) updateParticipantsPanel(channel.presenceState());
                         appendChatMessage('System', `\ud83d\udc51 You transferred host control to ${data.newHost}.`, 'system');
                     } else {
-                        // Spectator \u2014 just notify
+                        // Spectator — just notify
                         appendChatMessage('System', `\ud83d\udc51 ${data.newHost} is now the host.`, 'system');
                     }
                 })
@@ -3014,7 +3017,7 @@
                     broadcastLobbyParticipantCount(channel, state);
                     const name = displayNameFromPresence(key, newPresences);
                     if (name !== currentUserName) {
-                        // Show a join message; if we are the host, also show a "Make Host" button
+                        // Show a join message; if we are the host, also show a "Join Host" button
                         const box = document.getElementById('chat-box');
                         const bubble = document.createElement('div');
                         bubble.className = 'chat-bubble system';
@@ -3023,7 +3026,7 @@
                                 class="give-host-btn"
                                 title="Transfer host control to ${name}"
                                 onclick="giveHostControlTo('${name.replace(/'/g, "\\'")}')"
-                            >👑 Make Host</button>`;
+                            >👑 Join Host</button>`;
                         } else {
                             bubble.textContent = `${name} joined the watch party!`;
                         }
@@ -3310,8 +3313,56 @@
             if (onlineCountEl) {
                 onlineCountEl.textContent = String(countPresenceMembers(presenceState));
             }
+            updateParticipantsPanel(presenceState);
         }
 
+        function updateParticipantsPanel(presenceState) {
+            const list = document.getElementById('participants-list');
+            if (!list) return;
+
+            list.innerHTML = '';
+
+            Object.entries(presenceState || {}).forEach(([key, entries]) => {
+                if (isLobbyObserverKey(key)) return;
+                const presence = Array.isArray(entries) ? entries[0] : entries;
+                if (!presence) return;
+
+                const name = presence.user || key.split(':')[0] || key || 'Guest';
+                const isThisPersonHost = !!presence.isHost;
+                const isSelf = name === currentUserName;
+
+                const row = document.createElement('div');
+                row.className = 'participants-panel__row';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'participants-panel__name';
+                nameSpan.textContent = name + (isSelf ? ' (you)' : '') + (isThisPersonHost ? ' 👑' : '');
+                row.appendChild(nameSpan);
+
+                // Show "Join Host" button only for: current user is host, target is not self
+                if (isHost && !isSelf) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'give-host-btn';
+                    btn.textContent = '👑 Join Host';
+                    btn.title = `Transfer host control to ${name}`;
+                    btn.onclick = () => giveHostControlTo(name);
+                    row.appendChild(btn);
+                }
+
+                list.appendChild(row);
+            });
+        }
+
+        function toggleParticipantsPanel() {
+            const panel = document.getElementById('participants-panel');
+            if (!panel) return;
+            panel.hidden = !panel.hidden;
+            const btn = document.getElementById('chat-online-count-btn');
+            if (btn) btn.classList.toggle('active', !panel.hidden);
+        }
+
+        window.toggleParticipantsPanel = toggleParticipantsPanel;
 
 
         // Listen for events from iframe players

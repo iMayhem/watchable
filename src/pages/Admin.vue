@@ -1073,37 +1073,52 @@ async function loadExistingPolls() {
             ...p,
             options: typeof p.options === 'string' ? JSON.parse(p.options) : p.options
         }))
-        for (const poll of existingPolls.value) {
-            await loadPollResults(poll.id)
-        }
-    } catch { /* ignore */ }
+
+        if (existingPolls.value.length === 0) return
+
+        // Batch fetch all votes for these polls in a single indexed query
+        const pollIds = existingPolls.value.map((p: any) => p.id)
+        const { data: allVotes } = await client
+            .from('poll_votes')
+            .select('poll_id, selected_option')
+            .in('poll_id', pollIds)
+
+        // Group votes by poll_id
+        const votesByPoll: Record<number, any[]> = {}
+        existingPolls.value.forEach((p: any) => {
+            votesByPoll[p.id] = []
+        })
+        allVotes?.forEach((v: any) => {
+            if (votesByPoll[v.poll_id]) {
+                votesByPoll[v.poll_id].push(v)
+            }
+        })
+
+        // Compute results in memory instantly
+        existingPolls.value.forEach((poll: any) => {
+            const votes = votesByPoll[poll.id] || []
+            const total = votes.length
+            pollVoteCounts.value[poll.id] = total
+
+            if (poll.options && Array.isArray(poll.options)) {
+                const counts = new Array(poll.options.length).fill(0)
+                votes.forEach((v: any) => {
+                    if (v.selected_option >= 0 && v.selected_option < poll.options.length) {
+                        counts[v.selected_option]++
+                    }
+                })
+                pollResultsMap.value[poll.id] = poll.options.map((opt: string, i: number) => ({
+                    option: opt,
+                    count: counts[i],
+                    percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
+                }))
+            }
+        })
+    } catch (err) {
+        console.error('Failed to load polls:', err)
+    }
 }
 
-async function loadPollResults(pollId: number) {
-    const client = supabase || await getSupabaseClient()
-    try {
-        const { data: votes } = await client.from('poll_votes').select('selected_option').eq('poll_id', pollId)
-        const poll = existingPolls.value.find((p: any) => p.id === pollId)
-        if (!poll) return
-
-        const total = votes?.length || 0
-        pollVoteCounts.value[pollId] = total
-
-        if (poll.options && Array.isArray(poll.options)) {
-            const counts = new Array(poll.options.length).fill(0)
-            votes?.forEach((v: any) => {
-                if (v.selected_option >= 0 && v.selected_option < poll.options.length) {
-                    counts[v.selected_option]++
-                }
-            })
-            pollResultsMap.value[pollId] = poll.options.map((opt: string, i: number) => ({
-                option: opt,
-                count: counts[i],
-                percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
-            }))
-        }
-    } catch { /* ignore */ }
-}
 
 async function handleCreatePoll() {
     if (!pollQuestion.value.trim() || !pollOptionsText.value.trim()) return

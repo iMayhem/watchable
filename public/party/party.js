@@ -3101,27 +3101,20 @@
                     if (!wasHost && isHost) void syncPresenceTrack();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
+                    updateJoinHostButtonVisibility();
                 })
                 .on('presence', { event: 'join' }, ({ key, newPresences }) => {
                     if (isLobbyObserverKey(key)) return;
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
+                    updateJoinHostButtonVisibility();
                     const name = displayNameFromPresence(key, newPresences);
                     if (name !== currentUserName) {
-                        // Show a join message; if we are the host, also show a "Make Host" button
                         const box = document.getElementById('chat-box');
                         const bubble = document.createElement('div');
                         bubble.className = 'chat-bubble system';
-                        if (isHost) {
-                            bubble.innerHTML = `${name} joined the watch party! <button
-                                class="give-host-btn"
-                                title="Transfer host control to ${name}"
-                                onclick="giveHostControlTo('${name.replace(/'/g, "\\'")}')"
-                            >👑 Make Host</button>`;
-                        } else {
-                            bubble.textContent = `${name} joined the watch party!`;
-                        }
+                        bubble.textContent = `${name} joined the watch party!`;
                         if (box) { box.appendChild(bubble); box.scrollTop = box.scrollHeight; }
 
                         // If we are the host, immediately force-seek the new guest to current timestamp
@@ -3441,17 +3434,6 @@
                 nameSpan.className = 'participants-panel__name';
                 nameSpan.textContent = name + (isSelf ? ' (you)' : '') + (isThisPersonHost ? ' 👑' : '');
                 row.appendChild(nameSpan);
-
-                // Show "Make Host" button only for: current user is host, target is not self
-                if (isHost && !isSelf) {
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.className = 'give-host-btn';
-                    btn.textContent = '👑 Make Host';
-                    btn.title = `Transfer host control to ${name}`;
-                    btn.onclick = () => giveHostControlTo(name);
-                    row.appendChild(btn);
-                }
 
                 list.appendChild(row);
             });

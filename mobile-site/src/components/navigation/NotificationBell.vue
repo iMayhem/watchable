@@ -143,10 +143,16 @@ defineProps<{ compact?: boolean }>()
 const isOpen = ref(false)
 const showOldPolls = ref(false)
 const oldPollsLoading = ref(false)
+let allPollsPromise: Promise<void> | null = null
 const pollData = ref<{ question: string; results: { option: string; count: number; percentage: number }[]; totalVotes: number } | null>(null)
 const allPollsData = ref<{ id: number; question: string; is_active: boolean; results: { option: string; count: number; percentage: number }[]; totalVotes: number }[]>([])
 const hasOldPolls = ref(false)
 const votedThisPoll = computed(() => activePoll.value ? hasVoted(activePoll.value.id) : false)
+
+function ensureAllPollsFetched() {
+    if (!allPollsPromise) allPollsPromise = fetchAllPolls()
+    return allPollsPromise
+}
 
 async function handlePollVote(optionIndex: number) {
     if (votedThisPoll.value || voting.value || !activePoll.value) return
@@ -166,7 +172,7 @@ async function loadPollData() {
             pollData.value = null
         }
     })
-    const p2 = fetchAllPolls().then(() => {
+    const p2 = ensureAllPollsFetched().then(() => {
         const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
         hasOldPolls.value = old.length > 0
     })
@@ -180,7 +186,7 @@ async function openOldPolls() {
     }
     showOldPolls.value = true
     oldPollsLoading.value = true
-    await fetchAllPolls()
+    await ensureAllPollsFetched()
     allPollsData.value = allPolls.value.map(p => ({
         id: p.id,
         question: p.question,
@@ -230,6 +236,7 @@ function timeAgo(dateStr: string) {
 
 onMounted(() => {
     fetchNotifications()
+    ensureAllPollsFetched()
 })
 </script>
 

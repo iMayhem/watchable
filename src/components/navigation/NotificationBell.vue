@@ -34,7 +34,14 @@
                 <div v-if="pollData" class="notification-bell__poll">
                     <div class="notification-bell__poll-question">{{ pollData.question }}</div>
                     <div class="notification-bell__poll-results">
-                        <div v-for="(r, i) in pollData.results" :key="i" class="notification-bell__poll-result">
+                        <div
+                            v-for="(r, i) in pollData.results"
+                            :key="i"
+                            class="notification-bell__poll-result"
+                            :class="{ 'is-clickable': !votedThisPoll, 'is-disabled': votedThisPoll }"
+                            :title="votedThisPoll ? 'Already voted' : 'Click to vote'"
+                            @click="handlePollVote(i)"
+                        >
                             <div class="notification-bell__poll-result-label">
                                 <span>{{ r.option }}</span>
                                 <span>{{ r.count }} ({{ r.percentage }}%)</span>
@@ -109,12 +116,12 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useNotifications } from '../../composables/useNotifications'
 import { usePolls } from '../../composables/usePolls'
 
 const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
-const { activePoll, pollResults, totalVotes, allPolls, fetchActivePoll, fetchAllPolls } = usePolls()
+const { activePoll, pollResults, totalVotes, allPolls, fetchActivePoll, fetchAllPolls, vote, hasVoted, voting } = usePolls()
 
 const isOpen = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
@@ -140,6 +147,14 @@ async function loadPollData() {
     await fetchAllPolls()
     const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
     hasOldPolls.value = old.length > 0
+}
+
+const votedThisPoll = computed(() => activePoll.value ? hasVoted(activePoll.value.id) : false)
+
+async function handlePollVote(optionIndex: number) {
+    if (votedThisPoll.value || voting.value || !activePoll.value) return
+    await vote(activePoll.value.id, optionIndex)
+    await loadPollData()
 }
 
 async function openOldPolls() {
@@ -348,6 +363,22 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     gap: var(--s-1);
+}
+
+.notification-bell__poll-result.is-clickable {
+    cursor: pointer;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    border-radius: var(--r-sm);
+    transition: background var(--dur-fast);
+}
+
+.notification-bell__poll-result.is-clickable:hover {
+    background: var(--ink-700);
+}
+
+.notification-bell__poll-result.is-disabled {
+    opacity: 0.7;
 }
 
 .notification-bell__poll-result-label {

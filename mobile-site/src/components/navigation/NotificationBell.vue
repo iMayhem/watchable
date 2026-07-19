@@ -40,7 +40,14 @@
                 <div v-if="!showOldPolls && pollData" class="m-notif-bell__poll">
                     <div class="m-notif-bell__poll-question">{{ pollData.question }}</div>
                     <div class="m-notif-bell__poll-results">
-                        <div v-for="(r, i) in pollData.results" :key="i" class="m-notif-bell__poll-result">
+                        <div
+                            v-for="(r, i) in pollData.results"
+                            :key="i"
+                            class="m-notif-bell__poll-result"
+                            :class="{ 'is-clickable': !votedThisPoll, 'is-disabled': votedThisPoll }"
+                            :title="votedThisPoll ? 'Already voted' : 'Click to vote'"
+                            @click="handlePollVote(i)"
+                        >
                             <div class="m-notif-bell__poll-result-label">
                                 <span>{{ r.option }}</span>
                                 <span>{{ r.count }} ({{ r.percentage }}%)</span>
@@ -117,12 +124,12 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useNotifications } from '@/composables/useNotifications'
 import { usePolls } from '@/composables/usePolls'
 
 const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
-const { activePoll, pollResults, totalVotes, allPolls, fetchActivePoll, fetchAllPolls } = usePolls()
+const { activePoll, pollResults, totalVotes, allPolls, fetchActivePoll, fetchAllPolls, vote, hasVoted, voting } = usePolls()
 
 defineProps<{ compact?: boolean }>()
 
@@ -131,6 +138,13 @@ const showOldPolls = ref(false)
 const pollData = ref<{ question: string; results: { option: string; count: number; percentage: number }[]; totalVotes: number } | null>(null)
 const allPollsData = ref<{ id: number; question: string; is_active: boolean; results: { option: string; count: number; percentage: number }[]; totalVotes: number }[]>([])
 const hasOldPolls = ref(false)
+const votedThisPoll = computed(() => activePoll.value ? hasVoted(activePoll.value.id) : false)
+
+async function handlePollVote(optionIndex: number) {
+    if (votedThisPoll.value || voting.value || !activePoll.value) return
+    await vote(activePoll.value.id, optionIndex)
+    await loadPollData()
+}
 
 async function loadPollData() {
     await fetchActivePoll()
@@ -345,6 +359,22 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: var(--s-1);
+}
+
+.m-notif-bell__poll-result.is-clickable {
+    cursor: pointer;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    border-radius: var(--r-sm);
+    transition: background var(--dur-fast);
+}
+
+.m-notif-bell__poll-result.is-clickable:hover {
+    background: var(--ink-700);
+}
+
+.m-notif-bell__poll-result.is-disabled {
+    opacity: 0.7;
 }
 
 .m-notif-bell__poll-result-label {

@@ -3124,6 +3124,7 @@
                                 }
                             }, 1200);
                         }
+                    } else {
                         // This is US joining the room!
                         // Append a clean system message for ourselves
                         if (!isHost) {
@@ -3468,6 +3469,7 @@
                 }
             } else if (data.type === 'watchable-player-sync') {
                 console.warn('[Party] Received watchable-player-sync from iframe:', data, 'isHost:', isHost);
+                if (isHost) {
                     let seekDesc = null;
                     if (data.event === 'seek') {
                         seekDesc = getSeekDescription(data.time, lastMooviePlayerTime);
@@ -3494,22 +3496,22 @@
                             }
                         });
                     }
-                } else if (data.event === 'ready') {
-                    // Guest player loaded: request the latest state from the host
-                    console.warn('[Party] Guest player ready, sending sync request... channel subscribed?', !!channel);
-                    if (channel) {
-                        channel.send({
-                            type: 'broadcast',
-                            event: 'moovie_sync_request',
-                            payload: {
-                                sender: currentUserName
-                            }
-                        });
-                    } else {
-                        // Channel not ready yet — defer until it connects
-                        console.warn('[Party] Channel not yet available, deferring sync request...');
-                        pendingGuestSyncRequest = true;
-                    }
+                }
+            } else if (data.event === 'ready') {
+                // Guest player loaded: request the latest state from the host
+                console.warn('[Party] Guest player ready, sending sync request... channel subscribed?', !!channel);
+                if (channel) {
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'moovie_sync_request',
+                        payload: {
+                            sender: currentUserName
+                        }
+                    });
+                } else {
+                    // Channel not ready yet — defer until it connects
+                    console.warn('[Party] Channel not yet available, deferring sync request...');
+                    pendingGuestSyncRequest = true;
                 }
             }
         });

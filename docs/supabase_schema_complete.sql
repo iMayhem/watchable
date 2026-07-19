@@ -5,7 +5,7 @@
 -- This creates all tables, primary keys, indices, constraints, RLS policies, and PgCron cleanup triggers.
 
 -- 1. EXTENSIONS
-CREATE EXTENSION IF NOT EXISTS pg_crypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 2. TABLE: movora_users
 CREATE TABLE IF NOT EXISTS public.movora_users (

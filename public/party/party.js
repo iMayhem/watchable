@@ -3063,7 +3063,6 @@
 
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    maybePromoteSoloHost(channel.presenceState());
                     await syncPresenceTrack();
                     const state = channel.presenceState();
                     updateUsersCount(state);

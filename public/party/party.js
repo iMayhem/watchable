@@ -1788,6 +1788,7 @@
         let activeRoom = null;
         let channel = null;
         let isHost = false;
+        let pendingGuestSyncRequest = false; // Set when guest player is ready but channel not yet subscribed
 
         let lobbyChannels = [];
         let lobbyRoomsChannel = null;
@@ -2976,6 +2977,17 @@
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
                     updateRoomPrivacyButton();
+
+                    // If guest had a pending sync request (player was ready before channel), send it now
+                    if (!isHost && activeProvider === 'moovie' && pendingGuestSyncRequest) {
+                        pendingGuestSyncRequest = false;
+                        console.warn('[Party] Channel now subscribed, sending deferred moovie_sync_request');
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'moovie_sync_request',
+                            payload: { sender: currentUserName }
+                        });
+                    }
                 }
             });
 
@@ -3251,7 +3263,7 @@
                     }
                 } else if (data.event === 'ready') {
                     // Guest player loaded: request the latest state from the host
-                    console.warn('[Party] Guest player ready, sending sync request...');
+                    console.warn('[Party] Guest player ready, sending sync request... channel subscribed?', !!channel);
                     if (channel) {
                         channel.send({
                             type: 'broadcast',
@@ -3260,6 +3272,10 @@
                                 sender: currentUserName
                             }
                         });
+                    } else {
+                        // Channel not ready yet — defer until it connects
+                        console.warn('[Party] Channel not yet available, deferring sync request...');
+                        pendingGuestSyncRequest = true;
                     }
                 }
             }

@@ -187,7 +187,7 @@
          * giveHostControlTo(targetUser)
          * Allows the current host to transfer host control to another participant.
          * Broadcasts a 'moovie_host_transfer' event so all clients update host state.
-         * Also exposed globally so the inline "Join Host" button in chat can call it.
+         * Also exposed globally so the inline "Make Host" button in chat can call it.
          */
         // Flag to prevent the sender from double-processing their own host transfer broadcast echo
         let _hostTransferInFlight = false;
@@ -262,6 +262,36 @@
         }
 
         window.requestSyncFromHost = requestSyncFromHost;
+
+        function formatDuration(seconds) {
+            const sec = Math.max(0, Math.floor(seconds));
+            const hrs = Math.floor(sec / 3600);
+            const mins = Math.floor((sec % 3600) / 60);
+            const secs = sec % 60;
+            const pad = (num) => String(num).padStart(2, '0');
+            if (hrs > 0) {
+                return `${hrs}:${pad(mins)}:${pad(secs)}`;
+            }
+            return `${mins}:${pad(secs)}`;
+        }
+
+        function getSeekDescription(newTime, oldTime) {
+            const diff = newTime - oldTime;
+            if (Math.abs(diff) < 2) return null;
+            if (diff > 0) {
+                if (diff < 65) {
+                    return `forward by ${Math.round(diff)}s`;
+                } else {
+                    return `to ${formatDuration(newTime)}`;
+                }
+            } else {
+                if (diff > -65) {
+                    return `backward by ${Math.round(Math.abs(diff))}s`;
+                } else {
+                    return `to ${formatDuration(newTime)}`;
+                }
+            }
+        }
 
         // Adjust links for file:// protocol vs http:// protocol dynamically
         if (window.location.protocol !== 'file:') {
@@ -2972,6 +3002,11 @@
                     const data = payload.payload || {};
                     if (data.sender === currentUserName) return;
 
+                    // If host seeked, show in chat
+                    if (data.event === 'seek' && data.seekDesc) {
+                        appendChatMessage('System', `👑 ${data.sender || 'Host'} seeked ${data.seekDesc}`, 'system');
+                    }
+
                     const iframe = document.getElementById('video-player-iframe');
                     if (iframe && iframe.contentWindow) {
                         console.warn('[Party] Forwarding to iframe: moovie-command-sync', data);
@@ -3057,7 +3092,7 @@
                     broadcastLobbyParticipantCount(channel, state);
                     const name = displayNameFromPresence(key, newPresences);
                     if (name !== currentUserName) {
-                        // Show a join message; if we are the host, also show a "Join Host" button
+                        // Show a join message; if we are the host, also show a "Make Host" button
                         const box = document.getElementById('chat-box');
                         const bubble = document.createElement('div');
                         bubble.className = 'chat-bubble system';
@@ -3066,7 +3101,7 @@
                                 class="give-host-btn"
                                 title="Transfer host control to ${name}"
                                 onclick="giveHostControlTo('${name.replace(/'/g, "\\'")}')"
-                            >👑 Join Host</button>`;
+                            >👑 Make Host</button>`;
                         } else {
                             bubble.textContent = `${name} joined the watch party!`;
                         }
@@ -3394,12 +3429,12 @@
                 nameSpan.textContent = name + (isSelf ? ' (you)' : '') + (isThisPersonHost ? ' 👑' : '');
                 row.appendChild(nameSpan);
 
-                // Show "Join Host" button only for: current user is host, target is not self
+                // Show "Make Host" button only for: current user is host, target is not self
                 if (isHost && !isSelf) {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'give-host-btn';
-                    btn.textContent = '👑 Join Host';
+                    btn.textContent = '👑 Make Host';
                     btn.title = `Transfer host control to ${name}`;
                     btn.onclick = () => giveHostControlTo(name);
                     row.appendChild(btn);
@@ -3438,7 +3473,14 @@
                 }
             } else if (data.type === 'watchable-player-sync') {
                 console.warn('[Party] Received watchable-player-sync from iframe:', data, 'isHost:', isHost);
-                if (isHost) {
+                    let seekDesc = null;
+                    if (data.event === 'seek') {
+                        seekDesc = getSeekDescription(data.time, lastMooviePlayerTime);
+                        if (seekDesc) {
+                            appendChatMessage('System', `👑 You seeked ${seekDesc}`, 'system');
+                        }
+                    }
+
                     // Store the host's player time and state
                     lastMooviePlayerTime = data.time;
                     lastMooviePlayerPlaying = data.playing;
@@ -3452,7 +3494,8 @@
                                 event: data.event,
                                 time: data.time,
                                 playing: data.playing,
-                                sender: currentUserName
+                                sender: currentUserName,
+                                seekDesc: seekDesc
                             }
                         });
                     }

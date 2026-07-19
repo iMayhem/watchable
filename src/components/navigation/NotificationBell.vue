@@ -93,6 +93,13 @@
                     </button>
                 </div>
                 <div class="notification-bell__old-list">
+                    <div v-if="oldPollsLoading" class="notification-bell__old-shimmer">
+                        <div v-for="n in 3" :key="n" class="notification-bell__old-shimmer-item">
+                            <div class="shimmer-line w-60" />
+                            <div class="shimmer-line w-40" />
+                            <div class="shimmer-line w-100" />
+                        </div>
+                    </div>
                     <div v-for="p in allPollsData" :key="p.id" class="notification-bell__old-poll">
                         <div class="notification-bell__poll-question notification-bell__poll-question--sm">{{ p.question }}</div>
                         <div v-if="!p.is_active" class="notification-bell__poll-inactive-badge">closed</div>
@@ -127,6 +134,7 @@ const isOpen = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const showOldPolls = ref(false)
+const oldPollsLoading = ref(false)
 const pollData = ref<{ question: string; results: { option: string; count: number; percentage: number }[]; totalVotes: number } | null>(null)
 const allPollsData = ref<{ id: number; question: string; is_active: boolean; results: { option: string; count: number; percentage: number }[]; totalVotes: number }[]>([])
 const hasOldPolls = ref(false)
@@ -134,18 +142,22 @@ const dropdownStyle = ref<Record<string, string>>({})
 const oldPanelStyle = ref<Record<string, string>>({})
 
 async function loadPollData() {
-    await Promise.all([fetchActivePoll(), fetchAllPolls()])
-    if (activePoll.value) {
-        pollData.value = {
-            question: activePoll.value.question,
-            results: pollResults.value,
-            totalVotes: totalVotes.value
+    const p1 = fetchActivePoll().then(() => {
+        if (activePoll.value) {
+            pollData.value = {
+                question: activePoll.value.question,
+                results: pollResults.value,
+                totalVotes: totalVotes.value
+            }
+        } else {
+            pollData.value = null
         }
-    } else {
-        pollData.value = null
-    }
-    const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
-    hasOldPolls.value = old.length > 0
+    })
+    const p2 = fetchAllPolls().then(() => {
+        const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
+        hasOldPolls.value = old.length > 0
+    })
+    await Promise.all([p1, p2])
 }
 
 const votedThisPoll = computed(() => activePoll.value ? hasVoted(activePoll.value.id) : false)
@@ -161,6 +173,9 @@ async function openOldPolls() {
         showOldPolls.value = false
         return
     }
+    showOldPolls.value = true
+    oldPollsLoading.value = true
+    nextTick(positionDropdown)
     await fetchAllPolls()
     allPollsData.value = allPolls.value.map(p => ({
         id: p.id,
@@ -169,8 +184,7 @@ async function openOldPolls() {
         results: p.results,
         totalVotes: p.totalVotes
     }))
-    showOldPolls.value = true
-    nextTick(positionDropdown)
+    oldPollsLoading.value = false
 }
 
 function positionDropdown() {
@@ -583,5 +597,35 @@ onBeforeUnmount(() => {
     padding: 1px 6px;
     border-radius: var(--r-pill);
     margin-bottom: var(--s-1);
+}
+
+.notification-bell__old-shimmer {
+    padding: var(--s-3) var(--s-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+}
+
+.notification-bell__old-shimmer-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+}
+
+.notification-bell__old-shimmer-item .shimmer-line {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--ink-700) 25%, var(--ink-600) 50%, var(--ink-700) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.shimmer-line.w-60 { width: 60%; }
+.shimmer-line.w-40 { width: 40%; }
+.shimmer-line.w-100 { width: 100%; }
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 </style>

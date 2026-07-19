@@ -2714,7 +2714,7 @@
                 container.innerHTML = rooms.map(room => {
                     const safeName = partyEscapeHtml(room.name);
                     const safeTitle = partyEscapeHtml(room.movie_title);
-                    const startedAt = room.scheduled_start_time || room.created_at;
+                    const startedAt = room.created_at || room.scheduled_start_time;
                     const startedLabel = startedAt
                         ? new Date(startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : 'Just now';

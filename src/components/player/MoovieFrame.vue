@@ -6,7 +6,8 @@
         :style="{
             '--sub-bg-opacity': subtitleBgOpacity,
             '--sub-text-opacity': subtitleTextOpacity,
-            '--sub-font-size': subtitleFontSize + '%'
+            '--sub-font-size': subtitleFontSize + '%',
+            '--sub-position': subtitlePosition + '%'
         }"
     >
         <div v-if="ambientImage" class="moovie-frame__bloom" :style="{ backgroundImage: `url(${ambientImage})` }" aria-hidden="true" />
@@ -366,6 +367,21 @@
                             </div>
                         </div>
 
+                        <div class="moovie-frame__settings-group">
+                            <span class="moovie-frame__settings-group-title">Position</span>
+                            <div class="moovie-frame__option-grid">
+                                <button
+                                    v-for="pos in [100, 75, 50, 25, 10]"
+                                    :key="pos"
+                                    class="moovie-frame__option-btn"
+                                    :class="{ 'is-active': subtitlePosition === pos }"
+                                    @click="subtitlePosition = pos"
+                                >
+                                    {{ pos === 100 ? 'Bottom' : pos === 75 ? 'Low' : pos === 50 ? 'Mid' : pos === 25 ? 'High' : 'Top' }}
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="moovie-frame__settings-divider" />
 
                         <span class="moovie-frame__settings-group-title" style="padding: 0 0.75rem;">Tracks</span>
@@ -412,7 +428,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWebImage } from '../../utils/useWebImage'
 import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
@@ -634,6 +650,7 @@ export default defineComponent({
         const subtitleBgOpacity = ref(0.75)
         const subtitleTextOpacity = ref(1.0)
         const subtitleFontSize = ref(100)
+        const subtitlePosition = ref(100)
 
         function resolveFullLanguageName(code?: string): string {
             if (!code) return 'Unknown';
@@ -685,9 +702,11 @@ export default defineComponent({
             return code.charAt(0).toUpperCase() + code.slice(1);
         }
 
-        function adjustCueTimes(delay: number) {
+        function adjustCueStyles() {
             const video = videoRef.value;
             if (!video) return;
+            const delay = subtitleDelay.value;
+            const pos = subtitlePosition.value;
             for (let i = 0; i < video.textTracks.length; i++) {
                 const track = video.textTracks[i];
                 const cues = track.cues;
@@ -700,18 +719,20 @@ export default defineComponent({
                     }
                     cue.startTime = (cue as any)._originalStartTime + delay;
                     cue.endTime = (cue as any)._originalEndTime + delay;
+                    cue.snapToLines = false;
+                    cue.line = pos;
                 }
             }
         }
 
         function changeSubtitleDelay(amount: number) {
             subtitleDelay.value += amount
-            adjustCueTimes(subtitleDelay.value)
+            adjustCueStyles()
         }
 
         function resetSubtitleDelay() {
             subtitleDelay.value = 0
-            adjustCueTimes(0)
+            adjustCueStyles()
         }
         const qualityRootRef = ref<HTMLElement | null>(null)
         const loading = ref(false)
@@ -1722,11 +1743,13 @@ export default defineComponent({
                     el.src = blobUrl
                     el.default = false
                     video.appendChild(el)
+                    el.addEventListener('load', () => adjustCueStyles())
                     subBlobUrls.push(blobUrl)
                     entry = { el, blobUrl }
                     subLoadedTracks.set(index, entry)
                 }
                 entry.el.track.mode = 'showing'
+                nextTick(() => adjustCueStyles())
             } else {
                 for (const { el } of subLoadedTracks.values()) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
@@ -1869,11 +1892,14 @@ export default defineComponent({
             }, 100);
 
             cueTimer = setInterval(() => {
-                if (subtitleDelay.value !== 0) {
-                    adjustCueTimes(subtitleDelay.value)
-                }
+                adjustCueStyles()
             }, 1000);
         })
+
+        watch(subtitlePosition, () => {
+            nextTick(() => adjustCueStyles())
+        })
+
         onUnmounted(() => {
             if (idleTimer) clearTimeout(idleTimer)
             if (heartbeatInterval) clearInterval(heartbeatInterval)
@@ -1892,7 +1918,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, changeSubtitleDelay, resetSubtitleDelay }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay }
     },
 })
 </script>

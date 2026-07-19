@@ -164,11 +164,12 @@ CREATE POLICY "Allow public insert access on comments" ON public.movora_comments
 
 -- 8. TABLE: notifications
 CREATE TABLE IF NOT EXISTS public.notifications (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    type TEXT NOT NULL DEFAULT 'system',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    message TEXT NOT NULL DEFAULT '',
+    type TEXT NOT NULL DEFAULT 'info',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by TEXT DEFAULT 'admin'
 );
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
@@ -184,11 +185,11 @@ CREATE POLICY "Service upsert notifications" ON public.notifications
 
 -- 9. TABLE: notification_reads
 CREATE TABLE IF NOT EXISTS public.notification_reads (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    notification_id BIGINT REFERENCES public.notifications(id) ON DELETE CASCADE,
     username TEXT NOT NULL,
-    notification_id BIGINT NOT NULL REFERENCES public.notifications(id) ON DELETE CASCADE,
-    read_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (username, notification_id)
+    read_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(notification_id, username)
 );
 
 CREATE INDEX IF NOT EXISTS idx_notification_reads_username ON public.notification_reads (username);
@@ -202,13 +203,14 @@ CREATE POLICY "Public read/write notification reads" ON public.notification_read
 
 -- 10. TABLE: banners
 CREATE TABLE IF NOT EXISTS public.banners (
-    id BIGSERIAL PRIMARY KEY,
-    content TEXT NOT NULL,
-    bg_color TEXT NOT NULL DEFAULT '#E05A47',
-    text_color TEXT NOT NULL DEFAULT '#ffffff',
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    expires_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    message TEXT NOT NULL DEFAULT '',
+    link TEXT DEFAULT '',
+    bg_color TEXT DEFAULT '#ff5a1f',
+    text_color TEXT DEFAULT '#ffffff',
+    is_active BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
@@ -224,11 +226,12 @@ CREATE POLICY "Service upsert banners" ON public.banners
 
 -- 11. TABLE: polls
 CREATE TABLE IF NOT EXISTS public.polls (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     question TEXT NOT NULL,
-    options JSONB NOT NULL DEFAULT '[]'::jsonb, -- e.g. [{"id": 1, "text": "Option 1"}, ...]
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    options JSONB NOT NULL DEFAULT '[]',
+    is_active BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE public.polls ENABLE ROW LEVEL SECURITY;
@@ -244,15 +247,12 @@ CREATE POLICY "Service upsert polls" ON public.polls
 
 -- 12. TABLE: poll_votes
 CREATE TABLE IF NOT EXISTS public.poll_votes (
-    id BIGSERIAL PRIMARY KEY,
-    username TEXT NOT NULL,
-    poll_id BIGINT NOT NULL REFERENCES public.polls(id) ON DELETE CASCADE,
-    option_id INT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (username, poll_id)
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    poll_id BIGINT REFERENCES public.polls(id) ON DELETE CASCADE,
+    selected_option INT NOT NULL,
+    voted_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_poll_votes_username ON public.poll_votes (username);
 CREATE INDEX IF NOT EXISTS idx_poll_votes_poll_id ON public.poll_votes (poll_id);
 
 ALTER TABLE public.poll_votes ENABLE ROW LEVEL SECURITY;
@@ -325,12 +325,19 @@ CREATE POLICY "party_chat_public_delete" ON public.party_chat_messages
 
 -- 15. TABLE: youtube_rooms
 CREATE TABLE IF NOT EXISTS public.youtube_rooms (
-    id UUID PRIMARY KEY,
-    name TEXT NOT NULL,
-    video_id TEXT NOT NULL,
-    scheduled_start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    video_id TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    started_by TEXT NOT NULL DEFAULT 'Guest',
+    is_playing BOOLEAN NOT NULL DEFAULT false,
+    "current_time" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    host_session_id TEXT,
+    name TEXT NOT NULL DEFAULT '',
+    is_private BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    is_private BOOLEAN NOT NULL DEFAULT false
+    last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    queue JSONB NOT NULL DEFAULT '[]'::jsonb,
+    skip_votes JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
 ALTER TABLE public.youtube_rooms ENABLE ROW LEVEL SECURITY;

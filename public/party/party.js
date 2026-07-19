@@ -3124,19 +3124,14 @@
                                 }
                             }, 1200);
                         }
-                    } else {
                         // This is US joining the room!
-                        // If we are a guest, append a system message for ourselves with a "Join Host" button to sync manually
+                        // Append a clean system message for ourselves
                         if (!isHost) {
                             setTimeout(() => {
                                 const box = document.getElementById('chat-box');
                                 const bubble = document.createElement('div');
                                 bubble.className = 'chat-bubble system';
-                                bubble.innerHTML = `You joined the watch party! <button
-                                    class="give-host-btn"
-                                    title="Request sync from host"
-                                    onclick="requestSyncFromHost()"
-                                >👑 Join Host</button>`;
+                                bubble.textContent = `You joined the watch party!`;
                                 if (box) { box.appendChild(bubble); box.scrollTop = box.scrollHeight; }
                             }, 600);
                         }

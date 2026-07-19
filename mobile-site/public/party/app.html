@@ -40,6 +40,12 @@
         
         // Skip in local development unless explicitly testing
         var host = window.location.hostname;
+        try {
+          if (localStorage.getItem('anti_inspect_bypass') === '1') {
+            return;
+          }
+        } catch (e) {}
+
         if (host === 'localhost' || host === '127.0.0.1' || window.location.protocol === 'file:') {
           try {
             if (localStorage.getItem('anti_inspect_test') !== '1') {

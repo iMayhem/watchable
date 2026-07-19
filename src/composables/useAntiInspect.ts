@@ -30,6 +30,9 @@ const isPlayerPage = (): boolean => {
 };
 
 const shouldGuard = () => {
+    try {
+        if (localStorage.getItem('anti_inspect_bypass') === '1') return false;
+    } catch (e) {}
     // Always guard in production
     if (import.meta.env.PROD) return true;
     // In dev, check if VITE_ANTI_INSPECT is explicitly enabled

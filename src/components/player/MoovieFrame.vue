@@ -593,6 +593,12 @@ export default defineComponent({
                 }
             }, 3000)
         }
+        function handleMouseLeave() {
+            if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
+                controlsHidden.value = true
+                if (idleTimer) clearTimeout(idleTimer)
+            }
+        }
 
         const playing = ref(false)
         const currentTime = ref(0)
@@ -1554,6 +1560,7 @@ export default defineComponent({
             if (root) {
                 root.addEventListener('mousemove', resetIdleTimer)
                 root.addEventListener('touchstart', resetIdleTimer)
+                root.addEventListener('mouseleave', handleMouseLeave)
             }
             resetIdleTimer()
         })
@@ -1568,6 +1575,7 @@ export default defineComponent({
             if (root) {
                 root.removeEventListener('mousemove', resetIdleTimer)
                 root.removeEventListener('touchstart', resetIdleTimer)
+                root.removeEventListener('mouseleave', handleMouseLeave)
             }
         })
 
@@ -1827,9 +1835,8 @@ export default defineComponent({
     align-items: center;
     justify-content: space-between;
     padding: 10px var(--s-4) 14px var(--s-4);
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(10, 10, 10, 0.92) 100%);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 25%, rgba(10, 10, 10, 0.95) 100%);
     border-top: 1px solid rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(4px);
     pointer-events: none;
     opacity: 1;
     transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);

@@ -134,7 +134,7 @@ const dropdownStyle = ref<Record<string, string>>({})
 const oldPanelStyle = ref<Record<string, string>>({})
 
 async function loadPollData() {
-    await fetchActivePoll()
+    await Promise.all([fetchActivePoll(), fetchAllPolls()])
     if (activePoll.value) {
         pollData.value = {
             question: activePoll.value.question,
@@ -144,7 +144,6 @@ async function loadPollData() {
     } else {
         pollData.value = null
     }
-    await fetchAllPolls()
     const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
     hasOldPolls.value = old.length > 0
 }

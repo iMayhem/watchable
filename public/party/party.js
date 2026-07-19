@@ -185,7 +185,7 @@
          * giveHostControlTo(targetUser)
          * Allows the current host to transfer host control to another participant.
          * Broadcasts a 'moovie_host_transfer' event so all clients update host state.
-         * Also exposed globally so the inline "Give Host" button in chat can call it.
+         * Also exposed globally so the inline "Make Host" button in chat can call it.
          */
         // Flag to prevent the sender from double-processing their own host transfer broadcast echo
         let _hostTransferInFlight = false;
@@ -3014,7 +3014,7 @@
                     broadcastLobbyParticipantCount(channel, state);
                     const name = displayNameFromPresence(key, newPresences);
                     if (name !== currentUserName) {
-                        // Show a join message; if we are the host, also show a "Give Host" button
+                        // Show a join message; if we are the host, also show a "Make Host" button
                         const box = document.getElementById('chat-box');
                         const bubble = document.createElement('div');
                         bubble.className = 'chat-bubble system';
@@ -3023,7 +3023,7 @@
                                 class="give-host-btn"
                                 title="Transfer host control to ${name}"
                                 onclick="giveHostControlTo('${name.replace(/'/g, "\\'")}')"
-                            >👑 Give Host</button>`;
+                            >👑 Make Host</button>`;
                         } else {
                             bubble.textContent = `${name} joined the watch party!`;
                         }

@@ -18,35 +18,10 @@
             }
         };
 
-        const PARTY_HOST_KEY = 'watchable_party_hosts';
-
-        function readPartyHostMap() {
-            try {
-                return JSON.parse(safeLocalStorage.getItem(PARTY_HOST_KEY) || '{}');
-            } catch (e) {
-                return {};
-            }
-        }
-
-        function markAsPartyHost(roomId) {
-            if (!roomId) return;
-            const map = readPartyHostMap();
-            map[roomId] = { user: currentUserName, at: Date.now() };
-            safeLocalStorage.setItem(PARTY_HOST_KEY, JSON.stringify(map));
-        }
-
-        function checkIsPartyHost(room) {
-            if (!room?.id) return false;
-            if (room.host) return room.host === currentUserName;
-            const entry = readPartyHostMap()[room.id];
-            if (entry && entry.user === currentUserName) return true;
-            return room.name === `${currentUserName}'s Watch Lounge`;
-        }
-
         function applyRoomHostRole(room, created = false) {
-            isHost = created || checkIsPartyHost(room);
-            if (isHost && room?.id) markAsPartyHost(room.id);
+            isHost = created || (room?.host === currentUserName);
             if (activeRoom?.id === room?.id) updateRoomPrivacyButton();
+            if (channel) void syncPresenceTrack();
         }
 
         function isRoomPrivate(room) {
@@ -97,7 +72,7 @@
 
         function canJoinRoom(room) {
             if (!room) return false;
-            return !isRoomPrivate(room) || checkIsPartyHost(room);
+            return !isRoomPrivate(room) || room?.host === currentUserName;
         }
 
         function notifyPrivateRoomBlocked() {
@@ -116,14 +91,6 @@
         async function syncPresenceTrack() {
             if (!channel) return;
             await channel.track(buildPresencePayload());
-        }
-
-        function maybePromoteSoloHost(presenceState) {
-            if (!activeRoom || isHost) return;
-            if (countPresenceMembers(presenceState) > 1) return;
-            isHost = true;
-            markAsPartyHost(activeRoom.id);
-            updateRoomPrivacyButton();
         }
 
         function setPartyToolbarValue(baseId, value) {
@@ -1778,29 +1745,9 @@
         // Available Stream Servers
         const serversList = [
             { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}' },
-            { id: 'rasmalai', name: 'Rasmalai', movie: 'https://peachify.top/embed/movie/{tmdbId}', tv: 'https://peachify.top/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'cinemaos', name: 'Gulab Jamun', movie: 'https://cinemaos.live/player/{tmdbId}', tv: 'https://cinemaos.live/player/{tmdbId}/{season}/{episode}' },
-            { id: 'smashy', name: 'Jalebi', movie: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true', tv: 'https://player.smashystream.com/tv/{tmdbId}?s={season}&e={episode}' },
-            { id: 'vidsuper', name: 'Motichoor Ladoo', movie: 'https://vidsuper.net/movie/{tmdbId}', tv: 'https://vidsuper.net/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'mappletv', name: 'Kaju Katli', movie: 'https://mappletv.uk/watch/movie/{tmdbId}', tv: 'https://mappletv.uk/watch/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidking', name: 'Kheer', movie: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true', tv: 'https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
-            { id: 'videasy', name: 'Barfi', movie: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff', tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
-            { id: 'vidsrc_ru', name: 'Laddu', movie: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.ru/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidsrc_su', name: 'Peda', movie: 'https://vidsrc-embed.su/embed/movie/{tmdbId}', tv: 'https://vidsrc-embed.su/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidsrcme', name: 'Gajar Ka Halwa', movie: 'https://vidsrcme.su/embed/movie/{tmdbId}', tv: 'https://vidsrcme.su/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'multiembed', name: 'Soan Papdi', movie: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1', tv: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1&s={season}&e={episode}' },
-            { id: 'vsrc', name: 'Sandesh', movie: 'https://vsrc.su/embed/movie/{tmdbId}', tv: 'https://vsrc.su/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidlink', name: 'Cham Cham', movie: 'https://vidlink.pro/movie/{tmdbId}', tv: 'https://vidlink.pro/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'autoembed', name: 'Kulfi', movie: 'https://player.autoembed.app/embed/movie/{tmdbId}', tv: 'https://player.autoembed.app/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidfast', name: 'Mysore Pak', movie: 'https://vidfast.pro/movie/{tmdbId}', tv: 'https://vidfast.pro/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'movies111', name: 'Imarti', movie: 'https://111movies.com/movie/{tmdbId}', tv: 'https://111movies.com/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'vidora', name: 'Ghevar', movie: 'https://vidora.su/movie/{tmdbId}?parameters', tv: 'https://vidora.su/tv/{tmdbId}/{season}/{episode}?autoplay=true' },
-            { id: 'cinezo', name: 'Cheesecake', movie: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true', tv: 'https://player.cinezo.live/embed/tv/{tmdbId}/{season}/{episode}?autoplay=true' },
-            { id: 'nankhatai', name: 'Nankhatai', movie: 'https://www.NontonGo.win/embed/movie/{tmdbId}', tv: 'https://www.NontonGo.win/embed/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'petha', name: 'Petha', movie: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true', tv: 'https://www.NontonGo.win/player/tv/{tmdbId}/{season}/{episode}?autoplay=true' }
         ];
-
-        let activeProvider = 'rasmalai';
+        
+        let activeProvider = 'moovie';
         let partyBufferingTimer = null;
         let lastMooviePlayerTime = 0;
         let lastMooviePlayerPlaying = false;
@@ -1990,7 +1937,6 @@
                 currentUserName = next.trim();
                 safeLocalStorage.setItem('movora_username', currentUserName);
                 updateHeaderBadge();
-                if (isHost && activeRoom?.id) markAsPartyHost(activeRoom.id);
                 if (channel) {
                     void syncPresenceTrack();
                 }
@@ -2163,56 +2109,14 @@
         }
 
         async function resolveDefaultStreamProvider() {
-            if (isAnime) {
-                activeProvider = 'animeplay_sub';
-                return;
-            }
-
-            // Check query param first
-            const paramProvider = urlParams.get('provider');
-            if (paramProvider) {
-                const matched = serversList.find(s => s.id === paramProvider.toLowerCase());
-                if (matched) {
-                    activeProvider = matched.id;
-                    return;
-                }
-            }
-
-            try {
-                const { data } = await supabaseClient
-                    .from('app_settings')
-                    .select('value')
-                    .eq('key', 'default_provider')
-                    .single();
-                if (data?.value) {
-                    const matched = serversList.find(s => s.id === data.value.toLowerCase());
-                    activeProvider = matched ? data.value.toLowerCase() : 'rasmalai';
-                } else {
-                    activeProvider = 'rasmalai';
-                }
-            } catch (e) {
-                console.warn('Failed to fetch default provider, using rasmalai:', e);
-                activeProvider = 'rasmalai';
-            }
+            activeProvider = 'moovie';
         }
 
         async function loadRoomEmbed() {
             setPlayerStagePending(true);
 
             try {
-                if (isAnime && !isNetflix) {
-                    const resolvedAnilistId = await resolvePartyAnilistId(mediaId);
-                    if (resolvedAnilistId && resolvedAnilistId !== String(mediaId)) {
-                        mediaId = resolvedAnilistId;
-                    }
-                }
-
-                if (isNetflix) {
-                    await loadNetflixPartyPlayer();
-                    return;
-                }
-
-                await resolveDefaultStreamProvider();
+                resolveDefaultStreamProvider();
                 populateServerDropdown();
                 switchStreamProvider(activeProvider);
             } catch (err) {
@@ -2285,28 +2189,11 @@
 
         function populateServerDropdown() {
             const menu = document.getElementById('server-dropdown-menu');
-            if (isAnime) {
-                const animeServers = [
-                    { id: 'videasy', name: 'Barfi (Sub/Dub)' },
-                    { id: 'animeplay_sub', name: 'Shrikhand (Sub)' },
-                    { id: 'animeplay_dub', name: 'Shrikhand (Dub)' },
-                    { id: 'megaplay_sub', name: 'Rabri (Sub)' },
-                    { id: 'megaplay_dub', name: 'Rabri (Dub)' }
-                ];
-                menu.innerHTML = animeServers.map(srv => `
-                    <button class="server-dropdown-item ${srv.id === activeProvider ? 'active' : ''}" onclick="switchStreamProvider('${srv.id}')">
-                        ${srv.name}
-                    </button>
-                `).join('');
-                return;
-            }
-            menu.innerHTML = serversList.map(srv => {
-                const tooltip = srv.id === 'cinemaos' ? ` title="Gulab Jamun - If server does not load or takes time, click on gear icon - select server - and choose ultrafast"` : ` title="${srv.name}"`;
-                return `
-                <button class="server-dropdown-item ${srv.id === activeProvider ? 'active' : ''}"${tooltip} onclick="switchStreamProvider('${srv.id}')">
+            menu.innerHTML = serversList.map(srv => `
+                <button class="server-dropdown-item ${srv.id === activeProvider ? 'active' : ''}" onclick="switchStreamProvider('${srv.id}')">
                     ${srv.name}
                 </button>
-            `}).join('');
+            `).join('');
         }
 
         function showEmbedPlayer(embedUrl) {
@@ -2319,68 +2206,13 @@
                 newIframe.className = oldIframe.className;
                 newIframe.style.display = 'block';
                 newIframe.allowFullscreen = true;
-
-                const lowerUrl = embedUrl.toLowerCase();
-                const isAnimeplay = lowerUrl.includes('animeplay.cfd') || lowerUrl.includes('megaplay.buzz');
-                newIframe.setAttribute(
-                    'allow',
-                    isAnimeplay
-                        ? 'autoplay; fullscreen; picture-in-picture'
-                        : 'autoplay; fullscreen; encrypted-media; picture-in-picture'
-                );
-                if (isAnimeplay) {
-                    newIframe.referrerPolicy = 'origin';
-                }
+                newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
                 newIframe.src = embedUrl;
                 parent.replaceChild(newIframe, oldIframe);
-
-                // Add server tip overlay for CinemaOS
-                let existingTip = parent.querySelector('.party-server-tip');
-                if (existingTip) existingTip.remove();
-                
-                if (lowerUrl.includes('cinemaos.live')) {
-                    const tip = document.createElement('div');
-                    tip.className = 'party-server-tip';
-                    let secondsLeft = 15;
-                    
-                    const renderTip = () => {
-                        tip.innerHTML = `<p>If server does not load or takes time, click on gear icon <span>&rarr;</span> select server <span>&rarr;</span> choose <strong>ultrafast</strong>. <span style="color: var(--ember); margin-left: 0.35rem; font-weight: 700; font-variant-numeric: tabular-nums;">(${secondsLeft}s)</span></p>`;
-                    };
-                    
-                    renderTip();
-                    parent.appendChild(tip);
-                    
-                    const interval = setInterval(() => {
-                        secondsLeft--;
-                        if (secondsLeft >= 0 && tip.parentNode) {
-                            renderTip();
-                        }
-                    }, 1000);
-                    
-                    setTimeout(() => {
-                        if (tip.parentNode) {
-                            tip.classList.add('fade-out');
-                            clearInterval(interval);
-                            setTimeout(() => tip.remove(), 600);
-                        }
-                    }, 15000);
-                }
             }
         }
 
         function getEmbedUrlForServer(srv, mediaIdForEmbed, isTvShow, s, e) {
-            if (isAnime) {
-                const anilistId = mediaIdForEmbed;
-                if (activeProvider === 'videasy') {
-                    const isAnimeMovie = !activeRoom?.embed_sources?.includes('_ep');
-                    return isAnimeMovie
-                        ? `https://player.videasy.net/anime/${anilistId}?color=E05A47&autoplayNextEpisode=true&overlay=true`
-                        : `https://player.videasy.net/anime/${anilistId}/${e}?color=E05A47&autoplayNextEpisode=true&overlay=true`;
-                }
-                const lang = (activeProvider === 'animeplay_dub' || activeProvider === 'megaplay_dub') ? 'dub' : 'sub';
-                const domain = (activeProvider === 'megaplay_sub' || activeProvider === 'megaplay_dub') ? 'https://megaplay.buzz' : 'https://animeplay.cfd';
-                return `${domain}/stream/ani/${anilistId}/${e}/${lang}`;
-            }
             let template = isTvShow ? srv.tv : srv.movie;
             return template
                 .replaceAll('{tmdbId}', mediaIdForEmbed)
@@ -2393,22 +2225,6 @@
             activeProvider = providerId;
             updateSyncNoticeText();
 
-            // Update trigger active text
-            if (isAnime) {
-                const matchedName = providerId === 'videasy' ? 'Barfi (Sub/Dub)' : (
-                    providerId === 'animeplay_dub' ? 'Shrikhand (Dub)' : (
-                        providerId === 'megaplay_sub' ? 'Rabri (Sub)' : (
-                            providerId === 'megaplay_dub' ? 'Rabri (Dub)' : 'Shrikhand (Sub)'
-                        )
-                    )
-                );
-                setPartyToolbarValue('active-server-name', matchedName);
-                populateServerDropdown();
-
-                showEmbedPlayer(getEmbedUrlForServer(null, mediaId, false, 1, episode));
-                return;
-            }
-
             const matched = serversList.find(s => s.id === providerId);
             if (matched) {
                 setPartyToolbarValue('active-server-name', matched.name);
@@ -2418,9 +2234,7 @@
 
             if (matched) {
                 const embedUrl = getEmbedUrlForServer(matched, mediaId, isTv, season, episode);
-                
-                    showEmbedPlayer(embedUrl);
-                
+                showEmbedPlayer(embedUrl);
             }
         }
 
@@ -2985,9 +2799,6 @@
                 })
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
-                    const wasHost = isHost;
-                    maybePromoteSoloHost(state);
-                    if (!wasHost && isHost) void syncPresenceTrack();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
                 })
@@ -3029,10 +2840,8 @@
                     appendChatMessage('System', `${name} left the watch party.`, 'system');
                 });
 
-            channel.subscribe(async (status) => {
+            channel.subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    maybePromoteSoloHost(channel.presenceState());
-                    await syncPresenceTrack();
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);

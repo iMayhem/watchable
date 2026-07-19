@@ -395,6 +395,29 @@
             if (notice) notice.classList.add('is-dismissed');
         }
 
+        function updateSyncNoticeText() {
+            const textEl = document.querySelector('#chat-sync-notice .chat-sync-notice__text');
+            if (!textEl) return;
+
+            if (activeProvider === 'moovie') {
+                textEl.innerHTML = `
+                    🎉 <strong>Moovie server is active!</strong> Playback is auto-synced to the host.
+                    Any actions (play, pause, seek) by the host will keep everyone in sync.
+                `;
+                // Temporarily show the notice for Moovie server even if it was dismissed
+                const notice = document.getElementById('chat-sync-notice');
+                if (notice) notice.classList.remove('is-dismissed');
+            } else {
+                textEl.innerHTML = `
+                    Video isn’t auto-synced — we skipped sync to avoid buffering issues. Pick the
+                    <strong>same server</strong>, count down <strong>3, 2, 1</strong> in chat, then hit
+                    play together. Chat is live and synced for everyone in the room.
+                `;
+                // Restore dismissed state if it was previously dismissed
+                restoreChatSyncNoticeState();
+            }
+        }
+
         window.dismissChatSyncNotice = dismissChatSyncNotice;
 
         // Parsing room parameter for custom player URLs
@@ -1778,6 +1801,8 @@
 
         let activeProvider = 'rasmalai';
         let partyBufferingTimer = null;
+        let lastMooviePlayerTime = 0;
+        let lastMooviePlayerPlaying = false;
 
         // Session Setup
         let currentUserName = safeLocalStorage.getItem('movora_username');
@@ -2141,6 +2166,16 @@
                 return;
             }
 
+            // Check query param first
+            const paramProvider = urlParams.get('provider');
+            if (paramProvider) {
+                const matched = serversList.find(s => s.id === paramProvider.toLowerCase());
+                if (matched) {
+                    activeProvider = matched.id;
+                    return;
+                }
+            }
+
             try {
                 const { data } = await supabaseClient
                     .from('app_settings')
@@ -2354,6 +2389,7 @@
         // Switch stream server locally
         function switchStreamProvider(providerId) {
             activeProvider = providerId;
+            updateSyncNoticeText();
 
             // Update trigger active text
             if (isAnime) {
@@ -2903,6 +2939,47 @@
                         : `Episode ${nextEp}`;
                     appendChatMessage('System', `The host advanced the watch party to ${epLabel}!`, 'system');
                 })
+                .on('broadcast', { event: 'moovie_playback_sync' }, (payload) => {
+                    console.warn('[Party] Received broadcast moovie_playback_sync:', payload, 'isHost:', isHost, 'activeProvider:', activeProvider);
+                    if (isHost) return;
+                    if (activeProvider !== 'moovie') return;
+                    const data = payload.payload || {};
+                    if (data.sender === currentUserName) return;
+
+                    const iframe = document.getElementById('video-player-iframe');
+                    if (iframe && iframe.contentWindow) {
+                        console.warn('[Party] Forwarding to iframe: moovie-command-sync', data);
+                        iframe.contentWindow.postMessage({
+                            type: 'moovie-command-sync',
+                            time: data.time,
+                            playing: data.playing,
+                            event: data.event,
+                            force: data.event === 'seek' || data.event === 'play' || data.event === 'pause'
+                        }, '*');
+                    }
+                })
+                .on('broadcast', { event: 'moovie_sync_request' }, (payload) => {
+                    console.warn('[Party] Received broadcast moovie_sync_request:', payload, 'isHost:', isHost, 'activeProvider:', activeProvider);
+                    if (!isHost) return;
+                    if (activeProvider !== 'moovie') return;
+                    const data = payload.payload || {};
+                    if (data.sender === currentUserName) return;
+
+                    // Send the current playback status back to the channel
+                    if (channel) {
+                        console.warn('[Party] Replying to sync request with:', lastMooviePlayerTime, lastMooviePlayerPlaying);
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'moovie_playback_sync',
+                            payload: {
+                                event: 'heartbeat',
+                                time: lastMooviePlayerTime,
+                                playing: lastMooviePlayerPlaying,
+                                sender: currentUserName
+                            }
+                        });
+                    }
+                })
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
                     const wasHost = isHost;
@@ -2919,6 +2996,24 @@
                     const name = displayNameFromPresence(key, newPresences);
                     if (name !== currentUserName) {
                         appendChatMessage('System', `${name} joined the watch party!`, 'system');
+
+                        // If we are the host, immediately broadcast current state to help them sync on join
+                        if (isHost && activeProvider === 'moovie' && channel) {
+                            setTimeout(() => {
+                                if (channel && activeProvider === 'moovie') {
+                                    channel.send({
+                                        type: 'broadcast',
+                                        event: 'moovie_playback_sync',
+                                        payload: {
+                                            event: 'heartbeat',
+                                            time: lastMooviePlayerTime,
+                                            playing: lastMooviePlayerPlaying,
+                                            sender: currentUserName
+                                        }
+                                    });
+                                }
+                            }, 1000);
+                        }
                     }
                 })
                 .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
@@ -3176,30 +3271,64 @@
 
 
 
+        // Listen for events from iframe players
+        window.addEventListener('message', (event) => {
+            let data = event.data;
+            if (typeof data === 'string') {
+                try {
+                    data = JSON.parse(data);
+                } catch (e) {
+                    return;
+                }
+            }
+            if (!data) return;
+
+            if (data.event === 'complete') {
+                if (isHost && (isAnime || isTv) && partyAutoNext) {
+                    changePartyEpisode(episode + 1);
+                }
+            } else if (data.type === 'watchable-player-sync') {
+                console.warn('[Party] Received watchable-player-sync from iframe:', data, 'isHost:', isHost);
+                if (isHost) {
+                    // Store the host's player time and state
+                    lastMooviePlayerTime = data.time;
+                    lastMooviePlayerPlaying = data.playing;
+
+                    // Broadcast the event to guests
+                    if (channel) {
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'moovie_playback_sync',
+                            payload: {
+                                event: data.event,
+                                time: data.time,
+                                playing: data.playing,
+                                sender: currentUserName
+                            }
+                        });
+                    }
+                } else if (data.event === 'ready') {
+                    // Guest player loaded: request the latest state from the host
+                    console.warn('[Party] Guest player ready, sending sync request...');
+                    if (channel) {
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'moovie_sync_request',
+                            payload: {
+                                sender: currentUserName
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
         // Page Init logic
         window.addEventListener('DOMContentLoaded', async () => {
             restoreChatSyncNoticeState();
+            updateSyncNoticeText();
             updateHeaderBadge();
             bindPartyEpNavButtons();
-
-            // Listen for complete event from iframe players to advance episodes for social host
-            window.addEventListener('message', (event) => {
-                let data = event.data;
-                if (typeof data === 'string') {
-                    try {
-                        data = JSON.parse(data);
-                    } catch (e) {
-                        return;
-                    }
-                }
-                if (!data) return;
-
-                if (data.event === 'complete') {
-                    if (isHost && (isAnime || isTv) && partyAutoNext) {
-                        changePartyEpisode(episode + 1);
-                    }
-                }
-            });
 
             try {
                 if (joinRoomId) {

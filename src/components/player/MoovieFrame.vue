@@ -600,6 +600,69 @@ export default defineComponent({
             }
         }
 
+        // WatchTogether sync protocol
+        let isRespondingToSync = false;
+        let pendingSyncTime: number | null = null;
+        let pendingSyncPlaying: boolean | null = null;
+
+        function reportPlayerEvent(event: 'play' | 'pause' | 'seek' | 'heartbeat' | 'ready', time?: number) {
+            if (isRespondingToSync) return;
+            if (typeof window === 'undefined' || window.parent === window) return;
+            const video = videoRef.value;
+            if (!video) return;
+            console.warn('[MoovieFrame] reportPlayerEvent:', event, 'time:', time ?? video.currentTime, 'playing:', !video.paused);
+            window.parent.postMessage({
+                type: 'watchable-player-sync',
+                event,
+                time: time ?? video.currentTime,
+                playing: !video.paused
+            }, '*');
+        }
+
+        function handleParentMessage(e: MessageEvent) {
+            const data = e.data;
+            if (!data || typeof data !== 'object') return;
+            if (data.type !== 'moovie-command-sync') return;
+
+            const video = videoRef.value;
+            if (!video) return;
+
+            console.warn('[MoovieFrame] handleParentMessage received command:', data, 'readyState:', video.readyState);
+
+            if (video.readyState < 1) {
+                if (data.time != null && Number.isFinite(data.time)) {
+                    pendingSyncTime = data.time;
+                }
+                if (data.playing != null) {
+                    pendingSyncPlaying = data.playing;
+                }
+                return;
+            }
+
+            isRespondingToSync = true;
+
+            // Sync current time
+            if (data.time != null && Number.isFinite(data.time)) {
+                const diff = Math.abs(video.currentTime - data.time);
+                if (diff > 3 || data.force) {
+                    video.currentTime = data.time;
+                }
+            }
+
+            // Sync play/pause state
+            if (data.playing != null) {
+                if (data.playing && video.paused) {
+                    video.play().catch(() => {});
+                } else if (!data.playing && !video.paused) {
+                    video.pause();
+                }
+            }
+
+            setTimeout(() => {
+                isRespondingToSync = false;
+            }, 100);
+        }
+
         const playing = ref(false)
         const currentTime = ref(0)
         const duration = ref(0)
@@ -737,12 +800,57 @@ export default defineComponent({
 
             const onBufferEnd = () => { buffering.value = false; playing.value = !video.paused }
             const onTimeUpdate = () => { currentTime.value = video.currentTime; duration.value = video.duration || 0 }
-            const onPlayPause = () => { playing.value = !video.paused }
+            const onPlayPause = () => { 
+                playing.value = !video.paused;
+                reportPlayerEvent(video.paused ? 'pause' : 'play');
+            }
+            const onSeeked = () => {
+                onBufferEnd();
+                reportPlayerEvent('seek');
+            }
+            const applyPendingSync = () => {
+                if (video.readyState >= 1) {
+                    if (pendingSyncTime != null || pendingSyncPlaying != null) {
+                        console.warn('[MoovieFrame] applyPendingSync executing. readyState:', video.readyState, 'pendingSyncTime:', pendingSyncTime, 'pendingSyncPlaying:', pendingSyncPlaying);
+                        isRespondingToSync = true;
+                        if (pendingSyncTime != null) {
+                            video.currentTime = pendingSyncTime;
+                            pendingSyncTime = null;
+                        }
+                        if (pendingSyncPlaying != null) {
+                            if (pendingSyncPlaying && video.paused) {
+                                video.play().catch((err) => {
+                                    console.warn('[MoovieFrame] play() failed (likely autoplay policy):', err);
+                                });
+                            } else if (!pendingSyncPlaying && !video.paused) {
+                                video.pause();
+                            }
+                            pendingSyncPlaying = null;
+                        }
+                        setTimeout(() => {
+                            isRespondingToSync = false;
+                        }, 500);
+                    }
+                }
+            };
+
+            video.addEventListener('loadedmetadata', applyPendingSync)
+            video.addEventListener('loadeddata', applyPendingSync)
+            video.addEventListener('canplay', applyPendingSync)
+            video.addEventListener('play', applyPendingSync)
+
+            const pendingSyncInterval = setInterval(() => {
+                if (pendingSyncTime != null || pendingSyncPlaying != null) {
+                    applyPendingSync();
+                } else {
+                    clearInterval(pendingSyncInterval);
+                }
+            }, 250);
             video.addEventListener('waiting', () => { buffering.value = true })
             video.addEventListener('playing', onBufferEnd)
             video.addEventListener('canplay', onBufferEnd)
             video.addEventListener('loadeddata', onBufferEnd)
-            video.addEventListener('seeked', onBufferEnd)
+            video.addEventListener('seeked', onSeeked)
             video.addEventListener('error', onBufferEnd)
             video.addEventListener('abort', onBufferEnd)
             video.addEventListener('timeupdate', onTimeUpdate)
@@ -1551,11 +1659,14 @@ export default defineComponent({
 
         function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
 
+        let heartbeatInterval: any = null;
+
         onMounted(() => {
             computeAmbient(); startTrackingIfNeeded()
             document.addEventListener('click', onClickOutside)
             document.addEventListener('fullscreenchange', onFullscreenChange)
             document.addEventListener('keydown', onKeydown)
+            window.addEventListener('message', handleParentMessage)
             const root = rootRef.value
             if (root) {
                 root.addEventListener('mousemove', resetIdleTimer)
@@ -1563,14 +1674,28 @@ export default defineComponent({
                 root.addEventListener('mouseleave', handleMouseLeave)
             }
             resetIdleTimer()
+
+            // Heartbeat sync timer (every 3 seconds)
+            heartbeatInterval = setInterval(() => {
+                if (playing.value) {
+                    reportPlayerEvent('heartbeat');
+                }
+            }, 3000);
+
+            // Report ready event for watchtogether playback sync on mount
+            setTimeout(() => {
+                reportPlayerEvent('ready');
+            }, 100);
         })
         onUnmounted(() => {
             if (idleTimer) clearTimeout(idleTimer)
+            if (heartbeatInterval) clearInterval(heartbeatInterval)
             cancelScrape(); destroyPlayer()
             if (stopTracking) { stopTracking(); stopTracking = null }
             document.removeEventListener('click', onClickOutside)
             document.removeEventListener('fullscreenchange', onFullscreenChange)
             document.removeEventListener('keydown', onKeydown)
+            window.removeEventListener('message', handleParentMessage)
             const root = rootRef.value
             if (root) {
                 root.removeEventListener('mousemove', resetIdleTimer)

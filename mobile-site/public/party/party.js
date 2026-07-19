@@ -37,6 +37,7 @@
 
         function checkIsPartyHost(room) {
             if (!room?.id) return false;
+            if (room.host) return room.host === currentUserName;
             const entry = readPartyHostMap()[room.id];
             if (entry && entry.user === currentUserName) return true;
             return room.name === `${currentUserName}'s Watch Lounge`;
@@ -1806,7 +1807,7 @@
 
         // Session Setup
         let currentUserName = safeLocalStorage.getItem('movora_username');
-        if (!currentUserName) {
+        if (!currentUserName || !/_\d{4}$/.test(currentUserName)) {
             const funnyPrefixes = [
                 'butter', 'bread', 'popcorn', 'jelly', 'cheese', 'chilli', 'garlic', 'honey',
                 'maple', 'cream', 'peanut', 'banana', 'coconut', 'potato', 'cookie', 'waffle',
@@ -1819,7 +1820,7 @@
             ];
             const randomPrefix = funnyPrefixes[Math.floor(Math.random() * funnyPrefixes.length)];
             const randomSuffix = funnySuffixes[Math.floor(Math.random() * funnySuffixes.length)];
-            currentUserName = randomPrefix + randomSuffix;
+            currentUserName = randomPrefix + randomSuffix + '_' + Math.floor(1000 + Math.random() * 9000);
             safeLocalStorage.setItem('movora_username', currentUserName);
         }
 
@@ -2828,7 +2829,8 @@
                         name: name,
                         movie_title: movieTitle,
                         embed_sources: embedUrl,
-                        scheduled_start_time: new Date().toISOString()
+                        scheduled_start_time: new Date().toISOString(),
+                        host: currentUserName
                     }])
                     .select()
                     .single();

@@ -271,7 +271,8 @@ CREATE TABLE IF NOT EXISTS public.rooms (
     scheduled_start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     is_private BOOLEAN NOT NULL DEFAULT false,
-    media_id TEXT
+    media_id TEXT,
+    host TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_rooms_media_id ON public.rooms (media_id);

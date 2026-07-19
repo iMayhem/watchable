@@ -1488,15 +1488,34 @@ export default defineComponent({
         }
 
         async function downloadSubtitleBlob(subUrl: string, needsProxy: boolean): Promise<string | null> {
-            const fetchUrl = needsProxy ? `${HUB_BASE}/proxy?destination=${encodeURIComponent(subUrl)}` : subUrl
+            let fetchUrl = needsProxy ? `${HUB_BASE}/proxy?destination=${encodeURIComponent(subUrl)}` : subUrl
             try {
-                const resp = await fetch(fetchUrl, { signal: AbortSignal.timeout(15000) })
+                let resp = await fetch(fetchUrl, { signal: AbortSignal.timeout(15000) })
+                if (!resp.ok && needsProxy) {
+                    console.warn('[OpenSubtitles] Proxy fetch returned not-ok status. Falling back to direct fetch.');
+                    fetchUrl = subUrl;
+                    resp = await fetch(fetchUrl, { signal: AbortSignal.timeout(15000) })
+                }
                 if (!resp.ok) return null
                 const text = await resp.text()
                 const vtt = srtToVtt(text)
                 const blob = new Blob([vtt], { type: 'text/vtt' })
                 return URL.createObjectURL(blob)
-            } catch {
+            } catch (err) {
+                if (needsProxy) {
+                    console.warn('[OpenSubtitles] Proxy fetch failed with error, trying direct fallback:', err);
+                    try {
+                        const resp = await fetch(subUrl, { signal: AbortSignal.timeout(15000) })
+                        if (resp.ok) {
+                            const text = await resp.text()
+                            const vtt = srtToVtt(text)
+                            const blob = new Blob([vtt], { type: 'text/vtt' })
+                            return URL.createObjectURL(blob)
+                        }
+                    } catch (fallbackErr) {
+                        console.warn('[OpenSubtitles] Direct fallback fetch also failed:', fallbackErr);
+                    }
+                }
                 return null
             }
         }

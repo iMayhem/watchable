@@ -120,18 +120,6 @@
                             <p class="comment-card__body">{{ c.content }}</p>
                             
                             <div class="comment-card__footer">
-                                <!-- Likes voting counter -->
-                                <button 
-                                    @click="toggleUpvote(c)" 
-                                    class="comment-card__vote-btn"
-                                    :class="{ 'comment-card__vote-btn--active': c.userLiked }"
-                                >
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2">
-                                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-                                    </svg>
-                                    <span class="comment-card__vote-count">{{ c.likes }}</span>
-                                </button>
-
                                 <!-- Reply action -->
                                 <button @click="activeReplyId = activeReplyId === c.id ? null : c.id; replyText = '';" class="comment-card__reply-action-btn">
                                     Reply
@@ -264,15 +252,12 @@ export default defineComponent({
                     content = match[2];
                 }
                 
-                // Deterministic initial likes based on comment ID hash
-                const baseLikes = Math.abs((c.id * 17) % 245) + 3;
-
                 return {
                     ...c,
                     content,
                     parentId,
                     depth: 0,
-                    likes: baseLikes,
+                    likes: 0,
                     userLiked: false,
                     replies: []
                 };
@@ -460,16 +445,6 @@ export default defineComponent({
             return count;
         };
 
-        const toggleUpvote = (c: RenderComment) => {
-            if (c.userLiked) {
-                c.likes -= 1;
-                c.userLiked = false;
-            } else {
-                c.likes += 1;
-                c.userLiked = true;
-            }
-        };
-
         const flagComment = (c: RenderComment) => {
             alert(`Comment by ${c.username} has been reported for moderation.`);
         };
@@ -543,7 +518,6 @@ export default defineComponent({
             isDirectlyCollapsed,
             getAncestorIdAtDepth,
             countReplies,
-            toggleUpvote,
             flagComment,
             formatTimeAgo
         };

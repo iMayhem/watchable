@@ -1,5 +1,14 @@
 <template>
-    <div ref="rootRef" class="moovie-frame" :class="{ 'has-error': error, 'is-buffering': buffering, 'is-controls-hidden': controlsHidden }">
+    <div
+        ref="rootRef"
+        class="moovie-frame"
+        :class="{ 'has-error': error, 'is-buffering': buffering, 'is-controls-hidden': controlsHidden }"
+        :style="{
+            '--sub-bg-opacity': subtitleBgOpacity,
+            '--sub-text-opacity': subtitleTextOpacity,
+            '--sub-font-size': subtitleFontSize + '%'
+        }"
+    >
         <div v-if="ambientImage" class="moovie-frame__bloom" :style="{ backgroundImage: `url(${ambientImage})` }" aria-hidden="true" />
 
         <div class="moovie-frame__stage">
@@ -298,6 +307,68 @@
                     </template>
 
                     <template v-if="settingsSection === 'subtitles'">
+                        <!-- Subtitle Delay Sync Control -->
+                        <div class="moovie-frame__settings-group">
+                            <span class="moovie-frame__settings-group-title">Timing Delay</span>
+                            <div class="moovie-frame__sync-row">
+                                <button class="moovie-frame__sync-btn" @click="changeSubtitleDelay(-0.5)">-0.5s</button>
+                                <span class="moovie-frame__sync-value">{{ subtitleDelay.toFixed(1) }}s</span>
+                                <button class="moovie-frame__sync-btn" @click="changeSubtitleDelay(0.5)">+0.5s</button>
+                                <button class="moovie-frame__sync-btn is-reset" @click="resetSubtitleDelay">Reset</button>
+                            </div>
+                        </div>
+
+                        <div class="moovie-frame__settings-divider" />
+
+                        <!-- Subtitle Opacity & Style Controls -->
+                        <div class="moovie-frame__settings-group">
+                            <span class="moovie-frame__settings-group-title">Background Opacity</span>
+                            <div class="moovie-frame__option-grid">
+                                <button
+                                    v-for="op in [0, 0.25, 0.5, 0.75, 1.0]"
+                                    :key="op"
+                                    class="moovie-frame__option-btn"
+                                    :class="{ 'is-active': subtitleBgOpacity === op }"
+                                    @click="subtitleBgOpacity = op"
+                                >
+                                    {{ Math.round(op * 100) }}%
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="moovie-frame__settings-group">
+                            <span class="moovie-frame__settings-group-title">Text Opacity</span>
+                            <div class="moovie-frame__option-grid">
+                                <button
+                                    v-for="op in [0.5, 0.75, 1.0]"
+                                    :key="op"
+                                    class="moovie-frame__option-btn"
+                                    :class="{ 'is-active': subtitleTextOpacity === op }"
+                                    @click="subtitleTextOpacity = op"
+                                >
+                                    {{ Math.round(op * 100) }}%
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="moovie-frame__settings-group">
+                            <span class="moovie-frame__settings-group-title">Font Size</span>
+                            <div class="moovie-frame__option-grid">
+                                <button
+                                    v-for="sz in [75, 100, 125, 150]"
+                                    :key="sz"
+                                    class="moovie-frame__option-btn"
+                                    :class="{ 'is-active': subtitleFontSize === sz }"
+                                    @click="subtitleFontSize = sz"
+                                >
+                                    {{ sz }}%
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="moovie-frame__settings-divider" />
+
+                        <span class="moovie-frame__settings-group-title" style="padding: 0 0.75rem;">Tracks</span>
                         <button
                             class="moovie-frame__settings-item"
                             :class="{ 'is-active': selectedSubtitleTrack === -1 }"
@@ -312,7 +383,7 @@
                             :class="{ 'is-active': selectedSubtitleTrack === track.id }"
                             @click="selectSubtitleTrack(track.id)"
                         >
-                            <span>{{ track.name }}<span v-if="track.lang" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
+                            <span>{{ track.name }}<span v-if="track.lang && track.lang !== track.name" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
                         </button>
                         <button
                             v-if="!subtitleTracks.length"
@@ -558,6 +629,90 @@ export default defineComponent({
     setup(props, ctx) {
         const rootRef = ref<HTMLElement | null>(null)
         const videoRef = ref<HTMLVideoElement | null>(null)
+
+        const subtitleDelay = ref(0)
+        const subtitleBgOpacity = ref(0.75)
+        const subtitleTextOpacity = ref(1.0)
+        const subtitleFontSize = ref(100)
+
+        function resolveFullLanguageName(code?: string): string {
+            if (!code) return 'Unknown';
+            const cleaned = code.trim().toLowerCase();
+            const map: Record<string, string> = {
+                'en': 'English', 'eng': 'English',
+                'hi': 'Hindi', 'hin': 'Hindi',
+                'es': 'Spanish', 'spa': 'Spanish',
+                'fr': 'French', 'fra': 'French', 'fre': 'French',
+                'de': 'German', 'deu': 'German', 'ger': 'German',
+                'it': 'Italian', 'ita': 'Italian',
+                'ja': 'Japanese', 'jpn': 'Japanese',
+                'ko': 'Korean', 'kor': 'Korean',
+                'zh': 'Chinese', 'zho': 'Chinese', 'chi': 'Chinese',
+                'ru': 'Russian', 'rus': 'Russian',
+                'ar': 'Arabic', 'ara': 'Arabic',
+                'pt': 'Portuguese', 'por': 'Portuguese',
+                'nl': 'Dutch', 'nld': 'Dutch', 'dut': 'Dutch',
+                'tr': 'Turkish', 'tur': 'Turkish',
+                'pl': 'Polish', 'pol': 'Polish',
+                'sv': 'Swedish', 'swe': 'Swedish',
+                'vi': 'Vietnamese', 'vie': 'Vietnamese',
+                'th': 'Thai', 'tha': 'Thai',
+                'id': 'Indonesian', 'ind': 'Indonesian',
+                'ms': 'Malay', 'msa': 'Malay',
+                'fa': 'Persian', 'fas': 'Persian',
+                'he': 'Hebrew', 'heb': 'Hebrew',
+                'uk': 'Ukrainian', 'ukr': 'Ukrainian',
+                'ro': 'Romanian', 'ron': 'Romanian', 'rum': 'Romanian',
+                'el': 'Greek', 'ell': 'Greek', 'gre': 'Greek',
+                'cs': 'Czech', 'ces': 'Czech', 'cze': 'Czech',
+                'hu': 'Hungarian', 'hun': 'Hungarian',
+                'fi': 'Finnish', 'fin': 'Finnish',
+                'no': 'Norwegian', 'nor': 'Norwegian',
+                'da': 'Danish', 'dan': 'Danish',
+                'sk': 'Slovak', 'slk': 'Slovak', 'slo': 'Slovak',
+                'bg': 'Bulgarian', 'bul': 'Bulgarian',
+                'hr': 'Croatian', 'hrv': 'Croatian',
+                'sr': 'Serbian', 'srp': 'Serbian',
+                'sl': 'Slovenian', 'slv': 'Slovenian',
+                'et': 'Estonian', 'est': 'Estonian',
+                'lv': 'Latvian', 'lav': 'Latvian',
+                'lt': 'Lithuanian', 'lit': 'Lithuanian',
+                'tl': 'Tagalog', 'tgl': 'Tagalog',
+            };
+            if (map[cleaned]) return map[cleaned];
+            const prefix = cleaned.split('-')[0];
+            if (map[prefix]) return map[prefix];
+            return code.charAt(0).toUpperCase() + code.slice(1);
+        }
+
+        function adjustCueTimes(delay: number) {
+            const video = videoRef.value;
+            if (!video) return;
+            for (let i = 0; i < video.textTracks.length; i++) {
+                const track = video.textTracks[i];
+                const cues = track.cues;
+                if (!cues) continue;
+                for (let j = 0; j < cues.length; j++) {
+                    const cue = cues[j] as VTTCue;
+                    if ((cue as any)._originalStartTime === undefined) {
+                        (cue as any)._originalStartTime = cue.startTime;
+                        (cue as any)._originalEndTime = cue.endTime;
+                    }
+                    cue.startTime = (cue as any)._originalStartTime + delay;
+                    cue.endTime = (cue as any)._originalEndTime + delay;
+                }
+            }
+        }
+
+        function changeSubtitleDelay(amount: number) {
+            subtitleDelay.value += amount
+            adjustCueTimes(subtitleDelay.value)
+        }
+
+        function resetSubtitleDelay() {
+            subtitleDelay.value = 0
+            adjustCueTimes(0)
+        }
         const qualityRootRef = ref<HTMLElement | null>(null)
         const loading = ref(false)
         const error = ref('')
@@ -910,11 +1065,14 @@ export default defineComponent({
                     selectedAudioTrack.value = hlsInstance.audioTrack ?? -1
                 })
                 hlsInstance.on(HlsCtor.Events.SUBTITLE_TRACKS_UPDATED, () => {
-                    subtitleTracks.value = (hlsInstance.subtitleTracks || []).map((t: any, i: number) => ({
-                        id: i,
-                        name: t.name || t.lang || `Track ${i}`,
-                        lang: t.lang,
-                    }))
+                    subtitleTracks.value = (hlsInstance.subtitleTracks || []).map((t: any, i: number) => {
+                        const fullName = resolveFullLanguageName(t.name || t.lang);
+                        return {
+                            id: i,
+                            name: fullName || `Track ${i}`,
+                            lang: resolveFullLanguageName(t.lang),
+                        };
+                    })
                     selectedSubtitleTrack.value = hlsInstance.subtitleTrack ?? -1
                 })
                 hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
@@ -1351,13 +1509,16 @@ export default defineComponent({
             subsLoading = false
             if (!subs.length) { console.debug('[OpenSubtitles] no subtitles found'); return }
 
-            const openTracks = subs.map((sub, i) => ({
-                id: OPENSUBS_TRACK_OFFSET + i,
-                name: sub.language || `Sub ${i}`,
-                lang: sub.language,
-                subUrl: sub.url,
-                needsProxy: sub.needsProxy,
-            }))
+            const openTracks = subs.map((sub, i) => {
+                const fullName = resolveFullLanguageName(sub.language);
+                return {
+                    id: OPENSUBS_TRACK_OFFSET + i,
+                    name: fullName || `Sub ${i}`,
+                    lang: resolveFullLanguageName(sub.language),
+                    subUrl: sub.url,
+                    needsProxy: sub.needsProxy,
+                };
+            })
 
             subtitleTracks.value = [
                 ...subtitleTracks.value.filter(t => t.id < OPENSUBS_TRACK_OFFSET),
@@ -1660,6 +1821,7 @@ export default defineComponent({
         function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
 
         let heartbeatInterval: any = null;
+        let cueTimer: any = null;
 
         onMounted(() => {
             computeAmbient(); startTrackingIfNeeded()
@@ -1674,7 +1836,7 @@ export default defineComponent({
                 root.addEventListener('mouseleave', handleMouseLeave)
             }
             resetIdleTimer()
-
+ 
             // Heartbeat sync timer (every 3 seconds)
             heartbeatInterval = setInterval(() => {
                 if (playing.value) {
@@ -1686,10 +1848,17 @@ export default defineComponent({
             setTimeout(() => {
                 reportPlayerEvent('ready');
             }, 100);
+
+            cueTimer = setInterval(() => {
+                if (subtitleDelay.value !== 0) {
+                    adjustCueTimes(subtitleDelay.value)
+                }
+            }, 1000);
         })
         onUnmounted(() => {
             if (idleTimer) clearTimeout(idleTimer)
             if (heartbeatInterval) clearInterval(heartbeatInterval)
+            if (cueTimer) clearInterval(cueTimer)
             cancelScrape(); destroyPlayer()
             if (stopTracking) { stopTracking(); stopTracking = null }
             document.removeEventListener('click', onClickOutside)
@@ -1704,7 +1873,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, changeSubtitleDelay, resetSubtitleDelay }
     },
 })
 </script>
@@ -2462,5 +2631,111 @@ export default defineComponent({
         font-size: 0.8rem;
         margin-bottom: 0.4rem;
     }
+}
+
+.moovie-frame__settings-group {
+    padding: 0.35rem 0.75rem 0.5rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.moovie-frame__settings-group-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.moovie-frame__sync-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.moovie-frame__sync-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.1s;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.12);
+    }
+    
+    &:active {
+        transform: scale(0.95);
+    }
+
+    &.is-reset {
+        background: rgba(255, 90, 31, 0.15);
+        border-color: rgba(255, 90, 31, 0.1);
+        color: var(--ember, #ff5a1f);
+
+        &:hover {
+            background: rgba(255, 90, 31, 0.25);
+        }
+    }
+}
+
+.moovie-frame__sync-value {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 48px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.moovie-frame__option-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.moovie-frame__option-btn {
+    flex: 1;
+    min-width: 40px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+    }
+
+    &.is-active {
+        background: rgba(255, 90, 31, 0.10);
+        border-color: rgba(255, 90, 31, 0.25);
+        color: var(--ember, #ff5a1f);
+        font-weight: 700;
+    }
+}
+
+/* Subtitle Cue styling rules */
+.moovie-frame video::cue {
+    background-color: rgba(8, 8, 8, var(--sub-bg-opacity, 0.75)) !important;
+    color: rgba(255, 255, 255, var(--sub-text-opacity, 1)) !important;
+    font-size: var(--sub-font-size, 100%) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
 }
 </style>

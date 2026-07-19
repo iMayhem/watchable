@@ -2376,6 +2376,29 @@
             max-width: 100%;
         }
 
+        .give-host-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-left: 0.4rem;
+            padding: 0.15rem 0.5rem;
+            background: rgba(255, 200, 0, 0.12);
+            border: 1px solid rgba(255, 200, 0, 0.35);
+            border-radius: 4px;
+            color: #ffc800;
+            font-size: 0.72rem;
+            font-style: normal;
+            font-weight: 600;
+            cursor: pointer;
+            vertical-align: middle;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .give-host-btn:hover {
+            background: rgba(255, 200, 0, 0.22);
+            border-color: rgba(255, 200, 0, 0.6);
+        }
+
         .chat-bubble.other {
             align-self: flex-start;
             background: rgba(255, 255, 255, 0.04);

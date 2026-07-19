@@ -181,6 +181,49 @@
 
         window.toggleRoomPrivacy = toggleRoomPrivacy;
 
+        /**
+         * giveHostControlTo(targetUser)
+         * Allows the current host to transfer host control to another participant.
+         * Broadcasts a 'moovie_host_transfer' event so all clients update host state.
+         * Also exposed globally so the inline "Give Host" button in chat can call it.
+         */
+        // Flag to prevent the sender from double-processing their own host transfer broadcast echo
+        let _hostTransferInFlight = false;
+
+        async function giveHostControlTo(targetUser) {
+            if (!isHost) {
+                alert('Only the current host can transfer host control.');
+                return;
+            }
+            if (!targetUser || targetUser === currentUserName) return;
+            if (!channel) return;
+
+            const prevHost = currentUserName;
+
+            // Update local state BEFORE broadcasting so the echo (if received) is ignored
+            isHost = false;
+            _hostTransferInFlight = true;
+            await syncPresenceTrack();
+            updateRoomPrivacyButton();
+
+            // Broadcast the transfer to all other participants
+            channel.send({
+                type: 'broadcast',
+                event: 'moovie_host_transfer',
+                payload: {
+                    newHost: targetUser,
+                    prevHost: prevHost
+                }
+            });
+
+            appendChatMessage('System', `👑 You transferred host control to ${targetUser}.`, 'system');
+
+            // Clear the in-flight flag after a short debounce
+            setTimeout(() => { _hostTransferInFlight = false; }, 2000);
+        }
+
+        window.giveHostControlTo = giveHostControlTo;
+
         // Adjust links for file:// protocol vs http:// protocol dynamically
         if (window.location.protocol !== 'file:') {
             document.querySelectorAll('a[href="../index.html"]').forEach(link => {
@@ -2908,19 +2951,52 @@
                     const data = payload.payload || {};
                     if (data.sender === currentUserName) return;
 
-                    // Send the current playback status back to the channel
+                    // Query the live player time before responding for accuracy
                     if (channel) {
-                        console.warn('[Party] Replying to sync request with:', lastMooviePlayerTime, lastMooviePlayerPlaying);
+                        const iframe = document.getElementById('video-player-iframe');
+                        const liveTime = (iframe && iframe.contentWindow)
+                            ? null  // will use lastMooviePlayerTime updated by heartbeat
+                            : null;
+                        const syncTime = lastMooviePlayerTime ?? 0;
+                        const syncPlaying = lastMooviePlayerPlaying ?? false;
+                        console.warn('[Party] Replying to sync request with seek event. time:', syncTime, 'playing:', syncPlaying);
                         channel.send({
                             type: 'broadcast',
                             event: 'moovie_playback_sync',
                             payload: {
-                                event: 'heartbeat',
-                                time: lastMooviePlayerTime,
-                                playing: lastMooviePlayerPlaying,
+                                event: 'seek',  // force-seek so guest always jumps to exact timestamp
+                                time: syncTime,
+                                playing: syncPlaying,
                                 sender: currentUserName
                             }
                         });
+                    }
+                })
+                .on('broadcast', { event: 'moovie_host_transfer' }, async (payload) => {
+                    const data = payload.payload || {};
+                    console.warn('[Party] Received moovie_host_transfer:', data, 'currentUser:', currentUserName, 'isHost:', isHost);
+                    if (!data.newHost) return;
+
+                    if (data.newHost === currentUserName) {
+                        // We are the new host
+                        isHost = true;
+                        if (activeRoom) markAsPartyHost(activeRoom.id);
+                        await syncPresenceTrack();
+                        updateRoomPrivacyButton();
+                        appendChatMessage('System', '\ud83d\udc51 You are now the host! You control playback for everyone.', 'system');
+                    } else if (data.prevHost === currentUserName) {
+                        // We were the host but gave it away — skip if already handled locally
+                        if (_hostTransferInFlight) {
+                            console.warn('[Party] Skipping host transfer echo — already handled locally');
+                            return;
+                        }
+                        isHost = false;
+                        await syncPresenceTrack();
+                        updateRoomPrivacyButton();
+                        appendChatMessage('System', `\ud83d\udc51 You transferred host control to ${data.newHost}.`, 'system');
+                    } else {
+                        // Spectator \u2014 just notify
+                        appendChatMessage('System', `\ud83d\udc51 ${data.newHost} is now the host.`, 'system');
                     }
                 })
                 .on('presence', { event: 'sync' }, () => {
@@ -2938,9 +3014,22 @@
                     broadcastLobbyParticipantCount(channel, state);
                     const name = displayNameFromPresence(key, newPresences);
                     if (name !== currentUserName) {
-                        appendChatMessage('System', `${name} joined the watch party!`, 'system');
+                        // Show a join message; if we are the host, also show a "Give Host" button
+                        const box = document.getElementById('chat-box');
+                        const bubble = document.createElement('div');
+                        bubble.className = 'chat-bubble system';
+                        if (isHost) {
+                            bubble.innerHTML = `${name} joined the watch party! <button
+                                class="give-host-btn"
+                                title="Transfer host control to ${name}"
+                                onclick="giveHostControlTo('${name.replace(/'/g, "\\'")}')"
+                            >👑 Give Host</button>`;
+                        } else {
+                            bubble.textContent = `${name} joined the watch party!`;
+                        }
+                        if (box) { box.appendChild(bubble); box.scrollTop = box.scrollHeight; }
 
-                        // If we are the host, immediately broadcast current state to help them sync on join
+                        // If we are the host, immediately force-seek the new guest to current timestamp
                         if (isHost && activeProvider === 'moovie' && channel) {
                             setTimeout(() => {
                                 if (channel && activeProvider === 'moovie') {
@@ -2948,14 +3037,14 @@
                                         type: 'broadcast',
                                         event: 'moovie_playback_sync',
                                         payload: {
-                                            event: 'heartbeat',
-                                            time: lastMooviePlayerTime,
-                                            playing: lastMooviePlayerPlaying,
+                                            event: 'seek',  // force-seek so new guest jumps to exact timestamp
+                                            time: lastMooviePlayerTime ?? 0,
+                                            playing: lastMooviePlayerPlaying ?? false,
                                             sender: currentUserName
                                         }
                                     });
                                 }
-                            }, 1000);
+                            }, 1200);
                         }
                     }
                 })

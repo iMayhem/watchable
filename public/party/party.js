@@ -46,6 +46,7 @@
             isHost = created || checkIsPartyHost(room);
             if (isHost && room?.id) markAsPartyHost(room.id);
             if (activeRoom?.id === room?.id) updateRoomPrivacyButton();
+            updateJoinHostButtonVisibility();
         }
 
         function isRoomPrivate(room) {
@@ -123,6 +124,7 @@
             isHost = true;
             markAsPartyHost(activeRoom.id);
             updateRoomPrivacyButton();
+            updateJoinHostButtonVisibility();
         }
 
         function updateRoomPrivacyButton() {
@@ -218,12 +220,48 @@
 
             appendChatMessage('System', `👑 You transferred host control to ${targetUser}.`, 'system');
             if (channel) updateParticipantsPanel(channel.presenceState());
+            updateJoinHostButtonVisibility();
 
             // Clear the in-flight flag after a short debounce
             setTimeout(() => { _hostTransferInFlight = false; }, 2000);
         }
 
         window.giveHostControlTo = giveHostControlTo;
+
+        function updateJoinHostButtonVisibility() {
+            const btn = document.getElementById('join-host-btn');
+            if (!btn) return;
+            btn.style.display = (!isHost && activeProvider === 'moovie') ? 'inline-block' : 'none';
+        }
+
+        function requestSyncFromHost() {
+            console.warn('[Party] Manually requesting sync from host...');
+            if (channel) {
+                channel.send({
+                    type: 'broadcast',
+                    event: 'moovie_sync_request',
+                    payload: {
+                        sender: currentUserName
+                    }
+                });
+
+                // Nice micro-animation indicator on the sync button
+                const btn = document.getElementById('join-host-btn');
+                if (btn) {
+                    const originalText = btn.textContent;
+                    btn.textContent = 'Syncing...';
+                    btn.disabled = true;
+                    btn.style.opacity = '0.6';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    }, 1200);
+                }
+            }
+        }
+
+        window.requestSyncFromHost = requestSyncFromHost;
 
         // Adjust links for file:// protocol vs http:// protocol dynamically
         if (window.location.protocol !== 'file:') {
@@ -2407,6 +2445,7 @@
                     showEmbedPlayer(embedUrl);
                 
             }
+            updateJoinHostButtonVisibility();
         }
 
         // Cinema mode toggler
@@ -3001,6 +3040,7 @@
                         // Spectator — just notify
                         appendChatMessage('System', `\ud83d\udc51 ${data.newHost} is now the host.`, 'system');
                     }
+                    updateJoinHostButtonVisibility();
                 })
                 .on('presence', { event: 'sync' }, () => {
                     const state = channel.presenceState();
@@ -3048,6 +3088,22 @@
                                     });
                                 }
                             }, 1200);
+                        }
+                    } else {
+                        // This is US joining the room!
+                        // If we are a guest, append a system message for ourselves with a "Join Host" button to sync manually
+                        if (!isHost) {
+                            setTimeout(() => {
+                                const box = document.getElementById('chat-box');
+                                const bubble = document.createElement('div');
+                                bubble.className = 'chat-bubble system';
+                                bubble.innerHTML = `You joined the watch party! <button
+                                    class="give-host-btn"
+                                    title="Request sync from host"
+                                    onclick="requestSyncFromHost()"
+                                >👑 Join Host</button>`;
+                                if (box) { box.appendChild(bubble); box.scrollTop = box.scrollHeight; }
+                            }, 600);
                         }
                     }
                 })

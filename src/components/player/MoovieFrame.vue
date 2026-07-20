@@ -179,9 +179,29 @@
                         <span class="moovie-frame__time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
                     </div>
                     <div class="moovie-frame__controls-right">
-                        <button class="moovie-frame__ctrl-btn" @click="toggleMute" aria-label="Mute">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" /><path v-if="!muted" d="M15.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" /><path v-if="!muted" d="M19 12c0 2.97-1.65 5.54-4 6.71v2.06c3.45-1.28 6-4.56 6-8.77s-2.55-7.49-6-8.77v2.06c2.35 1.17 4 3.74 4 6.71z" /><line v-if="muted" x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
-                        </button>
+                        <div class="moovie-frame__volume-control">
+                            <button
+                                class="moovie-frame__ctrl-btn"
+                                @click.stop="handleVolumeButtonClick"
+                                aria-label="Mute"
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" /><path v-if="!muted" d="M15.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" /><path v-if="!muted" d="M19 12c0 2.97-1.65 5.54-4 6.71v2.06c3.45-1.28 6-4.56 6-8.77s-2.55-7.49-6-8.77v2.06c2.35 1.17 4 3.74 4 6.71z" /><line v-if="muted" x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+                            </button>
+                            <transition name="fade">
+                                <div v-if="volumeSliderOpen" class="moovie-frame__volume-slider-popup" @click.stop>
+                                    <input
+                                        type="range"
+                                        class="moovie-frame__volume-vertical-slider"
+                                        min="0"
+                                        max="1"
+                                        step="0.05"
+                                        :value="muted ? 0 : volume"
+                                        @input="onVolumeChange"
+                                        aria-label="Volume"
+                                    />
+                                </div>
+                            </transition>
+                        </div>
                         <button
                             class="moovie-frame__ctrl-btn moovie-frame__three-dot-btn"
                             :class="{ 'is-open': settingsOpen }"
@@ -802,6 +822,31 @@ export default defineComponent({
         const selectedHlsQuality = ref(-1)
         const OPENSUBS_TRACK_OFFSET = 1000
 
+        const volumeSliderOpen = ref(false)
+        const volume = ref(0.8)
+
+        function onVolumeChange(e: Event) {
+            const video = videoRef.value
+            if (!video) return
+            const val = parseFloat((e.target as HTMLInputElement).value)
+            video.volume = val
+            volume.value = val
+            if (val > 0) {
+                video.muted = false
+                muted.value = false
+            } else {
+                video.muted = true
+                muted.value = true
+            }
+        }
+        function handleVolumeButtonClick() {
+            if (!volumeSliderOpen.value) {
+                volumeSliderOpen.value = true
+            } else {
+                toggleMute()
+            }
+        }
+
         const controlsHidden = ref(false)
         const brandText = computed(() => {
             if (typeof window !== 'undefined') {
@@ -1082,7 +1127,12 @@ export default defineComponent({
             video.addEventListener('timeupdate', onTimeUpdate)
             video.addEventListener('play', onPlayPause)
             video.addEventListener('pause', onPlayPause)
-            video.addEventListener('volumechange', () => { muted.value = video.muted })
+            video.addEventListener('volumechange', () => {
+                muted.value = video.muted
+                if (!video.muted) {
+                    volume.value = video.volume
+                }
+            })
             video.addEventListener('durationchange', onTimeUpdate)
             video.addEventListener('enterpictureinpicture', () => { isPiP.value = true })
             video.addEventListener('leavepictureinpicture', () => { isPiP.value = false })
@@ -1630,6 +1680,12 @@ export default defineComponent({
 
         function onClickOutside(e: MouseEvent) {
             const target = e.target as Node
+            if (volumeSliderOpen.value) {
+                const volBtn = rootRef.value?.querySelector('.moovie-frame__volume-control')
+                if (volBtn && !volBtn.contains(target)) {
+                    volumeSliderOpen.value = false
+                }
+            }
             if (qualityOpen.value && !qualityRootRef.value?.contains(target)) {
                 qualityOpen.value = false
             }
@@ -1928,6 +1984,9 @@ export default defineComponent({
 
         onMounted(() => {
             computeAmbient(); startTrackingIfNeeded()
+            if (videoRef.value) {
+                volume.value = videoRef.value.volume
+            }
             document.addEventListener('click', onClickOutside)
             document.addEventListener('fullscreenchange', onFullscreenChange)
             document.addEventListener('keydown', onKeydown)
@@ -1979,7 +2038,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick }
     },
 })
 </script>
@@ -3190,6 +3249,83 @@ export default defineComponent({
         line-height: 1.4;
         display: inline-block;
         white-space: pre-wrap;
+    }
+}
+
+
+
+/* Volume control popover container */
+.moovie-frame__volume-control {
+    position: relative;
+    display: inline-block;
+}
+
+.moovie-frame__volume-slider-popup {
+    position: absolute;
+    bottom: 45px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(8, 8, 12, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    width: 32px;
+    height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 120;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+}
+
+.moovie-frame__volume-vertical-slider {
+    position: absolute;
+    width: 80px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    transform: rotate(-90deg);
+    
+    &::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 4px;
+        background: transparent;
+    }
+
+    &::-webkit-slider-thumb {
+        appearance: none;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: 0 0 6px var(--ember-glow), 0 0 0 1px rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        margin-top: -3px;
+        transition: transform 0.1s ease, background-color 0.2s;
+        
+        &:hover {
+            transform: scale(1.2);
+            background-color: var(--ember);
+        }
+    }
+
+    &::-moz-range-thumb {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 0;
+        box-shadow: 0 0 6px var(--ember-glow), 0 0 0 1px rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        transition: transform 0.1s ease, background-color 0.2s;
+        
+        &:hover {
+            transform: scale(1.2);
+            background-color: var(--ember);
+        }
     }
 }
 

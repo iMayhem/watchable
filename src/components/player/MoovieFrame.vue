@@ -1855,6 +1855,9 @@ export default defineComponent({
         }, { immediate: true })
 
         function onKeydown(e: KeyboardEvent) {
+            const tag = (e.target as HTMLElement)?.tagName
+            const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
+            if (isEditable) return
             if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); togglePlay() }
             if (e.key === 'ArrowRight') { seekBy(10); e.preventDefault() }
             if (e.key === 'ArrowLeft') { seekBy(-10); e.preventDefault() }

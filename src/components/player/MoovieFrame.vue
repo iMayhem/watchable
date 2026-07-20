@@ -3186,28 +3186,25 @@ export default defineComponent({
 
 /* Big play button */
 .moovie-frame__big-play-btn {
-    width: 70px;
-    height: 70px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
     color: #ffffff;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.85;
+    transition: opacity 0.2s, transform 0.2s;
     transform: scale(1);
     cursor: pointer;
     
     svg {
-        width: 24px;
-        height: 24px;
-        margin-left: 3px; // offset to visual center
+        width: 48px;
+        height: 48px;
+        margin-left: 4px;
+        filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
     }
 
     &:hover {
-        background: rgba(255, 255, 255, 0.25);
-        transform: scale(1.08);
+        opacity: 1;
+        transform: scale(1.1);
     }
 }
 

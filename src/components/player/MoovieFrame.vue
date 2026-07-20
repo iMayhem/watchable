@@ -21,7 +21,7 @@
                     v-if="settingsOpen && settingsSection === 'subtitles'"
                     class="moovie-frame__preview-cue"
                 >
-                    <span>This is a preview of the subtitles</span>
+                    <span v-html="activeCueTextFormatted"></span>
                 </div>
 
                 <!-- Loading/Scraping backdrop: native embedded feel -->
@@ -706,6 +706,48 @@ export default defineComponent({
         const subtitleFontSize = ref(100)
         const subtitlePosition = ref(100)
 
+        const activeCueText = ref('This is a preview of the subtitles')
+        const activeCueTextFormatted = computed(() => {
+            return activeCueText.value.replace(/\n/g, '<br>')
+        })
+
+        function updateActiveCueText() {
+            const video = videoRef.value
+            if (!video) return
+            // Find showing text track
+            let showingTrack: TextTrack | null = null
+            for (let i = 0; i < video.textTracks.length; i++) {
+                const track = video.textTracks[i]
+                if (track.mode === 'showing') {
+                    showingTrack = track
+                    break
+                }
+            }
+            if (showingTrack && showingTrack.activeCues && showingTrack.activeCues.length > 0) {
+                // Get the text from the active cue(s)
+                const texts: string[] = []
+                for (let j = 0; j < showingTrack.activeCues.length; j++) {
+                    const cue = showingTrack.activeCues[j] as VTTCue
+                    if (cue && cue.text) {
+                        texts.push(cue.text.replace(/<[^>]+>/g, '')) // strip HTML tags
+                    }
+                }
+                if (texts.length > 0) {
+                    activeCueText.value = texts.join('\n')
+                    return
+                }
+            }
+            // If no active cue but track has cues, fall back to first cue as placeholder example
+            if (showingTrack && showingTrack.cues && showingTrack.cues.length > 0) {
+                const firstCue = showingTrack.cues[0] as VTTCue
+                if (firstCue && firstCue.text) {
+                    activeCueText.value = firstCue.text.replace(/<[^>]+>/g, '')
+                    return
+                }
+            }
+            activeCueText.value = 'This is a preview of the subtitles'
+        }
+
         function resolveFullLanguageName(code?: string): string {
             if (!code) return 'Unknown';
             const cleaned = code.trim().toLowerCase();
@@ -1075,7 +1117,7 @@ export default defineComponent({
             video.playbackRate = playbackSpeed.value
 
             const onBufferEnd = () => { buffering.value = false; playing.value = !video.paused }
-            const onTimeUpdate = () => { currentTime.value = video.currentTime; duration.value = video.duration || 0 }
+            const onTimeUpdate = () => { currentTime.value = video.currentTime; duration.value = video.duration || 0; updateActiveCueText() }
             const onPlayPause = () => { 
                 playing.value = !video.paused;
                 reportPlayerEvent(video.paused ? 'pause' : 'play');
@@ -2066,7 +2108,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>

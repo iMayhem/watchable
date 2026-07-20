@@ -269,6 +269,9 @@ export default defineComponent({
             if (newOpen) {
                 previewSeason.value = props.currentSeason;
                 emit('preview-season', props.currentSeason);
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
             }
         });
 

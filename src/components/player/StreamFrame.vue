@@ -52,15 +52,6 @@
                     <button type="button" class="stream-frame__retry" @click="retry">Reload</button>
                 </div>
 
-                <!-- Fullscreen toggle -->
-                <button
-                    class="stream-frame__fullscreen-btn"
-                    @click="toggleFullscreen"
-                    :aria-label="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'"
-                >
-                    <svg v-if="!isFullscreen" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
-                    <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /></svg>
-                </button>
             </div>
         </div>
     </div>
@@ -94,7 +85,6 @@ export default defineComponent({
         const shouldLoad = ref(false);
         const showOverlay = ref(false);
         const countdown = ref(10);
-        const isFullscreen = ref(false);
 
         let overlayTimer: number | null = null;
         let intervalTimer: number | null = null;
@@ -215,18 +205,6 @@ export default defineComponent({
             }
         };
 
-        function toggleFullscreen() {
-            const el = rootRef.value;
-            if (!el) return;
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                el.requestFullscreen().catch((e) => console.warn('[StreamFrame] fullscreen failed:', e.message));
-            }
-        }
-
-        function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }
-
         watch(
             () => props.embedUrl,
             (next, prev) => {
@@ -255,7 +233,6 @@ export default defineComponent({
             startTrackingIfNeeded();
             window.addEventListener('beforeunload', handleUnload);
             window.addEventListener('pagehide', handleUnload);
-            document.addEventListener('fullscreenchange', onFullscreenChange);
             startMessages();
             // Delay rendering the heavy iframe to let the page transition and paint skeleton cleanly
             window.setTimeout(() => {
@@ -266,7 +243,6 @@ export default defineComponent({
         onUnmounted(() => {
             window.removeEventListener('beforeunload', handleUnload);
             window.removeEventListener('pagehide', handleUnload);
-            document.removeEventListener('fullscreenchange', onFullscreenChange);
             stopMessages();
             if (stopTracking) {
                 stopTracking();
@@ -290,9 +266,7 @@ export default defineComponent({
             onLoad,
             onError,
             retry,
-            shouldLoad,
-            isFullscreen,
-            toggleFullscreen
+            shouldLoad
         };
     }
 });
@@ -326,24 +300,6 @@ export default defineComponent({
             );
         }
     }
-
-    &:fullscreen &__stage,
-    &:-webkit-full-screen &__stage {
-        padding: 0;
-        max-width: 100%;
-    }
-
-    &:fullscreen &__player,
-    &:-webkit-full-screen &__player {
-        aspect-ratio: unset;
-        border-radius: 0;
-        box-shadow: none;
-        height: 100dvh;
-        width: 100vw;
-    }
-
-    &:fullscreen &__bloom,
-    &:-webkit-full-screen &__bloom { display: none; }
 
     &__stage {
         position: relative;
@@ -488,33 +444,6 @@ export default defineComponent({
         margin: 0 auto;
     }
 
-    &__fullscreen-btn {
-        position: absolute;
-        bottom: 8px;
-        right: 8px;
-        z-index: 20;
-        width: 34px;
-        height: 34px;
-        display: grid;
-        place-content: center;
-        background: rgba(0, 0, 0, 0.6);
-        border: 0;
-        border-radius: 6px;
-        color: #f0eee3;
-        cursor: pointer;
-        opacity: 0;
-        transition: opacity 0.15s;
-        pointer-events: auto;
-
-        .stream-frame__player:hover &,
-        &:focus-visible {
-            opacity: 1;
-        }
-
-        &:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-    }
 
     &__server-tip {
         position: absolute;

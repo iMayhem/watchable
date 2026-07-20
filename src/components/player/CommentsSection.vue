@@ -30,6 +30,7 @@
 
             <div class="comment-form__textarea-container">
                 <textarea
+                    ref="mainTextarea"
                     v-model="newCommentText"
                     placeholder="Type your comment... Join the discussion!"
                     class="comment-form__textarea"
@@ -38,6 +39,12 @@
                     required
                 ></textarea>
                 
+                <div class="comment-form__toolbar">
+                    <button type="button" class="fmt-btn" title="Bold" @click="wrapText('main', '**')"><strong>B</strong></button>
+                    <button type="button" class="fmt-btn" title="Italic" @click="wrapText('main', '*')"><em>I</em></button>
+                    <button type="button" class="fmt-btn" title="Strikethrough" @click="wrapText('main', '~~')"><s>S</s></button>
+                    <button type="button" class="fmt-btn fmt-btn--spoiler" title="Spoiler" @click="wrapText('main', '||')">Spoiler</button>
+                </div>
                 <div class="comment-form__actions">
                     <span class="comment-form__char-count">{{ newCommentText.length }}/500</span>
                     <button
@@ -70,15 +77,7 @@
                     }"
                     :style="{ paddingLeft: `calc(${c.depth} * 40px + var(--s-4))` }"
                 >
-                    <!-- Reddit/9anime style connection lines representing ancestors -->
-                    <div 
-                        v-for="i in c.depth" 
-                        :key="i"
-                        class="comment-card__thread-line"
-                        :style="{ left: `calc(${i - 1} * 40px + 28px)` }"
-                        @click="toggleCollapse(getAncestorIdAtDepth(c, i - 1))"
-                        title="Collapse thread"
-                    />
+
 
                     <!-- Comment Card Core Content -->
                     <div class="comment-card__content-wrapper">
@@ -140,14 +139,9 @@
                         class="reply-composer-form" 
                         :style="{ paddingLeft: `calc(${(c.depth + 1)} * 40px + var(--s-4))` }"
                     >
-                        <div 
-                            v-for="i in (c.depth + 1)" 
-                            :key="i"
-                            class="comment-card__thread-line"
-                            :style="{ left: `calc(${i - 1} * 40px + 28px)` }"
-                        />
                         <div class="reply-composer-form__content">
                             <textarea 
+                                ref="replyTextarea"
                                 v-model="replyText" 
                                 placeholder="Write a reply..." 
                                 class="reply-composer-form__textarea" 
@@ -155,9 +149,15 @@
                                 maxlength="500"
                                 required
                             ></textarea>
+                            <div class="reply-composer-form__toolbar">
+                                <button type="button" class="fmt-btn" title="Bold" @click="wrapText('reply', '**')"><strong>B</strong></button>
+                                <button type="button" class="fmt-btn" title="Italic" @click="wrapText('reply', '*')"><em>I</em></button>
+                                <button type="button" class="fmt-btn" title="Strikethrough" @click="wrapText('reply', '~~')"><s>S</s></button>
+                                <button type="button" class="fmt-btn fmt-btn--spoiler" title="Spoiler" @click="wrapText('reply', '||')">Spoiler</button>
+                            </div>
                             <div class="reply-composer-form__buttons">
-                                <button type="button" @click="activeReplyId = null" class="btn btn-secondary btn-xs">Cancel</button>
-                                <button type="submit" class="btn btn-primary btn-xs" :disabled="submittingReply || !replyText.trim()">
+                                <button type="button" @click="activeReplyId = null" class="reply-composer-form__cancel-btn">Cancel</button>
+                                <button type="submit" class="reply-composer-form__submit-btn" :disabled="submittingReply || !replyText.trim()">
                                     {{ submittingReply ? 'Posting...' : 'Reply' }}
                                 </button>
                             </div>
@@ -214,6 +214,23 @@ export default defineComponent({
         const currentUsername = ref('');
         const activeReplyId = ref<number | null>(null);
         const collapsedComments = ref<Set<number>>(new Set());
+        const mainTextarea = ref<HTMLTextAreaElement | null>(null);
+        const replyTextarea = ref<HTMLTextAreaElement | null>(null);
+
+        function wrapText(field: 'main' | 'reply', wrapper: string) {
+            const el = field === 'main' ? mainTextarea.value : replyTextarea.value
+            if (!el) return
+            const start = el.selectionStart
+            const end = el.selectionEnd
+            const text = field === 'main' ? newCommentText.value : replyText.value
+            const selected = text.slice(start, end)
+            const wrapped = wrapper + selected + wrapper
+            const newText = text.slice(0, start) + wrapped + text.slice(end)
+            if (field === 'main') newCommentText.value = newText
+            else replyText.value = newText
+            el.focus()
+            requestAnimationFrame(() => el.setSelectionRange(start + wrapper.length, end + wrapper.length))
+        }
 
         const checkAuth = () => {
             if (typeof window !== 'undefined') {
@@ -717,6 +734,45 @@ export default defineComponent({
         border-top: 1px solid var(--rule);
     }
 
+    &__toolbar {
+        display: flex;
+        gap: 2px;
+        padding: 4px var(--s-4);
+        border-bottom: 1px solid var(--rule);
+    }
+}
+
+.fmt-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 26px;
+    background: transparent;
+    border: none;
+    color: var(--bone-400);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    border-radius: var(--r-sm);
+    transition: background var(--dur-fast), color var(--dur-fast);
+
+    &:hover {
+        background: var(--ink-600);
+        color: var(--bone-50);
+    }
+
+    &--spoiler {
+        width: auto;
+        padding: 0 6px;
+        font-size: 0.6rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+}
+
+.comment-form {
     &__char-count {
         font-family: var(--font-mono);
         font-size: var(--fs-xs);
@@ -793,22 +849,6 @@ export default defineComponent({
     &--collapsed {
         opacity: 0.75;
         padding-bottom: var(--s-1);
-    }
-
-    // Ancestor connection lines
-    &__thread-line {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 1.5px;
-        background-color: rgba(255, 255, 255, 0.08);
-        cursor: pointer;
-        transition: background-color var(--dur-fast) ease, width var(--dur-fast) ease;
-
-        &:hover {
-            background-color: var(--ember);
-            width: 2px;
-        }
     }
 
     &__content-wrapper {
@@ -1027,6 +1067,13 @@ export default defineComponent({
         }
     }
 
+    &__toolbar {
+        display: flex;
+        gap: 2px;
+        padding: 4px var(--s-4);
+        border-bottom: 1px solid var(--rule);
+    }
+
     &__buttons {
         display: flex;
         align-items: center;
@@ -1035,6 +1082,46 @@ export default defineComponent({
         padding: 0.5rem 1rem;
         background: rgba(0, 0, 0, 0.15);
         border-top: 1px solid var(--rule);
+    }
+
+    &__submit-btn {
+        background: var(--ember);
+        color: var(--ink-950);
+        font-weight: 600;
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        padding: 0.4rem 1rem;
+        border: none;
+        border-radius: var(--r-pill);
+        cursor: pointer;
+        transition: background-color var(--dur-fast);
+
+        &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        &:not(:disabled):hover {
+            background: var(--ember-600);
+        }
+    }
+
+    &__cancel-btn {
+        background: transparent;
+        color: var(--bone-400);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        padding: 0.4rem 0.85rem;
+        border: 1px solid var(--rule-strong);
+        border-radius: var(--r-pill);
+        cursor: pointer;
+        transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+
+        &:hover {
+            background: var(--ink-600);
+            color: var(--bone-50);
+            border-color: var(--bone-500);
+        }
     }
 }
 

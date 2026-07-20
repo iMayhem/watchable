@@ -174,38 +174,6 @@
 
             </div>
 
-            <section v-if="availableSeasons.length" class="watch-stage__rack">
-                <EpisodeNavigator
-                    :show-id="animeId"
-                    media-type="anime"
-                    :available-seasons="availableSeasons"
-                    :season-episodes="seasonEpisodes"
-                    :current-season="navigatorSeason"
-                    :current-episode="currentEpisode"
-                    :is-loading-episodes="isLoadingEpisodes"
-                    @season-change="onSeasonChange"
-                    @select="changeEpisode"
-                    @previous="goToPreviousEpisode"
-                    @next="goToNextEpisode"
-                />
-
-                <div v-if="nextAiringInfo" class="episode-navigator__upcoming">
-                    <div class="upcoming-badge">
-                        <span class="upcoming-badge__pulse" />
-                        Next Episode
-                    </div>
-                    <span class="upcoming-text">
-                        <strong>Episode {{ nextAiringInfo.episode }}</strong>
-                        <span v-if="nextAiringInfo.name && nextAiringInfo.name !== `Episode ${nextAiringInfo.episode}`">
-                            ("{{ nextAiringInfo.name }}")
-                        </span>
-                        airs on {{ nextAiringInfo.dateString }}.
-                    </span>
-                </div>
-            </section>
-
-
-
             <section v-if="animeId" class="watch-stage__rack">
                 <CommentsSection :media-id="animeId" media-type="anime" />
             </section>
@@ -239,7 +207,7 @@ import { Server } from '../composables/useStream';
 import { Episode } from '../composables/useTvShows';
 import StreamFrame from '../components/player/StreamFrame.vue';
 import ServerAccordion from '../components/player/ServerAccordion.vue';
-import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
+
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import { useAppPaths } from '../composables/useAppPaths';
@@ -276,7 +244,7 @@ export default defineComponent({
         ArrowLeft,
         ServerAccordion,
         StreamFrame,
-        EpisodeNavigator,
+
         UpNextDrawer,
         CommentsSection
     },

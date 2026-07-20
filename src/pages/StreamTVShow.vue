@@ -105,38 +105,6 @@
                 </div>
             </div>
 
-            <section v-if="!isEmbed && availableSeasons.length" class="watch-stage__rack">
-                <EpisodeNavigator
-                    :show-id="showId"
-                    :available-seasons="availableSeasons"
-                    :season-episodes="seasonEpisodes"
-                    :current-season="currentSeason"
-                    :current-episode="currentEpisode"
-                    :is-loading-episodes="isLoadingEpisodes"
-                    @season-change="onSeasonChange"
-                    @select="changeEpisode"
-                    @previous="goToPreviousEpisode"
-                    @next="goToNextEpisode"
-                />
-
-                <!-- Next Airing Date notice -->
-                <div v-if="nextAiringInfo" class="episode-navigator__upcoming">
-                    <div class="upcoming-badge">
-                        <span class="upcoming-badge__pulse" />
-                        Next Episode
-                    </div>
-                    <span class="upcoming-text">
-                        <strong>Episode {{ nextAiringInfo.episode }}</strong> 
-                        <span v-if="nextAiringInfo.name && nextAiringInfo.name !== `Episode ${nextAiringInfo.episode}`">
-                            ("{{ nextAiringInfo.name }}")
-                        </span>
-                        airs on {{ nextAiringInfo.dateString }}.
-                    </span>
-                </div>
-            </section>
-
-
-
             <section v-if="!isEmbed && show" class="watch-stage__rack">
                 <CommentsSection :media-id="show.id" media-type="tv" />
             </section>
@@ -184,7 +152,7 @@ import { useAppPaths } from '../composables/useAppPaths';
 import StreamFrame from '../components/player/StreamFrame.vue';
 import MoovieFrame from '../components/player/MoovieFrame.vue';
 import ServerAccordion from '../components/player/ServerAccordion.vue';
-import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
+
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import CommentsSection from '../components/player/CommentsSection.vue';
@@ -195,7 +163,7 @@ export default defineComponent({
         StreamFrame,
         MoovieFrame,
         ServerAccordion,
-        EpisodeNavigator,
+
         UpNextDrawer,
         ArrowLeft,
         CommentsSection

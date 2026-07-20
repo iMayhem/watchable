@@ -1516,8 +1516,9 @@ export default defineComponent({
         }
 
         @media (min-width: 1024px) {
-            min-height: 100dvh;
-            padding: 72px var(--s-5) var(--s-2) var(--s-5);
+            min-height: auto;
+            max-width: 100% !important;
+            padding: 72px 0 0 0;
             grid-template-columns: 1fr;
             align-items: stretch;
         }
@@ -1542,10 +1543,16 @@ export default defineComponent({
         @media (min-width: 1024px) {
             :deep(.stream-frame__player) {
                 width: 100%;
-                max-width: calc(80vh * 16 / 9);
+                max-width: 100% !important;
                 aspect-ratio: 16 / 9;
                 height: auto;
-                margin: 0 auto;
+                max-height: 82vh;
+                margin: 0;
+                border-radius: 0 !important;
+                border: 0 !important;
+            }
+            :deep(.stream-frame__stage) {
+                padding: 0 !important;
             }
         }
     }

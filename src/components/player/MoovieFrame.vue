@@ -3184,17 +3184,17 @@ export default defineComponent({
     letter-spacing: 0.2px;
 }
 
-/* Big play button (Peestream style in Orange) */
+/* Big play button */
 .moovie-frame__big-play-btn {
     width: 70px;
     height: 70px;
-    background: rgba(255, 90, 31, 0.85);
+    background: rgba(255, 255, 255, 0.15);
     border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
     color: #ffffff;
-    box-shadow: 0 0 25px rgba(255, 90, 31, 0.4);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     transform: scale(1);
     cursor: pointer;
@@ -3206,9 +3206,8 @@ export default defineComponent({
     }
 
     &:hover {
-        background: #ff7842;
+        background: rgba(255, 255, 255, 0.25);
         transform: scale(1.08);
-        box-shadow: 0 0 35px rgba(255, 90, 31, 0.6);
     }
 }
 

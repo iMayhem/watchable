@@ -339,6 +339,22 @@ export default defineComponent({
                 localStorage.setItem('movora_guest_name', nameToPost);
             }
 
+            const text = newCommentText.value.trim()
+            const optimistic: RenderComment = {
+                id: -Date.now(),
+                media_id: String(props.mediaId),
+                media_type: props.mediaType,
+                username: nameToPost,
+                content: text,
+                created_at: new Date().toISOString(),
+                depth: 0,
+                likes: 0,
+                userLiked: false,
+                replies: []
+            }
+            newCommentText.value = ''
+            processedComments.value = [optimistic, ...processedComments.value]
+
             try {
                 const supabase = await getSupabaseClient();
                 const { data, error } = await supabase
@@ -348,7 +364,7 @@ export default defineComponent({
                             media_id: String(props.mediaId),
                             media_type: props.mediaType,
                             username: nameToPost,
-                            content: newCommentText.value.trim()
+                            content: text
                         }
                     ])
                     .select()
@@ -357,11 +373,11 @@ export default defineComponent({
                 if (error) throw error;
 
                 if (data) {
-                    newCommentText.value = '';
                     await fetchComments();
                 }
             } catch (e) {
                 console.error('Failed to post comment:', e);
+                processedComments.value = processedComments.value.filter(c => c.id !== optimistic.id)
             } finally {
                 submitting.value = false;
             }
@@ -379,7 +395,25 @@ export default defineComponent({
                 localStorage.setItem('movora_guest_name', nameToPost);
             }
 
-            const prefixedContent = `[reply:${parentId}]${replyText.value.trim()}`;
+            const text = replyText.value.trim()
+            const prefixedContent = `[reply:${parentId}]${text}`;
+
+            const optimistic: RenderComment = {
+                id: -Date.now(),
+                media_id: String(props.mediaId),
+                media_type: props.mediaType,
+                username: nameToPost,
+                content: text,
+                created_at: new Date().toISOString(),
+                parentId,
+                depth: 1,
+                likes: 0,
+                userLiked: false,
+                replies: []
+            }
+            replyText.value = ''
+            activeReplyId.value = null
+            processedComments.value = [optimistic, ...processedComments.value]
 
             try {
                 const supabase = await getSupabaseClient();
@@ -399,12 +433,11 @@ export default defineComponent({
                 if (error) throw error;
 
                 if (data) {
-                    replyText.value = '';
-                    activeReplyId.value = null;
                     await fetchComments();
                 }
             } catch (e) {
                 console.error('Failed to post reply:', e);
+                processedComments.value = processedComments.value.filter(c => c.id !== optimistic.id)
             } finally {
                 submittingReply.value = false;
             }
@@ -964,19 +997,25 @@ export default defineComponent({
     flex-direction: column;
 
     &__content {
-        background: var(--ink-900);
+        background: var(--ink-750);
         border: 1px solid var(--rule-strong);
-        border-radius: var(--r-md);
+        border-radius: var(--r-lg);
         overflow: hidden;
         display: flex;
         flex-direction: column;
         margin-left: 36px;
+        transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+
+        &:focus-within {
+            border-color: var(--ember);
+            box-shadow: 0 0 8px var(--ember-glow);
+        }
     }
 
     &__textarea {
         background: transparent;
         border: none;
-        padding: var(--s-2) var(--s-3);
+        padding: var(--s-3) var(--s-4);
         color: var(--bone-50);
         font-family: var(--font-ui);
         font-size: var(--fs-sm);
@@ -990,10 +1029,11 @@ export default defineComponent({
 
     &__buttons {
         display: flex;
+        align-items: center;
         justify-content: flex-end;
         gap: var(--s-2);
-        padding: 4px 8px;
-        background: rgba(0, 0, 0, 0.2);
+        padding: 0.5rem 1rem;
+        background: rgba(0, 0, 0, 0.15);
         border-top: 1px solid var(--rule);
     }
 }

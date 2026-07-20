@@ -75,7 +75,7 @@
                         'comment-card--collapsed': isDirectlyCollapsed(c.id),
                         'comment-card--reply': c.depth > 0
                     }"
-                    :style="{ paddingLeft: `calc(${c.depth} * 40px + var(--s-4))` }"
+                    :style="{ '--depth': c.depth }"
                 >
 
 
@@ -137,7 +137,7 @@
                         v-if="activeReplyId === c.id && !isDirectlyCollapsed(c.id)" 
                         @submit.prevent="submitReply(c.id)" 
                         class="reply-composer-form" 
-                        :style="{ paddingLeft: `calc(${(c.depth + 1)} * 40px + var(--s-4))` }"
+                        :style="{ '--depth': c.depth + 1 }"
                     >
                         <div class="reply-composer-form__content">
                             <textarea 
@@ -589,6 +589,16 @@ export default defineComponent({
     gap: var(--s-5);
     margin-top: var(--s-6);
     width: 100%;
+    
+    --depth-indent: 32px;
+    --padding-base: var(--s-4);
+    
+    @media (max-width: 600px) {
+        --depth-indent: 14px;
+        --padding-base: var(--s-2);
+        padding: var(--s-3);
+        gap: var(--s-4);
+    }
 
     &__header {
         border-bottom: 1px solid var(--rule);
@@ -837,6 +847,7 @@ export default defineComponent({
     padding-top: var(--s-3);
     padding-bottom: var(--s-3);
     padding-right: var(--s-4);
+    padding-left: calc(var(--depth, 0) * var(--depth-indent) + var(--padding-base));
     display: flex;
     flex-direction: column;
     transition: background-color var(--dur-fast) ease;
@@ -852,6 +863,12 @@ export default defineComponent({
     &--collapsed {
         opacity: 0.75;
         padding-bottom: var(--s-1);
+    }
+
+    @media (max-width: 600px) {
+        padding-right: var(--s-2);
+        padding-top: var(--s-2);
+        padding-bottom: var(--s-2);
     }
 
     &__content-wrapper {
@@ -881,6 +898,11 @@ export default defineComponent({
         object-fit: cover;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         flex-shrink: 0;
+
+        @media (max-width: 600px) {
+            width: 20px;
+            height: 20px;
+        }
     }
 
     &__username {
@@ -957,6 +979,10 @@ export default defineComponent({
         white-space: pre-wrap;
         margin: 0;
         padding-left: 36px;
+        
+        @media (max-width: 600px) {
+            padding-left: 20px;
+        }
     }
 
     &__footer {
@@ -965,6 +991,10 @@ export default defineComponent({
         gap: var(--s-4);
         padding-left: 36px;
         margin-top: 2px;
+        
+        @media (max-width: 600px) {
+            padding-left: 20px;
+        }
     }
 
     &__vote-btn {
@@ -1027,6 +1057,10 @@ export default defineComponent({
         color: var(--bone-500);
         padding-left: 36px;
         font-size: var(--fs-xs);
+        
+        @media (max-width: 600px) {
+            padding-left: 20px;
+        }
     }
 }
 
@@ -1036,8 +1070,13 @@ export default defineComponent({
     padding-top: var(--s-1);
     padding-bottom: var(--s-3);
     padding-right: var(--s-4);
+    padding-left: calc(var(--depth, 0) * var(--depth-indent) + var(--padding-base));
     display: flex;
     flex-direction: column;
+
+    @media (max-width: 600px) {
+        padding-right: var(--s-2);
+    }
 
     &__content {
         background: var(--ink-750);
@@ -1048,6 +1087,10 @@ export default defineComponent({
         flex-direction: column;
         margin-left: 36px;
         transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+
+        @media (max-width: 600px) {
+            margin-left: 20px;
+        }
 
         &:focus-within {
             border-color: var(--ember);

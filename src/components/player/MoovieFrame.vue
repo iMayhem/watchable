@@ -23,8 +23,7 @@
                     <div v-if="loading && loadingBackdropUrl" class="moovie-frame__loading-backdrop" :style="{ backgroundImage: `url(${loadingBackdropUrl})` }" />
                 </transition>
 
-                <!-- Simple dark screen while scraping starts -->
-                <div v-if="loading && !providers.length && !error" class="moovie-frame__loader-overlay" />
+
 
                 <div v-if="!loading && !error" class="moovie-frame__center-btn" @click="togglePlay">
                     <div v-if="buffering" class="moovie-frame__spinner" />
@@ -40,7 +39,7 @@
                 </div>
 
                 <!-- Premium Scraper Overlay -->
-                <div v-if="loading && providers.length && !error" class="moovie-frame__scraper-overlay">
+                <div v-if="loading && !error" class="moovie-frame__scraper-overlay">
                     <div class="moovie-frame__scraper-card">
                         <div class="moovie-frame__scraper-header">
                             <div class="moovie-frame__scraper-scanner" />
@@ -48,6 +47,16 @@
                             <span class="moovie-frame__scraper-subtitle">Locating high-quality streams...</span>
                         </div>
                         <div class="moovie-frame__scraper-grid">
+                            <div v-if="!providers.length" class="moovie-frame__provider-row">
+                                <div class="moovie-frame__provider-info">
+                                    <span class="moovie-frame__provider-status-icon">
+                                        <span class="moovie-frame__provider-spinner" />
+                                    </span>
+                                    <div class="moovie-frame__provider-details">
+                                        <span class="moovie-frame__provider-label">Connecting to server...</span>
+                                    </div>
+                                </div>
+                            </div>
                             <div
                                 v-for="p in providers"
                                 :key="p.id"

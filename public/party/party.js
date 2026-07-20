@@ -22,6 +22,7 @@
             isHost = created || (room?.host === currentUserName);
             if (activeRoom?.id === room?.id) updateRoomPrivacyButton();
             if (channel) void syncPresenceTrack();
+            updateMakeHostButtonVisibility();
         }
 
         function isRoomPrivate(room) {
@@ -197,6 +198,7 @@
 
             appendChatMessage('System', `👑 You transferred host control to ${targetUser}.`, 'system');
             if (channel) updateParticipantsPanel(channel.presenceState());
+            closeMakeHostMenu();
 
             // Clear the in-flight flag after a short debounce
             setTimeout(() => { _hostTransferInFlight = false; }, 2000);
@@ -204,8 +206,70 @@
 
         window.giveHostControlTo = giveHostControlTo;
 
+        function toggleMakeHostMenu(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('make-host-menu');
+            if (!menu) return;
+            if (!menu.hidden) { closeMakeHostMenu(); return; }
+            populateMakeHostMenu();
+            menu.hidden = false;
+            positionMakeHostMenu();
+        }
 
+        function closeMakeHostMenu() {
+            const menu = document.getElementById('make-host-menu');
+            if (menu) menu.hidden = true;
+        }
 
+        function positionMakeHostMenu() {
+            const menu = document.getElementById('make-host-menu');
+            const btn = document.getElementById('make-host-btn');
+            if (!menu || !btn) return;
+            const rect = btn.getBoundingClientRect();
+            menu.style.right = '0';
+            menu.style.bottom = (rect.height + 4) + 'px';
+        }
+
+        function populateMakeHostMenu() {
+            const menu = document.getElementById('make-host-menu');
+            if (!menu) return;
+            menu.innerHTML = '';
+            const state = channel ? channel.presenceState() : {};
+            Object.entries(state).forEach(([key, entries]) => {
+                if (isLobbyObserverKey(key)) return;
+                const presence = Array.isArray(entries) ? entries[0] : entries;
+                if (!presence) return;
+                const name = presence.user || key.split(':')[0] || key || 'Guest';
+                if (name === currentUserName) return;
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'make-host-dropup__item';
+                item.textContent = name;
+                item.onclick = () => giveHostControlTo(name);
+                menu.appendChild(item);
+            });
+            if (!menu.children.length) {
+                const empty = document.createElement('div');
+                empty.className = 'make-host-dropup__empty';
+                empty.textContent = 'No other participants';
+                menu.appendChild(empty);
+            }
+        }
+
+        function updateMakeHostButtonVisibility() {
+            const btn = document.getElementById('make-host-btn');
+            if (!btn) return;
+            btn.hidden = !isHost;
+            if (!isHost) closeMakeHostMenu();
+        }
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('make-host-menu');
+            const btn = document.getElementById('make-host-btn');
+            if (menu && !menu.hidden && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+                closeMakeHostMenu();
+            }
+        });
         function formatDuration(seconds) {
             const sec = Math.max(0, Math.floor(seconds));
             const hrs = Math.floor(sec / 3600);

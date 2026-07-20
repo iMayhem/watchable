@@ -4323,5 +4323,44 @@
                 align-items: stretch;
             }
 
+.make-host-dropup {
+    position: absolute;
+    background: rgba(15, 15, 25, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    min-width: 170px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    padding: 0.25rem 0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.make-host-dropup__item {
+    display: block;
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    background: none;
+    border: none;
+    color: var(--bone-300);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--dur-fast);
+}
+
+.make-host-dropup__item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--bone-50);
+}
+
+.make-host-dropup__empty {
+    padding: 0.75rem;
+    color: var(--bone-500);
+    font-size: 0.75rem;
+    text-align: center;
+}
+
 
         }

@@ -22,6 +22,7 @@
             isHost = created || (room?.host === currentUserName);
             if (activeRoom?.id === room?.id) updateRoomPrivacyButton();
             if (channel) void syncPresenceTrack();
+            updateMakeHostButtonVisibility();
         }
 
         function isRoomPrivate(room) {
@@ -171,6 +172,112 @@
         }
 
         window.toggleRoomPrivacy = toggleRoomPrivacy;
+
+        // Host transfer
+        let _hostTransferInFlight = false;
+
+        async function giveHostControlTo(targetUser) {
+            if (!isHost) {
+                alert('Only the current host can transfer host control.');
+                return;
+            }
+            if (!targetUser || targetUser === currentUserName) return;
+            if (!channel) return;
+
+            const prevHost = currentUserName;
+            isHost = false;
+            _hostTransferInFlight = true;
+            if (activeRoom) activeRoom.host = targetUser;
+            await syncPresenceTrack();
+            updateRoomPrivacyButton();
+            updateMakeHostButtonVisibility();
+
+            try {
+                await supabaseClient
+                    .from('rooms')
+                    .update({ host: targetUser })
+                    .eq('id', activeRoom.id);
+            } catch (err) {
+                console.error('[Party] Failed to persist host transfer:', err);
+            }
+
+            channel.send({
+                type: 'broadcast',
+                event: 'moovie_host_transfer',
+                payload: { newHost: targetUser, prevHost }
+            });
+
+            appendChatMessage('System', '👑 You transferred host control to ' + targetUser + '.', 'system');
+            closeMakeHostMenu();
+            setTimeout(() => { _hostTransferInFlight = false; }, 2000);
+        }
+
+        window.giveHostControlTo = giveHostControlTo;
+
+        function toggleMakeHostMenu(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('make-host-menu');
+            if (!menu) return;
+            if (!menu.hidden) { closeMakeHostMenu(); return; }
+            populateMakeHostMenu();
+            menu.hidden = false;
+            positionMakeHostMenu();
+        }
+
+        function closeMakeHostMenu() {
+            const menu = document.getElementById('make-host-menu');
+            if (menu) menu.hidden = true;
+        }
+
+        function positionMakeHostMenu() {
+            const menu = document.getElementById('make-host-menu');
+            const btn = document.getElementById('make-host-btn');
+            if (!menu || !btn) return;
+            const rect = btn.getBoundingClientRect();
+            menu.style.right = '0';
+            menu.style.bottom = (rect.height + 4) + 'px';
+        }
+
+        function populateMakeHostMenu() {
+            const menu = document.getElementById('make-host-menu');
+            if (!menu) return;
+            menu.innerHTML = '';
+            const state = channel ? channel.presenceState() : {};
+            Object.entries(state).forEach(([key, entries]) => {
+                if (isLobbyObserverKey(key)) return;
+                const presence = Array.isArray(entries) ? entries[0] : entries;
+                if (!presence) return;
+                const name = presence.user || key.split(':')[0] || key || 'Guest';
+                if (name === currentUserName) return;
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'make-host-dropup__item';
+                item.textContent = name;
+                item.onclick = function() { giveHostControlTo(name); };
+                menu.appendChild(item);
+            });
+            if (!menu.children.length) {
+                const empty = document.createElement('div');
+                empty.className = 'make-host-dropup__empty';
+                empty.textContent = 'No other participants';
+                menu.appendChild(empty);
+            }
+        }
+
+        function updateMakeHostButtonVisibility() {
+            const btn = document.getElementById('make-host-btn');
+            if (!btn) return;
+            btn.hidden = !isHost;
+            if (!isHost) closeMakeHostMenu();
+        }
+
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('make-host-menu');
+            const btn = document.getElementById('make-host-btn');
+            if (menu && !menu.hidden && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+                closeMakeHostMenu();
+            }
+        });
 
         // Adjust links for file:// protocol vs http:// protocol dynamically
         if (window.location.protocol !== 'file:') {
@@ -2828,6 +2935,27 @@
                                 }
                             }, 1000);
                         }
+                    }
+                })
+                .on('broadcast', { event: 'moovie_host_transfer' }, async (payload) => {
+                    const data = payload.payload || {};
+                    if (!data.newHost) return;
+                    if (activeRoom) activeRoom.host = data.newHost;
+                    if (data.newHost === currentUserName) {
+                        isHost = true;
+                        await syncPresenceTrack();
+                        updateRoomPrivacyButton();
+                        updateMakeHostButtonVisibility();
+                        appendChatMessage('System', '👑 You are now the host! You control playback for everyone.', 'system');
+                    } else if (data.prevHost === currentUserName) {
+                        if (_hostTransferInFlight) return;
+                        isHost = false;
+                        await syncPresenceTrack();
+                        updateRoomPrivacyButton();
+                        updateMakeHostButtonVisibility();
+                        appendChatMessage('System', '👑 You transferred host control to ' + data.newHost + '.', 'system');
+                    } else {
+                        appendChatMessage('System', '👑 ' + data.newHost + ' is now the host.', 'system');
                     }
                 })
                 .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {

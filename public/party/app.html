@@ -435,6 +435,16 @@
                             </div>
                         </div>
                         <div class="controls-right" style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; flex-wrap: nowrap;">
+                            <div class="make-host-wrap" style="position: relative;">
+                                <button
+                                    type="button"
+                                    id="make-host-btn"
+                                    class="cinema-mode-btn"
+                                    hidden
+                                    onclick="toggleMakeHostMenu(event)"
+                                >Make Host</button>
+                                <div id="make-host-menu" class="make-host-dropup" hidden></div>
+                            </div>
                             <button
                                 type="button"
                                 id="room-privacy-btn"
@@ -599,7 +609,7 @@
     </main>
 
     <!-- REAL-TIME SYNC & SOCIAL ENGINE -->
-    <script src="/party/party.js?v=5" defer></script>
+    <script src="/party/party.js?v=6" defer></script>
     
     <!-- Beautiful Image View Modal -->
     <div id="image-view-modal" class="image-modal" onclick="closeImageModal()">

@@ -16,13 +16,7 @@
             <div class="moovie-frame__player">
                 <video ref="videoRef" class="moovie-frame__video" />
 
-                <!-- Realtime Subtitle Preview when adjusting settings -->
-                <div
-                    v-if="settingsOpen && settingsSection === 'subtitles'"
-                    class="moovie-frame__preview-cue"
-                >
-                    <span v-html="activeCueTextFormatted"></span>
-                </div>
+
 
                 <!-- Loading/Scraping backdrop: native embedded feel -->
                 <transition name="fade">

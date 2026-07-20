@@ -254,7 +254,6 @@ const modes = computed(() => [
         || p.startsWith('/actor/')
         || p.startsWith('/discuss')
         || p.startsWith('/upcoming')
-        || p.startsWith('/help')
         || p.startsWith('/party')
     }
 ]);

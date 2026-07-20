@@ -16,6 +16,14 @@
             <div class="moovie-frame__player">
                 <video ref="videoRef" class="moovie-frame__video" />
 
+                <!-- Realtime Subtitle Preview when adjusting settings -->
+                <div
+                    v-if="settingsOpen && settingsSection === 'subtitles'"
+                    class="moovie-frame__preview-cue"
+                >
+                    <span>This is a preview of the subtitles</span>
+                </div>
+
                 <!-- Loading/Scraping backdrop: native embedded feel -->
                 <transition name="fade">
                     <div v-if="loading && loadingBackdropUrl" class="moovie-frame__loading-backdrop" :style="{ backgroundImage: `url(${loadingBackdropUrl})` }" />
@@ -333,47 +341,53 @@
 
                         <!-- Subtitle Opacity & Style Controls -->
                         <div class="moovie-frame__settings-group">
-                            <span class="moovie-frame__settings-group-title">Background Opacity</span>
-                            <div class="moovie-frame__option-grid">
-                                <button
-                                    v-for="op in [0, 0.25, 0.5, 0.75, 1.0]"
-                                    :key="op"
-                                    class="moovie-frame__option-btn"
-                                    :class="{ 'is-active': subtitleBgOpacity === op }"
-                                    @click="subtitleBgOpacity = op"
-                                >
-                                    {{ Math.round(op * 100) }}%
-                                </button>
+                            <div class="moovie-frame__settings-slider-header">
+                                <span class="moovie-frame__settings-group-title">Background Opacity</span>
+                                <span class="moovie-frame__settings-slider-value">{{ Math.round(subtitleBgOpacity * 100) }}%</span>
+                            </div>
+                            <div class="moovie-frame__slider-wrapper">
+                                <input
+                                    type="range"
+                                    class="moovie-frame__settings-slider"
+                                    min="0"
+                                    max="1"
+                                    step="0.05"
+                                    v-model.number="subtitleBgOpacity"
+                                />
                             </div>
                         </div>
 
                         <div class="moovie-frame__settings-group">
-                            <span class="moovie-frame__settings-group-title">Text Opacity</span>
-                            <div class="moovie-frame__option-grid">
-                                <button
-                                    v-for="op in [0.5, 0.75, 1.0]"
-                                    :key="op"
-                                    class="moovie-frame__option-btn"
-                                    :class="{ 'is-active': subtitleTextOpacity === op }"
-                                    @click="subtitleTextOpacity = op"
-                                >
-                                    {{ Math.round(op * 100) }}%
-                                </button>
+                            <div class="moovie-frame__settings-slider-header">
+                                <span class="moovie-frame__settings-group-title">Text Opacity</span>
+                                <span class="moovie-frame__settings-slider-value">{{ Math.round(subtitleTextOpacity * 100) }}%</span>
+                            </div>
+                            <div class="moovie-frame__slider-wrapper">
+                                <input
+                                    type="range"
+                                    class="moovie-frame__settings-slider"
+                                    min="0.1"
+                                    max="1"
+                                    step="0.05"
+                                    v-model.number="subtitleTextOpacity"
+                                />
                             </div>
                         </div>
 
                         <div class="moovie-frame__settings-group">
-                            <span class="moovie-frame__settings-group-title">Font Size</span>
-                            <div class="moovie-frame__option-grid">
-                                <button
-                                    v-for="sz in [75, 100, 125, 150]"
-                                    :key="sz"
-                                    class="moovie-frame__option-btn"
-                                    :class="{ 'is-active': subtitleFontSize === sz }"
-                                    @click="subtitleFontSize = sz"
-                                >
-                                    {{ sz }}%
-                                </button>
+                            <div class="moovie-frame__settings-slider-header">
+                                <span class="moovie-frame__settings-group-title">Font Size</span>
+                                <span class="moovie-frame__settings-slider-value">{{ subtitleFontSize }}%</span>
+                            </div>
+                            <div class="moovie-frame__slider-wrapper">
+                                <input
+                                    type="range"
+                                    class="moovie-frame__settings-slider"
+                                    min="50"
+                                    max="250"
+                                    step="5"
+                                    v-model.number="subtitleFontSize"
+                                />
                             </div>
                         </div>
 
@@ -3072,6 +3086,110 @@ export default defineComponent({
         background: #ff7842;
         transform: scale(1.08);
         box-shadow: 0 0 35px rgba(255, 90, 31, 0.6);
+    }
+}
+
+
+
+/* Settings sliders styles */
+.moovie-frame__settings-slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    padding: 0 0.75rem;
+}
+
+.moovie-frame__settings-slider-value {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ember);
+    font-variant-numeric: tabular-nums;
+}
+
+.moovie-frame__slider-wrapper {
+    padding: 0 0.75rem;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.moovie-frame__settings-slider {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin: 6px 0;
+
+    &::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 4px;
+        background: transparent;
+    }
+
+    &::-webkit-slider-thumb {
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: 0 0 8px var(--ember-glow), 0 0 0 1px rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        margin-top: -4px;
+        transition: transform 0.1s ease, background-color 0.2s;
+        
+        &:hover {
+            transform: scale(1.2);
+            background-color: var(--ember);
+        }
+    }
+
+    &::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 0;
+        box-shadow: 0 0 8px var(--ember-glow), 0 0 0 1px rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        transition: transform 0.1s ease, background-color 0.2s;
+        
+        &:hover {
+            transform: scale(1.2);
+            background-color: var(--ember);
+        }
+    }
+}
+
+
+
+/* Preview cue styling */
+.moovie-frame__preview-cue {
+    position: absolute;
+    top: calc(var(--sub-position, 100%) * 0.9);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 15;
+    pointer-events: none;
+    text-align: center;
+    width: 100%;
+    max-width: 85%;
+    
+    span {
+        background-color: rgba(8, 8, 8, var(--sub-bg-opacity, 0.75)) !important;
+        color: rgba(255, 255, 255, var(--sub-text-opacity, 1)) !important;
+        font-size: var(--sub-font-size, 100%) !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+        padding: 0.18em 0.55em !important;
+        border-radius: 4px;
+        line-height: 1.4;
+        display: inline-block;
+        white-space: pre-wrap;
     }
 }
 

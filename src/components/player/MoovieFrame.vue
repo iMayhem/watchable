@@ -23,14 +23,8 @@
                     <div v-if="loading && loadingBackdropUrl" class="moovie-frame__loading-backdrop" :style="{ backgroundImage: `url(${loadingBackdropUrl})` }" />
                 </transition>
 
-                <!-- Custom Loading Overlay like Peestream -->
-                <div v-if="loading && !providers.length && !error" class="moovie-frame__loader-overlay">
-                    <div class="moovie-frame__spinner-box">
-                        <div class="moovie-frame__spinner-pulse" />
-                        <span class="moovie-frame__spinner-text">{{ brandText }}</span>
-                    </div>
-                    <span class="moovie-frame__loader-status">Resolving stream...</span>
-                </div>
+                <!-- Simple dark screen while scraping starts -->
+                <div v-if="loading && !providers.length && !error" class="moovie-frame__loader-overlay" />
 
                 <div v-if="!loading && !error" class="moovie-frame__center-btn" @click="togglePlay">
                     <div v-if="buffering" class="moovie-frame__spinner" />
@@ -3146,43 +3140,7 @@ export default defineComponent({
     gap: 15px;
 }
 
-.moovie-frame__spinner-box {
-    position: relative;
-    width: 100px;
-    height: 100px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
 
-.moovie-frame__spinner-pulse {
-    position: absolute;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 90, 31, 0.15) 0%, transparent 70%);
-    border: 2.5px dashed rgba(255, 90, 31, 0.4);
-    animation: spin 8s linear infinite, pulse 2s ease-in-out infinite;
-}
-
-.moovie-frame__spinner-text {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-weight: 800;
-    font-size: 1.15rem;
-    color: #ff7842;
-    text-shadow: 0 0 10px rgba(255, 90, 31, 0.5);
-    text-transform: lowercase;
-}
-
-.moovie-frame__loader-status {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #dfdfea;
-    letter-spacing: 0.2px;
-}
 
 /* Big play button */
 .moovie-frame__big-play-btn {

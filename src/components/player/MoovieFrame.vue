@@ -191,62 +191,6 @@
                     </div>
                 </div>
 
-                <!-- Embed Trigger Button -->
-                <button
-                    v-if="!loading && !error"
-                    type="button"
-                    class="moovie-frame__embed-trigger-btn"
-                    title="Get Embed Code"
-                    @click.stop="embedOpen = !embedOpen"
-                >
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="16 18 22 12 16 6"></polyline>
-                        <polyline points="8 6 2 12 8 18"></polyline>
-                    </svg>
-                </button>
-
-                <!-- Embed Drawer -->
-                <transition name="drawer-slide">
-                    <div v-if="embedOpen" class="moovie-frame__embed-drawer" @click.stop>
-                        <div class="moovie-frame__embed-header">
-                            <span class="moovie-frame__embed-title">Embed Options</span>
-                            <button type="button" class="moovie-frame__embed-close-btn" @click="embedOpen = false">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                            </button>
-                        </div>
-                        
-                        <div class="moovie-frame__embed-content">
-                            <div class="moovie-frame__embed-input-group">
-                                <span class="moovie-frame__embed-input-label">HTML Iframe Embed Code</span>
-                                <div class="moovie-frame__embed-code-box-wrapper">
-                                    <input type="text" class="moovie-frame__embed-code-input" readonly :value="generatedEmbedCode">
-                                    <button type="button" class="moovie-frame__embed-copy-btn" @click="copyEmbedCode">
-                                        <svg v-if="!embedCopied" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                        </svg>
-                                        <span>{{ embedCopied ? 'Copied!' : 'Copy' }}</span>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="moovie-frame__embed-options-row">
-                                <label class="moovie-frame__embed-checkbox-label">
-                                    <input type="checkbox" v-model="embedAutoplay">
-                                    <span>Autoplay video</span>
-                                </label>
-                                <label class="moovie-frame__embed-checkbox-label">
-                                    <input type="checkbox" v-model="embedMuted">
-                                    <span>Mute on start</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </transition>
-
                 <div v-if="settingsOpen" class="moovie-frame__settings-panel" @click.stop>
                     <div class="moovie-frame__settings-mobile-handle" />
                     <div class="moovie-frame__settings-header">
@@ -845,41 +789,12 @@ export default defineComponent({
         const OPENSUBS_TRACK_OFFSET = 1000
 
         const controlsHidden = ref(false)
-        const embedOpen = ref(false)
-        const embedAutoplay = ref(true)
-        const embedMuted = ref(false)
-        const embedCopied = ref(false)
-
         const brandText = computed(() => {
             if (typeof window !== 'undefined') {
                 return window.location.hostname.includes('peestream') ? 'pee' : 'moovie'
             }
             return 'moovie'
         })
-
-        const embedUrl = computed(() => {
-            if (typeof window === 'undefined') return ''
-            let url = `${window.location.origin}/embed/?tmdbId=${props.mediaId}&type=${props.mediaType}`
-            if (props.mediaType === 'tv') {
-                url += `&season=${props.season || 1}&episode=${props.episode || 1}`
-            }
-            if (embedAutoplay.value) url += '&autoplay=1'
-            if (embedMuted.value) url += '&muted=1'
-            return url
-        })
-
-        const generatedEmbedCode = computed(() => {
-            return `<iframe src="${embedUrl.value}" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>`
-        })
-
-        const copyEmbedCode = () => {
-            navigator.clipboard.writeText(generatedEmbedCode.value).then(() => {
-                embedCopied.value = true
-                setTimeout(() => { embedCopied.value = false }, 2000)
-            }).catch((err) => {
-                console.error('Failed to copy embed code:', err)
-            })
-        }
         let idleTimer: ReturnType<typeof setTimeout> | null = null
         function resetIdleTimer() {
             controlsHidden.value = false
@@ -2050,7 +1965,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, embedOpen, embedAutoplay, embedMuted, embedCopied, brandText, generatedEmbedCode, copyEmbedCode, moveSubtitles }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles }
     },
 })
 </script>
@@ -3160,178 +3075,7 @@ export default defineComponent({
     }
 }
 
-/* Floating Embed Button */
-.moovie-frame__embed-trigger-btn {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: rgba(15, 15, 27, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(8px);
-    color: #ffffff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    z-index: 90;
-    transition: all 0.2s ease;
 
-    &:hover {
-        background: rgba(255, 90, 31, 0.15);
-        border-color: #ff5a1f;
-        color: #ff5a1f;
-        transform: scale(1.05);
-    }
-}
-
-/* Sliding Embed Drawer */
-.moovie-frame__embed-drawer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 200px;
-    background: rgba(7, 7, 10, 0.98);
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(20px);
-    z-index: 110;
-    padding: 20px 24px;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.7);
-    box-sizing: border-box;
-
-    @media (max-width: 600px) {
-        height: 220px;
-    }
-}
-
-.moovie-frame__embed-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.moovie-frame__embed-title {
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: #ffffff;
-}
-
-.moovie-frame__embed-close-btn {
-    background: none;
-    border: none;
-    color: #8e8e9f;
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s ease;
-
-    &:hover {
-        color: #ff5a1f;
-    }
-}
-
-.moovie-frame__embed-content {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.moovie-frame__embed-input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.moovie-frame__embed-input-label {
-    font-size: 0.72rem;
-    color: #8e8e9f;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    font-weight: 600;
-}
-
-.moovie-frame__embed-code-box-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.moovie-frame__embed-code-input {
-    width: 100%;
-    padding: 10px 14px;
-    padding-right: 90px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 8px;
-    color: #ff5a1f;
-    font-family: monospace;
-    font-size: 0.75rem;
-    outline: none;
-    box-sizing: border-box;
-}
-
-.moovie-frame__embed-copy-btn {
-    position: absolute;
-    right: 6px;
-    padding: 6px 12px;
-    background: #ff5a1f;
-    border: none;
-    border-radius: 6px;
-    color: #ffffff;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-
-    &:hover {
-        background: #ff7842;
-    }
-}
-
-.moovie-frame__embed-options-row {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-}
-
-.moovie-frame__embed-checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.8rem;
-    color: #ffffff;
-    cursor: pointer;
-    user-select: none;
-
-    input {
-        accent-color: #ff5a1f;
-        width: 14px;
-        height: 14px;
-        margin: 0;
-        cursor: pointer;
-    }
-}
-
-/* Animations & Transitions */
-.drawer-slide-enter-active,
-.drawer-slide-leave-active {
-    transition: transform 0.25s cubic-bezier(0.1, 0.8, 0.3, 1);
-}
-.drawer-slide-enter-from,
-.drawer-slide-leave-to {
-    transform: translateY(100%);
-}
 
 @keyframes spin {
     0% { transform: rotate(0deg); }

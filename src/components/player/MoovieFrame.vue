@@ -1960,12 +1960,6 @@ export default defineComponent({
         @media (min-width: 1024px) { padding: 0; }
     }
 
-    &:fullscreen &__stage,
-    &:-webkit-full-screen &__stage {
-        padding: 0;
-        max-width: 100%;
-    }
-
     &__player {
         position: relative;
         aspect-ratio: 16 / 9;
@@ -1975,17 +1969,133 @@ export default defineComponent({
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
     }
 
-    &:fullscreen &__player,
-    &:-webkit-full-screen &__player {
-        aspect-ratio: unset;
-        border-radius: 0;
-        box-shadow: none;
-        height: 100dvh;
-        width: 100vw;
+    &:fullscreen {
+        background: #000 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+
+        .moovie-frame__stage {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .moovie-frame__player {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            border-radius: 0 !important;
+            aspect-ratio: unset !important;
+            box-shadow: none !important;
+            border: 0 !important;
+        }
+        .moovie-frame__bloom { display: none !important; }
     }
 
-    &:fullscreen &__bloom,
-    &:-webkit-full-screen &__bloom { display: none; }
+    &:-webkit-full-screen {
+        background: #000 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+
+        .moovie-frame__stage {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .moovie-frame__player {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            border-radius: 0 !important;
+            aspect-ratio: unset !important;
+            box-shadow: none !important;
+            border: 0 !important;
+        }
+        .moovie-frame__bloom { display: none !important; }
+    }
+
+    &:-moz-full-screen {
+        background: #000 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+
+        .moovie-frame__stage {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .moovie-frame__player {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            border-radius: 0 !important;
+            aspect-ratio: unset !important;
+            box-shadow: none !important;
+            border: 0 !important;
+        }
+        .moovie-frame__bloom { display: none !important; }
+    }
+
+    &:-ms-fullscreen {
+        background: #000 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+
+        .moovie-frame__stage {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .moovie-frame__player {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            border-radius: 0 !important;
+            aspect-ratio: unset !important;
+            box-shadow: none !important;
+            border: 0 !important;
+        }
+        .moovie-frame__bloom { display: none !important; }
+    }
 
     &.is-controls-hidden {
         .moovie-frame__center-btn,

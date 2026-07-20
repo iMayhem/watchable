@@ -824,6 +824,7 @@ export default defineComponent({
 
         const volumeSliderOpen = ref(false)
         const volume = ref(0.8)
+        const originalStream = ref<HubStream | null>(null)
 
         function onVolumeChange(e: Event) {
             const video = videoRef.value
@@ -999,7 +1000,11 @@ export default defineComponent({
 
         const currentAudioLabel = computed(() => {
             const track = audioTracks.value.find(t => t.id === selectedAudioTrack.value)
-            return track?.name || 'Unknown'
+            const name = track?.name || ''
+            if (!name || name.toLowerCase() === 'unknown' || name.toLowerCase() === 'und') {
+                return 'English'
+            }
+            return name
         })
 
         const currentSubtitleLabel = computed(() => {
@@ -1044,7 +1049,7 @@ export default defineComponent({
             subLoadedTracks.clear()
             for (const url of subBlobUrls) { URL.revokeObjectURL(url) }
             subBlobUrls = []
-            audioTracks.value = []
+            audioTracks.value = audioTracks.value.filter(t => (t as any)._catalogId || (t as any)._variantId || (t as any)._isOriginal)
             subtitleTracks.value = []
         }
 
@@ -1174,13 +1179,19 @@ export default defineComponent({
                 })
 
                 hlsInstance.on(HlsCtor.Events.AUDIO_TRACKS_UPDATED, () => {
-                    const preservedVariants = audioTracks.value.filter(t => (t as any)._catalogId)
+                    const preservedVariants = audioTracks.value.filter(t => (t as any)._catalogId || (t as any)._variantId)
                     audioTracks.value = [
-                        ...(hlsInstance.audioTracks || []).map((t: any, i: number) => ({
-                            id: i,
-                            name: t.name || t.lang || `Track ${i}`,
-                            lang: t.lang,
-                        })),
+                        ...(hlsInstance.audioTracks || []).map((t: any, i: number) => {
+                            const rawName = t.name || t.lang || ''
+                            const resolvedName = (!rawName || rawName.toLowerCase() === 'unknown' || rawName.toLowerCase() === 'und')
+                                ? 'English'
+                                : rawName
+                            return {
+                                id: i,
+                                name: resolvedName,
+                                lang: t.lang,
+                            }
+                        }),
                         ...preservedVariants,
                     ]
                     selectedAudioTrack.value = hlsInstance.audioTrack ?? -1
@@ -1545,6 +1556,9 @@ export default defineComponent({
         }
 
         async function tryPlayStream(s: HubStream) {
+            if (!originalStream.value) {
+                originalStream.value = s
+            }
             const useProxy = proxyEnabled && !!s.proxyUrl
             const isHlsStream = s.type === 'm3u8' || s.type === 'hls'
             async function tryMount(url: string) {
@@ -1745,8 +1759,16 @@ export default defineComponent({
         async function selectAudioTrack(index: number) {
             selectedAudioTrack.value = index
 
+            if (index === 1999) {
+                if (originalStream.value) {
+                    buffering.value = true
+                    await tryPlayStream(originalStream.value)
+                }
+                return
+            }
+
             // HLS native audio track switch (e.g. dubbed HLS streams)
-            if (hlsInstance && hlsInstance.audioTrack !== undefined && index < 2000) {
+            if (hlsInstance && hlsInstance.audioTrack !== undefined && index < 1999) {
                 hlsInstance.audioTrack = index
                 return
             }
@@ -1794,8 +1816,8 @@ export default defineComponent({
             if (langVariantFetchKey === key) return
             langVariantFetchKey = key
 
-            // Clear previous hub-sourced audio tracks (keep HLS native ones id < 2000)
-            audioTracks.value = audioTracks.value.filter(t => t.id < 2000)
+            // Clear previous hub-sourced audio tracks (keep HLS native ones id < 1999)
+            audioTracks.value = audioTracks.value.filter(t => t.id < 1999)
             languageVariants.value = []
 
             console.debug('[MoovieFrame] triggerLanguageVariantFetch: fetching for', props.title, props.mediaType, props.mediaId)
@@ -1815,15 +1837,21 @@ export default defineComponent({
 
             languageVariants.value = variants
 
-            // Keep existing HLS native audio tracks, add hub variants at id >= 2000
-            const existingHlsTracks = audioTracks.value.filter(t => t.id < 2000)
+            // Keep existing HLS native audio tracks, add English (Original) and hub variants at id >= 1999
+            const existingHlsTracks = audioTracks.value.filter(t => t.id < 1999)
+            const englishOriginalTrack = {
+                id: 1999,
+                name: 'English (Original)',
+                lang: 'English',
+                _isOriginal: true,
+            }
             const variantTracks = variants.map((v, i) => ({
                 id: 2000 + i,
                 name: v.label,
                 lang: v.language,
                 _variantId: v.id,
             }))
-            audioTracks.value = [...existingHlsTracks, ...variantTracks]
+            audioTracks.value = [...existingHlsTracks, englishOriginalTrack, ...variantTracks]
         }
 
         async function selectSubtitleTrack(index: number) {

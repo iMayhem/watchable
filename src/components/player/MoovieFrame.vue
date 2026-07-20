@@ -2383,6 +2383,10 @@ export default defineComponent({
     place-content: center;
     padding: var(--s-4);
     pointer-events: none;
+    
+    @media (max-width: 768px) {
+        padding: var(--s-2);
+    }
 }
 
 .moovie-frame__scraper-card {
@@ -2398,9 +2402,11 @@ export default defineComponent({
     flex-direction: column;
     gap: var(--s-3);
     
-    @media (max-width: 480px) {
-        width: 250px;
-        padding: var(--s-3);
+    @media (max-width: 768px) {
+        width: 230px;
+        padding: 10px;
+        gap: 8px;
+        border-radius: 10px;
     }
 }
 
@@ -2412,6 +2418,11 @@ export default defineComponent({
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     padding-bottom: var(--s-2);
     overflow: hidden;
+    
+    @media (max-width: 768px) {
+        padding-bottom: 4px;
+        gap: 0px;
+    }
 }
 
 .moovie-frame__scraper-scanner {
@@ -2435,17 +2446,29 @@ export default defineComponent({
     font-weight: 600;
     color: #ffffff;
     letter-spacing: 0.01em;
+    
+    @media (max-width: 768px) {
+        font-size: 0.75rem;
+    }
 }
 
 .moovie-frame__scraper-subtitle {
     font-size: 0.72rem;
     color: rgba(255, 255, 255, 0.45);
+    
+    @media (max-width: 768px) {
+        font-size: 0.6rem;
+    }
 }
 
 .moovie-frame__scraper-grid {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    
+    @media (max-width: 768px) {
+        gap: 4px;
+    }
 }
 
 .moovie-frame__provider-row {
@@ -2474,6 +2497,11 @@ export default defineComponent({
         background: rgba(255, 255, 255, 0.01);
         opacity: 0.7;
     }
+    
+    @media (max-width: 768px) {
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
 }
 
 .moovie-frame__provider-info {
@@ -2490,6 +2518,11 @@ export default defineComponent({
     display: grid;
     place-content: center;
     flex-shrink: 0;
+    
+    @media (max-width: 768px) {
+        width: 14px;
+        height: 14px;
+    }
 }
 
 .moovie-frame__provider-spinner {
@@ -2499,6 +2532,11 @@ export default defineComponent({
     border: 2px solid rgba(255, 90, 31, 0.2);
     border-top-color: var(--ember, #ff5a1f);
     animation: moovie-spin 0.8s linear infinite;
+    
+    @media (max-width: 768px) {
+        width: 10px;
+        height: 10px;
+    }
 }
 
 .moovie-frame__check-icon { color: #22c55e; font-weight: bold; font-size: 13px; }
@@ -2525,6 +2563,10 @@ export default defineComponent({
     .is-success & {
         color: #ffffff;
     }
+    
+    @media (max-width: 768px) {
+        font-size: 0.7rem;
+    }
 }
 
 .moovie-frame__provider-progress {
@@ -2547,6 +2589,10 @@ export default defineComponent({
     font-weight: 600;
     color: var(--ember, #ff5a1f);
     font-variant-numeric: tabular-nums;
+    
+    @media (max-width: 768px) {
+        font-size: 0.65rem;
+    }
 }
 
 .moovie-frame__provider-status-text {
@@ -2562,6 +2608,10 @@ export default defineComponent({
     }
     &.is-notfound {
         color: #71717a;
+    }
+    
+    @media (max-width: 768px) {
+        font-size: 0.65rem;
     }
 }
 

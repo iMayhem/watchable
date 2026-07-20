@@ -394,15 +394,6 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
-        path: '/youtube-party',
-        name: 'YouTubeParty',
-        component: () => import('../pages/YouTubeParty.vue'),
-        meta: {
-            showInHeader: true,
-            title: 'YouTube Party'
-        }
-    },
-    {
         path: '/admin',
         name: 'Admin',
         component: () => import('../pages/Admin.vue'),

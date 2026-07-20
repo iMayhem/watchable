@@ -95,14 +95,6 @@
             </nav>
 
             <div class="site-header__actions">
-                <button
-                    v-if="!isNetflixMode && !supportBtnHidden"
-                    type="button"
-                    class="site-header__support-btn"
-                    @click="isDonationModalOpen = true"
-                >
-                    Support us
-                </button>
 
                 <button
                     type="button"
@@ -161,20 +153,6 @@
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
                     <span class="site-header__party-label">Together</span>
-                </router-link>
-
-                <router-link
-                    v-if="!isNetflixMode"
-                    to="/youtube-party"
-                    class="site-header__party-btn site-header__yt-btn"
-                    :class="{ 'is-active': isYtPartyRoute }"
-                    aria-label="YouTube Party"
-                    title="YouTube Party"
-                >
-                    <svg viewBox="0 0 24 24" fill="currentColor" class="site-header__party-icon">
-                        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0C.488 3.45.029 5.804 0 12c.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0C23.512 20.55 23.971 18.196 24 12c-.029-6.185-.484-8.549-4.385-8.816zM9 16V8l8 4-8 4z"/>
-                    </svg>
-                    <span class="site-header__party-label">YouTube <span class="site-header__new-badge">NEW</span></span>
                 </router-link>
 
                 <template v-if="!isNetflixMode">
@@ -554,7 +532,6 @@ export default defineComponent({
             getNetflixCatalogue();
         const isNetflixMode = computed(() => contentMode.value === 'netflix');
         const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
-        const isYtPartyRoute = computed(() => route.path === '/youtube-party' || route.path.startsWith('/youtube-party/'));
         const scrolled = ref(false);
         const { splashActive } = useOpeningSplash();
 
@@ -575,7 +552,6 @@ export default defineComponent({
         const isAuthModalOpen = ref(false);
         const isSettingsModalOpen = ref(false);
         const isDonationModalOpen = ref(false);
-        const supportBtnHidden = ref(false);
 
         const currentUser = ref<string | null>(null);
         const { unreadCount } = useNotifications();
@@ -887,11 +863,7 @@ export default defineComponent({
                 localStorage.setItem('moovie_donation_seen', '1');
             }
 
-            getSupabaseClient().then(client => {
-                client.from('app_settings').select('value').eq('key', 'support_btn_hidden').single().then((res: any) => {
-                    supportBtnHidden.value = res?.data?.value === 'true';
-                }).catch(() => {});
-            }).catch(() => {});
+            
         });
 
         watch(splashActive, (active, wasActive) => {
@@ -919,7 +891,6 @@ export default defineComponent({
             isAuthModalOpen,
             isSettingsModalOpen,
             isDonationModalOpen,
-            supportBtnHidden,
 
             currentUser,
             handleLogout,
@@ -952,7 +923,6 @@ export default defineComponent({
 
             isNetflixMode,
             isPartyRoute,
-            isYtPartyRoute,
             netflixNavLeading,
             netflixNavTrailing,
             isMovieSectionActive,
@@ -1343,12 +1313,6 @@ export default defineComponent({
         font-weight: 800;
         border-radius: 10px;
         line-height: 1;
-    }
-
-    &__yt-btn {
-        @media (max-width: 860px) {
-            display: none;
-        }
     }
 
     &__party-btn {
@@ -1900,28 +1864,6 @@ export default defineComponent({
             transform: rotate(180deg);
         }
     }
-}
-
-.site-header__support-btn {
-    display: inline-flex;
-    align-items: center;
-    height: 32px;
-    padding: 0 var(--s-3);
-    background: rgba(255, 90, 31, 0.1);
-    border: 1px solid var(--ember);
-    border-radius: var(--r-md);
-    font-family: var(--font-ui);
-    font-size: var(--fs-xs);
-    font-weight: 700;
-    color: var(--ember);
-    cursor: pointer;
-    transition: background var(--dur-fast), border-color var(--dur-fast);
-    white-space: nowrap;
-}
-
-.site-header__support-btn:hover {
-    background: rgba(255, 90, 31, 0.18);
-    border-color: var(--ember-600);
 }
 
 @keyframes dropdown-fade-in {

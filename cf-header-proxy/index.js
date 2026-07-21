@@ -1,4 +1,4 @@
-function rewriteHlsPlaylist(playlist, baseUrl) {
+function rewriteHlsPlaylist(playlist, baseUrl, workerUrl) {
   let lines = playlist.split('\n');
 
   // 1. Reorder master playlist variants by bandwidth descending so highest quality plays first
@@ -32,15 +32,30 @@ function rewriteHlsPlaylist(playlist, baseUrl) {
     }
   }
 
-  // 2. Make all segment/sub-playlist URLs absolute so they bypass the worker hop
+  // 2. Make all segment/sub-playlist URLs absolute and rewrite URI tags
   return lines
     .map(line => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) return line;
+      let rewrittenLine = line;
+
+      // Rewrite URI attributes (e.g. inside EXT-X-MEDIA or EXT-X-KEY tags) to go through the worker
+      const uriAttrRe = /URI="([^"]+)"/gi;
+      rewrittenLine = rewrittenLine.replace(uriAttrRe, (match, urlVal) => {
+        try {
+          const absoluteUrl = new URL(urlVal, baseUrl).href;
+          const params = new URLSearchParams(new URL(workerUrl).search);
+          params.set('url', absoluteUrl);
+          return `URI="${new URL(workerUrl).origin}/?${params.toString()}"`;
+        } catch {
+          return match;
+        }
+      });
+
+      const trimmed = rewrittenLine.trim();
+      if (!trimmed || trimmed.startsWith('#')) return rewrittenLine;
       try {
         return new URL(trimmed, baseUrl).href;
       } catch {
-        return line;
+        return rewrittenLine;
       }
     })
     .join('\n');
@@ -100,7 +115,7 @@ export default {
 
       if (isHls) {
         const baseUrl = new URL(target)
-        const rewritten = rewriteHlsPlaylist(bodyText, baseUrl)
+        const rewritten = rewriteHlsPlaylist(bodyText, baseUrl, request.url)
 
         respHeaders.set('Content-Type', ct || 'application/vnd.apple.mpegurl')
         respHeaders.delete('Content-Length') // length changed after rewrite

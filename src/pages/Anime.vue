@@ -77,7 +77,7 @@
 
                     <div v-else class="discover__grid">
                         <PosterCard
-                            v-for="anime in results"
+                            v-for="anime in results.slice(0, displayedLimit)"
                             :key="anime.id"
                             :id="anime.id"
                             type="anime"
@@ -91,13 +91,16 @@
                         />
                     </div>
 
-                    <div
-                        v-if="results.length && (hasMore || isLoadingMore)"
-                        ref="scrollSentinel"
-                        class="discover__sentinel"
-                        aria-hidden="true"
-                    >
-                        <div v-if="isLoadingMore" class="discover__grid">
+                    <div v-if="results.length && (hasMore || isLoadingMore)" class="discover__load-more-container">
+                        <button
+                            v-if="!isLoadingMore"
+                            type="button"
+                            class="discover__load-more-btn"
+                            @click="loadMoreClick"
+                        >
+                            Load More
+                        </button>
+                        <div v-else class="discover__grid" style="width: 100%">
                             <PosterCard
                                 v-for="n in 8"
                                 :key="`more-${n}`"
@@ -123,7 +126,6 @@
 
 <script lang="ts">
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
-import { usePaginatedInfiniteScroll } from '../composables/useLazyLoad';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import PosterCard from '../components/cards/PosterCard.vue';
@@ -305,22 +307,24 @@ export default defineComponent({
             }
         };
 
-        const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
-            hasMore,
-            isLoading,
-            isLoadingMore,
-            hasResults: computed(() => results.value.length > 0),
-            loadNextPage: () => fetchAnime(currentPage.value + 1, true)
-        });
+        const displayedLimit = ref(25);
+
+        const loadMoreClick = async () => {
+            displayedLimit.value += 25;
+            while (results.value.length < displayedLimit.value && currentPage.value < totalPages.value) {
+                await fetchAnime(currentPage.value + 1, true);
+            }
+        };
 
         watch(filters, () => {
             currentPage.value = 1;
-            void fetchAnime(1, false).then(() => drainPagesIfNeeded());
+            displayedLimit.value = 25;
+            void fetchAnime(1, false);
         }, { deep: true });
 
         onMounted(() => {
             document.title = 'Discover Anime — Moovie';
-            void fetchAnime(1, false).then(() => drainPagesIfNeeded());
+            void fetchAnime(1, false);
         });
 
         return {
@@ -337,7 +341,8 @@ export default defineComponent({
             resultsTitle,
             activeChips,
             hasMore,
-            scrollSentinel,
+            displayedLimit,
+            loadMoreClick,
             onFiltersChange,
             resetFilters
         };
@@ -519,9 +524,37 @@ export default defineComponent({
         padding: var(--s-7) 0 var(--s-4);
     }
 
-    &__sentinel {
-        margin-top: var(--s-6);
-        min-height: 1px;
+    &__load-more-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: var(--s-8);
+        width: 100%;
+        gap: var(--s-4);
+    }
+
+    &__load-more-btn {
+        background: rgba(255, 90, 31, 0.1);
+        border: 1.5px solid var(--ember);
+        color: #ffffff;
+        padding: 0.75rem 2.5rem;
+        border-radius: var(--r-pill);
+        font-family: var(--font-ui);
+        font-size: var(--fs-base);
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+        box-shadow: 0 4px 15px rgba(255, 90, 31, 0.15);
+
+        &:hover {
+            background: var(--ember);
+            transform: scale(1.04);
+            box-shadow: 0 6px 20px rgba(255, 90, 31, 0.3);
+        }
+
+        &:active {
+            transform: scale(0.98);
+        }
     }
 }
 

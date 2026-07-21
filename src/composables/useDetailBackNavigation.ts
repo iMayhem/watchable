@@ -9,15 +9,10 @@ const DETAIL_ROUTE_NAMES = new Set([
     'AnimeDetail',
     'Movie',
     'TVShow',
-    'Actor',
-    'NetflixAnimeDetail',
-    'NetflixDetail'
+    'Actor'
 ]);
 
 const DETAIL_PREFIXES = [
-    '/nf/movie/',
-    '/nf/tv/',
-    '/nf/anime/',
     '/movie/',
     '/tv-show/',
     '/anime/',

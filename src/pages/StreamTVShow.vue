@@ -29,7 +29,7 @@
                                 <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </button>
-                        <p class="meta watch-stage__code">
+                        <p class="meta watch-stage__code" @click="openEpisodePicker">
                             S{{ currentSeason }} · E{{ String(currentEpisode).padStart(2, '0') }}
                         </p>
                         <button
@@ -105,6 +105,25 @@
                 </div>
             </div>
 
+            <!-- Mobile Episode Reel/Navigator Panel -->
+            <div v-if="!isEmbed && show" class="watch-stage__mobile-episodes">
+                <EpisodeNavigator
+                    :available-seasons="seasons"
+                    :season-episodes="seasonEpisodes"
+                    :current-season="currentSeason"
+                    :current-episode="currentEpisode"
+                    :show-id="showId"
+                    :is-loading-episodes="isLoadingEpisodes"
+                    :preview-episodes="previewEpisodes"
+                    :is-preview-loading="isPreviewLoading"
+                    media-type="tv"
+                    @season-change="onPreviewSeason"
+                    @select="onMobileEpisodeSelect"
+                    @previous="goToPreviousEpisode"
+                    @next="goToNextEpisode"
+                />
+            </div>
+
             <section v-if="!isEmbed && show" class="watch-stage__rack">
                 <CommentsSection :media-id="show.id" media-type="tv" />
             </section>
@@ -112,6 +131,7 @@
 
         <UpNextDrawer
             v-if="!isEmbed && show && availableSeasons.length"
+            ref="upNextDrawerRef"
             :current-season="currentSeason"
             :current-episode="currentEpisode"
             :season-episodes="seasonEpisodes"
@@ -148,6 +168,7 @@ import {
 import { getResumeTimestamp } from '../composables/useProgress';
 
 import { useAppPaths } from '../composables/useAppPaths';
+import { useWebImage } from '../utils/useWebImage';
 
 import StreamFrame from '../components/player/StreamFrame.vue';
 import MoovieFrame from '../components/player/MoovieFrame.vue';
@@ -156,6 +177,7 @@ import ServerAccordion from '../components/player/ServerAccordion.vue';
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import CommentsSection from '../components/player/CommentsSection.vue';
+import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
 
 export default defineComponent({
     name: 'StreamTVShow',
@@ -166,7 +188,8 @@ export default defineComponent({
 
         UpNextDrawer,
         ArrowLeft,
-        CommentsSection
+        CommentsSection,
+        EpisodeNavigator
     },
     setup() {
         const route = useRoute();
@@ -403,6 +426,19 @@ export default defineComponent({
             nextTick(() => { resumeTimestamp.value = 0; });
         };
 
+        const onMobileEpisodeSelect = async (epNumber: number, selectedSeasonNum: number) => {
+            if (currentSeason.value !== selectedSeasonNum) {
+                currentSeason.value = selectedSeasonNum;
+                currentEpisode.value = epNumber;
+                resumeTimestamp.value = getResumeTimestamp(showId.value, 'tv', selectedSeasonNum, epNumber);
+                await updateRoute();
+                await loadSeason();
+                nextTick(() => { resumeTimestamp.value = 0; });
+            } else {
+                changeEpisode(epNumber);
+            }
+        };
+
         const goToPreviousEpisode = async () => {
             if (currentEpisode.value > 1) {
                 changeEpisode(currentEpisode.value - 1);
@@ -532,6 +568,14 @@ export default defineComponent({
             { deep: true }
         );
 
+        const upNextDrawerRef = ref<any>(null);
+
+        const openEpisodePicker = () => {
+            if (upNextDrawerRef.value) {
+                upNextDrawerRef.value.open = true;
+            }
+        };
+
         onMounted(() => {
             loadShow();
         });
@@ -557,6 +601,7 @@ export default defineComponent({
             changeServer,
             onSeasonChange,
             changeEpisode,
+            onMobileEpisodeSelect,
             goToPreviousEpisode,
             goToNextEpisode,
             onUpNextSelect,
@@ -568,7 +613,11 @@ export default defineComponent({
             previewEpisodes,
             isPreviewLoading,
             onPreviewSeason,
-            isEmbed
+            isEmbed,
+            upNextDrawerRef,
+            openEpisodePicker,
+            useWebImage,
+            seasons
         };
     }
 });
@@ -781,6 +830,15 @@ export default defineComponent({
     &__code {
         color: var(--bone-400);
         font-family: var(--font-mono);
+        cursor: pointer;
+        padding: 2px 8px;
+        border-radius: var(--r-md);
+        transition: background-color var(--dur-fast), color var(--dur-fast);
+
+        &:hover {
+            background-color: var(--ink-700);
+            color: var(--bone-50);
+        }
     }
 
     &__episode-nav {
@@ -1263,5 +1321,14 @@ export default defineComponent({
     0% { transform: scale(0.95); opacity: 0.5; }
     50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px var(--ember); }
     100% { transform: scale(0.95); opacity: 0.5; }
+}
+
+.watch-stage__mobile-episodes {
+    display: none;
+
+    @media (max-width: 900px) {
+        display: block;
+        margin: var(--s-4) var(--s-3);
+    }
 }
 </style>

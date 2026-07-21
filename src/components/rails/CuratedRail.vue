@@ -66,7 +66,7 @@ export default defineComponent({
         description: { type: String, default: '' },
         moreTo: { type: [String, Object], default: null },
         defaultType: { type: String as PropType<'movie' | 'tv'>, default: 'movie' },
-        catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' },
+        catalog: { type: String as PropType<'tmdb'>, default: 'tmdb' },
         loading: { type: Boolean, default: false }
     },
     setup(props) {

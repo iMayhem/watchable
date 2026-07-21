@@ -29,7 +29,7 @@
                                 <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </button>
-                        <p class="meta watch-stage__code">
+                        <p class="meta watch-stage__code" @click="openEpisodePicker">
                             Episode {{ getEpisodeInSeasonNumber(currentEpisode) }}
                         </p>
                         <button
@@ -174,6 +174,25 @@
 
             </div>
 
+            <!-- Mobile Episode Reel/Navigator Panel -->
+            <div v-if="tmdbShow" class="watch-stage__mobile-episodes">
+                <EpisodeNavigator
+                    :available-seasons="availableSeasons"
+                    :season-episodes="seasonEpisodes"
+                    :current-season="navigatorSeason"
+                    :current-episode="currentEpisode"
+                    :show-id="animeId"
+                    :is-loading-episodes="isLoadingEpisodes"
+                    :preview-episodes="previewEpisodes"
+                    :is-preview-loading="isPreviewLoading"
+                    media-type="anime"
+                    @season-change="onPreviewSeason"
+                    @select="onMobileEpisodeSelect"
+                    @previous="goToPreviousEpisode"
+                    @next="goToNextEpisode"
+                />
+            </div>
+
             <section v-if="animeId" class="watch-stage__rack">
                 <CommentsSection :media-id="animeId" media-type="anime" />
             </section>
@@ -181,6 +200,7 @@
 
         <UpNextDrawer
             v-if="tmdbShow && availableSeasons.length"
+            ref="upNextDrawerRef"
             :current-season="navigatorSeason"
             :current-episode="currentEpisode"
             :season-episodes="seasonEpisodes"
@@ -212,6 +232,7 @@ import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import { useAppPaths } from '../composables/useAppPaths';
 import CommentsSection from '../components/player/CommentsSection.vue';
+import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
 import {
     partitionStreamSeasonEpisodes,
     sortEpisodes,
@@ -246,7 +267,8 @@ export default defineComponent({
         StreamFrame,
 
         UpNextDrawer,
-        CommentsSection
+        CommentsSection,
+        EpisodeNavigator
     },
     setup() {
         const route = useRoute();
@@ -701,6 +723,18 @@ export default defineComponent({
             router.push(paths.streamAnime(animeId.value, ep, anilistIdRef.value));
         };
 
+        const onMobileEpisodeSelect = async (ep: number, selectedSeasonNum: number) => {
+            if (navigatorSeason.value !== selectedSeasonNum) {
+                activeTmdbSeason.value = selectedSeasonNum;
+                currentEpisode.value = ep;
+                syncSeasonTabForEpisode(ep);
+                await loadSeason();
+                router.replace(paths.streamAnime(animeId.value, ep, anilistIdRef.value));
+            } else {
+                changeEpisode(ep);
+            }
+        };
+
         const goToEpisode = (ep: number) => changeEpisode(ep);
 
         const isLastEpisode = computed(() => {
@@ -1064,6 +1098,14 @@ export default defineComponent({
             syncSeasonTabForEpisode(currentEpisode.value);
         });
 
+        const upNextDrawerRef = ref<any>(null);
+
+        const openEpisodePicker = () => {
+            if (upNextDrawerRef.value) {
+                upNextDrawerRef.value.open = true;
+            }
+        };
+
         return {
             animeId,
             resolvedAnilistId,
@@ -1099,6 +1141,7 @@ export default defineComponent({
             goBack,
             handleWatchTogether,
             changeEpisode,
+            onMobileEpisodeSelect,
             goToEpisode,
             getEpisodeInSeasonNumber,
             isLoadingTmdb,
@@ -1106,7 +1149,10 @@ export default defineComponent({
             seasonsDropdownList,
             previewEpisodes,
             isPreviewLoading,
-            onPreviewSeason
+            onPreviewSeason,
+            upNextDrawerRef,
+            openEpisodePicker,
+            useWebImage
         };
     }
 });
@@ -1244,6 +1290,15 @@ export default defineComponent({
         margin-top: 0;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        cursor: pointer;
+        padding: 2px 8px;
+        border-radius: var(--r-md);
+        transition: background-color var(--dur-fast), color var(--dur-fast);
+
+        &:hover {
+            background-color: var(--ink-700);
+            color: var(--bone-50);
+        }
     }
 
     &__episode-nav {
@@ -2237,5 +2292,14 @@ export default defineComponent({
 @keyframes anime-ep-skeleton-pulse {
     0%, 100% { opacity: 0.45; }
     50% { opacity: 0.85; }
+}
+
+.watch-stage__mobile-episodes {
+    display: none;
+
+    @media (max-width: 900px) {
+        display: block;
+        margin: var(--s-4) var(--s-3);
+    }
 }
 </style>

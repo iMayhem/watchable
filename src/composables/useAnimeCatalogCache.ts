@@ -1,6 +1,5 @@
 import { getSupabaseClient } from '../lib/supabase';
 import type { MoovieCatalogItem } from './useMoovieCatalog';
-import { nfDebug, nfDebugError } from './useNetflixDebug';
 
 export interface AnimeCatalogCacheRow {
     anilist_id: number;
@@ -56,9 +55,7 @@ export function peekAnilistIdForMoovieCatalogId(
     return memoryByMoovieId.get(String(moovieCatalogId));
 }
 
-export function netflixAnimeDetailPath(anilistId: string | number): string {
-    return `/nf/anime/${anilistId}`;
-}
+
 
 export function cacheRowToMoovieItem(row: AnimeCatalogCacheRow): MoovieCatalogItem | null {
     if (
@@ -99,7 +96,7 @@ async function fetchRows(
             .in(column, values);
 
         if (error) {
-            nfDebugError('anime-cache:fetch:fail', {
+            console.error('anime-cache:fetch:fail', {
                 column,
                 error: error.message,
                 count: values.length
@@ -113,14 +110,14 @@ async function fetchRows(
         for (const row of rows) {
             indexCacheRow(row);
         }
-        nfDebug('anime-cache:fetch:ok', {
+        console.log('anime-cache:fetch:ok', {
             column,
             requested: values.length,
             found: rows.length
         });
         return rows;
     } catch (err) {
-        nfDebugError('anime-cache:fetch:fail', { column, err });
+        console.error('anime-cache:fetch:fail', { column, err });
         return [];
     }
 }

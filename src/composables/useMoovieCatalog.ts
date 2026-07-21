@@ -1,4 +1,3 @@
-import { nfDebug, nfDebugError } from './useNetflixDebug';
 
 export interface MoovieCatalogItem {
     id: string;
@@ -266,19 +265,19 @@ export async function browseMoovieCatalog(
 
     const cacheKey = params.toString();
     if (catalogCache.has(cacheKey)) {
-        nfDebug('catalog:browse:cache-hit', { category, page });
+        console.log('catalog:browse:cache-hit', { category, page });
         return catalogCache.get(cacheKey)!;
     }
 
     const fetchPromise = (async () => {
-        nfDebug('catalog:browse:start', { category, page, options });
+        console.log('catalog:browse:start', { category, page, options });
         try {
             const resp = await fetch(`${CATALOG_API}?${params}`);
             const data = await resp.json();
             if (!resp.ok) {
                 throw new Error(data.error || `Browse failed (${resp.status})`);
             }
-            nfDebug('catalog:browse:ok', {
+            console.log('catalog:browse:ok', {
                 category,
                 page,
                 count: data.results?.length ?? 0,
@@ -286,7 +285,7 @@ export async function browseMoovieCatalog(
             });
             return data as MoovieCatalogResponse;
         } catch (err) {
-            nfDebugError('catalog:browse:fail', { category, page, err });
+            console.error('catalog:browse:fail', { category, page, err });
             catalogCache.delete(cacheKey);
             throw err;
         }
@@ -309,22 +308,22 @@ export async function searchMoovieCatalog(
     });
     const cacheKey = params.toString();
     if (searchCache.has(cacheKey)) {
-        nfDebug('catalog:search:cache-hit', { query, page });
+        console.log('catalog:search:cache-hit', { query, page });
         return searchCache.get(cacheKey)!;
     }
 
     const fetchPromise = (async () => {
-        nfDebug('catalog:search:start', { query, page });
+        console.log('catalog:search:start', { query, page });
         try {
             const resp = await fetch(`${CATALOG_API}?${params}`);
             const data = await resp.json();
             if (!resp.ok) {
                 throw new Error(data.error || `Search failed (${resp.status})`);
             }
-            nfDebug('catalog:search:ok', { query, page, count: data.results?.length ?? 0 });
+            console.log('catalog:search:ok', { query, page, count: data.results?.length ?? 0 });
             return { results: data.results || [], pager: data.pager };
         } catch (err) {
-            nfDebugError('catalog:search:fail', { query, page, err });
+            console.error('catalog:search:fail', { query, page, err });
             searchCache.delete(cacheKey);
             throw err;
         }
@@ -335,7 +334,7 @@ export async function searchMoovieCatalog(
 }
 
 export async function fetchMoovieCatalogMeta(type: 'movie' | 'tv', id: string) {
-    nfDebug('catalog:meta:start', { type, id });
+    console.log('catalog:meta:start', { type, id });
     const params = new URLSearchParams({ action: 'meta', type, id });
     try {
         const resp = await fetch(`${CATALOG_API}?${params}`);
@@ -343,10 +342,10 @@ export async function fetchMoovieCatalogMeta(type: 'movie' | 'tv', id: string) {
         if (!resp.ok) {
             throw new Error(data.error || `Metadata failed (${resp.status})`);
         }
-        nfDebug('catalog:meta:ok', { type, id, title: data.meta?.title });
+        console.log('catalog:meta:ok', { type, id, title: data.meta?.title });
         return data.meta;
     } catch (err) {
-        nfDebugError('catalog:meta:fail', { type, id, err });
+        console.error('catalog:meta:fail', { type, id, err });
         throw err;
     }
 }
@@ -362,7 +361,7 @@ export async function fetchMoovieCatalogMetaResolved(
         const alt: 'movie' | 'tv' = type === 'movie' ? 'tv' : 'movie';
         try {
             const meta = await fetchMoovieCatalogMeta(alt, id);
-            nfDebug('catalog:meta:resolved-alt-type', { id, from: type, to: alt });
+            console.log('catalog:meta:resolved-alt-type', { id, from: type, to: alt });
             return meta;
         } catch {
             throw primaryErr;

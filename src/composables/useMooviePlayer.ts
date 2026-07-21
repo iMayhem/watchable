@@ -1,6 +1,5 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useStreamExtension } from './useStreamExtension';
-import { nfDebug, nfDebugError } from './useNetflixDebug';
 import Plyr from 'plyr';
 import 'plyr/dist/plyr.css';
 
@@ -233,10 +232,10 @@ export function formatPlayerTime(seconds: number): string {
 export function useMooviePlayer(options: { skin?: PlayerSkin } = {}) {
     const skin = options.skin ?? 'default';
     const dbg = (step: string, detail?: unknown) => {
-        if (skin === 'netflix') nfDebug(step, detail);
+        if (skin === 'netflix') console.log(step, detail);
     };
     const dbgError = (step: string, detail?: unknown) => {
-        if (skin === 'netflix') nfDebugError(step, detail);
+        if (skin === 'netflix') console.error(step, detail);
     };
     const { extensionActive, checkExtension, pingExtension } = useStreamExtension();
     const loading = ref(false);

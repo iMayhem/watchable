@@ -1,4 +1,3 @@
-import type { NetflixCatalogSeason } from './useNetflixCatalogEpisodes';
 
 const ANISKIP_API = 'https://api.aniskip.com';
 
@@ -38,20 +37,7 @@ function cacheKey(malId: number, episode: number, episodeLength: number) {
     return `${malId}:${episode}:${Math.round(episodeLength)}`;
 }
 
-export function computeAbsoluteEpisode(
-    seasons: NetflixCatalogSeason[],
-    currentSeason: number,
-    currentEpisode: number
-): number {
-    let offset = 0;
-    const sorted = [...seasons].sort((a, b) => a.season_number - b.season_number);
-    for (const row of sorted) {
-        if (row.season_number < currentSeason) {
-            offset += row.episode_count || 0;
-        }
-    }
-    return offset + currentEpisode;
-}
+
 
 export function resolveAniskipTarget(
     malId: number,

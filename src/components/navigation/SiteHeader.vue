@@ -4,53 +4,11 @@
             <router-link to="/" class="site-header__logo" aria-label="moovie home">
                 <div class="site-header__wordmark">
                     <span class="site-header__mark-text">moovie</span>
-                    <span class="site-header__kicker eyebrow">
-                        <template v-if="isNetflixMode">
-                            Netflix Catalogue
-                            <span class="site-header__beta">(beta)</span>
-                        </template>
-                        <template v-else>A Cinema Periodical</template>
-                    </span>
+                    <span class="site-header__kicker eyebrow">A Cinema Periodical</span>
                 </div>
             </router-link>
 
-            <nav
-                v-if="isNetflixMode"
-                class="site-header__nav site-header__nav--catalogues"
-                aria-label="Netflix"
-            >
-                <div class="site-header__nav-scroll">
-                    <a
-                        v-for="item in netflixNavLeading"
-                        :key="item.label"
-                        href="#"
-                        class="site-header__link"
-                        :class="{ 'is-active': item.isActive() }"
-                        @click.prevent="navigateNetflixNav(item)"
-                        @mouseenter="prefetchNetflixNav(item)"
-                        @focus="prefetchNetflixNav(item)"
-                    >
-                        {{ item.label }}
-                    </a>
-                </div>
-
-                <div class="site-header__nav-scroll site-header__nav-scroll--tail">
-                    <a
-                        v-for="item in netflixNavTrailing"
-                        :key="item.label"
-                        href="#"
-                        class="site-header__link"
-                        :class="{ 'is-active': item.isActive() }"
-                        @click.prevent="navigateNetflixNav(item)"
-                        @mouseenter="prefetchNetflixNav(item)"
-                        @focus="prefetchNetflixNav(item)"
-                    >
-                        {{ item.label }}
-                    </a>
-                </div>
-            </nav>
-
-            <nav v-else class="site-header__nav" aria-label="Primary">
+            <nav class="site-header__nav" aria-label="Primary">
                 <template v-for="item in primaryNav" :key="item.path">
                     <router-link
                         v-if="item.label !== 'Others'"
@@ -123,23 +81,9 @@
                     </svg>
                 </a>
 
-                <NotificationBell v-if="!isNetflixMode" />
-
-                <ExtensionPrompt v-if="isNetflixMode" />
-
-                <button
-                    v-if="showModeSwitch && isNetflixMode"
-                    type="button"
-                    class="site-header__mode-btn"
-                    @click="toggleContentMode"
-                >
-                    {{ modeLabel }}
-                </button>
-
-
+                <NotificationBell />
 
                 <router-link
-                    v-if="!isNetflixMode"
                     to="/party"
                     class="site-header__party-btn"
                     :class="{ 'is-active': isPartyRoute }"
@@ -155,83 +99,79 @@
                     <span class="site-header__party-label">Together</span>
                 </router-link>
 
-                <template v-if="!isNetflixMode">
-                    <button v-if="currentUser" class="site-header__user-badge" @click="handleLogout" title="Sign Out">
-                        <span class="site-header__username">{{ currentUser }}</span>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="site-header__logout-icon">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                            <polyline points="16 17 21 12 16 7" />
-                            <line x1="21" y1="12" x2="9" y2="12" />
-                        </svg>
-                    </button>
+                <button v-if="currentUser" class="site-header__user-badge" @click="handleLogout" title="Sign Out">
+                    <span class="site-header__username">{{ currentUser }}</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="site-header__logout-icon">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                </button>
+                <button
+                    v-else
+                    @click="isAuthModalOpen = true"
+                    class="site-header__login-btn"
+                >
+                    Sign In
+                </button>
+
+                <div ref="regionContainer" class="site-header__region-container">
                     <button
-                        v-else
-                        @click="isAuthModalOpen = true"
-                        class="site-header__login-btn"
+                        type="button"
+                        class="site-header__region-btn"
+                        aria-label="Region Settings"
+                        title="Region Settings"
+                        @click="toggleRegionDropdown"
                     >
-                        Sign In
+                        <span class="site-header__region-flag">{{ getFlagEmoji(currentRegion) }}</span>
                     </button>
-
-                    <div ref="regionContainer" class="site-header__region-container">
+                    <div v-if="isRegionDropdownOpen" class="region-dropdown">
                         <button
-                            class="site-header__region-toggle"
-                            :class="{ 'is-active': isRegionDropdownOpen }"
+                            v-for="reg in regions"
+                            :key="reg.code"
                             type="button"
-                            aria-label="Select region"
-                            title="Select region"
-                            @click="toggleRegionDropdown"
+                            class="region-dropdown__item"
+                            :class="{ 'is-active': reg.code === currentRegion }"
+                            @click="selectRegion(reg.code)"
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M2 12h20" />
-                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                            </svg>
+                            <span class="region-dropdown__flag">{{ getFlagEmoji(reg.code) }}</span>
+                            <span class="region-dropdown__name">{{ reg.name }}</span>
                         </button>
-
-                        <div v-if="isRegionDropdownOpen" class="region-dropdown">
-                            <div class="region-dropdown__header eyebrow">
-                                Select Region
-                            </div>
-                            <div class="region-dropdown__list">
-                                <button
-                                    v-for="r in regions"
-                                    :key="r.code"
-                                    class="region-dropdown__item"
-                                    :class="{ 'is-active': currentRegion === r.code }"
-                                    @click="selectRegion(r.code)"
-                                >
-                                    <span class="region-dropdown__flag">{{ getFlagEmoji(r.code) }}</span>
-                                    <span class="region-dropdown__name">{{ r.name }}</span>
-                                    <svg v-if="currentRegion === r.code" class="region-dropdown__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                        <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
                     </div>
-                </template>
+                </div>
 
                 <div ref="settingsContainer" class="site-header__settings-container">
                     <button
-                        class="site-header__icon-btn site-header__settings-btn"
                         type="button"
-                        aria-label="Settings"
-                        title="Settings"
+                        class="site-header__icon-btn"
+                        aria-label="App Settings"
+                        title="App Settings"
                         @click="toggleSettingsDropdown"
                     >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <circle cx="12" cy="12" r="3" />
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                         </svg>
                     </button>
                     <div v-if="isSettingsDropdownOpen" class="settings-dropdown">
-                        <div class="settings-dropdown__header eyebrow">Settings</div>
-                        <div class="settings-dropdown__list">
-                            <label class="settings-dropdown__item">
-                                <span class="settings-dropdown__label">Hide Ads</span>
-                                <input type="checkbox" class="settings-dropdown__toggle" :checked="adsHidden" @change="toggleAdsHidden">
-                            </label>
-                        </div>
+                        <button
+                            type="button"
+                            class="settings-dropdown__item"
+                            @click="toggleAdsHidden"
+                        >
+                            <span class="settings-dropdown__label">Hide Promotions</span>
+                            <span class="settings-dropdown__status" :class="{ 'is-active': adsHidden }">
+                                {{ adsHidden ? 'On' : 'Off' }}
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            class="settings-dropdown__item"
+                            @click="isDonationModalOpen = true; closeSettingsDropdown()"
+                        >
+                            <span class="settings-dropdown__label">Support project</span>
+                            <span class="settings-dropdown__icon">❤️</span>
+                        </button>
                     </div>
                 </div>
 
@@ -248,144 +188,87 @@
             </div>
         </div>
 
-
-
-        <LmDrawer v-model="drawerOpen" side="right" :title="isNetflixMode ? 'Browse' : 'moovie'">
-            <nav class="site-header__drawer-nav" :aria-label="isNetflixMode ? 'Netflix' : 'Mobile'">
-                <template v-if="isNetflixMode">
-                    <a
-                        v-for="(item, index) in netflixNavLeading"
-                        :key="item.label"
-                        href="#"
+        <LmDrawer v-model="drawerOpen" side="right" title="moovie">
+            <nav class="site-header__drawer-nav" aria-label="Mobile">
+                <template v-for="item in primaryNav" :key="item.path">
+                    <router-link
+                        v-if="item.label !== 'Others'"
+                        :to="item.path"
                         class="site-header__drawer-link"
-                        :class="{ 'is-active': item.isActive() }"
-                        @click.prevent="navigateNetflixNav(item); drawerOpen = false"
+                        :class="{ 'is-active': isActive(item) }"
+                        @mouseenter="prefetchPrimaryNav(item)"
+                        @focus="prefetchPrimaryNav(item)"
+                        @click="drawerOpen = false"
                     >
-                        <span class="eyebrow site-header__drawer-num">0{{ index + 1 }}</span>
-                        <span class="site-header__drawer-label">{{ item.label }}</span>
-                    </a>
-
-                    <a
-                        href="#"
-                        class="site-header__drawer-link"
-                        :class="{ 'is-active': isMovieSectionActive }"
-                        @click.prevent="navigateToMovies(); drawerOpen = false"
-                    >
-                        <span class="eyebrow site-header__drawer-num">03</span>
-                        <span class="site-header__drawer-label">Movies</span>
-                    </a>
-
-                    <a
-                        v-for="(item, index) in netflixNavTrailing"
-                        :key="item.label"
-                        href="#"
-                        class="site-header__drawer-link"
-                        :class="{ 'is-active': item.isActive() }"
-                        @click.prevent="navigateNetflixNav(item); drawerOpen = false"
-                    >
-                        <span class="eyebrow site-header__drawer-num">0{{ index + 4 }}</span>
-                        <span class="site-header__drawer-label">{{ item.label }}</span>
-                    </a>
-
-                    <button
-                        type="button"
-                        class="site-header__drawer-link site-header__drawer-search"
-                        @click="openFromDrawer"
-                    >
-                        <span class="eyebrow site-header__drawer-num">✦</span>
-                        <span class="site-header__drawer-label">Search</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        class="site-header__drawer-link"
-                        @click="toggleContentMode(); drawerOpen = false"
-                    >
-                        <span class="site-header__drawer-label">{{ modeLabel }}</span>
-                    </button>
-                </template>
-
-                <template v-else>
-                    <template v-for="item in primaryNav" :key="item.path">
+                        <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
+                        <span class="site-header__drawer-label">
+                            {{ item.label }}
+                        </span>
+                    </router-link>
+                    <template v-else>
                         <router-link
-                            v-if="item.label !== 'Others'"
-                            :to="item.path"
+                            v-for="sub in othersNav"
+                            :key="sub.path"
+                            :to="sub.path"
                             class="site-header__drawer-link"
-                            :class="{ 'is-active': isActive(item) }"
-                            @mouseenter="prefetchPrimaryNav(item)"
-                            @focus="prefetchPrimaryNav(item)"
+                            :class="{ 'is-active': isActive(sub) }"
+                            @mouseenter="prefetchPrimaryNav(sub)"
+                            @focus="prefetchPrimaryNav(sub)"
                             @click="drawerOpen = false"
                         >
-                            <span class="eyebrow site-header__drawer-num">0{{ item.num }}</span>
-                            <span class="site-header__drawer-label">
-                                {{ item.label }}
-                            </span>
+                            <span class="eyebrow site-header__drawer-num">0{{ sub.num }}</span>
+                            <span class="site-header__drawer-label">{{ sub.label }}</span>
                         </router-link>
-                        <template v-else>
-                            <router-link
-                                v-for="sub in othersNav"
-                                :key="sub.path"
-                                :to="sub.path"
-                                class="site-header__drawer-link"
-                                :class="{ 'is-active': isActive(sub) }"
-                                @mouseenter="prefetchPrimaryNav(sub)"
-                                @focus="prefetchPrimaryNav(sub)"
-                                @click="drawerOpen = false"
-                            >
-                                <span class="eyebrow site-header__drawer-num">0{{ sub.num }}</span>
-                                <span class="site-header__drawer-label">{{ sub.label }}</span>
-                            </router-link>
-                        </template>
                     </template>
-
-                    <button
-                        type="button"
-                        class="site-header__drawer-link site-header__drawer-search"
-                        @click="openFromDrawer"
-                    >
-                        <span class="eyebrow site-header__drawer-num">✦</span>
-                        <span class="site-header__drawer-label">Search</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        class="site-header__drawer-link"
-                        @click="openPalette"
-                    >
-                        <span class="eyebrow site-header__drawer-num">🔔</span>
-                        <span class="site-header__drawer-label">
-                            Notifications
-                            <span v-if="unreadCount > 0" class="site-header__drawer-badge">{{ unreadCount }}</span>
-                        </span>
-                    </button>
-
-                    <router-link to="/party" class="site-header__drawer-link" :class="{ 'is-active': isPartyRoute }" @click="drawerOpen = false">
-                        <span class="eyebrow site-header__drawer-num">✦</span>
-                        <span class="site-header__drawer-label">Together</span>
-                    </router-link>
-
-                    <button class="site-header__drawer-link" @click="isSettingsModalOpen = true; drawerOpen = false">
-                        <span class="eyebrow site-header__drawer-num">🌐</span>
-                        <span class="site-header__drawer-label">Regional Settings</span>
-                    </button>
-
-                    <div v-if="currentUser" class="site-header__drawer-link" style="justify-content: space-between;">
-                        <span class="site-header__drawer-label" style="color: var(--ember); font-weight: 600;">
-                            👤 {{ currentUser }}
-                        </span>
-                        <button @click="handleLogout(); drawerOpen = false" class="site-header__logout-btn" style="margin-left: auto;">
-                            Sign Out
-                        </button>
-                    </div>
-                    <button
-                        v-else
-                        @click="isAuthModalOpen = true; drawerOpen = false"
-                        class="site-header__drawer-link"
-                    >
-                        <span class="eyebrow site-header__drawer-num">👤</span>
-                        <span class="site-header__drawer-label">Sign In / Up</span>
-                    </button>
                 </template>
+
+                <button
+                    type="button"
+                    class="site-header__drawer-link site-header__drawer-search"
+                    @click="openFromDrawer"
+                >
+                    <span class="eyebrow site-header__drawer-num">✦</span>
+                    <span class="site-header__drawer-label">Search</span>
+                </button>
+
+                <button
+                    type="button"
+                    class="site-header__drawer-link"
+                    @click="openPalette"
+                >
+                    <span class="eyebrow site-header__drawer-num">🔔</span>
+                    <span class="site-header__drawer-label">
+                        Notifications
+                        <span v-if="unreadCount > 0" class="site-header__drawer-badge">{{ unreadCount }}</span>
+                    </span>
+                </button>
+
+                <router-link to="/party" class="site-header__drawer-link" :class="{ 'is-active': isPartyRoute }" @click="drawerOpen = false">
+                    <span class="eyebrow site-header__drawer-num">✦</span>
+                    <span class="site-header__drawer-label">Together</span>
+                </router-link>
+
+                <button class="site-header__drawer-link" @click="isSettingsModalOpen = true; drawerOpen = false">
+                    <span class="eyebrow site-header__drawer-num">🌐</span>
+                    <span class="site-header__drawer-label">Regional Settings</span>
+                </button>
+
+                <div v-if="currentUser" class="site-header__drawer-link" style="justify-content: space-between;">
+                    <span class="site-header__drawer-label" style="color: var(--ember); font-weight: 600;">
+                        👤 {{ currentUser }}
+                    </span>
+                    <button @click="handleLogout(); drawerOpen = false" class="site-header__logout-btn" style="margin-left: auto;">
+                        Sign Out
+                    </button>
+                </div>
+                <button
+                    v-else
+                    @click="isAuthModalOpen = true; drawerOpen = false"
+                    class="site-header__drawer-link"
+                >
+                    <span class="eyebrow site-header__drawer-num">👤</span>
+                    <span class="site-header__drawer-label">Sign In / Up</span>
+                </button>
             </nav>
         </LmDrawer>
 
@@ -409,11 +292,10 @@ import {
     ref,
     watch
 } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import LmDrawer from '../primitives/Drawer.vue';
 import AuthModal from './AuthModal.vue';
 import SettingsModal from './SettingsModal.vue';
-import ExtensionPrompt from './ExtensionPrompt.vue';
 import NotificationBell from './NotificationBell.vue';
 import DonationModal from './DonationModal.vue';
 
@@ -422,61 +304,15 @@ import { useOpeningSplash } from '../../composables/useOpeningSplash';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSupabaseClient } from '../../lib/supabase';
 import { getSettings, REGIONS } from '../../composables/useSettings';
-import { getContentMode } from '../../composables/useContentMode';
-import {
-    getNetflixCatalogue,
-    NETFLIX_KDRAMA_CATALOGUE_ID
-} from '../../composables/useNetflixCatalogue';
-import { netflixBrowsePath, isNetflixGenreBrowsePage } from '../../composables/useNetflixRails';
-import { getNetflixLanguage } from '../../composables/useNetflixLanguage';
-import { prefetchNetflixBrowseRoute } from '../../composables/useNetflixBrowsePrefetch';
 import { prefetchPopularActors } from '../../composables/useActorsPrefetch';
 import { prefetchDiscussFeed } from '../../composables/useDiscussPrefetch';
-import { nfDebug } from '../../composables/useNetflixDebug';
 import { useNotifications } from '../../composables/useNotifications';
-import {
-    NETFLIX_ANIMATED_EXPLORE_PATH,
-    NETFLIX_MOVIE_EXPLORE_PATH,
-    NETFLIX_TV_EXPLORE_PATH,
-    isCDramaExploreRoute,
-    isHeaderDramaExploreRouteActive,
-    isKDramaExploreRoute,
-    netflixCDramaExplorePath,
-    netflixKDramaExplorePath
-} from '../../data/netmirrorExploreCategories';
-
-const PRIMARY_MOVIE_ROW_IDS = new Set(['blockbuster-movies', 'top10-movies', 'korean-movies']);
-const PRIMARY_TV_ROW_IDS = new Set(['exciting-tv', 'top10-tv', 'korean-series']);
-
-function isAnimeNavActive(path: string, catalogueId: string): boolean {
-    return (
-        path.startsWith(NETFLIX_ANIMATED_EXPLORE_PATH) ||
-        path === netflixBrowsePath(catalogueId, 'anime') ||
-        /^\/nf\/browse\/[^/]+\/anime\/?$/.test(path) ||
-        path.startsWith('/nf/anime/')
-    );
-}
 
 interface NavItem {
     label: string;
     path: string;
     match: (p: string) => boolean;
     num: number;
-}
-
-interface NetflixNavItem {
-    label: string;
-    path: string;
-    isActive: () => boolean;
-}
-
-function parseNavDestination(path: string) {
-    const qIndex = path.indexOf('?');
-    if (qIndex === -1) return { path };
-    return {
-        path: path.slice(0, qIndex),
-        query: Object.fromEntries(new URLSearchParams(path.slice(qIndex + 1)))
-    };
 }
 
 const othersNav: NavItem[] = [
@@ -523,14 +359,9 @@ const primaryNav: NavItem[] = [
 
 export default defineComponent({
     name: 'SiteHeader',
-    components: { LmDrawer, AuthModal, SettingsModal, ExtensionPrompt, NotificationBell, DonationModal },
+    components: { LmDrawer, AuthModal, SettingsModal, NotificationBell, DonationModal },
     setup() {
         const route = useRoute();
-        const router = useRouter();
-        const { contentMode, setContentMode, isChosen } = getContentMode();
-        const { catalogue: netflixCatalogue, setCatalogue: setNetflixCatalogue } =
-            getNetflixCatalogue();
-        const isNetflixMode = computed(() => contentMode.value === 'netflix');
         const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
         const scrolled = ref(false);
         const { splashActive } = useOpeningSplash();
@@ -539,9 +370,7 @@ export default defineComponent({
             'AnimeDetail',
             'Movie',
             'TVShow',
-            'Actor',
-            'NetflixDetail',
-            'NetflixAnimeDetail'
+            'Actor'
         ]);
 
         const onDetailPage = computed(() =>
@@ -562,6 +391,7 @@ export default defineComponent({
 
         const handleLogout = () => {
             logoutUser();
+            updateCurrentUser();
         };
 
         const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform);
@@ -593,10 +423,8 @@ export default defineComponent({
         };
 
         const selectRegion = (code: string) => {
-            console.log('[🎯 SiteHeader] User clicked region:', code);
             updateSettings(code, 'en-US');
             closeRegionDropdown();
-            console.log('[🎯 SiteHeader] Region change request sent');
         };
 
         // Settings dropdown
@@ -638,14 +466,10 @@ export default defineComponent({
                 case 'TW': return '🇹🇼';
                 case 'PH': return '🇵🇭';
                 case 'ID': return '🇮🇩';
-                case 'TR': return '🇹🇷';
-                case 'RU': return '🇷🇺';
-                case 'EG': return '🇪🇬';
+                case 'MY': return '🇲🇾';
+                case 'SG': return '🇸🇬';
                 case 'CA': return '🇨🇦';
                 case 'AU': return '🇦🇺';
-                case 'AR': return '🇦🇷';
-                case 'MY': return '🇲🇾';
-                case 'SA': return '🇸🇦';
                 case 'ZA': return '🇿🇦';
                 case 'NL': return '🇳🇱';
                 case 'PL': return '🇵🇱';
@@ -656,8 +480,9 @@ export default defineComponent({
             }
         };
 
-        const isOthersDropdownOpen = ref(false);
+        // Others dropdown
         const othersContainer = ref<HTMLElement | null>(null);
+        const isOthersDropdownOpen = ref(false);
 
         const toggleOthersDropdown = () => {
             isOthersDropdownOpen.value = !isOthersDropdownOpen.value;
@@ -667,148 +492,9 @@ export default defineComponent({
             isOthersDropdownOpen.value = false;
         };
 
-        const scrollNavToTop = () => {
-            if (typeof window !== 'undefined') {
-                window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-            }
-        };
-
-        const netflixBrowseContext = computed(() => {
-            const path = route.path;
-            const browseMatch = path.match(/^\/nf\/browse\/([^/]+)\/([^/?#]+)/);
-            const browseRow = browseMatch?.[2] || '';
-            const exploreQuery = route.query as Record<
-                string,
-                string | string[] | null | undefined
-            >;
-            const isDramaExploreSection = isHeaderDramaExploreRouteActive(path, exploreQuery);
-
-            const isTvSection =
-                !isDramaExploreSection &&
-                (path.startsWith('/nf/explore/tv') ||
-                (browseMatch && PRIMARY_TV_ROW_IDS.has(browseRow)) ||
-                path.startsWith('/nf/tv/') ||
-                path.includes('/stream/nf/tv/') ||
-                (path === '/nf/categories' && route.query.type === 'tv') ||
-                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'tv'));
-
-            const isMovieSection =
-                path.startsWith('/nf/explore/movie') ||
-                (browseMatch && PRIMARY_MOVIE_ROW_IDS.has(browseRow)) ||
-                path.startsWith('/nf/movie/') ||
-                path.includes('/stream/nf/movie/') ||
-                (path === '/nf/categories' && route.query.type === 'movie') ||
-                (isNetflixGenreBrowsePage(route.params.row as string) && route.query.type === 'movie');
-
-            return { path, isTvSection, isMovieSection, isDramaExploreSection };
-        });
-
-        const isMovieSectionActive = computed(() => netflixBrowseContext.value.isMovieSection);
-
-        const netflixNavLeading = computed(() => {
-            const { path, isTvSection, isMovieSection } = netflixBrowseContext.value;
-
-            return [
-                {
-                    label: 'Home',
-                    path: '/',
-                    isActive: () => path === '/'
-                },
-                {
-                    label: 'Movies',
-                    path: NETFLIX_MOVIE_EXPLORE_PATH,
-                    isActive: () => isMovieSection
-                },
-                {
-                    label: 'TV Shows',
-                    path: NETFLIX_TV_EXPLORE_PATH,
-                    isActive: () => isTvSection
-                }
-            ];
-        });
-
-        const netflixNavTrailing = computed(() => {
-            const cat = netflixCatalogue.value;
-            const { path } = netflixBrowseContext.value;
-            const exploreQuery = route.query as Record<
-                string,
-                string | string[] | null | undefined
-            >;
-
-            return [
-                {
-                    label: 'K-Drama',
-                    path: netflixKDramaExplorePath(),
-                    isActive: () => isKDramaExploreRoute(path, exploreQuery)
-                },
-                {
-                    label: 'C-Drama',
-                    path: netflixCDramaExplorePath(),
-                    isActive: () => isCDramaExploreRoute(path, exploreQuery)
-                },
-                {
-                    label: 'Animated',
-                    path: NETFLIX_ANIMATED_EXPLORE_PATH,
-                    isActive: () => isAnimeNavActive(path, cat)
-                }
-            ];
-        });
-
-        const navigateToMovies = async () => {
-            try {
-                await router.push(NETFLIX_MOVIE_EXPLORE_PATH);
-            } catch {
-                // duplicate navigation
-            }
-            scrollNavToTop();
-        };
-
-        const clearKoreanIndustryCatalogue = () => {
-            if (netflixCatalogue.value !== NETFLIX_KDRAMA_CATALOGUE_ID) return;
-            setNetflixCatalogue('hollywood');
-        };
-
-        watch(
-            () => route.fullPath,
-            () => {
-                const exploreQuery = route.query as Record<
-                    string,
-                    string | string[] | null | undefined
-                >;
-                if (isHeaderDramaExploreRouteActive(route.path, exploreQuery)) {
-                    clearKoreanIndustryCatalogue();
-                }
-            },
-            { immediate: true }
-        );
-
-        const navigateNetflixNav = async (item: NetflixNavItem) => {
-            const destination = parseNavDestination(item.path);
-            if (
-                item.path === netflixKDramaExplorePath() ||
-                item.path === netflixCDramaExplorePath()
-            ) {
-                clearKoreanIndustryCatalogue();
-            }
-            try {
-                await router.push(destination);
-            } catch {
-                // duplicate navigation — still scroll so repeat clicks feel responsive
-            }
-            scrollNavToTop();
-        };
-
-        const { language: netflixLanguage } = getNetflixLanguage();
-
-        const prefetchNetflixNav = (item: { path: string }) => {
-            const match = item.path.match(/^\/nf\/browse\/([^/]+)\/([^/?#]+)/);
-            if (!match) return;
-            prefetchNetflixBrowseRoute(match[1], match[2], netflixLanguage.value);
-        };
-
         const prefetchPrimaryNav = (item: { path: string }) => {
-            if (item.path === '/actors') prefetchPopularActors();
-            if (item.path === '/discuss') prefetchDiscussFeed();
+            if (item.path === '/actors') void prefetchPopularActors();
+            if (item.path === '/discuss') void prefetchDiscussFeed();
         };
 
         const handleClickOutside = (event: MouseEvent) => {
@@ -824,21 +510,6 @@ export default defineComponent({
 
             if (othersContainer.value && !othersContainer.value.contains(target)) {
                 closeOthersDropdown();
-            }
-        };
-
-        const showModeSwitch = computed(() => isChosen());
-
-        const modeLabel = computed(() =>
-            contentMode.value === 'netflix' ? 'Switch to Global' : 'NETFLIX IN'
-        );
-
-        const toggleContentMode = () => {
-            const next = contentMode.value === 'netflix' ? 'global' : 'netflix';
-            nfDebug('header:mode-toggle', { next });
-            setContentMode(next);
-            if (route.path === '/' || route.path.startsWith('/nf/') || route.path.startsWith('/stream/nf/')) {
-                router.push('/');
             }
         };
 
@@ -862,8 +533,6 @@ export default defineComponent({
                 });
                 localStorage.setItem('moovie_donation_seen', '1');
             }
-
-            
         });
 
         watch(splashActive, (active, wasActive) => {
@@ -909,6 +578,7 @@ export default defineComponent({
             isSettingsDropdownOpen,
             adsHidden,
             toggleSettingsDropdown,
+            closeSettingsDropdown,
             toggleAdsHidden,
 
             // Others dropdown
@@ -917,18 +587,8 @@ export default defineComponent({
             toggleOthersDropdown,
             closeOthersDropdown,
 
-            showModeSwitch,
-            modeLabel,
-            toggleContentMode,
-
-            isNetflixMode,
+            isNetflixMode: computed(() => false),
             isPartyRoute,
-            netflixNavLeading,
-            netflixNavTrailing,
-            isMovieSectionActive,
-            navigateToMovies,
-            navigateNetflixNav,
-            prefetchNetflixNav,
             prefetchPrimaryNav,
 
             unreadCount

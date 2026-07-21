@@ -121,7 +121,6 @@
 
 
                     <LmButton
-                        v-if="partySource !== 'netflix'"
                         variant="ghost"
                         size="lg"
                         :to="detailRoute"
@@ -131,7 +130,6 @@
                     </LmButton>
 
                     <LmButton
-                        v-if="partySource !== 'netflix'"
                         variant="outline"
                         size="lg"
                         :href="partyHref"
@@ -176,7 +174,6 @@ export default defineComponent({
     props: {
         id: { type: [Number, String], default: '' },
         partyId: { type: [Number, String], default: null },
-        partySource: { type: String as PropType<'global' | 'netflix'>, default: 'global' },
         type: { type: String as PropType<'movie' | 'tv' | 'anime'>, default: 'movie' },
         title: { type: String, default: '' },
         tagline: { type: String, default: '' },
@@ -197,9 +194,6 @@ export default defineComponent({
     setup(props) {
         const rootRef = ref<HTMLElement | null>(null);
         const artPath = computed(() => {
-            if (props.partySource === 'netflix') {
-                return props.posterPath || props.backdropPath;
-            }
             return props.strictBackdrop
                 ? props.backdropPath
                 : props.backdropPath || props.posterPath;
@@ -208,7 +202,6 @@ export default defineComponent({
         const isPosterKeyArt = computed(() => {
             const path = artPath.value;
             if (!path) return false;
-            if (props.partySource === 'netflix') return true;
             if (props.backdropPath && props.backdropPath === props.posterPath) return true;
             return isCatalogCdnImage(path);
         });
@@ -264,7 +257,7 @@ export default defineComponent({
                 partyId: props.partyId ?? undefined,
                 title: props.title,
                 type: props.type,
-                source: props.partySource
+                source: 'global'
             })
         );
 

@@ -1,6 +1,4 @@
 import { getSupabaseClient } from '../lib/supabase';
-import { sortLanguageTagsForDisplay } from './useNetflixCatalogLookup';
-import { nfDebug, nfDebugError } from './useNetflixDebug';
 
 const TABLE = 'catalog_audio_cache';
 const CHUNK_SIZE = 200;
@@ -9,7 +7,7 @@ const memoryByCatalogId = new Map<string, string[]>();
 
 function normalizeTags(raw: unknown): string[] {
     if (!Array.isArray(raw)) return [];
-    return sortLanguageTagsForDisplay(raw.map(String).filter(Boolean));
+    return raw.map(String).filter(Boolean);
 }
 
 /** Batch-fetch audio chips for Moovie catalogue ids (one query per chunk). */
@@ -32,7 +30,7 @@ export async function fetchCatalogAudioCacheByIds(
                     .in('catalog_id', chunk);
 
                 if (error) {
-                    nfDebugError('catalog-audio-cache:fetch:fail', {
+                    console.error('catalog-audio-cache:fetch:fail', {
                         error: error.message,
                         chunk: chunk.length
                     });
@@ -48,12 +46,12 @@ export async function fetchCatalogAudioCacheByIds(
                 }
             }
 
-            nfDebug('catalog-audio-cache:fetch:ok', {
+            console.log('catalog-audio-cache:fetch:ok', {
                 requested: missing.length,
                 found: missing.filter((id) => memoryByCatalogId.has(id)).length
             });
         } catch (err) {
-            nfDebugError('catalog-audio-cache:fetch:fail', { err });
+            console.error('catalog-audio-cache:fetch:fail', { err });
         }
     }
 

@@ -78,7 +78,7 @@
 
                     <div v-else class="discover__grid">
                         <PosterCard
-                            v-for="item in results"
+                            v-for="item in results.slice(0, displayedLimit)"
                             :key="item.id"
                             :id="item.id"
                             type="tv"
@@ -92,13 +92,16 @@
                         />
                     </div>
 
-                    <div
-                        v-if="results.length && (hasMore || isLoadingMore)"
-                        ref="scrollSentinel"
-                        class="discover__sentinel"
-                        aria-hidden="true"
-                    >
-                        <div v-if="isLoadingMore" class="discover__grid">
+                    <div v-if="results.length && (hasMore || isLoadingMore)" class="discover__load-more-container">
+                        <button
+                            v-if="!isLoadingMore"
+                            type="button"
+                            class="discover__load-more-btn"
+                            @click="loadMoreClick"
+                        >
+                            Load More
+                        </button>
+                        <div v-else class="discover__grid" style="width: 100%">
                             <PosterCard
                                 v-for="n in 8"
                                 :key="`more-${n}`"
@@ -124,7 +127,6 @@
 
 <script lang="ts">
 import { computed, defineComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import { usePaginatedInfiniteScroll } from '../composables/useLazyLoad';
 import { useRoute, useRouter, LocationQueryRaw } from 'vue-router';
 import { debounce } from '../utils/memoization';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
@@ -334,20 +336,24 @@ export default defineComponent({
             }
         };
 
-        const hasMore = computed(() => page.value < totalPages.value);
-
-        const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
-            hasMore,
-            isLoading,
-            isLoadingMore,
-            hasResults: computed(() => results.value.length > 0),
-            loadNextPage: () => fetchPage(page.value + 1, true)
-        });
+        const displayedLimit = ref(25);
 
         const reload = () => {
             page.value = 1;
             results.value = [];
-            void fetchPage(1, false).then(() => drainPagesIfNeeded());
+            displayedLimit.value = 25;
+            void fetchPage(1, false);
+        };
+
+        const hasMore = computed(() => {
+            return results.value.length > displayedLimit.value || page.value < totalPages.value;
+        });
+
+        const loadMoreClick = async () => {
+            displayedLimit.value += 25;
+            while (results.value.length < displayedLimit.value && page.value < totalPages.value) {
+                await fetchPage(page.value + 1, true);
+            }
         };
 
         const onFiltersChange = (next: DiscoverFilters) => {
@@ -448,7 +454,6 @@ export default defineComponent({
 
             genres.value = await getGenres('tv');
             await fetchPage(1, false);
-            void drainPagesIfNeeded();
 
             window.addEventListener('movora_settings_change', reload);
         });
@@ -476,7 +481,8 @@ export default defineComponent({
             searchTerm,
             yearBounds: YEAR_BOUNDS,
             hasMore,
-            scrollSentinel,
+            displayedLimit,
+            loadMoreClick,
             resultsEyebrow,
             resultsTitle,
             activeChips,
@@ -740,9 +746,37 @@ export default defineComponent({
         padding: var(--s-7) 0 var(--s-4);
     }
 
-    &__sentinel {
-        margin-top: var(--s-6);
-        min-height: 1px;
+    &__load-more-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: var(--s-8);
+        width: 100%;
+        gap: var(--s-4);
+    }
+
+    &__load-more-btn {
+        background: rgba(255, 90, 31, 0.1);
+        border: 1.5px solid var(--ember);
+        color: #ffffff;
+        padding: 0.75rem 2.5rem;
+        border-radius: var(--r-pill);
+        font-family: var(--font-ui);
+        font-size: var(--fs-base);
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+        box-shadow: 0 4px 15px rgba(255, 90, 31, 0.15);
+
+        &:hover {
+            background: var(--ember);
+            transform: scale(1.04);
+            box-shadow: 0 6px 20px rgba(255, 90, 31, 0.3);
+        }
+
+        &:active {
+            transform: scale(0.98);
+        }
     }
 }
 

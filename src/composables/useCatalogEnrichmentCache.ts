@@ -1,6 +1,5 @@
 import { getSupabaseClient } from '../lib/supabase';
 import type { CatalogTmdbMeta } from './useTmdbArtwork';
-import { nfDebug, nfDebugError } from './useNetflixDebug';
 
 export interface CatalogEnrichmentRow {
     catalog_id: string;
@@ -105,7 +104,7 @@ export async function fetchEnrichmentByBrowseCategory(
             .limit(limit);
 
         if (error) {
-            nfDebugError('catalog-enrichment:category:fail', {
+            console.error('catalog-enrichment:category:fail', {
                 category: slug,
                 error: error.message
             });
@@ -120,13 +119,13 @@ export async function fetchEnrichmentByBrowseCategory(
         }
         memoryByCategory.set(slug, rows);
 
-        nfDebug('catalog-enrichment:category:ok', {
+        console.log('catalog-enrichment:category:ok', {
             category: slug,
             count: rows.length
         });
         return rows;
     } catch (err) {
-        nfDebugError('catalog-enrichment:category:fail', { category: slug, err });
+        console.error('catalog-enrichment:category:fail', { category: slug, err });
         return [];
     }
 }
@@ -153,7 +152,7 @@ export async function fetchEnrichmentByCatalogIds(
                     .in('catalog_id', chunk);
 
                 if (error) {
-                    nfDebugError('catalog-enrichment:fetch:fail', {
+                    console.error('catalog-enrichment:fetch:fail', {
                         error: error.message,
                         chunk: chunk.length
                     });
@@ -166,12 +165,12 @@ export async function fetchEnrichmentByCatalogIds(
                 }
             }
 
-            nfDebug('catalog-enrichment:fetch:ok', {
+            console.log('catalog-enrichment:fetch:ok', {
                 requested: missing.length,
                 found: missing.filter((id) => memoryByCatalogId.has(id)).length
             });
         } catch (err) {
-            nfDebugError('catalog-enrichment:fetch:fail', { err });
+            console.error('catalog-enrichment:fetch:fail', { err });
         }
     }
 

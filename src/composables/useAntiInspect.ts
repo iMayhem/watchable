@@ -14,8 +14,6 @@
 // by disabling JS, using a proxy, or pulling the bundle directly.
 // ============================================================================
 
-import { isNetflixGuardActive, readStoredContentMode } from '../utils/netflixGuard';
-
 const THRESHOLD = 160;
 const TICK_MS = 3000;
 const NOOP = () => {};
@@ -26,7 +24,7 @@ let listeners: Array<{ target: EventTarget; type: string; handler: any; opts?: a
 
 const isPlayerPage = (): boolean => {
     if (typeof window === 'undefined') return false;
-    return isNetflixGuardActive(window.location.pathname, readStoredContentMode());
+    return window.location.pathname.startsWith('/stream/');
 };
 
 const shouldGuard = () => {

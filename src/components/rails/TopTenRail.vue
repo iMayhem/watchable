@@ -59,7 +59,6 @@ import { computed, defineComponent, PropType, ref } from 'vue';
 import LmRail from './Rail.vue';
 import { useWebImage } from '../../utils/useWebImage';
 import { useAppPaths } from '../../composables/useAppPaths';
-import { netflixCatalogPlayPath } from '../../composables/useNetflixCatalogLookup';
 
 export interface TopItem {
     id: number | string;
@@ -80,7 +79,7 @@ export interface CategoryGroup {
     eyebrow?: string;
     description?: string;
     loading?: boolean;
-    catalog?: 'tmdb' | 'netflix';
+    catalog?: 'tmdb';
     moreTo?: string | Record<string, unknown> | null;
 }
 
@@ -94,7 +93,7 @@ export default defineComponent({
         description: { type: String, default: '' },
         moreTo: { type: [String, Object] as PropType<string | Record<string, unknown> | null>, default: null },
         loading: { type: Boolean, default: false },
-        catalog: { type: String as PropType<'tmdb' | 'netflix'>, default: 'tmdb' },
+        catalog: { type: String as PropType<'tmdb'>, default: 'tmdb' },
         categoryGroups: { type: Array as PropType<CategoryGroup[]>, default: null }
     },
     setup(props) {
@@ -147,10 +146,7 @@ export default defineComponent({
             if (activeGroup.value && activeGroup.value.moreTo !== undefined) return activeGroup.value.moreTo;
             return props.moreTo ?? null;
         });
-        const resolvedCatalog = computed(() => {
-            if (activeGroup.value?.catalog) return activeGroup.value.catalog;
-            return props.catalog;
-        });
+
         const resolvedLoading = computed(() => {
             if (activeGroup.value && activeGroup.value.loading !== undefined) return activeGroup.value.loading;
             return props.loading;
@@ -160,16 +156,6 @@ export default defineComponent({
             item.posterPath ? useWebImage(item.posterPath, 'medium') : '';
 
         const routeFor = (item: TopItem) => {
-            if (resolvedCatalog.value === 'netflix') {
-                return netflixCatalogPlayPath({
-                    id: item.id,
-                    moovieCatalogId: item.moovieCatalogId,
-                    title: item.catalogTitle || item.title,
-                    catalogTitle: item.catalogTitle || item.title,
-                    type: item.type,
-                    anilistId: item.anilistId
-                });
-            }
             const kind =
                 item.type === 'anime' ? 'anime' : item.type === 'tv' ? 'tv' : 'movie';
             return detailPath(kind, item.id);

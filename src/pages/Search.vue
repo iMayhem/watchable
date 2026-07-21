@@ -174,7 +174,7 @@
                     <template v-else-if="activeTab === 'movies' && movies.length">
                         <div class="search-page__grid">
                             <PosterCard
-                                v-for="item in movies"
+                                v-for="item in movies.slice(0, displayedLimit)"
                                 :key="`m-${item.id}`"
                                 :id="item.id"
                                 type="movie"
@@ -192,7 +192,7 @@
                     <template v-else-if="activeTab === 'shows' && shows.length">
                         <div class="search-page__grid">
                             <PosterCard
-                                v-for="item in shows"
+                                v-for="item in shows.slice(0, displayedLimit)"
                                 :key="`t-${item.id}`"
                                 :id="item.id"
                                 type="tv"
@@ -210,7 +210,7 @@
                     <template v-else-if="activeTab === 'people' && people.length">
                         <div class="search-page__people-grid">
                             <PersonCard
-                                v-for="item in people"
+                                v-for="item in people.slice(0, displayedLimit)"
                                 :key="`p-${item.id}`"
                                 :id="item.id"
                                 :name="item.name"
@@ -223,7 +223,7 @@
                     <template v-else-if="activeTab === 'anime' && anime.length">
                         <div class="search-page__grid">
                             <PosterCard
-                                v-for="item in anime"
+                                v-for="item in anime.slice(0, displayedLimit)"
                                 :key="`a-${item.id}`"
                                 :id="item.id"
                                 type="anime"
@@ -243,7 +243,7 @@
                             <h3 class="search-page__subsection-title">Films</h3>
                             <div class="search-page__grid">
                                 <PosterCard
-                                    v-for="item in upcomingMovies"
+                                    v-for="item in upcomingMovies.slice(0, displayedLimit)"
                                     :key="`um-${item.id}`"
                                     :id="item.id"
                                     type="movie"
@@ -262,7 +262,7 @@
                             <h3 class="search-page__subsection-title">Anime</h3>
                             <div class="search-page__grid">
                                 <PosterCard
-                                    v-for="item in upcomingAnime"
+                                    v-for="item in upcomingAnime.slice(0, displayedLimit)"
                                     :key="`ua-${item.id}`"
                                     :id="item.id"
                                     type="anime"
@@ -296,13 +296,16 @@
                         </p>
                     </div>
 
-                    <div
-                        v-if="currentCount && (hasMore || isLoadingMore)"
-                        ref="scrollSentinel"
-                        class="search-page__sentinel"
-                        aria-hidden="true"
-                    >
-                        <div v-if="isLoadingMore" class="search-page__grid">
+                    <div v-if="currentCount && (hasMore || isLoadingMore)" class="search-page__load-more-container">
+                        <button
+                            v-if="!isLoadingMore"
+                            type="button"
+                            class="search-page__load-more-btn"
+                            @click="loadMoreClick"
+                        >
+                            Load More
+                        </button>
+                        <div v-else class="search-page__grid" style="width: 100%">
                             <PosterCard
                                 v-for="n in 8"
                                 :key="`more-${n}`"
@@ -387,7 +390,6 @@ import {
 } from '../composables/useSearch';
 import type { AnimeMedia } from '../composables/useAniList';
 import { addSearchTerm, searchHistory } from '../composables/useHistory';
-import { usePaginatedInfiniteScroll } from '../composables/useLazyLoad';
 
 const TAB_KEYS = ['all', 'movies', 'shows', 'people', 'anime', 'upcoming'] as const;
 type TabKey = typeof TAB_KEYS[number];
@@ -577,6 +579,7 @@ export default defineComponent({
 
             if (page === 1) {
                 clearSearchResults();
+                displayedLimit.value = 25;
                 if (activeTab.value === 'anime') isLoadingAnime.value = true;
                 else if (activeTab.value === 'upcoming') isLoadingUpcoming.value = true;
                 else if (activeTab.value === 'all') {
@@ -611,7 +614,6 @@ export default defineComponent({
                 isLoadingAnime.value = false;
                 isLoadingUpcoming.value = false;
                 isLoadingMore.value = false;
-                void drainPagesIfNeeded();
             }
         };
 
@@ -682,17 +684,17 @@ export default defineComponent({
             await performSearch(searchTerm.value, reqMetaData.value.page + 1);
         };
 
-        const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
-            hasMore,
-            isLoading: computed(
-                () => tabLoading.value || isLoadingMore.value
-            ),
-            isLoadingMore,
-            hasResults: computed(() => currentCount.value > 0),
-            loadNextPage: loadMore
-        });
+        const displayedLimit = ref(25);
+
+        const loadMoreClick = async () => {
+            displayedLimit.value += 25;
+            while (currentCount.value < displayedLimit.value && hasMore.value) {
+                await loadMore();
+            }
+        };
 
         watch(activeTab, (tab) => {
+            displayedLimit.value = 25;
             syncRoute();
             void ensureTabResults(tab);
         });
@@ -750,7 +752,8 @@ export default defineComponent({
             currentCount,
             emptyLabel,
             hasMore,
-            scrollSentinel,
+            displayedLimit,
+            loadMoreClick,
             reqMetaData,
             animeMeta,
             animePosterPath,
@@ -926,9 +929,37 @@ export default defineComponent({
         line-height: 1.55;
     }
 
-    &__sentinel {
-        margin-top: var(--s-6);
-        min-height: 1px;
+    &__load-more-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: var(--s-8);
+        width: 100%;
+        gap: var(--s-4);
+    }
+
+    &__load-more-btn {
+        background: rgba(255, 90, 31, 0.1);
+        border: 1.5px solid var(--ember);
+        color: #ffffff;
+        padding: 0.75rem 2.5rem;
+        border-radius: var(--r-pill);
+        font-family: var(--font-ui);
+        font-size: var(--fs-base);
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+        box-shadow: 0 4px 15px rgba(255, 90, 31, 0.15);
+
+        &:hover {
+            background: var(--ember);
+            transform: scale(1.04);
+            box-shadow: 0 6px 20px rgba(255, 90, 31, 0.3);
+        }
+
+        &:active {
+            transform: scale(0.98);
+        }
     }
 
     &__idle {

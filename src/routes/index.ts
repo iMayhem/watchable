@@ -7,9 +7,6 @@ import StreamMovie from '../pages/StreamMovie.vue'
 import StreamTVShow from '../pages/StreamTVShow.vue'
 import StreamAnime from '../pages/StreamAnime.vue'
 import { useSeo } from '../composables/useSeo'
-import { getContentMode, isContentModeChosen } from '../composables/useContentMode'
-import { redirectPathForMode } from '../utils/contentModeRoutes'
-import { isNetflixGuardActive } from '../utils/netflixGuard'
 import { recordDetailReturnPath } from '../composables/useDetailBackNavigation'
 
 declare module 'vue-router' {
@@ -40,118 +37,7 @@ const routes: Array<RouteRecordRaw> = [
             title: 'Discover'
         }
     },
-    {
-        path: '/nf/search',
-        name: 'NetflixSearch',
-        component: () => import('../pages/NetflixSearch.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Netflix Search',
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/nf/categories',
-        name: 'NetflixCategories',
-        component: () => import('../pages/NetflixCategories.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Netflix Categories',
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/nf/explore/:mediaType(all|movie|tv|animated)?',
-        name: 'NetflixExplore',
-        component: () => import('../pages/NetflixExplore.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Netflix Explore',
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/nf/browse/:catalogue/:row(exciting-tv|korean-series|top10-tv)',
-        redirect: '/nf/explore/tv'
-    },
-    {
-        path: '/nf/browse/:catalogue/:row(blockbuster-movies|top10-movies|korean-movies)',
-        redirect: '/nf/explore/movie'
-    },
-    {
-        path: '/nf/browse/:catalogue/:row',
-        name: 'NetflixBrowse',
-        component: () => import('../pages/NetflixBrowse.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Netflix Browse',
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/nf/anime/:id',
-        name: 'NetflixAnimeDetail',
-        component: () => import('../pages/NetflixPlayRedirect.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Stream',
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/nf/:type(movie|tv)/:id',
-        name: 'NetflixDetail',
-        component: () => import('../pages/NetflixPlayRedirect.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Stream',
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/stream/nf/movie/:id',
-        name: 'StreamNetflixMovie',
-        component: () => import('../pages/StreamNetflix.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Stream',
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/stream/nf/tv/:id/season/:season/episode/:episode',
-        name: 'StreamNetflixTV',
-        component: () => import('../pages/StreamNetflix.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Stream',
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/embed/nf/movie/:id',
-        name: 'EmbedNetflixMovie',
-        component: () => import('../pages/StreamNetflix.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Stream',
-            partyEmbed: true,
-            bareLayout: true,
-            netflixGuard: true
-        }
-    },
-    {
-        path: '/embed/nf/tv/:id/season/:season/episode/:episode',
-        name: 'EmbedNetflixTV',
-        component: () => import('../pages/StreamNetflix.vue'),
-        meta: {
-            showInHeader: false,
-            title: 'Stream',
-            partyEmbed: true,
-            bareLayout: true,
-            netflixGuard: true
-        }
-    },
+
     {
         path: '/movies',
         name: 'Movies',
@@ -424,9 +310,7 @@ const router = createRouter({
             (from.name === 'Movie' ||
                 from.name === 'TVShow' ||
                 from.name === 'AnimeDetail') &&
-            (to.name === 'NetflixBrowse' ||
-                to.name === 'Home' ||
-                to.name === 'NetflixSearch' ||
+            (to.name === 'Home' ||
                 to.name === 'Movies' ||
                 to.name === 'TVShows' ||
                 to.name === 'Anime')
@@ -453,46 +337,19 @@ const { updateSeo } = useSeo();
 
 router.beforeEach((to, from, next) => {
     recordDetailReturnPath(from, to);
-
-    if (!isContentModeChosen()) {
-        next();
-        return;
-    }
-
-    const mode = getContentMode().isNetflix() ? 'netflix' : 'global';
-    const redirect = redirectPathForMode(to.path, mode);
-    if (redirect && redirect !== to.path) {
-        next({ path: redirect, query: to.query, hash: to.hash, replace: true });
-        return;
-    }
-
     next();
 });
-
-if (typeof window !== 'undefined') {
-    window.addEventListener('movora_content_mode_change', () => {
-        if (!isContentModeChosen()) return;
-        const mode = getContentMode().isNetflix() ? 'netflix' : 'global';
-        const current = router.currentRoute.value;
-        const redirect = redirectPathForMode(current.path, mode);
-        if (redirect && redirect !== current.path) {
-            router.replace({ path: redirect, query: current.query, hash: current.hash });
-        }
-    });
-}
 
 router.afterEach((to) => {
     import('../composables/useBotProtection').then(({ reevaluateBotProtection }) => {
         reevaluateBotProtection();
     });
 
-    const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode', 'NetflixDetail', 'NetflixAnimeDetail', 'StreamNetflixMovie', 'StreamNetflixTV'];
+    const dynamicRoutes = ['Movie', 'TVShow', 'AnimeDetail', 'Actor', 'StreamMovie', 'StreamTVShow', 'StreamAnime', 'StreamAnimeEpisode'];
     if (to.name && dynamicRoutes.includes(to.name as string)) {
         return;
     }
 
-    const netflixGuarded =
-        Boolean(to.meta.netflixGuard) || isNetflixGuardActive(to.path);
     const title = to.meta.title ? `${to.meta.title} — Moovie` : 'Moovie — Stream Movies, TV Shows & Anime Free';
     const canonical = `https://moovie.fun${to.path}`;
 
@@ -500,7 +357,7 @@ router.afterEach((to) => {
         title,
         canonical,
         image: 'https://moovie.fun/og-image.png',
-        robots: netflixGuarded ? 'noindex, nofollow' : 'index, follow'
+        robots: 'index, follow'
     });
 });
 

@@ -14,7 +14,6 @@ import { watch } from 'vue';
 import { getCurrentUser, pushUserDataToSupabase } from '../lib/auth';
 
 export const searchHistory = useStorage<string[]>('searchHistory', []);
-export const netflixSearchHistory = useStorage<string[]>('netflixSearchHistory', []);
 export const viewHistory = useStorage<ViewedItem[]>('viewHistory', []);
 
 function pushSearchTerm(store: typeof searchHistory, value: string): void {
@@ -37,11 +36,7 @@ export function addSearchTerm(term: string): void {
   }
 }
 
-export function addNetflixSearchTerm(term: string): void {
-  const value = term.trim();
-  if (!value) return;
-  pushSearchTerm(netflixSearchHistory, value);
-}
+
 
 export function addViewedItem(item: ViewedItem): void {
   const index = viewHistory.value.findIndex(
@@ -77,10 +72,8 @@ if (typeof window !== 'undefined') {
 export function useHistory() {
   return {
     searchHistory,
-    netflixSearchHistory,
     viewHistory,
     addSearchTerm,
-    addNetflixSearchTerm,
     addViewedItem
   };
 }

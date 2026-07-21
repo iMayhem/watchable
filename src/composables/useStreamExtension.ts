@@ -1,5 +1,4 @@
 import { onBeforeUnmount, onMounted, readonly, ref } from 'vue';
-import { nfDebug } from './useNetflixDebug';
 
 export interface StreamExtensionInfo {
     active: boolean;
@@ -18,7 +17,7 @@ let listenersBound = false;
 const applyDetection = (info: StreamExtensionInfo | null, source: string) => {
     const active = Boolean(info?.active);
     if (active !== extensionActive.value) {
-        nfDebug('extension:detected', { active, source, version: info?.version, mode: info?.mode });
+        console.log('extension:detected', { active, source, version: info?.version, mode: info?.mode });
         extensionActive.value = active;
         extensionInfo.value = info;
     } else if (active && info) {
@@ -112,7 +111,7 @@ function bindDomObserver() {
 function bindGlobalListeners() {
     if (listenersBound) return;
     listenersBound = true;
-    nfDebug('extension:init');
+    console.log('extension:init');
     window.addEventListener('moovie-stream-ext-ready', onExtensionReady);
     window.addEventListener('moovie-stream-ext-pong', onExtensionPong);
     bindDomObserver();

@@ -120,19 +120,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { paletteOpen, closePalette } from '../../composables/useCommandPalette';
 import {
     searchHistory,
-    netflixSearchHistory,
-    addSearchTerm,
-    addNetflixSearchTerm
+    addSearchTerm
 } from '../../composables/useHistory';
-import { getContentMode } from '../../composables/useContentMode';
-import { getNetflixCatalogue } from '../../composables/useNetflixCatalogue';
-import {
-    NETFLIX_ANIMATED_EXPLORE_PATH,
-    NETFLIX_MOVIE_EXPLORE_PATH,
-    NETFLIX_TV_EXPLORE_PATH
-} from '../../data/netmirrorExploreCategories';
-import { netflixBrowsePath } from '../../composables/useNetflixRails';
-import { searchPathForMode } from '../../utils/contentModeRoutes';
 
 interface JumpItem {
     label: string;
@@ -167,14 +156,6 @@ const GLOBAL_SEARCH_SCOPES: SearchScopeItem[] = [
         id: 'upcoming',
         label: 'Upcoming',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>'
-    }
-];
-
-const NETFLIX_SEARCH_SCOPES: SearchScopeItem[] = [
-    {
-        id: 'all',
-        label: 'Search catalogue',
-        icon: SEARCH_ICON
     }
 ];
 
@@ -229,97 +210,24 @@ const JUMP: JumpItem[] = [
     }
 ];
 
-const NETFLIX_JUMP: JumpItem[] = [
-    {
-        label: 'Home',
-        path: '/',
-        hint: '',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>'
-    },
-    {
-        label: 'TV Shows',
-        path: '__nf_tv__',
-        hint: '',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="m8 3 4 3 4-3"/></svg>'
-    },
-    {
-        label: 'Movies',
-        path: '__nf_movies__',
-        hint: '',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 14h4M17 9h4M17 14h4"/></svg>'
-    },
-    {
-        label: 'Animated',
-        path: '__nf_animated__',
-        hint: '',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6z"/><circle cx="9" cy="11" r="1.2" fill="currentColor"/><circle cx="15" cy="11" r="1.2" fill="currentColor"/></svg>'
-    },
-    {
-        label: 'New & Popular',
-        path: '__nf_new__',
-        hint: '',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M3 12h18"/></svg>'
-    },
-    {
-        label: 'Categories',
-        path: '/nf/categories',
-        hint: '',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'
-    },
-    {
-        label: 'Search',
-        path: '/nf/search',
-        hint: '',
-        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>'
-    }
-];
-
 export default defineComponent({
     name: 'CommandPalette',
     setup() {
         const router = useRouter();
         const route = useRoute();
-        const { contentMode } = getContentMode();
-        const { catalogue } = getNetflixCatalogue();
         const q = ref('');
         const activeIdx = ref(0);
         const input = ref<HTMLInputElement | null>(null);
         const list = ref<HTMLElement | null>(null);
         const shell = ref<HTMLElement | null>(null);
 
-        const isNetflixMode = computed(() => contentMode.value === 'netflix');
+        const searchScopes = computed(() => GLOBAL_SEARCH_SCOPES);
 
-        const searchScopes = computed(() =>
-            isNetflixMode.value ? NETFLIX_SEARCH_SCOPES : GLOBAL_SEARCH_SCOPES
-        );
+        const searchScopeLabel = computed(() => 'TMDB');
 
-        const searchScopeLabel = computed(() =>
-            isNetflixMode.value ? 'the catalogue' : 'TMDB'
-        );
+        const activeSearchHistory = computed(() => searchHistory.value);
 
-        const activeSearchHistory = computed(() =>
-            isNetflixMode.value ? netflixSearchHistory.value : searchHistory.value
-        );
-
-        const resolvedJump = computed(() => {
-            if (!isNetflixMode.value) return JUMP;
-            const cat = catalogue.value;
-            return NETFLIX_JUMP.map((item) => {
-                if (item.path === '__nf_tv__') {
-                    return { ...item, path: NETFLIX_TV_EXPLORE_PATH };
-                }
-                if (item.path === '__nf_movies__') {
-                    return { ...item, path: NETFLIX_MOVIE_EXPLORE_PATH };
-                }
-                if (item.path === '__nf_animated__') {
-                    return { ...item, path: NETFLIX_ANIMATED_EXPLORE_PATH };
-                }
-                if (item.path === '__nf_new__') {
-                    return { ...item, path: netflixBrowsePath(cat, 'new-on-netflix') };
-                }
-                return item;
-            });
-        });
+        const resolvedJump = computed(() => JUMP);
 
         const filteredJump = computed(() => {
             const needle = q.value.trim().toLowerCase();
@@ -355,15 +263,11 @@ export default defineComponent({
         const runSearch = (scope: SearchScope = 'all') => {
             const term = q.value.trim();
             if (!term) return;
-            if (isNetflixMode.value) {
-                addNetflixSearchTerm(term);
-            } else {
-                addSearchTerm(term);
-            }
-            const path = searchPathForMode(isNetflixMode.value ? 'netflix' : 'global');
+            addSearchTerm(term);
+            const path = '/search';
             const query: Record<string, string> = { search: term };
-            if (!isNetflixMode.value && scope === 'anime') query.tab = 'anime';
-            if (!isNetflixMode.value && scope === 'upcoming') query.tab = 'upcoming';
+            if (scope === 'anime') query.tab = 'anime';
+            if (scope === 'upcoming') query.tab = 'upcoming';
             router.push({ path, query });
             close();
         };
@@ -434,7 +338,7 @@ export default defineComponent({
         });
 
         watch(
-            () => [contentMode.value, catalogue.value, route.path],
+            () => route.path,
             () => {
                 if (!paletteOpen.value) return;
                 activeIdx.value = 0;

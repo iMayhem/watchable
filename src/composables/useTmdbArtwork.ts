@@ -4,7 +4,6 @@ import {
     inferCatalogMediaType,
     parseCatalogTitle
 } from './useMoovieCatalog';
-import { nfDebugError } from './useNetflixDebug';
 
 const CACHE_TTL = 6 * 60 * 60 * 1000;
 
@@ -248,9 +247,8 @@ async function fetchTmdbArtworkById(
             return artwork;
         }
     } catch (err) {
-        nfDebugError('tmdb:artwork:id:fail', { tmdbId, type, err });
+        console.error('tmdb:artwork:id:fail', { tmdbId, type, err });
     }
-
     return null;
 }
 
@@ -342,7 +340,7 @@ export async function resolveTmdbArtwork(opts: {
         setArtworkCache(cacheId, artwork);
         return artwork;
     } catch (err) {
-        nfDebugError('tmdb:artwork:fail', { title: cleanTitle, err });
+        console.error('tmdb:artwork:fail', { title: cleanTitle, err });
         return { posterPath: null, backdropPath: null };
     }
 }

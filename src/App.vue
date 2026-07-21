@@ -10,22 +10,15 @@
 
         <PollPopup v-if="!isPartyEmbed" />
 
-        <router-view v-if="isContentModeReady || isPartyEmbed" v-slot="{ Component, route }">
+        <router-view v-slot="{ Component, route }">
             <KeepAlive
                 :include="[
-                    'HomeShell',
-                    'NetflixBrowse',
-                    'NetflixSearch',
-                    'NetflixCategories',
-                    'NetflixExplore',
-                    'StreamNetflix'
+                    'HomeShell'
                 ]"
             >
                 <component :is="Component" :key="getRouteKey(route)" />
             </KeepAlive>
         </router-view>
-
-        <ContentModeGate v-if="!isPartyEmbed" />
 
         <CommandPalette v-if="!isPartyEmbed" />
 
@@ -39,11 +32,9 @@
 import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
-import { getContentMode } from './composables/useContentMode';
 import { useAdScript } from './composables/useAdScript';
 import { getSupabaseClient } from './lib/supabase';
 import { setVpsProxyBaseUrl } from './utils/useWebImage';
-import ContentModeGate from './components/navigation/ContentModeGate.vue';
 import OpeningSplash from './components/navigation/OpeningSplash.vue';
 import BannerBar from './components/navigation/BannerBar.vue';
 import PollPopup from './components/navigation/PollPopup.vue';
@@ -54,14 +45,6 @@ const isPartyEmbed = computed(
     () => Boolean(route.meta.partyEmbed) || route.query.embed === 'party'
 );
 const { region } = getSettings();
-const { contentMode } = getContentMode();
-
-const isContentModeReady = computed(() => {
-    return contentMode.value === 'global' || contentMode.value === 'netflix';
-});
-
-// Removed: watch(region) redirect that was causing Home.vue component unmount/remount
-// This breaks event listeners during region change. Let each page handle it via movora_settings_change event instead.
 
 const getRouteKey = (route: any) => {
     if (route.name === 'StreamTVShow' && route.params.id) {
@@ -69,30 +52,6 @@ const getRouteKey = (route: any) => {
     }
     if ((route.name === 'StreamAnime' || route.name === 'StreamAnimeEpisode') && route.params.id) {
         return `anime-stream-${route.params.id}-${region.value}`;
-    }
-    // Keep one player instance when switching Netflix audio (catalogue id in path changes).
-    if (
-        route.name === 'StreamNetflixMovie' ||
-        route.name === 'StreamNetflixTV' ||
-        route.name === 'EmbedNetflixMovie' ||
-        route.name === 'EmbedNetflixTV'
-    ) {
-        return 'stream-netflix';
-    }
-    if (route.name === 'NetflixBrowse') {
-        const type = route.query.type;
-        const typeSuffix =
-            type === 'tv' || type === 'movie' ? `-${type}` : '';
-        return `nf-browse-${route.params.catalogue}-${route.params.row}${typeSuffix}`;
-    }
-    if (route.name === 'NetflixCategories') {
-        const type = route.query.type;
-        const typeSuffix =
-            type === 'tv' || type === 'movie' ? `-${type}` : '';
-        return `nf-categories${typeSuffix}`;
-    }
-    if (route.name === 'NetflixExplore') {
-        return `nf-explore-${route.params.mediaType || 'all'}-${route.fullPath}`;
     }
     // Stable key: AniList browse links normalize to TMDB ids via router.replace.
     // Path-based keys remount the page and replay the full loading skeleton.
@@ -146,7 +105,6 @@ const initIdle = async () => {
     import('./pages/Search.vue');
     import('./pages/Watchlist.vue');
     import('./pages/Upcoming.vue');
-    import('./pages/NetflixBrowse.vue');
 };
 
 useAdScript('pc');
@@ -193,15 +151,7 @@ onBeforeUnmount(() => {
     }
 }
 
-html.nf-party-embed,
-html.nf-party-embed body,
-html.nf-party-embed #app {
-    height: 100%;
-    min-height: 0;
-    margin: 0;
-    overflow: hidden;
-    background: #000;
-}
+
 
 // ── Skip-to-content link ─────────────────────────────────────────────────────
 .app-skip {

@@ -136,7 +136,7 @@
 
                 <div v-else class="discover-page__grid">
                     <PosterCard
-                        v-for="item in results"
+                        v-for="item in results.slice(0, displayedLimit)"
                         :key="item.id"
                         :id="item.id"
                         :type="item.type || 'movie'"
@@ -148,15 +148,19 @@
                     />
                 </div>
 
-                <div v-if="isLoadingMore" class="discover-page__loading">
-                    <span>Loading more…</span>
+                <div v-if="results.length && (hasMore || isLoadingMore)" class="discover-page__load-more-container">
+                    <button
+                        v-if="!isLoadingMore"
+                        type="button"
+                        class="discover-page__load-more-btn"
+                        @click="loadMoreClick"
+                    >
+                        Load More
+                    </button>
+                    <div v-else class="discover-page__loading">
+                        <span>Loading more…</span>
+                    </div>
                 </div>
-
-                <div
-                    v-if="!isLoading && hasMore"
-                    ref="scrollSentinel"
-                    class="discover-page__sentinel"
-                />
 
                 <p v-if="!isLoading && !hasMore && results.length > 0" class="discover-page__empty">
                     You've seen it all.
@@ -169,14 +173,13 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import PosterCard from '../components/cards/PosterCard.vue';
 import SuggestionRail from '../components/rails/SuggestionRail.vue';
 import useAxios from '../composables/useAxios';
-import { usePaginatedInfiniteScroll } from '../composables/useLazyLoad';
 import { useGemini } from '../composables/useGemini';
 
 interface Category {
@@ -541,10 +544,14 @@ export default defineComponent({
             }
         };
 
-        const loadNextPage = async () => {
-            if (!currentCat.value) return;
-            await fetchPage(currentCat.value, page.value + 1, true);
-            await nextTick();
+        const displayedLimit = ref(25);
+
+        const loadMoreClick = async () => {
+            displayedLimit.value += 25;
+            while (results.value.length < displayedLimit.value && page.value < totalPages.value) {
+                if (!currentCat.value) break;
+                await fetchPage(currentCat.value, page.value + 1, true);
+            }
         };
 
         const selectCategory = (cat: Category) => {
@@ -552,17 +559,10 @@ export default defineComponent({
             currentCat.value = cat;
             page.value = 1;
             totalPages.value = 1;
+            displayedLimit.value = 25;
             void router.replace({ query: { ...router.currentRoute.value.query, category: cat.key } });
-            void fetchPage(cat, 1, false).then(() => drainPagesIfNeeded());
+            void fetchPage(cat, 1, false);
         };
-
-        const { scrollSentinel, drainPagesIfNeeded } = usePaginatedInfiniteScroll({
-            hasMore,
-            isLoading,
-            isLoadingMore,
-            hasResults: computed(() => results.value.length > 0),
-            loadNextPage
-        });
 
         const initialCat = categories.find(c => c.key === activeCategory.value) || categories[0];
         currentCat.value = initialCat;
@@ -575,7 +575,8 @@ export default defineComponent({
             isLoading,
             isLoadingMore,
             hasMore,
-            scrollSentinel,
+            displayedLimit,
+            loadMoreClick,
             selectCategory,
             showScrollTop,
             scrollToTop,
@@ -1076,6 +1077,39 @@ export default defineComponent({
             background: var(--surface-tint-hover);
             color: var(--bone-50);
             border-color: var(--rule-strong);
+        }
+    }
+
+    &__load-more-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: var(--s-8);
+        width: 100%;
+        gap: var(--s-4);
+    }
+
+    &__load-more-btn {
+        background: rgba(255, 90, 31, 0.1);
+        border: 1.5px solid var(--ember);
+        color: #ffffff;
+        padding: 0.75rem 2.5rem;
+        border-radius: var(--r-pill);
+        font-family: var(--font-ui);
+        font-size: var(--fs-base);
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+        box-shadow: 0 4px 15px rgba(255, 90, 31, 0.15);
+
+        &:hover {
+            background: var(--ember);
+            transform: scale(1.04);
+            box-shadow: 0 6px 20px rgba(255, 90, 31, 0.3);
+        }
+
+        &:active {
+            transform: scale(0.98);
         }
     }
 }

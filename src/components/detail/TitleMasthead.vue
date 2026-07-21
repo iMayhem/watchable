@@ -154,7 +154,6 @@
                         </LmButton>
 
                         <LmButton
-                            v-if="partySource !== 'netflix'"
                             variant="outline"
                             size="lg"
                             :href="partyHref"
@@ -188,7 +187,6 @@ import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { usePrefetch } from '../../composables/usePrefetch';
 import {
-    prefetchMoovieResolve,
     warmMooviePlayerAssets
 } from '../../composables/useMooviePlayer';
 import { useDetailBackNavigation } from '../../composables/useDetailBackNavigation';
@@ -202,7 +200,6 @@ export default defineComponent({
     props: {
         id: { type: [Number, String], default: '' },
         partyId: { type: [Number, String], default: null },
-        partySource: { type: String as PropType<'global' | 'netflix'>, default: 'global' },
         type: { type: String as PropType<'movie' | 'tv' | 'anime'>, default: 'movie' },
         title: { type: String, default: '' },
         tagline: { type: String, default: '' },
@@ -231,31 +228,10 @@ export default defineComponent({
 
         const { prefetchStream } = usePrefetch();
 
-        const isNetflixStreamPlay = computed(() => {
-            const route = props.playRoute;
-            const path =
-                typeof route === 'string'
-                    ? route
-                    : route && typeof route === 'object' && 'path' in route
-                      ? String((route as { path?: string }).path || '')
-                      : '';
-            return path.includes('/stream/nf/');
-        });
-
         const warmPlayback = () => {
             void warmMooviePlayerAssets();
             const id = String(props.id || '').trim();
             if (!id) return;
-
-            if (isNetflixStreamPlay.value && (props.type === 'movie' || props.type === 'tv')) {
-                prefetchMoovieResolve({
-                    type: props.type,
-                    id,
-                    season: props.type === 'tv' ? 1 : 0,
-                    episode: props.type === 'tv' ? 1 : 0
-                });
-                return;
-            }
 
             if (props.type === 'movie' || props.type === 'tv') {
                 prefetchStream(
@@ -333,15 +309,13 @@ export default defineComponent({
         };
 
         const partyHref = computed(() => {
-            if (props.partySource === 'netflix') return '';
-            // Global anime parties must use AniList ids — route/detail ids are TMDB.
             if (props.type === 'anime' && props.partyId == null) return '';
             return buildPartyHref({
                 id: props.id,
                 partyId: props.partyId ?? undefined,
                 title: props.title,
                 type: props.type,
-                source: props.partySource
+                source: 'global'
             });
         });
 

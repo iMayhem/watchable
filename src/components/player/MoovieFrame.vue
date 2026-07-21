@@ -1598,6 +1598,7 @@ export default defineComponent({
             if (!originalStream.value) {
                 originalStream.value = s
             }
+            selectedServer.value = s.providerName || ''
             const useProxy = proxyEnabled && !!s.proxyUrl
             const isHlsStream = s.type === 'm3u8' || s.type === 'hls'
             async function tryMount(url: string) {
@@ -2634,8 +2635,8 @@ export default defineComponent({
     }
     
     &.is-dimmed {
-        opacity: 0.35;
-        pointer-events: none;
+        opacity: 0.45;
+        cursor: pointer;
     }
 }
 

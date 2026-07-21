@@ -624,8 +624,8 @@ const selectedMovies = ref<any[]>([])
 let adminPasscode = DEFAULT_PASSCODE
 
 const settings = reactive({
-    defaultProvider: 'rasmalai',
-    defaultProviderMobile: 'rasmalai',
+    defaultProvider: 'moovie',
+    defaultProviderMobile: 'moovie',
     tmdbQuality: 'medium',
     groqKeys: ['', '', '']
 })

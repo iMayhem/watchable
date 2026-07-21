@@ -1371,7 +1371,7 @@ export default defineComponent({
                                         quality: qLabel,
                                         type: (entry.type || 'hls') === 'hls' ? 'm3u8' : 'mp4',
                                         headers: mw.headers,
-                                        providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId,
+                                        providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId.charAt(0).toUpperCase() + data.sourceId.slice(1).replace(/-/g, ' '),
                                         qualities: qualityLabels,
                                     }
                                     if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
@@ -1390,7 +1390,7 @@ export default defineComponent({
                                     quality: 'Auto',
                                     type: isHls ? 'm3u8' : (mw.type || 'mp4'),
                                     headers: mw.headers,
-                                    providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId,
+                                    providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId.charAt(0).toUpperCase() + data.sourceId.slice(1).replace(/-/g, ' '),
                                 }
                                 if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
                                 if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
@@ -1774,7 +1774,7 @@ export default defineComponent({
             settingsSection.value = null
             console.debug('[MoovieFrame] selectServer:', provider)
 
-            const group = streams.value.filter(s => s.providerName === provider)
+            const group = streams.value.filter(s => (s.providerName || '').toLowerCase() === provider.toLowerCase())
             if (group.length > 0) {
                 const best = pickBest(group)
                 if (best) {
@@ -1844,11 +1844,49 @@ export default defineComponent({
 
                 try {
                     const data = JSON.parse(e.data)
-                    const rawList = data.stream || []
-                    for (const s of rawList) {
-                        if (s.proxyUrl?.startsWith('/')) s.proxyUrl = HUB_BASE + s.proxyUrl
-                        s.providerName = provider
-                        scraperStreams.push(s)
+                    const rawStreams = Array.isArray(data.stream) ? data.stream : (data.stream ? [data.stream] : [])
+                    for (const mw of rawStreams) {
+                        const qualities = mw.qualities || {}
+                        const qualityLabels = Object.keys(qualities)
+                        const isHls = mw.type === 'hls' || !!mw.playlist
+
+                        if (qualityLabels.length) {
+                            for (const qLabel of qualityLabels) {
+                                const entry = qualities[qLabel]
+                                if (!entry) continue
+                                const streamUrl = (entry.playlist || entry.url || '')
+                                if (!streamUrl && !mw.proxyUrl) continue
+
+                                const stream: HubStream = {
+                                    name: mw.name || provider,
+                                    url: streamUrl,
+                                    proxyUrl: mw.proxyUrl || '',
+                                    quality: qLabel,
+                                    type: (entry.type || 'hls') === 'hls' ? 'm3u8' : 'mp4',
+                                    headers: mw.headers,
+                                    providerName: provider,
+                                    qualities: qualityLabels,
+                                }
+                                if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
+                                if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
+                                scraperStreams.push(stream)
+                            }
+                        } else {
+                            const streamUrl = isHls ? (mw.playlist || '') : (mw.url || '')
+                            const stream: HubStream = {
+                                name: mw.name || provider,
+                                url: streamUrl || '',
+                                proxyUrl: mw.proxyUrl || '',
+                                quality: 'Auto',
+                                type: isHls ? 'm3u8' : (mw.type || 'mp4'),
+                                headers: mw.headers,
+                                providerName: provider,
+                            }
+                            if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
+                            if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
+                            if (!stream.url && !stream.proxyUrl) continue
+                            scraperStreams.push(stream)
+                        }
                     }
 
                     if (scraperStreams.length > 0) {

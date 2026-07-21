@@ -287,7 +287,6 @@
                             class="moovie-frame__settings-item"
                             :class="{
                                 'is-active': selectedServer === server.name,
-                                'is-dimmed': !server.hasStreams,
                             }"
                             @click="selectServer(server.name)"
                         >
@@ -1774,26 +1773,135 @@ export default defineComponent({
             settingsOpen.value = false
             settingsSection.value = null
             console.debug('[MoovieFrame] selectServer:', provider)
-            console.debug('[MoovieFrame]  all providerNames in streams:', [...new Set(streams.value.map(s => s.providerName))])
+
             const group = streams.value.filter(s => s.providerName === provider)
-            console.debug('[MoovieFrame]  matching streams:', group.length)
-            if (!group.length) return
-            const best = pickBest(group)
-            if (!best) {
-                console.debug('[MoovieFrame] pickBest returned null for provider:', provider)
+            if (group.length > 0) {
+                const best = pickBest(group)
+                if (best) {
+                    try {
+                        await tryPlayStream(best)
+                        console.debug('[MoovieFrame] switched to server:', provider)
+                    } catch (e) {
+                        console.error('[MoovieFrame] failed to switch to server:', provider, e)
+                    }
+                }
                 return
             }
-            console.debug('[MoovieFrame]  picked stream:', best.name, best.quality, 'url:', (best.url || best.proxyUrl || '').slice(0, 80))
-            if (!best.url && !best.proxyUrl) {
-                console.debug('[MoovieFrame] stream has no URL for provider:', provider)
+
+            const providerObj = providers.value.find(p => p.name === provider)
+            const providerId = providerObj?.id
+            if (!providerId) {
+                console.warn('[MoovieFrame] selectServer: no providerId found for', provider)
                 return
             }
-            try {
-                await tryPlayStream(best)
-                console.debug('[MoovieFrame] switched to server:', provider)
-            } catch (e) {
-                console.error('[MoovieFrame] failed to switch to server:', provider, e)
+
+            const video = videoRef.value
+            if (video) video.pause()
+            playing.value = false
+            loading.value = true
+            error.value = ''
+
+            if (providerObj) {
+                providerObj.status = 'pending'
+                providerObj.percentage = 0
             }
+
+            const id = String(props.mediaId)
+            const params = new URLSearchParams({ id: providerId, tmdbId: id, type: props.mediaType })
+            if (props.season > 0) params.set('season', String(props.season))
+            if (props.episode > 0) params.set('episode', String(props.episode))
+            params.set('_cb', String(Date.now()))
+            const scrapeUrl = `${HUB_BASE}/scrape/source?${params}`
+
+            console.debug('[MoovieFrame] starting single source scrape:', scrapeUrl)
+            cancelScrape()
+
+            let sourceEventSource: EventSource | null = new EventSource(scrapeUrl)
+            const scraperStreams: HubStream[] = []
+            let finished = false
+
+            function cleanUpSSE() {
+                if (sourceEventSource) {
+                    sourceEventSource.close()
+                    sourceEventSource = null
+                }
+            }
+
+            sourceEventSource.addEventListener('update', (e: MessageEvent) => {
+                try {
+                    const data = JSON.parse(e.data)
+                    if (providerObj && data.id === providerId) {
+                        providerObj.status = data.status || 'pending'
+                        providerObj.percentage = typeof data.percentage === 'number' ? data.percentage : 0
+                    }
+                } catch { /* ignore */ }
+            })
+
+            sourceEventSource.addEventListener('completed', async (e: MessageEvent) => {
+                if (finished) return
+                finished = true
+                cleanUpSSE()
+
+                try {
+                    const data = JSON.parse(e.data)
+                    const rawList = data.stream || []
+                    for (const s of rawList) {
+                        if (s.proxyUrl?.startsWith('/')) s.proxyUrl = HUB_BASE + s.proxyUrl
+                        s.providerName = provider
+                        scraperStreams.push(s)
+                    }
+
+                    if (scraperStreams.length > 0) {
+                        if (providerObj) {
+                            providerObj.status = 'success'
+                            providerObj.percentage = 100
+                        }
+                        streams.value = [...streams.value, ...scraperStreams]
+                        const best = pickBest(scraperStreams)
+                        if (best) {
+                            loading.value = false
+                            await tryPlayStream(best)
+                        } else {
+                            throw new Error('No compatible stream found')
+                        }
+                    } else {
+                        throw new Error('No streams returned')
+                    }
+                } catch (err: any) {
+                    if (providerObj) {
+                        providerObj.status = 'notfound'
+                        providerObj.percentage = 100
+                    }
+                    error.value = `No streams found on ${provider}`
+                    loading.value = false
+                }
+            })
+
+            sourceEventSource.addEventListener('noOutput', () => {
+                if (finished) return
+                finished = true
+                cleanUpSSE()
+
+                if (providerObj) {
+                    providerObj.status = 'notfound'
+                    providerObj.percentage = 100
+                }
+                error.value = `No streams found on ${provider}`
+                loading.value = false
+            })
+
+            sourceEventSource.addEventListener('error', () => {
+                if (finished) return
+                finished = true
+                cleanUpSSE()
+
+                if (providerObj) {
+                    providerObj.status = 'failure'
+                    providerObj.percentage = 100
+                }
+                error.value = `Failed to connect to ${provider}`
+                loading.value = false
+            })
         }
 
         async function selectAudioTrack(index: number) {

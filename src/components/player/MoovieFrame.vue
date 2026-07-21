@@ -847,6 +847,25 @@ export default defineComponent({
         const settingsOpen = ref(false)
         const settingsSection = ref<string | null>(null)
         const selectedServer = ref('')
+
+        const loadServerOverrides = async () => {
+            try {
+                const supabase = await getSupabaseClient()
+                const { data } = await supabase
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'default_server_overrides')
+                    .single()
+                if (data?.value) {
+                    const overrides = JSON.parse(data.value)
+                    const key = `${props.mediaType}-${props.mediaId}`
+                    if (overrides[key]) {
+                        selectedServer.value = overrides[key]
+                        console.debug('[MoovieFrame] Loaded server override:', selectedServer.value)
+                    }
+                }
+            } catch { /* ignore */ }
+        }
         const audioTracks = ref<{ id: number; name: string; lang?: string; _catalogId?: string }[]>([])
         const selectedAudioTrack = ref(-1)
         const languageVariants = ref<LanguageVariant[]>([])
@@ -1540,13 +1559,18 @@ export default defineComponent({
 
         function pickBest(streams: HubStream[]): HubStream | null {
             if (!streams.length) return null
-            let best = streams[0]
+            const targetServer = selectedServer.value
+            const filtered = targetServer
+                ? streams.filter(s => (s.providerName || '').toLowerCase() === targetServer.toLowerCase())
+                : []
+            const activeStreams = filtered.length ? filtered : streams
+            let best = activeStreams[0]
             let bestScore = scoreStream(best)
-            for (let i = 1; i < streams.length; i++) {
-                const s = scoreStream(streams[i])
+            for (let i = 1; i < activeStreams.length; i++) {
+                const s = scoreStream(activeStreams[i])
                 if (s > bestScore) {
                     bestScore = s
-                    best = streams[i]
+                    best = activeStreams[i]
                 }
             }
             return best
@@ -2196,7 +2220,8 @@ export default defineComponent({
         let heartbeatInterval: any = null;
         let cueTimer: any = null;
 
-        onMounted(() => {
+        onMounted(async () => {
+            await loadServerOverrides()
             computeAmbient(); startTrackingIfNeeded()
             if (videoRef.value) {
                 volume.value = videoRef.value.volume

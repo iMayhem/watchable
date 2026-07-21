@@ -115,6 +115,66 @@
                         </div>
 
                         <div class="admin-page__field">
+                            <label class="admin-page__label">Default Server Overrides by TMDB ID</label>
+                            
+                            <!-- Overrides list -->
+                            <div v-if="Object.keys(serverOverrides).length === 0" class="admin-page__hint" style="margin-bottom: 0.5rem">
+                                No overrides configured. Specific servers are selected automatically based on quality/priority.
+                            </div>
+                            <div v-else style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+                                <div 
+                                    v-for="(serverName, key) in serverOverrides" 
+                                    :key="key" 
+                                    style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 4px;"
+                                >
+                                    <span>
+                                        <strong style="text-transform: uppercase; color: var(--ember);">{{ key.split('-')[0] }}</strong> 
+                                        ID: <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">{{ key.split('-')[1] }}</code> 
+                                        ➔ <strong style="color: #4eb5ff;">{{ serverName }}</strong>
+                                    </span>
+                                    <button 
+                                        type="button" 
+                                        class="admin-page__btn admin-page__btn--sm admin-page__btn--danger" 
+                                        @click="deleteOverride(key)"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Add new override form row -->
+                            <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                                <select v-model="newOverride.type" class="admin-page__select" style="flex: 1; margin: 0; min-height: 38px;">
+                                    <option value="movie">Movie</option>
+                                    <option value="tv">Show (TV)</option>
+                                </select>
+                                <input 
+                                    v-model="newOverride.id" 
+                                    type="text" 
+                                    class="admin-page__input" 
+                                    style="flex: 2; margin: 0;" 
+                                    placeholder="TMDB ID (e.g. 503)"
+                                />
+                                <select v-model="newOverride.server" class="admin-page__select" style="flex: 2; margin: 0; min-height: 38px;">
+                                    <option value="Poseidon">Poseidon</option>
+                                    <option value="Thor">Thor</option>
+                                    <option value="Athena">Athena</option>
+                                    <option value="Zeus">Zeus</option>
+                                    <option value="Hades">Hades</option>
+                                </select>
+                                <button 
+                                    type="button" 
+                                    class="admin-page__btn" 
+                                    style="margin: 0; height: 38px; display: inline-flex; align-items: center;"
+                                    @click="addOverride"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                            <p class="admin-page__hint">Add specific TMDB IDs to force the Moovie player to prioritize that server first by default.</p>
+                        </div>
+
+                        <div class="admin-page__field">
                             <label class="admin-page__label">Groq API Keys (3 Slots for Auto-Failover)</label>
                             <input v-model="settings.groqKeys[0]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 1">
                             <input v-model="settings.groqKeys[1]" type="password" class="admin-page__input" placeholder="Groq API Key Slot 2">
@@ -572,6 +632,12 @@ const settings = reactive({
 
 const youtubeApiKeys = ref<string[]>([''])
 const osApiKeys = ref<string[]>([''])
+const serverOverrides = ref<Record<string, string>>({})
+const newOverride = ref({
+    type: 'movie',
+    id: '',
+    server: 'Thor'
+})
 
 // ── Notifications ──────────────────────────────────────────────────────────────
 const notifTitle = ref('')
@@ -728,6 +794,14 @@ async function loadDashboardSettings() {
         }
     } catch { /* ignore */ }
 
+    try {
+        const { data } = await client.from('app_settings').select('value').eq('key', 'default_server_overrides').single()
+        if (data?.value) {
+            const parsed = JSON.parse(data.value)
+            serverOverrides.value = parsed
+        }
+    } catch { /* ignore */ }
+
     await load4KCuration()
 
     try {
@@ -843,6 +917,7 @@ async function handleSaveSettings() {
         await client.from('app_settings').upsert({ key: 'ads_mobile_enabled', value: String(adsMobileEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'support_btn_hidden', value: String(supportBtnHidden.value), updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'stream_proxy_enabled', value: String(streamProxyEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
+        await client.from('app_settings').upsert({ key: 'default_server_overrides', value: JSON.stringify(serverOverrides.value), updated_at: new Date() }, { onConflict: 'key' })
 
         showToast('Settings updated successfully!')
     } catch {
@@ -850,6 +925,23 @@ async function handleSaveSettings() {
     } finally {
         saveLoading.value = false
     }
+}
+
+function addOverride() {
+    const idTrimmed = newOverride.value.id.trim()
+    if (!idTrimmed) {
+        showToast('Please enter a valid TMDB ID', false)
+        return
+    }
+    const key = `${newOverride.value.type}-${idTrimmed}`
+    serverOverrides.value[key] = newOverride.value.server
+    newOverride.value.id = ''
+    showToast(`Added override for ${key}`)
+}
+
+function deleteOverride(key: string) {
+    delete serverOverrides.value[key]
+    showToast(`Removed override for ${key}`)
 }
 
 function addYoutubeKey() {

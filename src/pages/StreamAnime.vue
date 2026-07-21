@@ -878,8 +878,7 @@ export default defineComponent({
                     dummyList.push({
                         episode_number: i,
                         name: `Episode ${i}`,
-                        air_date: '',
-                        still_path: ''
+                        air_date: ''
                     });
                 }
                 return dummyList;

@@ -715,6 +715,46 @@
                     </select>
                 </div>
 
+                <div class="form-group" style="margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1.5rem;">
+                    <label class="form-label">Default Server Overrides by TMDB ID</label>
+                    
+                    <!-- Overrides list -->
+                    <div id="overrides-list-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+                        <p class="subtitle" style="font-size: 0.75rem; margin-bottom: 0;">No overrides configured. Specific servers are selected automatically.</p>
+                    </div>
+
+                    <!-- Add new override form row -->
+                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">
+                        <select id="new-override-type" class="form-select" style="flex: 1; margin: 0; min-height: 38px;">
+                            <option value="movie">Movie</option>
+                            <option value="tv">Show (TV)</option>
+                        </select>
+                        <input 
+                            id="new-override-id" 
+                            type="text" 
+                            class="form-input" 
+                            style="flex: 2; margin: 0;" 
+                            placeholder="TMDB ID (e.g. 503)"
+                        />
+                        <select id="new-override-server" class="form-select" style="flex: 2; margin: 0; min-height: 38px;">
+                            <option value="Poseidon">Poseidon</option>
+                            <option value="Thor">Thor</option>
+                            <option value="Athena">Athena</option>
+                            <option value="Zeus">Zeus</option>
+                            <option value="Hades">Hades</option>
+                        </select>
+                        <button 
+                            type="button" 
+                            class="btn btn-sm" 
+                            style="margin: 0; height: 38px; display: inline-flex; align-items: center; width: auto;"
+                            onclick="addOverride()"
+                        >
+                            Add
+                        </button>
+                    </div>
+                    <p class="subtitle" style="font-size: 0.75rem; margin-top: 0.5rem;">Add specific TMDB IDs to force the player to prioritize that server first by default.</p>
+                </div>
+
                 <div class="form-group" style="margin-top: 2rem;">
                     <label class="form-label" for="vps-proxy-url">VPS TMDB Image Proxy URL</label>
                     <input type="url" id="vps-proxy-url" class="form-input" placeholder="https://vps.example.com:3000">
@@ -1034,6 +1074,7 @@
 
         let supabaseClient;
         let adminPasscode = 'admin123'; // fallback default passcode
+        let serverOverrides = {};
 
         // Initialize Supabase Client dynamically
         function initSupabase() {
@@ -1101,6 +1142,78 @@
                 btn.disabled = false;
                 btn.textContent = 'Unlock Dashboard';
             }
+        }
+
+        // Render overrides list
+        function renderOverridesList() {
+            const container = document.getElementById('overrides-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const keys = Object.keys(serverOverrides || {});
+            if (keys.length === 0) {
+                container.innerHTML = `<p class="subtitle" style="font-size: 0.75rem; margin-bottom: 0;">No overrides configured. Specific servers are selected automatically.</p>`;
+                return;
+            }
+
+            keys.forEach(key => {
+                const parts = key.split('-');
+                const type = parts[0];
+                const id = parts[1];
+                const serverName = serverOverrides[key];
+                
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.justify = 'space-between';
+                div.style.alignItems = 'center';
+                div.style.background = 'rgba(255,255,255,0.05)';
+                div.style.padding = '0.5rem 1rem';
+                div.style.borderRadius = '4px';
+                
+                div.innerHTML = `
+                    <span>
+                        <strong style="text-transform: uppercase; color: var(--ember);">${type}</strong> 
+                        ID: <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">${id}</code> 
+                        ➔ <strong style="color: #4eb5ff;">${serverName}</strong>
+                    </span>
+                    <button 
+                        type="button" 
+                        class="btn btn-sm btn-danger" 
+                        style="margin: 0; width: auto; font-size: 0.75rem; padding: 0.3rem 0.6rem;"
+                        onclick="deleteOverride('${key}')"
+                    >
+                        Delete
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Add override
+        function addOverride() {
+            const type = document.getElementById('new-override-type').value;
+            const idInput = document.getElementById('new-override-id');
+            const idVal = idInput.value.trim();
+            const serverName = document.getElementById('new-override-server').value;
+            
+            if (!idVal) {
+                showToast('Please enter a valid TMDB ID', false);
+                return;
+            }
+            
+            const key = `${type}-${idVal}`;
+            serverOverrides[key] = serverName;
+            idInput.value = '';
+            
+            renderOverridesList();
+            showToast(`Added override for ${key}`);
+        }
+
+        // Delete override
+        function deleteOverride(key) {
+            delete serverOverrides[key];
+            renderOverridesList();
+            showToast(`Removed override for ${key}`);
         }
 
         // Load settings onto dashboard
@@ -1171,6 +1284,24 @@
                 }
             } catch (err) {
                 console.warn('Could not retrieve current Groq keys:', err);
+            }
+
+            try {
+                const { data } = await supabaseClient
+                    .from('app_settings')
+                    .select('value')
+                    .eq('key', 'default_server_overrides')
+                    .single();
+                if (data && data.value) {
+                    serverOverrides = JSON.parse(data.value) || {};
+                } else {
+                    serverOverrides = {};
+                }
+                renderOverridesList();
+            } catch (err) {
+                console.warn('Could not retrieve current default server overrides:', err);
+                serverOverrides = {};
+                renderOverridesList();
             }
             
             // Load 4K curation
@@ -1576,6 +1707,12 @@
                     .from('app_settings')
                     .upsert({ key: 'vps_proxy_base_url', value: vpsUrl, updated_at: new Date() }, { onConflict: 'key' });
                 if (vpsError) throw vpsError;
+
+                // Save default server overrides
+                const { error: overridesError } = await supabaseClient
+                    .from('app_settings')
+                    .upsert({ key: 'default_server_overrides', value: JSON.stringify(serverOverrides), updated_at: new Date() }, { onConflict: 'key' });
+                if (overridesError) throw overridesError;
 
                 // Save new passcode if provided
                 if (newPasscode) {

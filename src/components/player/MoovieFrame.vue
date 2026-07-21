@@ -271,15 +271,6 @@
                             <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                         </button>
                         <button
-                            v-if="hasServerAudio"
-                            class="moovie-frame__settings-item"
-                            @click="settingsSection = 'server_audio'"
-                        >
-                            <span class="moovie-frame__settings-item-label">Server Audio</span>
-                            <span class="moovie-frame__settings-item-value">{{ currentServerAudioLabel }}</span>
-                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                        </button>
-                        <button
                             class="moovie-frame__settings-item"
                             @click="settingsSection = 'subtitles'"
                         >
@@ -340,19 +331,7 @@
 
                     <template v-if="settingsSection === 'audio'">
                         <button
-                            v-for="track in regularAudioTracks"
-                            :key="track.id"
-                            class="moovie-frame__settings-item"
-                            :class="{ 'is-active': selectedAudioTrack === track.id }"
-                            @click="selectAudioTrack(track.id)"
-                        >
-                            <span>{{ track.name }}<span v-if="track.lang" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
-                        </button>
-                    </template>
-
-                    <template v-if="settingsSection === 'server_audio'">
-                        <button
-                            v-for="track in serverAudioTracks"
+                            v-for="track in audioTracks"
                             :key="track.id"
                             class="moovie-frame__settings-item"
                             :class="{ 'is-active': selectedAudioTrack === track.id }"
@@ -626,7 +605,7 @@ async function resolveLanguageVariantUrl(
     type: 'movie' | 'show',
     season?: number,
     episode?: number
-): Promise<{ url: string; type: 'm3u8' | 'mp4'; proxyUrl?: string } | null> {
+): Promise<{ url: string; type: 'm3u8' | 'mp4'; proxyUrl?: string; headers?: Record<string, string> } | null> {
     try {
         let provider = 'moovie-catalog'
         let actualId = id
@@ -648,7 +627,12 @@ async function resolveLanguageVariantUrl(
         if (!url) return null
         const responseType = String(json.type ?? '').toLowerCase()
         const isHls = responseType === 'm3u8' || responseType === 'hls' || url.includes('.m3u8')
-        return { url, type: isHls ? 'm3u8' : 'mp4', proxyUrl: json.proxyUrl ? STREAMSCRAPER_HUB + json.proxyUrl : undefined }
+        return { 
+            url, 
+            type: isHls ? 'm3u8' : 'mp4', 
+            proxyUrl: json.proxyUrl ? STREAMSCRAPER_HUB + json.proxyUrl : undefined,
+            headers: json.headers
+        }
     } catch { return null }
 }
 
@@ -1076,40 +1060,13 @@ export default defineComponent({
             }))
         })
 
-        const currentStream = computed(() => streams.value[selectedStreamIndex.value])
-        const activeServerName = computed(() => currentStream.value?.providerName || '')
-
-        const serverAudioTracks = computed(() => {
-            const server = (selectedServer.value || activeServerName.value || '').toLowerCase()
-            if (!server || server === 'auto') return []
-            return audioTracks.value
-        })
-
-        const regularAudioTracks = computed(() => {
-            const server = (selectedServer.value || activeServerName.value || '').toLowerCase()
-            if (!server || server === 'auto') {
-                return audioTracks.value
-            }
-            return []
-        })
-
-        const hasServerAudio = computed(() => {
-            return serverAudioTracks.value.length > 0
-        })
-
-        const currentAudioLabel = computed(() => {
-            const track = regularAudioTracks.value.find(t => t.id === selectedAudioTrack.value)
+                const currentAudioLabel = computed(() => {
+            const track = audioTracks.value.find(t => t.id === selectedAudioTrack.value)
             const name = track?.name || ''
             if (!name || name.toLowerCase() === 'unknown' || name.toLowerCase() === 'und') {
                 return 'English'
             }
             return name
-        })
-
-        const currentServerAudioLabel = computed(() => {
-            const track = serverAudioTracks.value.find(t => t.id === selectedAudioTrack.value)
-            if (track) return track.name
-            return 'None'
         })
 
         const currentSubtitleLabel = computed(() => {
@@ -2077,6 +2034,7 @@ export default defineComponent({
                 proxyUrl: resolved.proxyUrl || '',
                 quality: 'Auto',
                 type: resolved.type,
+                headers: resolved.headers,
                 providerName: lv.provider,
             }
             await tryPlayStream(s)
@@ -2341,7 +2299,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, regularAudioTracks, serverAudioTracks, hasServerAudio, currentServerAudioLabel }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>

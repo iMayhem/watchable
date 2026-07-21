@@ -1079,12 +1079,7 @@ export default defineComponent({
         const serverAudioTracks = computed(() => {
             const server = (selectedServer.value || '').toLowerCase()
             if (!server || server === 'auto') return []
-
-            if (server === 'athena') {
-                return audioTracks.value.filter(t => t.id >= 2000)
-            } else {
-                return audioTracks.value.filter(t => t.id < 2000)
-            }
+            return audioTracks.value
         })
 
         const regularAudioTracks = computed(() => {

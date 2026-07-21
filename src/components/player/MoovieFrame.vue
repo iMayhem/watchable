@@ -1076,14 +1076,17 @@ export default defineComponent({
             }))
         })
 
+        const currentStream = computed(() => streams.value[selectedStreamIndex.value])
+        const activeServerName = computed(() => currentStream.value?.providerName || '')
+
         const serverAudioTracks = computed(() => {
-            const server = (selectedServer.value || '').toLowerCase()
+            const server = (selectedServer.value || activeServerName.value || '').toLowerCase()
             if (!server || server === 'auto') return []
             return audioTracks.value
         })
 
         const regularAudioTracks = computed(() => {
-            const server = (selectedServer.value || '').toLowerCase()
+            const server = (selectedServer.value || activeServerName.value || '').toLowerCase()
             if (!server || server === 'auto') {
                 return audioTracks.value
             }

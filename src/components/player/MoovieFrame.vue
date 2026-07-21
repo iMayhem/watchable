@@ -2757,15 +2757,6 @@ export default defineComponent({
 
 .moovie-frame__settings-mobile-handle {
     display: none;
-    @media (max-width: 640px) {
-        display: block;
-        width: 38px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 99px;
-        margin: 2px auto 14px auto;
-        flex-shrink: 0;
-    }
 }
 
 .moovie-frame__settings-header {
@@ -2896,9 +2887,9 @@ export default defineComponent({
     gap: var(--s-3);
     
     @media (max-width: 768px) {
-        width: 230px;
-        padding: 10px;
-        gap: 8px;
+        width: 200px;
+        padding: 8px;
+        gap: 6px;
         border-radius: 10px;
     }
 }
@@ -2992,8 +2983,8 @@ export default defineComponent({
     }
     
     @media (max-width: 768px) {
-        padding: 4px 8px;
-        border-radius: 6px;
+        padding: 3px 6px;
+        border-radius: 4px;
     }
 }
 
@@ -3187,18 +3178,19 @@ export default defineComponent({
 
 @media (max-width: 640px) {
     .moovie-frame__settings-panel {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        position: absolute;
+        bottom: 50px;
+        right: 8px;
+        left: auto;
         top: auto;
-        max-width: 100%;
-        max-height: 75vh;
-        border-radius: 20px 20px 0 0;
-        border-bottom: 0;
-        padding: 1rem 0.75rem 1.5rem 0.75rem;
+        min-width: 220px;
+        max-width: 280px;
+        max-height: calc(100% - 60px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        padding: 6px;
         z-index: 40;
-        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     }
     .moovie-frame__settings-item {
         padding: 0.75rem 0.85rem;

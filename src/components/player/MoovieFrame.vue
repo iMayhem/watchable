@@ -2145,7 +2145,18 @@ export default defineComponent({
         function togglePlay() {
             const video = videoRef.value
             if (!video) return
-            if (video.paused) { video.play() } else { video.pause() }
+            if (video.paused) {
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768
+                if (isMobile && !document.fullscreenElement) {
+                    const el = rootRef.value
+                    if (el) {
+                        el.requestFullscreen().catch((e) => console.warn('[MoovieFrame] auto-fullscreen failed:', e.message))
+                    }
+                }
+                video.play()
+            } else {
+                video.pause()
+            }
         }
 
         function toggleMute() {

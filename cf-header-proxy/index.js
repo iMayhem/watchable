@@ -127,7 +127,7 @@ export default {
       }
       // ── Non-HLS: pass through as-is ──────────────────────────────────────────
 
-      return new Response(resp.body, {
+      return new Response(bodyText, {
         status: resp.status,
         statusText: resp.statusText,
         headers: respHeaders,

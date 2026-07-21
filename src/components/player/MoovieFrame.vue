@@ -1684,15 +1684,31 @@ export default defineComponent({
                     throw e
                 }
             } else if (s.headers && Object.keys(s.headers).length) {
-                // CF worker rewrites .m3u8 manifest so segments load directly
-                // from the origin (no worker hop per segment). Only the manifest
-                // goes through the worker, so no more Cloudflare rate-limit 429s.
-                const params = new URLSearchParams({ url: s.url })
-                if (s.headers.Referer) params.set('referer', s.headers.Referer)
-                if (s.headers.Origin)  params.set('origin',  s.headers.Origin)
-                if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
-                playUrl = `${CF_HEADER_PROXY}/?${params}`
-                await tryMount(playUrl)
+                // If it is Athena (MoovieCatalog) or netmirror, use the VPS proxy instead of Cloudflare Worker
+                // because Cloudflare Worker IPs are blocked by netmirror/tv.imgcdn.kim!
+                const isAthena = s.providerName?.toLowerCase() === 'mooviecatalog' || 
+                                 s.providerName?.toLowerCase() === 'athena' ||
+                                 s.name?.toLowerCase() === 'mooviecatalog' ||
+                                 s.name?.toLowerCase() === 'athena' ||
+                                 s.url?.includes('imgcdn.kim') ||
+                                 s.url?.includes('netmirror');
+                
+                if (isAthena) {
+                    const base64Url = btoa(s.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+                    const base64Headers = btoa(JSON.stringify(s.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+                    playUrl = `${HUB_BASE}/proxy?u=${base64Url}&h=${base64Headers}`
+                    await tryMount(playUrl)
+                } else {
+                    // CF worker rewrites .m3u8 manifest so segments load directly
+                    // from the origin (no worker hop per segment). Only the manifest
+                    // goes through the worker, so no more Cloudflare rate-limit 429s.
+                    const params = new URLSearchParams({ url: s.url })
+                    if (s.headers.Referer) params.set('referer', s.headers.Referer)
+                    if (s.headers.Origin)  params.set('origin',  s.headers.Origin)
+                    if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
+                    playUrl = `${CF_HEADER_PROXY}/?${params}`
+                    await tryMount(playUrl)
+                }
             } else {
                 playUrl = s.url
                 try {

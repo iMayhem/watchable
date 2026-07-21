@@ -175,7 +175,7 @@
             </div>
 
             <!-- Mobile Episode Reel/Navigator Panel -->
-            <div v-if="tmdbShow" class="watch-stage__mobile-episodes">
+            <div v-if="availableSeasons.length" class="watch-stage__mobile-episodes">
                 <EpisodeNavigator
                     :available-seasons="availableSeasons"
                     :season-episodes="seasonEpisodes"
@@ -199,7 +199,7 @@
         </main>
 
         <UpNextDrawer
-            v-if="tmdbShow && availableSeasons.length"
+            v-if="availableSeasons.length"
             ref="upNextDrawerRef"
             :current-season="navigatorSeason"
             :current-episode="currentEpisode"
@@ -377,7 +377,6 @@ export default defineComponent({
         });
 
         const availableSeasons = computed(() => {
-            if (!tmdbShow.value && !tmdbArtwork.value) return [];
             if (usesTmdbSeasonTabs.value && tmdbArtwork.value?.seasonTabs.length) {
                 return tmdbArtwork.value.seasonTabs.map((tab) => ({
                     id: tab.seasonNumber,
@@ -389,7 +388,7 @@ export default defineComponent({
             return [{
                 id: 1,
                 season_number: 1,
-                episode_count: globalMaxEpisode.value,
+                episode_count: Math.max(globalMaxEpisode.value, currentEpisode.value),
                 name: 'Episodes'
             }];
         });
@@ -872,7 +871,19 @@ export default defineComponent({
 
         const resolveRawSeasonEpisodes = (): EpisodeLike[] => {
             const all = browsableTmdbEpisodes.value;
-            if (!all.length) return [];
+            if (!all.length) {
+                const count = Math.max(globalMaxEpisode.value, currentEpisode.value);
+                const dummyList: EpisodeLike[] = [];
+                for (let i = 1; i <= count; i++) {
+                    dummyList.push({
+                        episode_number: i,
+                        name: `Episode ${i}`,
+                        air_date: '',
+                        still_path: ''
+                    });
+                }
+                return dummyList;
+            }
 
             if (!usesTmdbSeasonTabs.value) return all;
 

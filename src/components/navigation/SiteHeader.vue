@@ -154,16 +154,15 @@
                         </svg>
                     </button>
                     <div v-if="isSettingsDropdownOpen" class="settings-dropdown">
-                        <button
-                            type="button"
-                            class="settings-dropdown__item"
-                            @click="toggleAdsHidden"
-                        >
-                            <span class="settings-dropdown__label">Hide Promotions</span>
-                            <span class="settings-dropdown__status" :class="{ 'is-active': adsHidden }">
-                                {{ adsHidden ? 'On' : 'Off' }}
-                            </span>
-                        </button>
+                        <label class="settings-dropdown__item settings-dropdown__checkbox-label">
+                            <span class="settings-dropdown__label">Remove Ads</span>
+                            <input
+                                type="checkbox"
+                                :checked="adsHidden"
+                                @change="toggleAdsHidden"
+                                class="settings-dropdown__checkbox"
+                            />
+                        </label>
                         <button
                             type="button"
                             class="settings-dropdown__item"
@@ -1459,9 +1458,13 @@ export default defineComponent({
         font-weight: 500;
     }
 
-    &__toggle {
-        width: 18px;
-        height: 18px;
+    &__checkbox-label {
+        user-select: none;
+    }
+
+    &__checkbox {
+        width: 16px;
+        height: 16px;
         accent-color: var(--ember);
         cursor: pointer;
     }

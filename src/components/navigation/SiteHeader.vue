@@ -8,16 +8,17 @@
                 </div>
             </router-link>
 
+            <a
+                href="https://fightchatcontrol.eu/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="site-header__fight-chat-control"
+                title="Fight Chat Control"
+            >
+                Fight Chat Control
+            </a>
+
             <nav class="site-header__nav" aria-label="Primary">
-                <a
-                    href="https://fightchatcontrol.eu/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="site-header__link site-header__fight-chat-control"
-                    title="Fight Chat Control"
-                >
-                    Fight Chat Control
-                </a>
                 <template v-for="item in primaryNav" :key="item.path">
                     <router-link
                         v-if="item.label !== 'Others'"
@@ -683,6 +684,34 @@ export default defineComponent({
             color: #5865F2;
             background: rgba(88, 101, 242, 0.08);
             border-color: rgba(88, 101, 242, 0.4);
+        }
+    }
+
+    &__fight-chat-control {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 12px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: #ff4d4d;
+        background: rgba(255, 77, 77, 0.1);
+        border: 1px solid rgba(255, 77, 77, 0.3);
+        border-radius: var(--r-pill);
+        text-decoration: none;
+        transition: all var(--dur-fast) var(--ease-out);
+        white-space: nowrap;
+        margin-right: var(--s-2);
+
+        &:hover {
+            color: #ffffff;
+            background: rgba(255, 77, 77, 0.25);
+            border-color: rgba(255, 77, 77, 0.6);
+            box-shadow: 0 0 12px rgba(255, 77, 77, 0.3);
+        }
+
+        @media (max-width: 860px) {
+            display: none;
         }
     }
 

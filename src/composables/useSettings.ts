@@ -106,7 +106,6 @@ export async function loadGlobalSettings() {
 
     if (typeof window !== 'undefined' && !_globalSettingsInterval) {
         window.addEventListener('focus', refreshGlobalSettings);
-        _globalSettingsInterval = window.setInterval(refreshGlobalSettings, 30000);
     }
 }
 

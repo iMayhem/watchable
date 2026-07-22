@@ -22,7 +22,7 @@ export function useBanner() {
             const supabase = await getSupabaseClient()
             const { data } = await supabase
                 .from('banners')
-                .select('*')
+                .select('id, message, link, bg_color, text_color, is_active, created_at')
                 .eq('is_active', true)
                 .order('created_at', { ascending: false })
                 .limit(1)

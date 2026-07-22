@@ -38,7 +38,7 @@ export function usePolls() {
             const supabase = await getSupabaseClient()
             const { data } = await supabase
                 .from('polls')
-                .select('*')
+                .select('id, question, options, is_active, created_at')
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle()
@@ -95,7 +95,7 @@ export function usePolls() {
             const supabase = await getSupabaseClient()
             const { data } = await supabase
                 .from('polls')
-                .select('*')
+                .select('id, question, options, is_active, created_at')
                 .order('created_at', { ascending: false })
 
             const polls: PollWithResults[] = []

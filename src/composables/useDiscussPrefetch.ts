@@ -25,9 +25,9 @@ async function loadLoungeFeed(): Promise<DiscussFeedComment[]> {
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase
         .from('movora_chat')
-        .select('*')
+        .select('id, media_id, media_type, username, content, created_at')
         .order('created_at', { ascending: true })
-        .limit(100);
+        .limit(30);
 
     if (error) throw error;
     return data || [];
@@ -37,10 +37,10 @@ async function loadReviewsFeed(): Promise<DiscussFeedComment[]> {
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase
         .from('movora_comments')
-        .select('*')
+        .select('id, media_id, media_type, username, content, created_at')
         .in('media_type', ['movie', 'tv', 'anime'])
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(30);
 
     if (error) throw error;
     return (data || []).filter((comment: DiscussFeedComment) => comment.media_id !== 'lounge');
@@ -66,12 +66,10 @@ function ensureReviewsFeedPrefetch() {
     return reviewsFeedPrefetch;
 }
 
-/** Warm route chunk, Supabase client, and both discuss feeds. */
+/** Warm route chunk and Supabase client without querying DB on hover. */
 export function prefetchDiscussFeed() {
     prefetchDiscussRoute();
     void import('../lib/supabase');
-    void ensureLoungeFeedPrefetch();
-    void ensureReviewsFeedPrefetch();
 }
 
 export function consumeLoungeFeed() {

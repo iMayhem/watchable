@@ -18,7 +18,7 @@ export interface CatalogEnrichmentRow {
 
 const TABLE = 'catalog_enrichment_cache';
 const CHUNK_SIZE = 200;
-const CATEGORY_FETCH_LIMIT = 1500;
+const CATEGORY_FETCH_LIMIT = 60;
 
 const memoryByCatalogId = new Map<string, CatalogEnrichmentRow>();
 const memoryByCategory = new Map<string, CatalogEnrichmentRow[]>();

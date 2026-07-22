@@ -1116,7 +1116,7 @@ async function handleSendNotification() {
 async function loadBannerSettings() {
     const client = supabase || await getSupabaseClient()
     try {
-        const { data } = await client.from('banners').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle()
+        const { data } = await client.from('banners').select('id, message, link, bg_color, text_color, is_active, created_at').order('created_at', { ascending: false }).limit(1).maybeSingle()
         if (data) {
             bannerMessage.value = data.message || ''
             bannerLink.value = data.link || ''
@@ -1160,7 +1160,7 @@ async function handleSaveBanner() {
 async function loadExistingPolls() {
     const client = supabase || await getSupabaseClient()
     try {
-        const { data } = await client.from('polls').select('*').order('created_at', { ascending: false })
+        const { data } = await client.from('polls').select('id, question, options, is_active, created_at').order('created_at', { ascending: false })
         existingPolls.value = (data || []).map((p: any) => ({
             ...p,
             options: typeof p.options === 'string' ? JSON.parse(p.options) : p.options

@@ -567,7 +567,7 @@ export default defineComponent({
                 const supabase = await getSupabaseClient();
                 const { data, error } = await supabase
                     .from('movora_comments')
-                    .select('*')
+                    .select('id, media_id, media_type, username, content, parent_id, likes, dislikes, created_at, is_pinned')
                     .eq('media_type', selectedMovieType.value)
                     .eq('media_id', selectedMovieId.value)
                     .order('created_at', { ascending: true })

@@ -25,7 +25,7 @@ async function loadLoungeFeed(): Promise<DiscussFeedComment[]> {
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase
         .from('movora_chat')
-        .select('id, media_id, media_type, username, content, created_at')
+        .select('id, username, content, created_at')
         .order('created_at', { ascending: true })
         .limit(30);
 

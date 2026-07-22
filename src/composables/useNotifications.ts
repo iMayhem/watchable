@@ -48,7 +48,7 @@ export function useNotifications() {
             const supabase = await getSupabaseClient()
             const { data: notifs } = await supabase
                 .from('notifications')
-                .select('id, title, message, link, icon, type, target_role, created_at')
+                .select('id, title, message, type, created_at, created_by')
                 .order('created_at', { ascending: false })
 
             const username = getCurrentUser()

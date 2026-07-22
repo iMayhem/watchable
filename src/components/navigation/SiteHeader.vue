@@ -9,6 +9,15 @@
             </router-link>
 
             <nav class="site-header__nav" aria-label="Primary">
+                <a
+                    href="https://fightchatcontrol.eu/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="site-header__link site-header__fight-chat-control"
+                    title="Fight Chat Control"
+                >
+                    Fight Chat Control
+                </a>
                 <template v-for="item in primaryNav" :key="item.path">
                     <router-link
                         v-if="item.label !== 'Others'"

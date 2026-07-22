@@ -361,4 +361,19 @@ router.afterEach((to) => {
     });
 });
 
+router.onError((error, to) => {
+    const isChunkLoadFailed =
+        error?.message?.includes('Failed to fetch dynamically imported module') ||
+        error?.message?.includes('Importing a module script failed') ||
+        error?.message?.includes('MIME type');
+
+    if (isChunkLoadFailed) {
+        if (to?.fullPath) {
+            window.location.href = to.fullPath;
+        } else {
+            window.location.reload();
+        }
+    }
+});
+
 export { router, routes }

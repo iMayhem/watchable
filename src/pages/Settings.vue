@@ -276,11 +276,6 @@ function toggleAdsHidden() {
     addToast(adsHidden.value ? 'Ad-free mode enabled!' : 'Ads re-enabled.', 'info');
 }
 
-function saveDefaultServer() {
-    localStorage.setItem('default_server_id', defaultServerId.value);
-    addToast(`Default stream server set to ${defaultServerId.value.toUpperCase()}`, 'info');
-}
-
 function saveImageQuality() {
     localStorage.setItem('movora_image_quality', imageQuality.value);
     addToast(`Poster quality set to ${imageQuality.value.toUpperCase()}`, 'info');

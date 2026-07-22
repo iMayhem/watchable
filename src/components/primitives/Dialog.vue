@@ -4,7 +4,8 @@
             <div
                 v-if="modelValue"
                 class="lm-dialog"
-                :class="[`lm-dialog--${size}`]"
+                :class="[`lm-dialog--${size}`, $attrs.class]"
+                v-bind="$attrs"
                 role="dialog"
                 aria-modal="true"
                 :aria-labelledby="titleId"
@@ -48,6 +49,7 @@ let uid = 0;
 
 export default defineComponent({
     name: 'LmDialog',
+    inheritAttrs: false,
     props: {
         modelValue: { type: Boolean, required: true },
         title: { type: String, default: '' },

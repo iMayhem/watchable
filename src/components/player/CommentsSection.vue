@@ -322,7 +322,7 @@ export default defineComponent({
                 const mId = String(props.mediaId);
                 const { data, error } = await supabase
                     .from('movora_comments')
-                    .select('id, media_id, media_type, username, content, parent_id, likes, dislikes, created_at, is_pinned')
+                    .select('id, media_id, media_type, username, content, created_at')
                     .eq('media_id', mId)
                     .eq('media_type', props.mediaType)
                     .order('created_at', { ascending: false });

@@ -125,64 +125,17 @@
                     Sign In
                 </button>
 
-                <div ref="regionContainer" class="site-header__region-container">
-                    <button
-                        type="button"
-                        class="site-header__region-btn"
-                        aria-label="Region Settings"
-                        title="Region Settings"
-                        @click="toggleRegionDropdown"
-                    >
-                        <span class="site-header__region-flag">{{ getFlagEmoji(currentRegion) }}</span>
-                    </button>
-                    <div v-if="isRegionDropdownOpen" class="region-dropdown">
-                        <button
-                            v-for="reg in regions"
-                            :key="reg.code"
-                            type="button"
-                            class="region-dropdown__item"
-                            :class="{ 'is-active': reg.code === currentRegion }"
-                            @click="selectRegion(reg.code)"
-                        >
-                            <span class="region-dropdown__flag">{{ getFlagEmoji(reg.code) }}</span>
-                            <span class="region-dropdown__name">{{ reg.name }}</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div ref="settingsContainer" class="site-header__settings-container">
-                    <button
-                        type="button"
-                        class="site-header__icon-btn"
-                        aria-label="App Settings"
-                        title="App Settings"
-                        @click="toggleSettingsDropdown"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <circle cx="12" cy="12" r="3" />
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                        </svg>
-                    </button>
-                    <div v-if="isSettingsDropdownOpen" class="settings-dropdown">
-                        <label class="settings-dropdown__item settings-dropdown__checkbox-label">
-                            <span class="settings-dropdown__label">Remove Ads</span>
-                            <input
-                                type="checkbox"
-                                :checked="adsHidden"
-                                @change="toggleAdsHidden"
-                                class="settings-dropdown__checkbox"
-                            />
-                        </label>
-                        <button
-                            type="button"
-                            class="settings-dropdown__item"
-                            @click="isDonationModalOpen = true; closeSettingsDropdown()"
-                        >
-                            <span class="settings-dropdown__label">Support project</span>
-                            <span class="settings-dropdown__icon">❤️</span>
-                        </button>
-                    </div>
-                </div>
+                <router-link
+                    to="/settings"
+                    class="site-header__icon-btn site-header__settings-btn"
+                    aria-label="Settings"
+                    title="Settings & Preferences"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06-.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                </router-link>
 
                 <button
                     class="site-header__icon-btn site-header__menu"
@@ -334,7 +287,8 @@ const othersNav: NavItem[] = [
     },
     { label: 'Watchlist', path: '/watchlist', match: p => p === '/watchlist', num: 7 },
     { label: 'Upcoming', path: '/upcoming', match: p => p === '/upcoming', num: 8 },
-    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 }
+    { label: 'Live TV', path: '/livetv', match: p => p === '/livetv', num: 9 },
+    { label: 'Settings', path: '/settings', match: p => p === '/settings', num: 10 }
 ];
 
 const primaryNav: NavItem[] = [

@@ -37,6 +37,15 @@ const routes: Array<RouteRecordRaw> = [
             title: 'Discover'
         }
     },
+    {
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('../pages/Settings.vue'),
+        meta: {
+            showInHeader: true,
+            title: 'Settings'
+        }
+    },
 
     {
         path: '/movies',

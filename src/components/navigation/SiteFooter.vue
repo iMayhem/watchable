@@ -140,6 +140,11 @@ const columns: FooterCol[] = [
         title: 'About',
         links: [
             {
+                label: 'Settings',
+                href: '/settings',
+                external: false
+            },
+            {
                 label: 'Status',
                 href: '/status',
                 external: false

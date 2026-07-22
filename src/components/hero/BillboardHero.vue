@@ -462,7 +462,7 @@ export default defineComponent({
                     const finish = () => {
                         if (!done) { done = true; es.close(); resolve(options); }
                     };
-                    const timer = setTimeout(finish, 5000);
+                    setTimeout(finish, 5000);
                     const parse = (item: any) => {
                         if (!item) return;
                         if (item.qualities) {

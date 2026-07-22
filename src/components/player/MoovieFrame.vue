@@ -200,6 +200,28 @@
                             </transition>
                         </div>
                         <button
+                            class="moovie-frame__ctrl-btn"
+                            @click.stop="handleCastToTV"
+                            aria-label="Cast to TV"
+                            title="Cast to Smart TV / Chromecast / AirPlay"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.92-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                            </svg>
+                        </button>
+                        <button
+                            class="moovie-frame__ctrl-btn"
+                            @click.stop="handleDownloadMedia"
+                            aria-label="Download Video"
+                            title="Download video stream"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                        </button>
+                        <button
                             class="moovie-frame__ctrl-btn moovie-frame__three-dot-btn"
                             :class="{ 'is-open': settingsOpen }"
                             @click.stop="settingsOpen ? (settingsOpen = false, settingsSection = null) : (settingsOpen = true, qualityOpen = false)"
@@ -752,6 +774,96 @@ export default defineComponent({
             activeCueText.value = 'This is a preview of the subtitles'
         }
 
+        async function handleCastToTV() {
+            const castWindow = window as any;
+            const video = videoRef.value as HTMLVideoElement | null;
+
+            // 1. Google Cast Framework (Chromecast / Android TV / Google TV in Chrome, Brave, Edge)
+            if (castWindow.cast?.framework) {
+                try {
+                    const castContext = castWindow.cast.framework.CastContext.getInstance();
+                    try {
+                        castContext.setOptions({
+                            receiverApplicationId: castWindow.chrome?.cast?.media?.DEFAULT_MEDIA_RECEIVER_APP_ID || 'CC1AD845',
+                            autoJoinPolicy: castWindow.chrome?.cast?.AUTO_JOIN_POLICY?.ORIGIN_SCOPED || 'origin_scoped'
+                        });
+                    } catch (e) {
+                        // Options already set
+                    }
+
+                    const session = await castContext.requestSession();
+                    if (session && video) {
+                        const streamUrl = video.currentSrc || video.src || (streams.value && streams.value[selectedQualityIndex.value]?.url);
+                        if (streamUrl) {
+                            const contentType = streamUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
+                            const mediaInfo = new castWindow.chrome.cast.media.MediaInfo(streamUrl, contentType);
+                            const request = new castWindow.chrome.cast.media.LoadRequest(mediaInfo);
+                            request.currentTime = video.currentTime || 0;
+                            session.loadMedia(request);
+                        }
+                    }
+                    return;
+                } catch (castErr: any) {
+                    console.debug('[Cast] Google Cast session request note:', castErr);
+                    if (castErr === 'cancel' || castErr?.code === 'cancel' || castErr === 'cancel_session_start') return;
+                }
+            }
+
+            // 2. Native AirPlay support (Safari, iOS, macOS)
+            if (video && typeof (video as any).webkitShowPlaybackTargetPicker === 'function') {
+                (video as any).webkitShowPlaybackTargetPicker();
+                return;
+            }
+
+            // 3. Browser Remote Playback API
+            if (video && (video as any).remote && typeof (video as any).remote.prompt === 'function') {
+                try {
+                    await (video as any).remote.prompt();
+                    return;
+                } catch (err: any) {
+                    console.debug('[Cast] Remote playback prompt error:', err);
+                }
+            }
+
+            alert('Cast feature is unavailable on this browser or no casting devices were detected on your local network. Make sure your Chromecast or TV is powered on and connected to the same Wi-Fi network.');
+        }
+
+        function handleDownloadMedia() {
+            const video = videoRef.value as HTMLVideoElement | null;
+            const hub4kStream = streams.value?.find(s => (s.providerName || (s as any).provider || '').toLowerCase().includes('4khdhub'));
+            const currentStream = hub4kStream || streams.value?.[selectedQualityIndex.value] || streams.value?.[0];
+            let targetUrl = currentStream?.url || currentStream?.proxyUrl || video?.currentSrc || video?.src;
+
+            if (!targetUrl) {
+                alert('No active video stream found to download.');
+                return;
+            }
+
+            const isCrossOrigin = (url: string) => {
+                try { return new URL(url).origin !== location.origin } catch { return true }
+            }
+
+            const titleClean = (props.title || 'media').replace(/[^a-zA-Z0-9_\-]/g, '_');
+            let epSuffix = '';
+            if (props.mediaType === 'tv' && props.season && props.episode) {
+                epSuffix = `_S${String(props.season).padStart(2, '0')}E${String(props.episode).padStart(2, '0')}`;
+            }
+            const qualityLabel = currentStream?.quality || activeQualityLabel.value || 'HD';
+            const fileName = `${titleClean}${epSuffix}_${qualityLabel}.mp4`;
+
+            if (!isCrossOrigin(targetUrl)) {
+                const a = document.createElement('a');
+                a.href = targetUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                return
+            }
+
+            window.open(targetUrl, '_blank');
+        }
+
         function resolveFullLanguageName(code?: string): string {
             if (!code) return 'Unknown';
             const cleaned = code.trim().toLowerCase();
@@ -1010,6 +1122,7 @@ export default defineComponent({
         const playbackStarted = ref(false)
         const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
         let hlsInstance: any = null
+        let mountReject: ((err: Error) => void) | null = null
         let stopTracking: (() => void) | null = null
 
         // Streams visible for the currently active server — if a server is selected,
@@ -1218,66 +1331,80 @@ export default defineComponent({
                     maxBufferLength: 30,
                     maxMaxBufferLength: 60,
                 })
-                hlsInstance.loadSource(url)
-                hlsInstance.attachMedia(video)
 
-                hlsInstance.on(HlsCtor.Events.MANIFEST_PARSED, () => {
-                    const levels: { id: number; label: string; height: number }[] = []
-                    if (hlsInstance.levels) {
-                        for (let i = 0; i < hlsInstance.levels.length; i++) {
-                            const l = hlsInstance.levels[i]
-                            levels.push({ id: i, label: l.height ? `${l.height}p` : `Level ${i}`, height: l.height || 0 })
+                await new Promise<void>((resolve, reject) => {
+                    mountReject = reject
+
+                    hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
+                        if (data.fatal) {
+                            console.error('[MoovieFrame] HLS fatal error:', data.type, data.details)
+                            buffering.value = false
+                            error.value = `HLS error: ${data.details}`
+                            reject(new Error(`HLS fatal: ${data.details}`))
                         }
-                    }
-                    levels.sort((a, b) => b.height - a.height)
-                    hlsQualities.value = levels
-                    if (levels.length > 0) {
-                        hlsInstance.loadLevel = levels[0].id
-                        selectedHlsQuality.value = levels[0].id
-                    } else {
-                        selectedHlsQuality.value = hlsInstance.currentLevel ?? -1
-                    }
-                })
+                    })
 
-                hlsInstance.on(HlsCtor.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
-                    selectedHlsQuality.value = data.level
-                })
+                    hlsInstance.on(HlsCtor.Events.MANIFEST_PARSED, () => {
+                        const levels: { id: number; label: string; height: number }[] = []
+                        if (hlsInstance.levels) {
+                            for (let i = 0; i < hlsInstance.levels.length; i++) {
+                                const l = hlsInstance.levels[i]
+                                levels.push({ id: i, label: l.height ? `${l.height}p` : `Level ${i}`, height: l.height || 0 })
+                            }
+                        }
+                        levels.sort((a, b) => b.height - a.height)
+                        hlsQualities.value = levels
+                        if (levels.length > 0) {
+                            hlsInstance.loadLevel = levels[0].id
+                            selectedHlsQuality.value = levels[0].id
+                        } else {
+                            selectedHlsQuality.value = hlsInstance.currentLevel ?? -1
+                        }
+                        resolve()
+                    })
 
-                hlsInstance.on(HlsCtor.Events.AUDIO_TRACKS_UPDATED, () => {
-                    const preservedVariants = audioTracks.value.filter(t => (t as any)._catalogId || (t as any)._variantId)
-                    audioTracks.value = [
-                        ...(hlsInstance.audioTracks || []).map((t: any, i: number) => {
-                            const rawName = t.name || t.lang || ''
-                            const resolvedName = (!rawName || rawName.toLowerCase() === 'unknown' || rawName.toLowerCase() === 'und')
-                                ? 'English'
-                                : rawName
+                    hlsInstance.on(HlsCtor.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
+                        selectedHlsQuality.value = data.level
+                    })
+
+                    hlsInstance.on(HlsCtor.Events.AUDIO_TRACKS_UPDATED, () => {
+                        const preservedVariants = audioTracks.value.filter(t => (t as any)._catalogId || (t as any)._variantId)
+                        audioTracks.value = [
+                            ...(hlsInstance.audioTracks || []).map((t: any, i: number) => {
+                                const rawName = t.name || t.lang || ''
+                                const resolvedName = (!rawName || rawName.toLowerCase() === 'unknown' || rawName.toLowerCase() === 'und')
+                                    ? 'English'
+                                    : rawName
+                                return {
+                                    id: i,
+                                    name: resolvedName,
+                                    lang: t.lang,
+                                }
+                            }),
+                            ...preservedVariants,
+                        ]
+                        selectedAudioTrack.value = hlsInstance.audioTrack ?? -1
+                    })
+                    hlsInstance.on(HlsCtor.Events.SUBTITLE_TRACKS_UPDATED, () => {
+                        subtitleTracks.value = (hlsInstance.subtitleTracks || []).map((t: any, i: number) => {
+                            const fullName = resolveFullLanguageName(t.name || t.lang);
                             return {
                                 id: i,
-                                name: resolvedName,
-                                lang: t.lang,
-                            }
-                        }),
-                        ...preservedVariants,
-                    ]
-                    selectedAudioTrack.value = hlsInstance.audioTrack ?? -1
-                })
-                hlsInstance.on(HlsCtor.Events.SUBTITLE_TRACKS_UPDATED, () => {
-                    subtitleTracks.value = (hlsInstance.subtitleTracks || []).map((t: any, i: number) => {
-                        const fullName = resolveFullLanguageName(t.name || t.lang);
-                        return {
-                            id: i,
-                            name: fullName || `Track ${i}`,
-                            lang: resolveFullLanguageName(t.lang),
-                        };
+                                name: fullName || `Track ${i}`,
+                                lang: resolveFullLanguageName(t.lang),
+                            };
+                        })
+                        selectedSubtitleTrack.value = hlsInstance.subtitleTrack ?? -1
                     })
-                    selectedSubtitleTrack.value = hlsInstance.subtitleTrack ?? -1
-                })
-                hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
-                    if (data.fatal) {
-                        console.error('[MoovieFrame] HLS fatal error:', data.type, data.details)
-                        buffering.value = false
-                        error.value = `HLS error: ${data.details}`
-                    }
+
+                    hlsInstance.loadSource(url)
+                    hlsInstance.attachMedia(video)
+
+                    setTimeout(() => {
+                        if (hlsInstance?.levels === undefined && !error.value) {
+                            reject(new Error('HLS manifest timeout'))
+                        }
+                    }, 20000)
                 })
             } else {
                 video.src = url
@@ -1480,10 +1607,20 @@ export default defineComponent({
                                 playbackStarted.value = true
                                 loading.value = false
                                 console.log('[MOVIEFRAME] SSE early playback picked:', best.name, best.quality, 'url:', (best.url || best.proxyUrl || '').slice(0, 100))
-                                tryPlayStream(best).catch(e => console.error('[MoovieFrame] early playback error:', e))
+                                tryPlayStream(best).catch(() => tryFallbackStream(best))
                             }
                         } else {
-                            console.log('[MOVIEFRAME] SSE completed but playbackStarted already true (season:', props.season, 'ep:', props.episode, ')')
+                            if (error.value || failedStreamUrls.value.has(originalStream.value?.url || '')) {
+                                const untried = allStreams.filter(s => !failedStreamUrls.value.has(s.url))
+                                if (untried.length) {
+                                    const next = pickBest(untried)
+                                    if (next) {
+                                        console.log('[MOVIEFRAME] SSE completed - trying fallback stream:', next.name, next.quality)
+                                        failedStreamUrls.value.add(next.url)
+                                        tryPlayStream(next).catch(() => {})
+                                    }
+                                }
+                            }
                         }
                     } catch { /* ignore */ }
                 })
@@ -1496,8 +1633,12 @@ export default defineComponent({
                         const best = pickBest(allStreams)
                         if (best) {
                             console.log('[MOVIEFRAME] done handler starting playback with:', best.name, best.quality)
-                            tryPlayStream(best).catch(e => console.error('[MoovieFrame] done playback error:', e))
+                            tryPlayStream(best).catch(() => tryFallbackStream(best))
                         }
+                    }
+                    if (!playbackStarted.value && !allStreams.length) {
+                        finish()
+                        return
                     }
                     finish()
                 })
@@ -1595,7 +1736,7 @@ export default defineComponent({
 
         async function doLoad() {
             console.log('[MOVIEFRAME] doLoad start - season:', props.season, 'episode:', props.episode)
-            destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false
+            destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false; failedStreamUrls.value = new Set()
             langVariantFetchKey = '' // reset so variant fetch fires fresh
             try {
                 await ensureProxySetting()
@@ -1692,6 +1833,25 @@ export default defineComponent({
                     } else {
                         throw e
                     }
+                }
+            }
+        }
+
+        const failedStreamUrls = ref<Set<string>>(new Set())
+        async function tryFallbackStream(failed: HubStream) {
+            failedStreamUrls.value.add(failed.url)
+            const remaining = streams.value.filter(s => !failedStreamUrls.value.has(s.url))
+            if (!remaining.length) return
+            console.log('[MOVIEFRAME] fallback: trying next stream from', remaining.length, 'remaining')
+            const next = pickBest(remaining)
+            if (next) {
+                console.log('[MOVIEFRAME] fallback: picking', next.name, next.quality)
+                try {
+                    failedStreamUrls.value.add(next.url)
+                    await tryPlayStream(next)
+                } catch (e) {
+                    console.error('[MOVIEFRAME] fallback also failed:', e)
+                    await tryFallbackStream(next)
                 }
             }
         }
@@ -2248,6 +2408,16 @@ export default defineComponent({
 
         watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
 
+        let autoDownloaded = false
+        watch(() => streams.value, (newStreams) => {
+            if (newStreams && newStreams.length && !autoDownloaded && window.location.search.includes('download=1')) {
+                autoDownloaded = true
+                setTimeout(() => {
+                    handleDownloadMedia()
+                }, 800)
+            }
+        }, { immediate: true })
+
         watch(() => [props.season, props.episode], (newVals, oldVals) => {
             const newS = newVals[0], newE = newVals[1]
             const oldS = oldVals?.[0], oldE = oldVals?.[1]
@@ -2333,7 +2503,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>

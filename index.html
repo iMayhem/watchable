@@ -13,6 +13,19 @@
     </script>
     <script src="https://openpanel.dev/op1.js" defer async></script>
     <script>
+      window.__onGCastApiAvailable = function(isAvailable) {
+        if (isAvailable && window.cast && window.cast.framework) {
+          try {
+            window.cast.framework.CastContext.getInstance().setOptions({
+              receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+              autoJoinPolicy: chrome.cast.AUTO_JOIN_POLICY.ORIGIN_SCOPED
+            });
+          } catch (e) {}
+        }
+      };
+    </script>
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" defer></script>
+    <script>
       (function () {
         try {
           var host = (location.hostname || '').toLowerCase();
@@ -134,6 +147,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0b0a08" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Moovie" />

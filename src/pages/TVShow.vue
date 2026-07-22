@@ -7,6 +7,8 @@
                 <TitleMasthead
                     :id="show ? show.id : ''"
                     type="tv"
+                    :season="activeSeason"
+                    :episode="activeEpisode"
                     :title="show ? show.name : ''"
                     :tagline="show ? show.tagline : ''"
                     :eyebrow="mastheadEyebrow"
@@ -253,17 +255,26 @@ export default defineComponent({
             }))
         );
 
-        const playRoute = computed(() => {
+        const activeSeason = computed(() => {
             const id = String(route.params.id);
             const last = getLastWatchedMetaData(id);
-            const season = last?.season && last.season > 0 ? last.season : 1;
-            const episode = last?.episode && last.episode > 0 ? last.episode : 1;
+            return last?.season && last.season > 0 ? last.season : 1;
+        });
+
+        const activeEpisode = computed(() => {
+            const id = String(route.params.id);
+            const last = getLastWatchedMetaData(id);
+            return last?.episode && last.episode > 0 ? last.episode : 1;
+        });
+
+        const playRoute = computed(() => {
+            const id = String(route.params.id);
             return {
                 name: 'StreamTVShow',
                 params: {
                     id,
-                    season: String(season),
-                    episode: String(episode)
+                    season: String(activeSeason.value),
+                    episode: String(activeEpisode.value)
                 }
             };
         });
@@ -423,7 +434,9 @@ export default defineComponent({
             playRoute,
             playLabel,
             openTrailer,
-            closeTrailer
+            closeTrailer,
+            activeSeason,
+            activeEpisode
         };
     }
 });

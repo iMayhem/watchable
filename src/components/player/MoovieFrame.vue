@@ -1122,7 +1122,6 @@ export default defineComponent({
         const playbackStarted = ref(false)
         const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
         let hlsInstance: any = null
-        let mountReject: ((err: Error) => void) | null = null
         let stopTracking: (() => void) | null = null
 
         // Streams visible for the currently active server — if a server is selected,
@@ -1333,7 +1332,6 @@ export default defineComponent({
                 })
 
                 await new Promise<void>((resolve, reject) => {
-                    mountReject = reject
 
                     hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
                         if (data.fatal) {

@@ -69,7 +69,7 @@
 
                 <!-- Discord Link -->
                 <a
-                    href="https://discord.gg/BmRu5pXHC"
+                    href="https://discord.gg/6uAWf5Jbm"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="site-header__discord-action-btn"

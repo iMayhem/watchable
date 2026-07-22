@@ -196,6 +196,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: 'Admin', bareLayout: true }
     },
     {
+        path: '/settings',
+        name: 'Settings',
+        component: () => import('./pages/Settings.vue'),
+        meta: { title: 'Settings' }
+    },
+    {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
         component: () => import('./pages/NotFound.vue'),

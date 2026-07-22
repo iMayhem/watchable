@@ -15,15 +15,92 @@
                     <p class="eyebrow m-home__hero-eyebrow">Featured</p>
                     <h1 class="m-home__hero-title">{{ hero.title }}</h1>
                     <p v-if="hero.overview" class="m-home__hero-desc">{{ heroOverview }}</p>
-                    <span class="m-home__hero-cta" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                        Watch now
-                    </span>
+                    <div class="m-home__hero-actions">
+                        <span class="m-home__hero-cta" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            Watch now
+                        </span>
+                        <span
+                            class="m-home__hero-dl"
+                            :class="{ 'is-loading': downloading }"
+                            aria-label="Download"
+                            @click.stop.prevent="handleDownload"
+                        >
+                            <template v-if="downloading">
+                                <svg class="m-home__dl-spinner" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32" stroke-linecap="round" />
+                                </svg>
+                                Fetching…
+                            </template>
+                            <template v-else>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                Download
+                            </template>
+                        </span>
+                    </div>
                 </div>
             </router-link>
         </section>
+
+        <!-- Download Quality Panel -->
+        <Teleport to="body">
+            <Transition name="lm-dialog">
+                <div
+                    v-if="showDownloadModal"
+                    class="m-home__dl-overlay"
+                    @click.self="showDownloadModal = false"
+                >
+                    <div class="m-home__dl-modal" role="dialog" aria-modal="true">
+                        <header class="m-home__dl-header">
+                            <h3 class="m-home__dl-title">Download</h3>
+                            <button type="button" class="m-home__dl-close" @click="showDownloadModal = false">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                            </button>
+                        </header>
+                        <div class="m-home__dl-body">
+                            <button
+                                v-for="opt in downloadOptions"
+                                :key="opt.url"
+                                type="button"
+                                class="m-home__dl-opt"
+                                @click="triggerDownload(opt.url, opt.quality)"
+                            >
+                                <span
+                                    class="m-home__dl-badge"
+                                    :class="{
+                                        'is-4k': opt.quality.includes('4K') || opt.quality.includes('2160'),
+                                        'is-1080': opt.quality.includes('1080'),
+                                        'is-720': opt.quality.includes('720')
+                                    }"
+                                >{{ opt.quality }}</span>
+                                <span class="m-home__dl-meta">
+                                    <span class="m-home__dl-chip">MP4</span>
+                                    <template v-if="opt.size === ''">
+                                        <span class="m-home__dl-dot">•</span>
+                                        <span class="m-home__dl-size is-checking">Checking...</span>
+                                    </template>
+                                    <template v-else-if="opt.size && opt.size !== '-'">
+                                        <span class="m-home__dl-dot">•</span>
+                                        <span class="m-home__dl-size">{{ opt.size }}</span>
+                                    </template>
+                                </span>
+                                <svg class="m-home__dl-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
 
         <MobileSection
             title="Trending Top 10"
@@ -64,10 +141,11 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileContinueShelf from '../components/MobileContinueShelf.vue';
 import { useHighlights, highLightOptions } from '@/composables/useHighlights';
+import { logDownload } from '@/composables/useDownloadTracking';
 import { primeGenres } from '@/composables/useGenreLookup';
 import { useAppPaths } from '@/composables/useAppPaths';
 import { useWebImage } from '@/utils/useWebImage';
@@ -136,6 +214,154 @@ const loadData = async () => {
     highLightOptions.new.data = [];
 
     await fetchAllHighlights();
+};
+
+const showDownloadModal = ref(false);
+const downloading = ref(false);
+const downloadOptions = ref<{ quality: string; url: string; size?: string }[]>([]);
+
+const extractDirectDownloadUrl = (rawUrl: string): string => {
+    if (!rawUrl) return '';
+    try {
+        const fullUrl = rawUrl.startsWith('/') ? `https://proxy.moovie.fun${rawUrl}` : rawUrl;
+        const u = new URL(fullUrl);
+        const embedded = u.searchParams.get('link') || u.searchParams.get('url') || u.searchParams.get('file') || u.searchParams.get('download');
+        if (embedded && /^https?:\/\//i.test(embedded)) return embedded;
+        return fullUrl;
+    } catch (e) {
+        return rawUrl.startsWith('/') ? `https://proxy.moovie.fun${rawUrl}` : rawUrl;
+    }
+};
+
+const triggerDownload = (url: string, quality: string) => {
+    const finalUrl = extractDirectDownloadUrl(url);
+    const h = hero.value;
+    const titleClean = (h?.title || 'media').replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const isCrossOrigin = (() => { try { return new URL(finalUrl).origin !== location.origin } catch { return true } })();
+    if (!isCrossOrigin) {
+        const a = document.createElement('a');
+        a.href = finalUrl;
+        a.download = `${titleClean}_${quality}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    } else {
+        window.open(finalUrl, '_blank');
+    }
+    showDownloadModal.value = false;
+    logDownload(h.id, 'movie', quality, h.title);
+};
+
+const fetchExactFileSize = async (rawUrl: string): Promise<string> => {
+    if (!rawUrl) return '';
+    const tryHead = async (url: string): Promise<string> => {
+        const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+        const len = res.headers.get('content-length');
+        if (len) {
+            const bytes = parseInt(len, 10);
+            if (bytes > 0) {
+                const gb = bytes / (1024 * 1024 * 1024);
+                if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
+                const mb = bytes / (1024 * 1024);
+                return `${mb.toFixed(0)} MB`;
+            }
+        }
+        return '';
+    };
+    try { return await tryHead(rawUrl); } catch (e) {}
+    try {
+        const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
+        return await tryHead(proxyUrl);
+    } catch (e) {}
+    try {
+        const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
+        const res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(3000) });
+        const cr = res.headers.get('content-range');
+        const len = res.headers.get('content-length');
+        let totalBytes = 0;
+        if (cr && cr.includes('/')) {
+            totalBytes = parseInt(cr.split('/')[1], 10);
+        } else if (len) {
+            totalBytes = parseInt(len, 10);
+        }
+        if (totalBytes > 0) {
+            const gb = totalBytes / (1024 * 1024 * 1024);
+            if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
+            const mb = totalBytes / (1024 * 1024);
+            return `${mb.toFixed(0)} MB`;
+        }
+    } catch (e) {}
+    return '';
+};
+const loadOptionSizes = (opts: { quality: string; url: string; size?: string }[]) => {
+    opts.forEach(async (opt) => {
+        const sz = await fetchExactFileSize(opt.url);
+        opt.size = sz || '-';
+        downloadOptions.value = [...downloadOptions.value];
+    });
+};
+
+const handleDownload = async () => {
+    const h = hero.value;
+    if (!h || downloading.value) return;
+    downloading.value = true;
+    try {
+        const fetchProvider = (providerId: string) => new Promise<{ quality: string; url: string; size?: string }[]>((resolve) => {
+            let url = `https://proxy.moovie.fun/scrape/source?id=${providerId}&tmdbId=${h.id}&type=movie&_cb=${Date.now()}`;
+            const es = new EventSource(url);
+            const options: { quality: string; url: string; size?: string }[] = [];
+            let done = false;
+            const finish = () => {
+                if (!done) { done = true; es.close(); resolve(options); }
+            };
+            const timer = setTimeout(finish, 5000);
+            const parse = (item: any) => {
+                if (!item) return;
+                if (item.qualities) {
+                    for (const [ql, qo] of Object.entries(item.qualities as Record<string, any>)) {
+                        if (qo && qo.url) options.push({ quality: ql.toUpperCase(), url: extractDirectDownloadUrl(qo.url), size: '' });
+                    }
+                } else if (item.url && (item.type === 'mp4' || /\.mp4/i.test(item.url))) {
+                    options.push({ quality: (item.quality || '1080P').toUpperCase(), url: extractDirectDownloadUrl(item.url), size: '' });
+                }
+            };
+            es.onmessage = (evt) => {
+                try {
+                    const data = JSON.parse(evt.data);
+                    for (const item of (Array.isArray(data.stream || data.streams) ? (data.stream || data.streams) : [data.stream || data.streams])) {
+                        parse(item);
+                    }
+                } catch (e) {}
+            };
+            es.addEventListener('completed', (evt: any) => {
+                try {
+                    const data = JSON.parse(evt.data);
+                    for (const item of (Array.isArray(data.stream || data.streams) ? (data.stream || data.streams) : [data.stream || data.streams])) {
+                        parse(item);
+                    }
+                } catch (e) {}
+                finish();
+            });
+            es.onerror = finish;
+        });
+
+        const allOptions = (await Promise.all(['4khdhubnew', '4khdhub', 'moovie-catalog'].map(fetchProvider))).flat();
+        if (allOptions.length === 0) {
+            window.location.href = movie(h.id);
+            return;
+        }
+        const rank: Record<string, number> = { '4K': 100, '2160': 90, '1080': 80, '720': 70, '480': 60, '360': 50 };
+        allOptions.sort((a, b) => (rank[a.quality.replace(/P$/i, '').toUpperCase()] || 0) - (rank[b.quality.replace(/P$/i, '').toUpperCase()] || 0)).reverse();
+        downloadOptions.value = allOptions;
+        showDownloadModal.value = true;
+        loadOptionSizes(allOptions);
+    } catch (e) {
+        window.location.href = movie(h.id);
+    } finally {
+        downloading.value = false;
+    }
 };
 
 const handleSettingsChange = () => {
@@ -241,7 +467,6 @@ onBeforeUnmount(() => {
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
-        margin-top: var(--s-3);
         padding: 0.45rem 0.85rem;
         border-radius: var(--r-pill);
         background: var(--ember);
@@ -250,6 +475,34 @@ onBeforeUnmount(() => {
         font-size: 0.75rem;
         font-weight: 700;
         letter-spacing: 0.02em;
+    }
+
+    &__hero-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--s-2);
+        margin-top: var(--s-3);
+    }
+
+    &__hero-dl {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.85rem;
+        border-radius: var(--r-pill);
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(4px);
+        color: var(--bone-100);
+        font-family: var(--font-ui);
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: background 0.15s;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.22);
+        }
     }
 
     &__continue {
@@ -262,6 +515,197 @@ onBeforeUnmount(() => {
         :deep(.spotlight__grid) {
             grid-template-columns: minmax(0, 1fr) !important;
         }
+    }
+
+    &__dl-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: rgba(4, 5, 8, 0.84);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 0;
+    }
+
+    &__dl-modal {
+        position: relative;
+        background: linear-gradient(165deg, rgba(20, 22, 30, 0.96) 0%, rgba(10, 11, 16, 0.98) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px 20px 0 0;
+        width: 100%;
+        max-height: 60vh;
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 15%;
+            right: 15%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 120, 30, 0.8), transparent);
+        }
+    }
+
+    &__dl-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    &__dl-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--bone-50);
+        margin: 0;
+    }
+
+    &__dl-close {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.6);
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.22s ease;
+        flex-shrink: 0;
+
+        &:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: rotate(90deg);
+        }
+    }
+
+    &__dl-body {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        &::-webkit-scrollbar { width: 4px; }
+        &::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); border-radius: 4px; }
+        &::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 4px; }
+    }
+
+    &__dl-opt {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 12px;
+        background: rgba(255, 255, 255, 0.035);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+        width: 100%;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 107, 0, 0.4);
+        }
+
+        &:active {
+            transform: scale(0.98);
+        }
+    }
+
+    &__dl-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-mono, monospace);
+        font-size: 0.7rem;
+        font-weight: 800;
+        padding: 3px 8px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #e2e2e8;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        flex-shrink: 0;
+        min-width: 42px;
+
+        &.is-4k {
+            background: linear-gradient(135deg, rgba(255, 190, 0, 0.24), rgba(255, 107, 0, 0.24));
+            color: #ffd000;
+            border-color: rgba(255, 190, 0, 0.45);
+            box-shadow: 0 0 16px rgba(255, 190, 0, 0.2);
+        }
+        &.is-1080 {
+            background: rgba(56, 189, 248, 0.18);
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.35);
+        }
+        &.is-720 {
+            background: rgba(192, 132, 252, 0.18);
+            color: #c084fc;
+            border-color: rgba(192, 132, 252, 0.35);
+        }
+    }
+
+    &__dl-meta {
+        flex: 1;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    &__dl-chip {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.65rem;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.7);
+        padding: 1px 5px;
+        border-radius: 4px;
+    }
+
+    &__dl-dot {
+        color: rgba(255, 255, 255, 0.25);
+        flex-shrink: 0;
+    }
+
+    &__dl-size {
+        color: #ff9d54;
+        font-weight: 700;
+        font-size: 0.65rem;
+        background: rgba(255, 107, 0, 0.14);
+        border: 1px solid rgba(255, 107, 0, 0.25);
+        padding: 1px 5px;
+        border-radius: 4px;
+        &.is-checking {
+            color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+            font-style: italic;
+        }
+    }
+
+    &__dl-arrow {
+        flex-shrink: 0;
+        color: rgba(255, 255, 255, 0.4);
+        transition: color 0.2s, transform 0.2s;
+    }
+
+    &__dl-opt:hover &__dl-arrow {
+        color: #ff6b00;
+        transform: translateY(2px);
     }
 }
 

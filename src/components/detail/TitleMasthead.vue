@@ -170,11 +170,92 @@
                             Watch Together
                         </LmButton>
 
+                        <LmButton
+                            v-if="playRoute && type !== 'anime'"
+                            variant="outline"
+                            size="lg"
+                            :disabled="downloading"
+                            @click.prevent="handleDirectDownload"
+                            aria-label="Download Media Directly"
+                        >
+                            <template #leading>
+                                <svg v-if="downloading" class="masthead__download-spinner" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="31.4 31.4" stroke-linecap="round">
+                                        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
+                                    </circle>
+                                </svg>
+                                <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                            </template>
+                            {{ downloadStatus || 'Download' }}
+                        </LmButton>
+
 
                     </div>
                 </div>
             </div>
         </template>
+
+        <!-- Download Quality Selection Modal -->
+        <Teleport to="body">
+            <Transition name="lm-dialog">
+                <div
+                    v-if="showDownloadModal"
+                    class="masthead__dl-overlay"
+                    @click.self="showDownloadModal = false"
+                >
+                    <div class="masthead__dl-modal" role="dialog" aria-modal="true" aria-label="Select Download Quality">
+                        <header class="masthead__dl-header">
+                            <h3 class="masthead__dl-title">Download</h3>
+                            <button type="button" class="masthead__dl-close" @click="showDownloadModal = false" aria-label="Close">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6 6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </header>
+                        <div class="masthead__dl-body">
+                            <button
+                                v-for="opt in downloadOptions"
+                                :key="opt.url"
+                                type="button"
+                                class="masthead__dl-opt"
+                                @click="triggerSingleDownload(opt.url, opt.quality)"
+                            >
+                                <span
+                                    class="masthead__dl-badge"
+                                    :class="{
+                                        'is-4k': opt.quality.includes('4K') || opt.quality.includes('2160'),
+                                        'is-1080': opt.quality.includes('1080'),
+                                        'is-720': opt.quality.includes('720')
+                                    }"
+                                >
+                                    {{ opt.quality }}
+                                </span>
+                                <span class="masthead__dl-meta">
+                                    <span class="masthead__dl-chip">MP4</span>
+                                    <template v-if="opt.size && opt.size !== '-'">
+                                        <span class="masthead__dl-dot">•</span>
+                                        <span class="masthead__dl-size">{{ opt.size }}</span>
+                                    </template>
+                                    <template v-else-if="!opt.size">
+                                        <span class="masthead__dl-dot">•</span>
+                                        <span class="masthead__dl-loading">Checking…</span>
+                                    </template>
+                                </span>
+                                <svg class="masthead__dl-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
     </header>
 </template>
 
@@ -192,6 +273,7 @@ import {
 import { useDetailBackNavigation } from '../../composables/useDetailBackNavigation';
 import { catalogDisplayImageSize, useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
+import { logDownload } from '../../composables/useDownloadTracking';
 
 export default defineComponent({
     name: 'TitleMasthead',
@@ -211,6 +293,8 @@ export default defineComponent({
         genres: { type: Array as PropType<string[]>, default: () => [] },
         audioTags: { type: Array as PropType<string[]>, default: () => [] },
         genreIds: { type: Array as PropType<number[]>, default: () => [] },
+        season: { type: Number, default: 1 },
+        episode: { type: Number, default: 1 },
         adult: { type: Boolean, default: false },
         playRoute: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: '' },
         playLabel: { type: String, default: 'Play' },
@@ -319,6 +403,277 @@ export default defineComponent({
             });
         });
 
+        interface DownloadOption {
+            quality: string;
+            url: string;
+            provider: string;
+            size?: string;
+        }
+
+        const downloading = ref(false);
+        const downloadStatus = ref('');
+        const showDownloadModal = ref(false);
+        const downloadOptions = ref<DownloadOption[]>([]);
+
+        const extractDirectDownloadUrl = (rawUrl: string): string => {
+            if (!rawUrl) return '';
+            try {
+                const fullUrl = rawUrl.startsWith('/') ? `https://proxy.moovie.fun${rawUrl}` : rawUrl;
+                const u = new URL(fullUrl);
+                const embedded = u.searchParams.get('link') || u.searchParams.get('url') || u.searchParams.get('file') || u.searchParams.get('download');
+                if (embedded && /^https?:\/\//i.test(embedded)) {
+                    return embedded;
+                }
+                return fullUrl;
+            } catch (e) {
+                return rawUrl.startsWith('/') ? `https://proxy.moovie.fun${rawUrl}` : rawUrl;
+            }
+        };
+
+        const isCrossOrigin = (u: string) => {
+            try { return new URL(u).origin !== location.origin } catch { return true }
+        };
+
+        const triggerSingleDownload = (url: string, quality: string) => {
+            let finalUrl = extractDirectDownloadUrl(url);
+            const titleClean = (props.title || 'media').replace(/[^a-zA-Z0-9_\-]/g, '_');
+            const fileName = `${titleClean}_${quality}.mp4`;
+            if (!isCrossOrigin(finalUrl)) {
+                const a = document.createElement('a');
+                a.href = finalUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else {
+                window.open(finalUrl, '_blank');
+            }
+            showDownloadModal.value = false;
+            logDownload(props.id, props.type, quality, props.title);
+        };
+
+        const fetchProviderStream = async (
+            providerId: string,
+            tmdbId: string,
+            type: string,
+            season = 1,
+            episode = 1
+        ): Promise<DownloadOption[]> => {
+            return new Promise((resolve) => {
+                let url = `https://proxy.moovie.fun/scrape/source?id=${providerId}&tmdbId=${tmdbId}&type=${type}&_cb=${Date.now()}`;
+                if (type === 'tv') {
+                    url += `&s=${season}&e=${episode}&season=${season}&episode=${episode}`;
+                }
+                const es = new EventSource(url);
+                const options: DownloadOption[] = [];
+                let resolved = false;
+
+                let timer: any = null;
+                const finish = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        if (timer) clearTimeout(timer);
+                        es.close();
+                        resolve(options);
+                    }
+                };
+
+                // Fast 3.5s timeout safeguard
+                timer = setTimeout(finish, 3500);
+
+                const parseStreamItem = (item: any) => {
+                    if (!item) return;
+                    if (item.qualities) {
+                        for (const [qLabel, qObj] of Object.entries(item.qualities as Record<string, any>)) {
+                            if (qObj && qObj.url) {
+                                const targetUrl = extractDirectDownloadUrl(qObj.url);
+                                options.push({
+                                    quality: qLabel.toUpperCase(),
+                                    url: targetUrl,
+                                    provider: '4KHDHub'
+                                });
+                            }
+                        }
+                    } else if (item.url && (item.type === 'mp4' || /\.mp4/i.test(item.url))) {
+                        options.push({
+                            quality: (item.quality || '1080P').toUpperCase(),
+                            url: extractDirectDownloadUrl(item.url),
+                            provider: '4KHDHub'
+                        });
+                    }
+                };
+
+                es.onmessage = (evt) => {
+                    try {
+                        const data = JSON.parse(evt.data);
+                        const streamList = data.stream || data.streams || [];
+                        for (const item of (Array.isArray(streamList) ? streamList : [streamList])) {
+                            parseStreamItem(item);
+                        }
+                    } catch (e) {}
+                };
+
+                es.addEventListener('completed', (evt: any) => {
+                    try {
+                        const data = JSON.parse(evt.data);
+                        const streamList = data.stream || data.streams || [];
+                        for (const item of (Array.isArray(streamList) ? streamList : [streamList])) {
+                            parseStreamItem(item);
+                        }
+                    } catch (e) {}
+                    finish();
+                });
+
+                es.onerror = finish;
+            });
+        };
+
+        const fetchExactFileSize = async (rawUrl: string): Promise<string> => {
+            if (!rawUrl) return '';
+            const tryHead = async (url: string): Promise<string> => {
+                const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+                const len = res.headers.get('content-length');
+                if (len) {
+                    const bytes = parseInt(len, 10);
+                    if (bytes > 0) {
+                        const gb = bytes / (1024 * 1024 * 1024);
+                        if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
+                        const mb = bytes / (1024 * 1024);
+                        return `${mb.toFixed(0)} MB`;
+                    }
+                }
+                return '';
+            };
+            try {
+                return await tryHead(rawUrl);
+            } catch (e) {}
+            try {
+                const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
+                return await tryHead(proxyUrl);
+            } catch (e) {}
+            try {
+                const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
+                const res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(3000) });
+                const cr = res.headers.get('content-range');
+                const len = res.headers.get('content-length');
+                let totalBytes = 0;
+                if (cr && cr.includes('/')) {
+                    totalBytes = parseInt(cr.split('/')[1], 10);
+                } else if (len) {
+                    totalBytes = parseInt(len, 10);
+                }
+                if (totalBytes > 0) {
+                    const gb = totalBytes / (1024 * 1024 * 1024);
+                    if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
+                    const mb = totalBytes / (1024 * 1024);
+                    return `${mb.toFixed(0)} MB`;
+                }
+            } catch (e) {}
+            return '';
+        };
+
+        const loadOptionSizes = (opts: DownloadOption[]) => {
+            opts.forEach(async (opt) => {
+                const sz = await fetchExactFileSize(opt.url);
+                opt.size = sz || '-';
+                downloadOptions.value = [...downloadOptions.value];
+            });
+        };
+
+        const handleDirectDownload = async () => {
+            if (downloading.value) return;
+            downloading.value = true;
+            downloadStatus.value = '';
+            downloadOptions.value = [];
+
+            const id = String(props.id || '').trim();
+            const type = props.type || 'movie';
+            const seasonNum = props.season || 1;
+            const episodeNum = props.episode || 1;
+            let options: DownloadOption[] = [];
+
+            try {
+                // 1. Query 4khdhub / 4khdhubnew source directly
+                const hub4kOptions = await fetchProviderStream('4khdhubnew', id, type, seasonNum, episodeNum);
+                if (hub4kOptions && hub4kOptions.length > 0) {
+                    options = hub4kOptions;
+                } else {
+                    const fallback4k = await fetchProviderStream('4khdhub', id, type, seasonNum, episodeNum);
+                    if (fallback4k && fallback4k.length > 0) {
+                        options = fallback4k;
+                    }
+                }
+
+                // 2. Fallback to API search if 4khdhub returned no options
+                if (!options || options.length === 0) {
+                    let searchUrl = `https://proxy.moovie.fun/api/search?q=${encodeURIComponent(id)}&type=${type}`;
+                    if (type === 'tv') {
+                        searchUrl += `&s=${seasonNum}&e=${episodeNum}`;
+                    }
+                    const res = await fetch(searchUrl);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const seenQualities = new Set<string>();
+
+                        for (const group of (data.results || [])) {
+                            const pName = group.providerName || group.provider || 'Server';
+                            for (const stream of (group.streams || [])) {
+                                const u = stream.url || stream.proxyUrl || '';
+                                const isMp4 = /\.mp4/i.test(u) || stream.type === 'mp4';
+                                if (isMp4) {
+                                    const targetUrl = extractDirectDownloadUrl(u);
+                                    const quality = (stream.quality || '1080p').toUpperCase();
+                                    const key = `${quality}_${pName}`;
+                                    if (!seenQualities.has(key)) {
+                                        seenQualities.add(key);
+                                        options.push({
+                                            quality,
+                                            url: targetUrl,
+                                            provider: pName
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.debug('[Masthead] Scraper fetch note:', e);
+            }
+
+            downloading.value = false;
+
+            if (options.length > 0) {
+                // Keep all unique stream download options (all qualities & sizes)
+                const seenUrls = new Set<string>();
+                options = options.filter(opt => {
+                    if (!opt.url || seenUrls.has(opt.url)) return false;
+                    seenUrls.add(opt.url);
+                    return true;
+                });
+
+                const rankMap: Record<string, number> = { '4K': 100, '2160': 90, '1080': 80, '720': 70, '480': 60, '360': 50 };
+                options.sort((a, b) => {
+                    const rA = rankMap[a.quality.replace(/P$/i, '').toUpperCase()] || 0;
+                    const rB = rankMap[b.quality.replace(/P$/i, '').toUpperCase()] || 0;
+                    return rB - rA;
+                });
+            }
+
+            if (options.length >= 1) {
+                downloadOptions.value = options;
+                showDownloadModal.value = true;
+                loadOptionSizes(options);
+            } else {
+                if (props.playRoute) {
+                    const pathStr = typeof props.playRoute === 'string' ? props.playRoute : (props.playRoute as any).path || '/';
+                    window.location.href = pathStr;
+                }
+            }
+        };
+
         return {
             goBackToIssue,
             rootRef,
@@ -327,6 +682,12 @@ export default defineComponent({
             year,
             ratingLabel,
             setIframe,
+            downloading,
+            downloadStatus,
+            showDownloadModal,
+            downloadOptions,
+            triggerSingleDownload,
+            handleDirectDownload,
             trailerVisible,
             trailerLive,
             trailerSrc,
@@ -624,6 +985,234 @@ export default defineComponent({
 @keyframes masthead-skeleton-shimmer-anim {
     100% {
         transform: translateX(100%);
+    }
+}
+
+.masthead__dl-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(4, 5, 8, 0.84);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.masthead__dl-modal {
+    position: relative;
+    background: linear-gradient(165deg, rgba(20, 22, 30, 0.96) 0%, rgba(10, 11, 16, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-shadow: 0 32px 80px -16px rgba(0, 0, 0, 0.9);
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 15%;
+        right: 15%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 120, 30, 0.8), transparent);
+    }
+}
+
+.masthead__dl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.masthead__dl-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--bone-50);
+    margin: 0;
+}
+
+.masthead__dl-close {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.22s ease;
+    flex-shrink: 0;
+
+    &:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(255, 255, 255, 0.25);
+        transform: rotate(90deg);
+    }
+}
+
+.masthead__dl-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); border-radius: 4px; }
+    &::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 4px; }
+}
+
+.masthead__dl-opt {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    width: 100%;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 107, 0, 0.4);
+    }
+
+    &:active {
+        transform: scale(0.98);
+    }
+}
+
+.masthead__dl-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 4px 9px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e2e8;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    flex-shrink: 0;
+    min-width: 48px;
+
+    &.is-4k {
+        background: linear-gradient(135deg, rgba(255, 190, 0, 0.24), rgba(255, 107, 0, 0.24));
+        color: #ffd000;
+        border-color: rgba(255, 190, 0, 0.45);
+        box-shadow: 0 0 16px rgba(255, 190, 0, 0.2);
+    }
+    &.is-1080 {
+        background: rgba(56, 189, 248, 0.18);
+        color: #38bdf8;
+        border-color: rgba(56, 189, 248, 0.35);
+    }
+    &.is-720 {
+        background: rgba(192, 132, 252, 0.18);
+        color: #c084fc;
+        border-color: rgba(192, 132, 252, 0.35);
+    }
+}
+
+.masthead__dl-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    flex: 1;
+    min-width: 0;
+}
+
+.masthead__dl-chip {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 1px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.masthead__dl-dot {
+    color: rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+}
+
+.masthead__dl-size {
+    color: #ff9d54;
+    font-weight: 700;
+    background: rgba(255, 107, 0, 0.14);
+    border: 1px solid rgba(255, 107, 0, 0.25);
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.masthead__dl-loading {
+    color: rgba(255, 255, 255, 0.35);
+    font-style: italic;
+}
+
+.masthead__dl-arrow {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.4);
+    transition: color 0.2s, transform 0.2s;
+}
+
+.masthead__dl-opt:hover .masthead__dl-arrow {
+    color: #ff6b00;
+    transform: translateY(2px);
+}
+
+@media (max-width: 520px) {
+    .masthead__dl-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+    .masthead__dl-modal {
+        max-width: 100%;
+        max-height: 60vh;
+        border-radius: 20px 20px 0 0;
+        padding: 16px;
+    }
+    .masthead__dl-header {
+        margin-bottom: 12px;
+    }
+    .masthead__dl-title {
+        font-size: 1rem;
+    }
+    .masthead__dl-opt {
+        padding: 11px 12px;
+        gap: 10px;
+    }
+    .masthead__dl-badge {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        min-width: 42px;
+    }
+    .masthead__dl-meta {
+        font-size: 0.7rem;
     }
 }
 </style>

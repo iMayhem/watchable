@@ -456,7 +456,10 @@ export default defineComponent({
             { key: 'acorn', label: 'Acorn TV', params: {}, useWatchmode: true, sourceId: 17 }
         ];
 
+        let fetchReqId = 0;
+
         const fetchPage = async (cat: Category, p: number, append: boolean) => {
+            const reqId = ++fetchReqId;
             if (append) {
                 isLoadingMore.value = true;
             } else {
@@ -464,58 +467,65 @@ export default defineComponent({
                 results.value = [];
             }
             try {
-                let items: MovieResult[];
-                let total: number;
+                let items: MovieResult[] = [];
+                let total = 1;
 
                 if (cat.useWatchmode) {
                     const sid = cat.sourceId!;
                     const region = cat.region || '';
                     const cached = await getWatchmodeFromCache(sid, p, region);
-                    let titles: WatchmodeTitle[];
-                    let totalPages: number;
+                    let titles: WatchmodeTitle[] = [];
+                    let totalPages = 1;
                     if (cached) {
-                        titles = cached.titles;
-                        totalPages = cached.total_pages;
+                        titles = cached.titles || [];
+                        totalPages = cached.total_pages || 1;
                     } else {
                         const regionParam = region ? `&regions=${region}` : '';
-                        const res = await fetch(
-                            `/api/watchmode-cache?sourceId=${sid}&page=${p}${regionParam}`
-                        );
-                        const data = await res.json();
-                        titles = data?.titles ?? [];
-                        totalPages = data?.total_pages ?? 1;
-                        if (titles.length > 0) {
-                            await setWatchmodeCache(sid, p, { titles, total_pages: totalPages, total_results: data?.total_results ?? 0 }, region);
+                        try {
+                            const res = await fetch(
+                                `/api/watchmode-cache?sourceId=${sid}&page=${p}${regionParam}`
+                            );
+                            if (res.ok) {
+                                const data = await res.json().catch(() => null);
+                                titles = data?.titles ?? [];
+                                totalPages = data?.total_pages ?? 1;
+                                if (titles.length > 0) {
+                                    await setWatchmodeCache(sid, p, { titles, total_pages: totalPages, total_results: data?.total_results ?? 0 }, region);
+                                }
+                            }
+                        } catch {
+                            /* ignore network errors */
                         }
                     }
+
+                    if (reqId !== fetchReqId) return;
+
                     const validTitles = titles.filter((t: WatchmodeTitle) => t.type === 'movie' || t.type === 'tv_series' || t.type === 'tv_miniseries');
-                    const posterPaths = await Promise.all(
-                        validTitles.map(async (t: WatchmodeTitle) => {
-                            if (!t.tmdb_id) return null;
-                            const tmdbEndpoint = t.type === 'movie' ? 'movie' : 'tv';
-                            try {
-                                const tmdb = await useAxios().get(`${tmdbEndpoint}/${t.tmdb_id}`);
-                                return tmdb.data?.poster_path ?? null;
-                            } catch {
-                                return null;
-                            }
-                        })
-                    );
                     const isCrunchyroll = cat.key === 'crunchyroll';
-                    items = validTitles.map((t: WatchmodeTitle, i: number) => ({
-                        id: t.tmdb_id || t.id,
-                        title: t.title,
-                        poster_path: posterPaths[i],
-                        vote_average: t.rating || 0,
-                        release_date: t.year ? String(t.year) : '',
-                        type: isCrunchyroll ? 'anime' : (t.type === 'movie' ? 'movie' as const : 'tv' as const)
-                    }));
+                    items = validTitles.map((t: WatchmodeTitle) => {
+                        let pPath = t.poster || null;
+                        if (pPath && pPath.startsWith('http')) {
+                            // Watchmode poster URL is direct
+                            pPath = pPath;
+                        }
+                        return {
+                            id: t.tmdb_id || t.id,
+                            title: t.title,
+                            poster_path: pPath,
+                            vote_average: t.rating || 0,
+                            release_date: t.year ? String(t.year) : '',
+                            type: isCrunchyroll ? 'anime' : (t.type === 'movie' ? 'movie' as const : 'tv' as const)
+                        };
+                    });
                     total = totalPages;
                 } else {
                     const endpoint = cat.isTv ? 'discover/tv' : 'discover/movie';
                     const res = await useAxios().get(endpoint, {
                         params: { ...cat.params, page: p }
                     });
+
+                    if (reqId !== fetchReqId) return;
+
                     items = ((res.data?.results ?? []) as any[]).map((r: any) => ({
                         id: r.id,
                         title: r.title || r.name || '',
@@ -527,6 +537,8 @@ export default defineComponent({
                     total = res.data?.total_pages ?? 1;
                 }
 
+                if (reqId !== fetchReqId) return;
+
                 if (append) {
                     const existingIds = new Set(results.value.map(r => r.id));
                     const fresh = items.filter(i => !existingIds.has(i.id));
@@ -537,10 +549,12 @@ export default defineComponent({
                 totalPages.value = Math.min(total, 500);
                 page.value = p;
             } catch {
-                if (!append) results.value = [];
+                if (!append && reqId === fetchReqId) results.value = [];
             } finally {
-                isLoading.value = false;
-                isLoadingMore.value = false;
+                if (reqId === fetchReqId) {
+                    isLoading.value = false;
+                    isLoadingMore.value = false;
+                }
             }
         };
 
@@ -548,8 +562,8 @@ export default defineComponent({
 
         const loadMoreClick = async () => {
             displayedLimit.value += 25;
-            while (results.value.length < displayedLimit.value && page.value < totalPages.value) {
-                if (!currentCat.value) break;
+            if (results.value.length < displayedLimit.value && page.value < totalPages.value) {
+                if (!currentCat.value) return;
                 await fetchPage(currentCat.value, page.value + 1, true);
             }
         };

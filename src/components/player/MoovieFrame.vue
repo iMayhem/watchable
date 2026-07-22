@@ -524,8 +524,11 @@ async function fetchLanguageVariantsFromHub(
                     const json = await res.json().catch(() => null)
                     if (!json || typeof json !== 'object') return []
                     const items: any[] = json.results?.reduce?.((acc: any[], r: any) => {
-                        const v = r.streams?.[0]?._languageVariants
-                        if (v) acc.push(...v)
+                        const streamsList = r.streams || (r._languageVariants ? [r] : [])
+                        for (const st of streamsList) {
+                            const v = st._languageVariants
+                            if (v && Array.isArray(v)) acc.push(...v)
+                        }
                         return acc
                     }, []) ?? []
                     return items.map((v: any): LanguageVariant => ({
@@ -1431,28 +1434,37 @@ export default defineComponent({
                             if (mw._languageVariants && Array.isArray(mw._languageVariants)) {
                                 for (const lv of mw._languageVariants) {
                                     const variantId = `moovie-catalog:${lv.catalogId}`
-                                    const existsInVariants = languageVariants.value.some(v => v.id === variantId)
+                                    const existsInVariants = languageVariants.value.some(v => v.id === variantId || (v as any).catalogId === lv.catalogId || v.language?.toLowerCase() === lv.language?.toLowerCase())
                                     if (!existsInVariants) {
-                                        const exists = audioTracks.value.some(t => (t as any)._catalogId === lv.catalogId || (t as any)._variantId === variantId)
-                                        if (!exists) {
-                                            audioTracks.value.push({
-                                                id: 2000 + audioTracks.value.length,
-                                                name: lv.language,
-                                                lang: lv.language,
-                                                _catalogId: lv.catalogId,
-                                            } as any)
-                                            languageVariants.value.push({
-                                                language: lv.language,
-                                                label: lv.language,
-                                                provider: 'moovie-catalog',
-                                                id: variantId,
-                                                type: props.mediaType === 'tv' ? 'show' : 'movie',
-                                                season: props.season,
-                                                episode: props.episode,
-                                            })
-                                            console.debug('[MoovieFrame]  added language variant from SSE:', lv.language, lv.catalogId)
-                                        }
+                                        languageVariants.value.push({
+                                            language: lv.language,
+                                            label: lv.language,
+                                            provider: 'moovie-catalog',
+                                            id: variantId,
+                                            catalogId: lv.catalogId,
+                                            type: props.mediaType === 'tv' ? 'show' : 'movie',
+                                            season: props.season,
+                                            episode: props.episode,
+                                        } as any)
+                                        console.debug('[MoovieFrame]  added language variant from SSE:', lv.language, lv.catalogId)
                                     }
+                                }
+                                if (languageVariants.value.length > 0) {
+                                    const existingHlsTracks = audioTracks.value.filter(t => t.id < 1999)
+                                    const englishOriginalTrack = {
+                                        id: 1999,
+                                        name: 'English (Original)',
+                                        lang: 'English',
+                                        _isOriginal: true,
+                                    }
+                                    const variantTracks = languageVariants.value.map((v, i) => ({
+                                        id: 2000 + i,
+                                        name: v.label || v.language,
+                                        lang: v.language,
+                                        _variantId: v.id,
+                                        _catalogId: (v as any).catalogId || v.id.replace(/^[a-z0-9-]+:/i, '')
+                                    }))
+                                    audioTracks.value = [...existingHlsTracks, englishOriginalTrack, ...variantTracks]
                                 }
                             }
                         }
@@ -2006,11 +2018,20 @@ export default defineComponent({
 
             // Language variant resolve (smov-style multi-provider)
             const track = audioTracks.value.find(t => t.id === index)
+            if (!track) return
             const variantId = (track as any)?._variantId || (track as any)?._catalogId
             if (!variantId) return
 
-            const lv = languageVariants.value.find(v => v.id === variantId || (v as any).catalogId === variantId)
-            if (!lv) return
+            const lv = languageVariants.value.find(v => 
+                v.id === variantId || 
+                (v as any).catalogId === variantId || 
+                v.id.endsWith(`:${variantId}`) ||
+                variantId.endsWith(`:${(v as any).catalogId}`)
+            )
+            if (!lv) {
+                console.warn('[MoovieFrame] selectAudioTrack: variant not found for', variantId)
+                return
+            }
 
             console.debug('[MoovieFrame] selectAudioTrack: resolving variant', lv.id, 'type:', lv.type)
             buffering.value = true
@@ -2048,10 +2069,6 @@ export default defineComponent({
             if (langVariantFetchKey === key) return
             langVariantFetchKey = key
 
-            // Clear previous hub-sourced audio tracks (keep HLS native ones id < 1999)
-            audioTracks.value = audioTracks.value.filter(t => t.id < 1999)
-            languageVariants.value = []
-
             console.debug('[MoovieFrame] triggerLanguageVariantFetch: fetching for', props.title, props.mediaType, props.mediaId)
 
             const variants = await fetchLanguageVariantsFromHub(
@@ -2065,25 +2082,31 @@ export default defineComponent({
             if (langVariantFetchKey !== key) return  // stale — props changed
 
             console.debug('[MoovieFrame] triggerLanguageVariantFetch: got', variants.length, 'variants')
-            if (!variants.length) return
-
-            languageVariants.value = variants
-
-            // Keep existing HLS native audio tracks, add English (Original) and hub variants at id >= 1999
-            const existingHlsTracks = audioTracks.value.filter(t => t.id < 1999)
-            const englishOriginalTrack = {
-                id: 1999,
-                name: 'English (Original)',
-                lang: 'English',
-                _isOriginal: true,
+            
+            for (const v of variants) {
+                const exists = languageVariants.value.some(existing => existing.id === v.id || (existing as any).catalogId === (v as any).catalogId || (existing.language?.toLowerCase() === v.language?.toLowerCase() && existing.provider === v.provider))
+                if (!exists) {
+                    languageVariants.value.push(v)
+                }
             }
-            const variantTracks = variants.map((v, i) => ({
-                id: 2000 + i,
-                name: v.label,
-                lang: v.language,
-                _variantId: v.id,
-            }))
-            audioTracks.value = [...existingHlsTracks, englishOriginalTrack, ...variantTracks]
+
+            if (languageVariants.value.length > 0) {
+                const existingHlsTracks = audioTracks.value.filter(t => t.id < 1999)
+                const englishOriginalTrack = {
+                    id: 1999,
+                    name: 'English (Original)',
+                    lang: 'English',
+                    _isOriginal: true,
+                }
+                const variantTracks = languageVariants.value.map((v, i) => ({
+                    id: 2000 + i,
+                    name: v.label || v.language,
+                    lang: v.language,
+                    _variantId: v.id,
+                    _catalogId: (v as any).catalogId || v.id.replace(/^[a-z0-9-]+:/i, '')
+                }))
+                audioTracks.value = [...existingHlsTracks, englishOriginalTrack, ...variantTracks]
+            }
         }
 
         async function selectSubtitleTrack(index: number) {

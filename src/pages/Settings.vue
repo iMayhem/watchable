@@ -273,7 +273,10 @@ function saveFebboxSettings() {
 
 function toggleAdsHidden() {
     localStorage.setItem('ads_hidden', String(adsHidden.value));
-    addToast(adsHidden.value ? 'Ad-free mode enabled!' : 'Ads re-enabled.', 'info');
+    addToast(adsHidden.value ? 'Ad-free mode enabled! Reloading...' : 'Ads re-enabled. Reloading...', 'info');
+    setTimeout(() => {
+        window.location.reload();
+    }, 600);
 }
 
 function saveImageQuality() {

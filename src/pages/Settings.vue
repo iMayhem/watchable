@@ -127,7 +127,7 @@
                                 <p class="settings-field__help">Optional VIP account key to unlock high-speed FebBox direct streaming threads.</p>
                                 <input
                                     id="setting-febbox-token"
-                                    type="password"
+                                    type="text"
                                     v-model="febboxToken"
                                     placeholder="Enter FebBox user token..."
                                     class="settings-input"

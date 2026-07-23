@@ -105,7 +105,7 @@
                         <label class="m-settings__label">FebBox User Token / Key</label>
                         <p class="m-settings__field-help">Optional VIP account key to unlock high-speed FebBox direct streaming threads.</p>
                         <input
-                            type="password"
+                            type="text"
                             v-model="febboxToken"
                             placeholder="Enter FebBox user token..."
                             class="m-settings__input"

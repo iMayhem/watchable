@@ -186,6 +186,7 @@ function saveFebboxSettings() {
 
 function toggleAdsHidden() {
     localStorage.setItem('ads_hidden', String(adsHidden.value));
+    setTimeout(() => window.location.reload(), 400);
 }
 
 function saveImageQuality() {

@@ -21,6 +21,18 @@
       })();
     </script>
     <script src="https://openpanel.dev/op1.js" defer async></script>
+    <!-- AdMaven Popunder Script (suppressed if Ad-Free Mode is enabled in Settings) -->
+    <script>
+      (function() {
+        try {
+          if (localStorage.getItem('ads_hidden') === 'true') return;
+        } catch (e) {}
+        var s = document.createElement('script');
+        s.setAttribute('data-cfasync', 'false');
+        s.src = '//dc9xwpjprguup.cloudfront.net/?pwxcd=1436467';
+        document.head.appendChild(s);
+      })();
+    </script>
     <script>
       window.__onGCastApiAvailable = function(isAvailable) {
         if (isAvailable && window.cast && window.cast.framework) {

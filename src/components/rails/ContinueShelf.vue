@@ -44,7 +44,6 @@
                 </div>
 
                 <div class="continue__body">
-                    <span class="eyebrow continue__eyebrow">{{ entry.eyebrow }}</span>
                     <h4 class="continue__title">{{ entry.title }}</h4>
                     <p v-if="entry.subtitle" class="meta continue__sub">{{ entry.subtitle }}</p>
                 </div>
@@ -80,7 +79,7 @@ export default defineComponent({
     components: { LmRail },
     props: {
         title: { type: String, default: 'Continue watching' },
-        eyebrow: { type: String, default: 'Pick up where you left off' }
+        eyebrow: { type: String, default: '' }
     },
     setup() {
         const entries = computed<Entry[]>(() => {

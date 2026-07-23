@@ -12,17 +12,6 @@
                 </div>
             </div>
 
-            <!-- Editorial statement -->
-            <h2 class="site-footer__statement">
-                <span class="site-footer__statement-lede">A cinema-first streaming journal</span>
-                <span class="site-footer__statement-body">
-                    Curating films &amp; shows with editorial intent
-                    &mdash; <em>brought to you from the stacks</em>.
-                </span>
-            </h2>
-
-            <hr class="hairline site-footer__rule" />
-
             <!-- Columns -->
             <div class="site-footer__cols">
                 <nav

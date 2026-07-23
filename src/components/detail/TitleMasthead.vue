@@ -7,7 +7,7 @@
             @click="goBackToIssue"
         >
             <span aria-hidden="true">←</span>
-            Back to issue
+            Back
         </button>
 
         <!-- Skeleton Loading state -->

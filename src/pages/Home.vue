@@ -15,16 +15,14 @@
                 :release-date="hero ? hero.release_date : ''"
                 :genre-ids="hero ? hero.genre_ids : []"
                 :adult="hero ? hero.adult : false"
-                eyebrow="This week’s feature"
+                eyebrow=""
                 :loading="isHomeLoading && !hero"
             />
 
             <CuratedRail
                 class="home__section"
                 :items="trendingItems"
-                title="Trending Top 10"
-                eyebrow="Popular Today"
-                description="The most-watched titles on Moovie right now."
+                title="Trending Now"
                 :more-to="{ name: 'Movies' }"
             />
 
@@ -41,17 +39,14 @@
                 :poster-path="spotlight.poster_path"
                 :rating="spotlight.vote_average"
                 :release-date="spotlight.release_date"
-                eyebrow="The Feature"
+                eyebrow=""
                 :pull-quote="spotlightQuote"
-                attribution="Movieace Review"
             />
 
             <CuratedRail
                 class="home__section"
                 :items="pantheonItems"
-                title="The Pantheon"
-                eyebrow="Reader Favorites"
-                description="Titles our audience returns to, time after time."
+                title="Top Rated"
                 :more-to="{ name: 'Movies' }"
             />
 

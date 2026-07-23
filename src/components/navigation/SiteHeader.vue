@@ -4,19 +4,8 @@
             <router-link to="/" class="site-header__logo" aria-label="moovie home">
                 <div class="site-header__wordmark">
                     <span class="site-header__mark-text">moovie</span>
-                    <span class="site-header__kicker eyebrow">A Cinema Periodical</span>
                 </div>
             </router-link>
-
-            <a
-                href="https://fightchatcontrol.eu/"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="site-header__fight-chat-control"
-                title="Fight Chat Control"
-            >
-                Fight Chat Control
-            </a>
 
             <nav class="site-header__nav" aria-label="Primary">
                 <template v-for="item in primaryNav" :key="item.path">
@@ -67,14 +56,16 @@
                 <button
                     type="button"
                     class="site-header__search"
-                    aria-label="Search"
-                    title="Search"
+                    :aria-label="`Open search (${modKey}K)`"
+                    :title="`Open search (${modKey}K)`"
                     @click="openPalette"
                 >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m21 21-4.3-4.3" />
                     </svg>
+                    <span class="site-header__search-label">Search</span>
+                    <kbd class="site-header__search-kbd">{{ modKey }}K</kbd>
                 </button>
 
                 <!-- Discord Link -->
@@ -823,14 +814,15 @@ export default defineComponent({
     &__search {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        padding: 0;
+        gap: var(--s-2);
+        padding: 0.5rem 0.75rem 0.5rem 0.65rem;
         background: var(--surface-tint);
         border: 1px solid var(--rule);
         border-radius: var(--r-pill);
         color: var(--bone-300);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        min-width: 220px;
         cursor: pointer;
         transition:
             background-color var(--dur-fast),
@@ -838,12 +830,25 @@ export default defineComponent({
             color var(--dur-fast);
 
         svg {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             flex: 0 0 auto;
         }
 
         &:hover {
+            background: var(--surface-tint-hover);
+            border-color: var(--rule-strong);
+            color: var(--bone-50);
+        }
+
+        @media (max-width: 1024px) {
+            min-width: 0;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            justify-content: center;
+        }
+    }
             background: var(--surface-tint-hover);
             border-color: var(--rule-strong);
             color: var(--bone-50);

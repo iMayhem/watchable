@@ -21,6 +21,7 @@
                             v-model="q"
                             type="text"
                             class="lm-palette__input"
+                            placeholder="Search movies, shows, people — or jump to a page"
                             autocomplete="off"
                             spellcheck="false"
                             @keydown="onKey"
@@ -163,49 +164,49 @@ const JUMP: JumpItem[] = [
     {
         label: 'Home',
         path: '/',
-        hint: '',
+        hint: 'G H',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>'
     },
     {
         label: 'Movies',
         path: '/movies',
-        hint: '',
+        hint: 'G M',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 14h4M17 9h4M17 14h4"/></svg>'
     },
     {
         label: 'TV Shows',
         path: '/tv-shows',
-        hint: '',
+        hint: 'G T',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="m8 3 4 3 4-3"/></svg>'
     },
     {
         label: 'Anime',
         path: '/anime',
-        hint: '',
+        hint: 'G A',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9.5 8.5 14 12l-4.5 3.5z"/></svg>'
     },
     {
         label: 'Upcoming',
         path: '/upcoming',
-        hint: '',
+        hint: 'G U',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>'
     },
     {
         label: 'Actors',
         path: '/actors',
-        hint: '',
+        hint: 'G C',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'
     },
     {
         label: 'Watchlist',
         path: '/watchlist',
-        hint: '',
+        hint: 'G W',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>'
     },
     {
         label: 'Search',
         path: '/search',
-        hint: '',
+        hint: 'G S',
         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>'
     }
 ];

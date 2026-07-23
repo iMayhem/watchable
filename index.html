@@ -4,12 +4,21 @@
     <meta charset="UTF-8" />
     <script>
       window.op=window.op||function(){var n=[];return new Proxy(function(){arguments.length&&n.push([].slice.call(arguments))},{get:function(t,r){return"q"===r?n:function(){n.push([r].concat([].slice.call(arguments)))}} ,has:function(t,r){return"q"===r}}) }();
-      window.op('init', {
-        clientId: '01a2e66a-a6b1-4aaf-af69-98d36e97e699',
-        trackScreenViews: true,
-        trackOutgoingLinks: true,
-        trackAttributes: true,
-      });
+      (function() {
+        var isMob = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+        window.op('init', {
+          clientId: '01a2e66a-a6b1-4aaf-af69-98d36e97e699',
+          trackScreenViews: true,
+          trackOutgoingLinks: true,
+          trackAttributes: true,
+          profile: {
+            device: isMob ? 'mobile' : 'desktop',
+            platform: isMob ? 'Mobile Web' : 'Desktop Web',
+            screen_width: window.innerWidth,
+            screen_height: window.innerHeight,
+          }
+        });
+      })();
     </script>
     <script src="https://openpanel.dev/op1.js" defer async></script>
     <script>

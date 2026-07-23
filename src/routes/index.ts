@@ -350,6 +350,21 @@ router.beforeEach((to, from, next) => {
 });
 
 router.afterEach((to) => {
+    if (typeof window !== 'undefined' && (window as any).op) {
+        try {
+            const isMob = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+            (window as any).op('track', 'page_view', {
+                path: to.fullPath,
+                route_name: String(to.name || ''),
+                device: isMob ? 'mobile' : 'desktop',
+                platform: isMob ? 'Mobile Web' : 'Desktop Web',
+                viewport: `${window.innerWidth}x${window.innerHeight}`,
+                screen_width: window.innerWidth,
+                screen_height: window.innerHeight
+            });
+        } catch (e) {}
+    }
+
     import('../composables/useBotProtection').then(({ reevaluateBotProtection }) => {
         reevaluateBotProtection();
     });

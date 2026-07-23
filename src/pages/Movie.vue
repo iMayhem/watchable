@@ -51,24 +51,6 @@
             <section class="movie-detail__section movie-detail__snap-slide container-lm">
                 <CastGrid :casts="cast" title="The Players" eyebrow="The Cast" :limit="12" :loading="loading" />
             </section>
-
-            <section v-if="reviews.length" class="movie-detail__section movie-detail__snap-slide container-lm">
-                <ReviewsPullQuote
-                    :reviews="reviews"
-                    title="Pressed into print"
-                    eyebrow="The Critics"
-                />
-            </section>
-
-            <section class="movie-detail__section movie-detail__snap-slide">
-                <CuratedRail
-                    :items="similarItems"
-                    title="Double bill"
-                    eyebrow="If you liked this"
-                    description="Features of a similar cut, also in rotation."
-                    default-type="movie"
-                />
-            </section>
         </main>
 
         <SiteFooter />
@@ -92,38 +74,15 @@ import MetaBar, { MetaEntry } from '../components/detail/MetaBar.vue';
 import DropCapSynopsis from '../components/detail/DropCapSynopsis.vue';
 import StatsBlock, { StatEntry } from '../components/detail/StatsBlock.vue';
 import CastGrid from '../components/detail/CastGrid.vue';
-import ReviewsPullQuote, { ReviewEntry } from '../components/detail/ReviewsPullQuote.vue';
-import CuratedRail, { CuratedItem } from '../components/rails/CuratedRail.vue';
 import TrailerDialog from '../components/detail/TrailerDialog.vue';
 import { useMovies, MovieDetails, Cast, Crew } from '../composables/useMovies';
 import { fetchTrailerVideos, type TrailerVideo } from '../composables/useTrailer';
 import { useSeo } from '../composables/useSeo';
 import { addViewedItem } from '../composables/useHistory';
 import { getLastWatchedMetaData } from '../composables/useStream';
-import useAxios from '../composables/useAxios';
 import { primeGenres } from '../composables/useGenreLookup';
 import { buildProxiedImageUrl } from '../utils/useWebImage';
 import { displayMovieStatus, releaseDateMetaLabel } from '../utils/releaseStatus';
-
-interface ReviewsResponse {
-    results: Array<{
-        id: string;
-        author: string;
-        content: string;
-        created_at?: string;
-        url?: string;
-    }>;
-}
-
-interface SimilarMovie {
-    id: number;
-    title: string;
-    poster_path: string | null;
-    vote_average: number;
-    release_date: string;
-    genre_ids: number[];
-    adult: boolean;
-}
 
 export default defineComponent({
     name: 'Movie',
@@ -135,20 +94,16 @@ export default defineComponent({
         DropCapSynopsis,
         StatsBlock,
         CastGrid,
-        ReviewsPullQuote,
-        CuratedRail,
         TrailerDialog
     },
     setup() {
         const route = useRoute();
-        const { fetchMovie, fetchMovieCredits, fetchSimilarMovies } = useMovies();
+        const { fetchMovie, fetchMovieCredits } = useMovies();
         const { updateSeo } = useSeo();
 
         const movie = ref<MovieDetails | null>(null);
         const cast = ref<Cast[]>([]);
         const crew = ref<Crew[]>([]);
-        const similar = ref<SimilarMovie[]>([]);
-        const reviews = ref<ReviewEntry[]>([]);
         const loading = ref(true);
 
         const trailerOpen = ref(false);
@@ -254,20 +209,6 @@ export default defineComponent({
             ];
         });
 
-        const similarItems = computed<CuratedItem[]>(() =>
-            similar.value.slice(0, 14).map(m => ({
-                id: m.id,
-                title: m.title,
-                originalTitle: (m as any).original_title || m.title,
-                posterPath: m.poster_path,
-                rating: m.vote_average,
-                releaseDate: m.release_date,
-                genreIds: m.genre_ids,
-                adult: m.adult,
-                type: 'movie' as const
-            }))
-        );
-
         const playRoute = computed(() => ({
             name: 'StreamMovie',
             params: { id: String(route.params.id) },
@@ -286,36 +227,11 @@ export default defineComponent({
             trailerOpen.value = false;
         };
 
-        const fetchReviews = async (id: string) => {
-            try {
-                const res = await useAxios().get(`movie/${id}/reviews`, {
-                    params: {
-                        language: 'en-US',
-                        page: 1
-                    }
-                });
-                const data = res.data as ReviewsResponse;
-                reviews.value = (data.results ?? [])
-                    .slice(0, 6)
-                    .map(r => ({
-                        id: r.id,
-                        author: r.author,
-                        content: r.content,
-                        created_at: r.created_at,
-                        url: r.url
-                    }));
-            } catch {
-                reviews.value = [];
-            }
-        };
-
         const loadMovie = async (id: string) => {
             loading.value = true;
             movie.value = null;
             cast.value = [];
             crew.value = [];
-            similar.value = [];
-            reviews.value = [];
             trailers.value = [];
 
             try {
@@ -366,13 +282,10 @@ export default defineComponent({
                 // Load secondary non-essential metadata in the background
                 Promise.all([
                     fetchMovieCredits(id),
-                    fetchSimilarMovies(id),
-                    fetchTrailerVideos(id, 'movie'),
-                    fetchReviews(id)
-                ]).then(([credits, sim, videos]) => {
+                    fetchTrailerVideos(id, 'movie')
+                ]).then(([credits, videos]) => {
                     cast.value = credits.data.value?.cast ?? [];
                     crew.value = credits.data.value?.crew ?? [];
-                    similar.value = (sim.data.value?.results ?? []) as SimilarMovie[];
                     trailers.value = videos ?? [];
                 }).catch(err => {
                     console.error('Failed to load secondary movie data in background:', err);
@@ -411,7 +324,6 @@ export default defineComponent({
         return {
             movie,
             cast,
-            reviews,
             loading,
             genreNames,
             genreIds,
@@ -421,7 +333,6 @@ export default defineComponent({
             trailers,
             metaItems,
             statsItems,
-            similarItems,
             playRoute,
             playLabel,
             openTrailer,

@@ -242,8 +242,7 @@ import {
     defineComponent,
     onBeforeUnmount,
     onMounted,
-    ref,
-    watch
+    ref
 } from 'vue';
 import { useRoute } from 'vue-router';
 import LmDrawer from '../primitives/Drawer.vue';
@@ -253,7 +252,6 @@ import NotificationBell from './NotificationBell.vue';
 import DonationModal from './DonationModal.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
-import { useOpeningSplash } from '../../composables/useOpeningSplash';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSupabaseClient } from '../../lib/supabase';
 import { getSettings, REGIONS } from '../../composables/useSettings';
@@ -318,7 +316,6 @@ export default defineComponent({
         const route = useRoute();
         const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
         const scrolled = ref(false);
-        const { splashActive } = useOpeningSplash();
 
         const DETAIL_ROUTE_NAMES = new Set([
             'AnimeDetail',
@@ -486,12 +483,6 @@ export default defineComponent({
                     isDonationModalOpen.value = true;
                 });
                 localStorage.setItem('moovie_donation_seen', '1');
-            }
-        });
-
-        watch(splashActive, (active, wasActive) => {
-            if (wasActive && !active) {
-                requestAnimationFrame(() => onScroll());
             }
         });
 
@@ -665,7 +656,7 @@ export default defineComponent({
         font-weight: 800;
         font-size: 2.15rem;
         letter-spacing: -0.07em;
-        line-height: 0.85;
+        line-height: 1;
         color: var(--bone-50);
         background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
         -webkit-background-clip: text;
@@ -674,6 +665,7 @@ export default defineComponent({
         position: relative;
         display: inline-flex;
         align-items: center;
+        padding-right: 2px;
         transition: transform var(--dur-fast) var(--ease-out);
 
         &:hover {
@@ -847,11 +839,6 @@ export default defineComponent({
             height: 40px;
             padding: 0;
             justify-content: center;
-        }
-    }
-            background: var(--surface-tint-hover);
-            border-color: var(--rule-strong);
-            color: var(--bone-50);
         }
     }
 
@@ -1032,20 +1019,20 @@ export default defineComponent({
     }
 
     &__login-btn {
-        background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
-        color: var(--ink-900);
+        background: var(--surface-tint);
+        color: var(--bone-50);
         font-weight: 700;
         font-family: var(--font-ui);
         font-size: var(--fs-xs);
         padding: 6px var(--s-4);
-        border: none;
+        border: 1px solid var(--rule);
         border-radius: var(--r-sm);
         cursor: pointer;
-        transition: transform var(--dur-fast), box-shadow var(--dur-fast);
+        transition: transform var(--dur-fast), border-color var(--dur-fast);
 
         &:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(255, 90, 31, 0.25);
+            border-color: var(--bone-400);
         }
     }
 

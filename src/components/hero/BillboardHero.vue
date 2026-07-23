@@ -132,6 +132,7 @@
                     <LmButton
                         variant="outline"
                         size="lg"
+                        class="billboard__together-btn"
                         :href="partyHref"
                         rel="nofollow"
                         aria-label="Watch Together"
@@ -567,6 +568,7 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center 25%;
+        filter: blur(0.5px);
         transition: opacity var(--dur-slow) var(--ease-out);
 
         &--placeholder {
@@ -755,6 +757,17 @@ export default defineComponent({
         flex-wrap: wrap;
         gap: var(--s-3);
         margin-top: var(--s-6);
+    }
+
+    &__together-btn {
+        background: var(--surface-tint);
+        color: var(--bone-50);
+        border: 1px solid var(--rule);
+        box-shadow: none;
+    }
+    &__together-btn:hover {
+        background: var(--surface-tint-hover);
+        border-color: var(--bone-400);
     }
 
     @media (max-width: 720px) {

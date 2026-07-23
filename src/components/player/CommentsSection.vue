@@ -166,9 +166,6 @@
                 </transition>
             </div>
         </div>
-        <div v-else class="comments-panel__empty">
-            <p class="meta">No comments here yet. Start the conversation!</p>
-        </div>
     </section>
 </template>
 

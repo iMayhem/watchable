@@ -867,6 +867,7 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center 22%;
+        filter: blur(0.5px);
         transition: opacity var(--dur-slow) var(--ease-out);
 
         &--placeholder {

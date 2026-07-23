@@ -66,24 +66,6 @@
             <section class="tv-detail__section tv-detail__snap-slide container-lm">
                 <CastGrid :casts="cast" title="The Ensemble" eyebrow="The Cast" :limit="12" :loading="loading" />
             </section>
-
-            <section v-if="reviews.length" class="tv-detail__section tv-detail__snap-slide container-lm">
-                <ReviewsPullQuote
-                    :reviews="reviews"
-                    title="Pressed into print"
-                    eyebrow="The Critics"
-                />
-            </section>
-
-            <section class="tv-detail__section tv-detail__snap-slide">
-                <CuratedRail
-                    :items="similarItems"
-                    title="Companion pieces"
-                    eyebrow="If you liked this"
-                    description="Series in a similar register."
-                    default-type="tv"
-                />
-            </section>
         </main>
 
         <SiteFooter />
@@ -107,30 +89,17 @@ import MetaBar, { MetaEntry } from '../components/detail/MetaBar.vue';
 import DropCapSynopsis from '../components/detail/DropCapSynopsis.vue';
 import StatsBlock, { StatEntry } from '../components/detail/StatsBlock.vue';
 import CastGrid from '../components/detail/CastGrid.vue';
-import ReviewsPullQuote, { ReviewEntry } from '../components/detail/ReviewsPullQuote.vue';
 import SeasonTabs from '../components/detail/SeasonTabs.vue';
-import CuratedRail, { CuratedItem } from '../components/rails/CuratedRail.vue';
 import TrailerDialog from '../components/detail/TrailerDialog.vue';
-import { useTvShows, TVShowDetails, TVShowType } from '../composables/useTvShows';
+import { useTvShows, TVShowDetails } from '../composables/useTvShows';
 import { Cast, Crew } from '../composables/useMovies';
 import { fetchTrailerVideos, type TrailerVideo } from '../composables/useTrailer';
 import { useSeo } from '../composables/useSeo';
 import { addViewedItem } from '../composables/useHistory';
 import { getLastWatchedMetaData } from '../composables/useStream';
-import useAxios from '../composables/useAxios';
 import { primeGenres } from '../composables/useGenreLookup';
 import { buildProxiedImageUrl } from '../utils/useWebImage';
 import { displayTvStatus, premiereMetaLabel } from '../utils/releaseStatus';
-
-interface ReviewsResponse {
-    results: Array<{
-        id: string;
-        author: string;
-        content: string;
-        created_at?: string;
-        url?: string;
-    }>;
-}
 
 export default defineComponent({
     name: 'TVShow',
@@ -142,21 +111,17 @@ export default defineComponent({
         DropCapSynopsis,
         StatsBlock,
         CastGrid,
-        ReviewsPullQuote,
         SeasonTabs,
-        CuratedRail,
         TrailerDialog
     },
     setup() {
         const route = useRoute();
-        const { fetchTvShow, fetchTvShowCredit, fetchSimilarTvShows } = useTvShows();
+        const { fetchTvShow, fetchTvShowCredit } = useTvShows();
         const { updateSeo } = useSeo();
 
         const show = ref<TVShowDetails | null>(null);
         const cast = ref<Cast[]>([]);
         const crew = ref<Crew[]>([]);
-        const similar = ref<TVShowType[]>([]);
-        const reviews = ref<ReviewEntry[]>([]);
         const loading = ref(true);
 
         const trailerOpen = ref(false);
@@ -244,20 +209,6 @@ export default defineComponent({
             ];
         });
 
-        const similarItems = computed<CuratedItem[]>(() =>
-            similar.value.slice(0, 14).map(s => ({
-                id: s.id,
-                title: s.name,
-                originalTitle: (s as any).original_name || s.name,
-                posterPath: s.poster_path,
-                rating: s.vote_average,
-                releaseDate: s.first_air_date || s.release_date,
-                genreIds: s.genre_ids,
-                adult: s.adult,
-                type: 'tv' as const
-            }))
-        );
-
         const activeSeason = computed(() => {
             const id = String(route.params.id);
             const last = getLastWatchedMetaData(id);
@@ -298,36 +249,11 @@ export default defineComponent({
             trailerOpen.value = false;
         };
 
-        const fetchReviews = async (id: string) => {
-            try {
-                const res = await useAxios().get(`tv/${id}/reviews`, {
-                    params: {
-                        language: 'en-US',
-                        page: 1
-                    }
-                });
-                const data = res.data as ReviewsResponse;
-                reviews.value = (data.results ?? [])
-                    .slice(0, 6)
-                    .map(r => ({
-                        id: r.id,
-                        author: r.author,
-                        content: r.content,
-                        created_at: r.created_at,
-                        url: r.url
-                    }));
-            } catch {
-                reviews.value = [];
-            }
-        };
-
         const loadShow = async (id: string) => {
             loading.value = true;
             show.value = null;
             cast.value = [];
             crew.value = [];
-            similar.value = [];
-            reviews.value = [];
             trailers.value = [];
 
             try {
@@ -378,13 +304,10 @@ export default defineComponent({
                 // Load secondary non-essential metadata in the background
                 Promise.all([
                     fetchTvShowCredit(id),
-                    fetchSimilarTvShows(id),
-                    fetchTrailerVideos(id, 'tv'),
-                    fetchReviews(id)
-                ]).then(([credits, sim, videos]) => {
+                    fetchTrailerVideos(id, 'tv')
+                ]).then(([credits, videos]) => {
                     cast.value = credits.data.value?.cast ?? [];
                     crew.value = credits.data.value?.crew ?? [];
-                    similar.value = (sim.data.value?.results ?? []) as TVShowType[];
                     trailers.value = videos ?? [];
                 }).catch(err => {
                     console.error('Failed to load secondary TV show data in background:', err);
@@ -431,7 +354,6 @@ export default defineComponent({
         return {
             show,
             cast,
-            reviews,
             loading,
             genreNames,
             genreIds,
@@ -441,7 +363,6 @@ export default defineComponent({
             trailers,
             metaItems,
             statsItems,
-            similarItems,
             playRoute,
             playLabel,
             openTrailer,

@@ -23,8 +23,6 @@
         <CommandPalette v-if="!isPartyEmbed" />
 
         <Toast v-if="!isPartyEmbed" />
-
-        <OpeningSplash v-if="!isPartyEmbed && !isBareLayout" />
     </div>
 </template>
 
@@ -35,7 +33,6 @@ import { getSettings, loadGlobalSettings } from './composables/useSettings';
 import { useAdScript } from './composables/useAdScript';
 import { getSupabaseClient } from './lib/supabase';
 import { setVpsProxyBaseUrl } from './utils/useWebImage';
-import OpeningSplash from './components/navigation/OpeningSplash.vue';
 import BannerBar from './components/navigation/BannerBar.vue';
 import PollPopup from './components/navigation/PollPopup.vue';
 

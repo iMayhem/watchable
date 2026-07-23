@@ -121,11 +121,6 @@ onBeforeUnmount(() => {
     height: 100dvh;
     min-height: 100dvh;
     background: #0b0a08;
-    opacity: 0;
-    transition: opacity 0.2s var(--ease-out, ease-out);
-}
-
-.party-shell__frame.is-loaded {
     opacity: 1;
 }
 </style>

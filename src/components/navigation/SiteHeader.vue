@@ -90,6 +90,8 @@
                     :class="{ 'is-active': isPartyRoute }"
                     aria-label="Together"
                     title="Together Lobby"
+                    @mouseenter="preloadPartyApp"
+                    @focus="preloadPartyApp"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="site-header__party-icon">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -492,6 +494,19 @@ export default defineComponent({
             document.removeEventListener('click', handleClickOutside);
         });
 
+        let partyPreloaded = false;
+        const preloadPartyApp = () => {
+            if (partyPreloaded) return;
+            partyPreloaded = true;
+            const links = ['/party/app.html', '/party/party.js', '/party/party.css'];
+            links.forEach(href => {
+                const link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = href;
+                document.head.appendChild(link);
+            });
+        };
+
         return {
             primaryNav,
             othersNav,
@@ -535,6 +550,7 @@ export default defineComponent({
             isNetflixMode: computed(() => false),
             isPartyRoute,
             prefetchPrimaryNav,
+            preloadPartyApp,
 
             unreadCount
         };

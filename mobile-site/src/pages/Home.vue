@@ -141,7 +141,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import MobileContinueShelf from '../components/MobileContinueShelf.vue';
 import { useHighlights, highLightOptions } from '@/composables/useHighlights';
@@ -219,6 +219,10 @@ const loadData = async () => {
 const showDownloadModal = ref(false);
 const downloading = ref(false);
 const downloadOptions = ref<{ quality: string; url: string; size?: string }[]>([]);
+
+watch(showDownloadModal, (v) => {
+    document.body.style.overflow = v ? 'hidden' : '';
+});
 
 const extractDirectDownloadUrl = (rawUrl: string): string => {
     if (!rawUrl) return '';

@@ -260,7 +260,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, PropType, ref, toRef } from 'vue';
+import { computed, defineComponent, PropType, ref, toRef, watch } from 'vue';
 import LmButton from '../primitives/Button.vue';
 import TrailerControls from '../hero/TrailerControls.vue';
 import TrailerIframe from '../hero/TrailerIframe.vue';
@@ -414,6 +414,9 @@ export default defineComponent({
         const downloadStatus = ref('');
         const showDownloadModal = ref(false);
         const downloadOptions = ref<DownloadOption[]>([]);
+        watch(showDownloadModal, (v) => {
+            document.body.style.overflow = v ? 'hidden' : '';
+        });
 
         const extractDirectDownloadUrl = (rawUrl: string): string => {
             if (!rawUrl) return '';

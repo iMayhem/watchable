@@ -225,7 +225,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, PropType, ref, toRef } from 'vue';
+import { computed, defineComponent, onMounted, PropType, ref, toRef, watch } from 'vue';
 import LmButton from '../primitives/Button.vue';
 import {
     catalogDisplayImageSize,
@@ -364,6 +364,10 @@ export default defineComponent({
         const showDownloadModal = ref(false);
         const downloading = ref(false);
         const downloadOptions = ref<{ quality: string; url: string; size?: string }[]>([]);
+
+        watch(showDownloadModal, (v) => {
+            document.body.style.overflow = v ? 'hidden' : '';
+        });
 
         const extractDirectDownloadUrl = (rawUrl: string): string => {
             if (!rawUrl) return '';

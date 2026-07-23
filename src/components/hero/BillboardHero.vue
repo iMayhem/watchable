@@ -405,20 +405,6 @@ export default defineComponent({
 
         const fetchExactFileSize = async (rawUrl: string): Promise<string> => {
             if (!rawUrl) return '';
-            const tryHead = async (url: string): Promise<string> => {
-                const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
-                const len = res.headers.get('content-length');
-                if (len) {
-                    const bytes = parseInt(len, 10);
-                    if (bytes > 0) {
-                        const gb = bytes / (1024 * 1024 * 1024);
-                        if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
-                        const mb = bytes / (1024 * 1024);
-                        return `${mb.toFixed(0)} MB`;
-                    }
-                }
-                return '';
-            };
             try {
                 const targetUrl = extractDirectDownloadUrl(rawUrl);
                 const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

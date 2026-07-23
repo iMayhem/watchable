@@ -209,14 +209,49 @@
                 >
                     <div class="masthead__dl-modal" role="dialog" aria-modal="true" aria-label="Select Download Quality">
                         <header class="masthead__dl-header">
-                            <h3 class="masthead__dl-title">Download</h3>
+                            <div class="masthead__dl-title-group">
+                                <h3 class="masthead__dl-title">Download</h3>
+                                <p class="masthead__dl-show-name">{{ title }}</p>
+                            </div>
                             <button type="button" class="masthead__dl-close" @click="showDownloadModal = false" aria-label="Close">
                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M18 6 6 18M6 6l12 12" />
                                 </svg>
                             </button>
                         </header>
-                        <div class="masthead__dl-body">
+
+                        <!-- TV Show Season & Episode Selector -->
+                        <div v-if="type === 'tv'" class="masthead__dl-picker">
+                            <div class="masthead__dl-field">
+                                <label class="masthead__dl-label">Season</label>
+                                <select v-model.number="selectedSeason" class="masthead__dl-select" @change="onSeasonEpisodeChange">
+                                    <option v-for="s in seasonOptions" :key="s.season_number" :value="s.season_number">
+                                        Season {{ s.season_number }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="masthead__dl-field">
+                                <label class="masthead__dl-label">Episode</label>
+                                <select v-model.number="selectedEpisode" class="masthead__dl-select" @change="onSeasonEpisodeChange">
+                                    <option v-for="e in maxEpisodesForSelectedSeason" :key="e" :value="e">
+                                        Episode {{ e }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div v-if="isModalLoading" class="masthead__dl-status-state">
+                            <svg class="masthead__download-spinner" viewBox="0 0 24 24" width="22" height="22">
+                                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="31.4 31.4" stroke-linecap="round">
+                                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
+                                </circle>
+                            </svg>
+                            <span>Fetching S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }} download links…</span>
+                        </div>
+
+                        <!-- Options List -->
+                        <div v-else-if="downloadOptions.length" class="masthead__dl-body">
                             <button
                                 v-for="opt in downloadOptions"
                                 :key="opt.url"
@@ -251,6 +286,11 @@
                                     <line x1="12" y1="15" x2="12" y2="3" />
                                 </svg>
                             </button>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div v-else class="masthead__dl-status-state masthead__dl-status-state--empty">
+                            <span>No direct MP4 download links found for S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }}.</span>
                         </div>
                     </div>
                 </div>
@@ -295,6 +335,7 @@ export default defineComponent({
         genreIds: { type: Array as PropType<number[]>, default: () => [] },
         season: { type: Number, default: 1 },
         episode: { type: Number, default: 1 },
+        seasons: { type: Array as PropType<Array<{ season_number: number; episode_count: number; name?: string }>>, default: () => [] },
         adult: { type: Boolean, default: false },
         playRoute: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: '' },
         playLabel: { type: String, default: 'Play' },
@@ -433,26 +474,195 @@ export default defineComponent({
             }
         };
 
-        const isCrossOrigin = (u: string) => {
-            try { return new URL(u).origin !== location.origin } catch { return true }
+        const selectedSeason = ref<number>(props.season || 1);
+        const selectedEpisode = ref<number>(props.episode || 1);
+        const isModalLoading = ref<boolean>(false);
+
+        watch(() => props.season, (val) => {
+            if (val) selectedSeason.value = val;
+        });
+
+        watch(() => props.episode, (val) => {
+            if (val) selectedEpisode.value = val;
+        });
+
+        const seasonOptions = computed(() => {
+            if (props.seasons && props.seasons.length > 0) {
+                const filtered = props.seasons.filter(s => s.season_number > 0);
+                if (filtered.length > 0) return filtered;
+            }
+            return Array.from({ length: 20 }, (_, i) => ({
+                season_number: i + 1,
+                episode_count: 50
+            }));
+        });
+
+        const maxEpisodesForSelectedSeason = computed(() => {
+            const currentS = seasonOptions.value.find(s => Number(s.season_number) === Number(selectedSeason.value));
+            const count = currentS?.episode_count || 50;
+            return Array.from({ length: count }, (_, i) => i + 1);
+        });
+
+        let activeFetchController: AbortController | null = null;
+        let activeEventSources: EventSource[] = [];
+
+        const cancelOngoingStreamFetches = () => {
+            if (activeFetchController) {
+                console.log('[📥 Abort] Cancelling previous stream fetches...');
+                activeFetchController.abort();
+                activeFetchController = null;
+            }
+            activeEventSources.forEach(es => {
+                try { es.close(); } catch (e) {}
+            });
+            activeEventSources = [];
+        };
+
+        const fetchStreamsForSelectedEpisode = async (seasonNum: number, episodeNum: number) => {
+            // Cancel older fetches immediately!
+            cancelOngoingStreamFetches();
+
+            activeFetchController = new AbortController();
+            const signal = activeFetchController.signal;
+
+            console.log(`[📥 Download Modal] Quick fetching streams for S${seasonNum}E${episodeNum}...`, { id: props.id, type: props.type, title: props.title });
+            isModalLoading.value = true;
+            downloadOptions.value = [];
+
+            const id = String(props.id || '').trim();
+            const type = props.type || 'movie';
+            const allOptions: DownloadOption[] = [];
+
+            const updateUIWithOptionBatch = (newOpts: DownloadOption[]) => {
+                if (signal.aborted || !newOpts || newOpts.length === 0) return;
+                allOptions.push(...newOpts);
+
+                const seenUrls = new Set<string>();
+                const clean = allOptions.filter(opt => {
+                    if (!opt.url || seenUrls.has(opt.url)) return false;
+                    seenUrls.add(opt.url);
+                    return true;
+                });
+
+                const rankMap: Record<string, number> = { '4K': 100, '2160': 90, '1080': 80, '720': 70, '480': 60, '360': 50 };
+                clean.sort((a, b) => {
+                    const rA = rankMap[a.quality.replace(/P$/i, '').toUpperCase()] || 0;
+                    const rB = rankMap[b.quality.replace(/P$/i, '').toUpperCase()] || 0;
+                    return rB - rA;
+                });
+
+                if (!signal.aborted) {
+                    downloadOptions.value = clean;
+                    if (clean.length > 0) {
+                        isModalLoading.value = false;
+                    }
+                    loadOptionSizesParallel(clean);
+                }
+            };
+
+            let searchUrl = `https://proxy.moovie.fun/api/search?q=${encodeURIComponent(id)}&type=${type}`;
+            if (type === 'tv') {
+                searchUrl += `&s=${seasonNum}&e=${episodeNum}`;
+            }
+
+            // Trigger scrapers concurrently with abort signal
+            const pNew = fetchProviderStream('4khdhubnew', id, type, seasonNum, episodeNum, signal)
+                .then(res => updateUIWithOptionBatch(res));
+
+            const pOld = fetchProviderStream('4khdhub', id, type, seasonNum, episodeNum, signal)
+                .then(res => updateUIWithOptionBatch(res));
+
+            const pSearch = fetch(searchUrl, { signal })
+                .then(async r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.results && !signal.aborted) {
+                        const apiOpts: DownloadOption[] = [];
+                        const seenQualities = new Set<string>();
+                        for (const group of (data.results || [])) {
+                            const pName = group.providerName || group.provider || 'Server';
+                            for (const stream of (group.streams || [])) {
+                                const u = stream.url || stream.proxyUrl || '';
+                                const isMp4 = /\.mp4/i.test(u) || stream.type === 'mp4';
+                                if (isMp4) {
+                                    const targetUrl = extractDirectDownloadUrl(u);
+                                    const quality = (stream.quality || '1080p').toUpperCase();
+                                    const key = `${quality}_${pName}`;
+                                    if (!seenQualities.has(key)) {
+                                        seenQualities.add(key);
+                                        apiOpts.push({
+                                            quality,
+                                            url: targetUrl,
+                                            provider: pName
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        updateUIWithOptionBatch(apiOpts);
+                    }
+                })
+                .catch(() => {});
+
+            // Maximum 4-second timeout to turn off spinner if no options were found
+            const maxWait = new Promise((resolve) => setTimeout(resolve, 4000));
+
+            try {
+                await Promise.race([
+                    Promise.allSettled([pNew, pOld, pSearch]),
+                    maxWait
+                ]);
+            } catch (e) {
+                console.warn('[Download Modal] Scraper note:', e);
+            } finally {
+                if (!signal.aborted) {
+                    isModalLoading.value = false;
+                }
+            }
+        };
+
+        const onSeasonEpisodeChange = () => {
+            console.log(`[📥 Selector] User switched to Season ${selectedSeason.value}, Episode ${selectedEpisode.value}`);
+            if (selectedEpisode.value > maxEpisodesForSelectedSeason.value.length) {
+                selectedEpisode.value = 1;
+            }
+            void fetchStreamsForSelectedEpisode(selectedSeason.value, selectedEpisode.value);
         };
 
         const triggerSingleDownload = (url: string, quality: string) => {
-            let finalUrl = extractDirectDownloadUrl(url);
+            const finalUrl = extractDirectDownloadUrl(url);
             const titleClean = (props.title || 'media').replace(/[^a-zA-Z0-9_\-]/g, '_');
-            const fileName = `${titleClean}_${quality}.mp4`;
-            if (!isCrossOrigin(finalUrl)) {
-                const a = document.createElement('a');
-                a.href = finalUrl;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } else {
-                window.open(finalUrl, '_blank');
+            let fileName = `${titleClean}_${quality}.mp4`;
+            if (props.type === 'tv') {
+                fileName = `${titleClean}_S${String(selectedSeason.value).padStart(2, '0')}E${String(selectedEpisode.value).padStart(2, '0')}_${quality}.mp4`;
             }
+            console.log('[🚀 Trigger Download] Launching direct download:', { fileName, quality, finalUrl });
+            const a = document.createElement('a');
+            a.href = finalUrl;
+            a.download = fileName;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             showDownloadModal.value = false;
             logDownload(props.id, props.type, quality, props.title);
+        };
+
+        const handleDirectDownload = async () => {
+            if (downloading.value) return;
+            console.log('[📥 Main Download Button] Clicked for', props.title);
+            selectedSeason.value = props.season || 1;
+            selectedEpisode.value = props.episode || 1;
+            showDownloadModal.value = true;
+            await fetchStreamsForSelectedEpisode(selectedSeason.value, selectedEpisode.value);
+        };
+
+        const openDownloadForEpisode = async (seasonNum: number, episodeNum: number) => {
+            console.log(`[📥 Episode Card] Opening download modal for S${seasonNum}E${episodeNum}`);
+            selectedSeason.value = seasonNum;
+            selectedEpisode.value = episodeNum;
+            showDownloadModal.value = true;
+            await fetchStreamsForSelectedEpisode(seasonNum, episodeNum);
         };
 
         const fetchProviderStream = async (
@@ -460,14 +670,21 @@ export default defineComponent({
             tmdbId: string,
             type: string,
             season = 1,
-            episode = 1
+            episode = 1,
+            signal?: AbortSignal
         ): Promise<DownloadOption[]> => {
             return new Promise((resolve) => {
+                if (signal?.aborted) {
+                    return resolve([]);
+                }
+
                 let url = `https://proxy.moovie.fun/scrape/source?id=${providerId}&tmdbId=${tmdbId}&type=${type}&_cb=${Date.now()}`;
                 if (type === 'tv') {
                     url += `&s=${season}&e=${episode}&season=${season}&episode=${episode}`;
                 }
                 const es = new EventSource(url);
+                activeEventSources.push(es);
+
                 const options: DownloadOption[] = [];
                 let resolved = false;
 
@@ -476,16 +693,26 @@ export default defineComponent({
                     if (!resolved) {
                         resolved = true;
                         if (timer) clearTimeout(timer);
-                        es.close();
+                        try { es.close(); } catch (e) {}
+                        const idx = activeEventSources.indexOf(es);
+                        if (idx !== -1) activeEventSources.splice(idx, 1);
                         resolve(options);
                     }
                 };
 
-                // Fast 3.5s timeout safeguard
-                timer = setTimeout(finish, 3500);
+                if (signal) {
+                    signal.addEventListener('abort', () => {
+                        finish();
+                    });
+                }
+
+                timer = setTimeout(finish, 4500);
 
                 const parseStreamItem = (item: any) => {
                     if (!item) return;
+                    const szMatch = (item.title || item.name || item.size || '').match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+                    const extractedSize = szMatch ? szMatch[1].toUpperCase() : undefined;
+
                     if (item.qualities) {
                         for (const [qLabel, qObj] of Object.entries(item.qualities as Record<string, any>)) {
                             if (qObj && qObj.url) {
@@ -493,7 +720,8 @@ export default defineComponent({
                                 options.push({
                                     quality: qLabel.toUpperCase(),
                                     url: targetUrl,
-                                    provider: '4KHDHub'
+                                    provider: '4KHDHub',
+                                    size: extractedSize
                                 });
                             }
                         }
@@ -501,7 +729,8 @@ export default defineComponent({
                         options.push({
                             quality: (item.quality || '1080P').toUpperCase(),
                             url: extractDirectDownloadUrl(item.url),
-                            provider: '4KHDHub'
+                            provider: '4KHDHub',
+                            size: extractedSize
                         });
                     }
                 };
@@ -515,6 +744,15 @@ export default defineComponent({
                         }
                     } catch (e) {}
                 };
+
+                es.addEventListener('update', (evt: any) => {
+                    try {
+                        const data = JSON.parse(evt.data);
+                        if (data.status === 'notfound' || data.status === 'failure') {
+                            finish();
+                        }
+                    } catch (e) {}
+                });
 
                 es.addEventListener('completed', (evt: any) => {
                     try {
@@ -533,32 +771,10 @@ export default defineComponent({
 
         const fetchExactFileSize = async (rawUrl: string): Promise<string> => {
             if (!rawUrl) return '';
-            const tryHead = async (url: string): Promise<string> => {
-                const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
-                const len = res.headers.get('content-length');
-                if (len) {
-                    const bytes = parseInt(len, 10);
-                    if (bytes > 0) {
-                        const gb = bytes / (1024 * 1024 * 1024);
-                        if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
-                        const mb = bytes / (1024 * 1024);
-                        return `${mb.toFixed(0)} MB`;
-                    }
-                }
-                return '';
-            };
-            try {
-                return await tryHead(rawUrl);
-            } catch (e) {}
             try {
                 const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
                 const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-                return await tryHead(proxyUrl);
-            } catch (e) {}
-            try {
-                const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-                const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-                const res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(3000) });
+                const res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(2500) });
                 const cr = res.headers.get('content-range');
                 const len = res.headers.get('content-length');
                 let totalBytes = 0;
@@ -577,104 +793,19 @@ export default defineComponent({
             return '';
         };
 
-        const loadOptionSizes = (opts: DownloadOption[]) => {
-            opts.forEach(async (opt) => {
+        const loadOptionSizesParallel = (opts: DownloadOption[]) => {
+            const targets = opts.filter(opt => !opt.size || opt.size === '-');
+            if (targets.length === 0) return;
+
+            console.log(`[📥 Parallel Size Fetch] Querying file sizes in parallel for ${targets.length} options...`);
+
+            void Promise.allSettled(targets.map(async (opt) => {
                 const sz = await fetchExactFileSize(opt.url);
-                opt.size = sz || '-';
-                downloadOptions.value = [...downloadOptions.value];
-            });
-        };
-
-        const handleDirectDownload = async () => {
-            if (downloading.value) return;
-            downloading.value = true;
-            downloadStatus.value = '';
-            downloadOptions.value = [];
-
-            const id = String(props.id || '').trim();
-            const type = props.type || 'movie';
-            const seasonNum = props.season || 1;
-            const episodeNum = props.episode || 1;
-            let options: DownloadOption[] = [];
-
-            try {
-                // 1. Query 4khdhub / 4khdhubnew source directly
-                const hub4kOptions = await fetchProviderStream('4khdhubnew', id, type, seasonNum, episodeNum);
-                if (hub4kOptions && hub4kOptions.length > 0) {
-                    options = hub4kOptions;
-                } else {
-                    const fallback4k = await fetchProviderStream('4khdhub', id, type, seasonNum, episodeNum);
-                    if (fallback4k && fallback4k.length > 0) {
-                        options = fallback4k;
-                    }
+                if (sz) {
+                    opt.size = sz;
+                    downloadOptions.value = [...downloadOptions.value];
                 }
-
-                // 2. Fallback to API search if 4khdhub returned no options
-                if (!options || options.length === 0) {
-                    let searchUrl = `https://proxy.moovie.fun/api/search?q=${encodeURIComponent(id)}&type=${type}`;
-                    if (type === 'tv') {
-                        searchUrl += `&s=${seasonNum}&e=${episodeNum}`;
-                    }
-                    const res = await fetch(searchUrl);
-                    if (res.ok) {
-                        const data = await res.json();
-                        const seenQualities = new Set<string>();
-
-                        for (const group of (data.results || [])) {
-                            const pName = group.providerName || group.provider || 'Server';
-                            for (const stream of (group.streams || [])) {
-                                const u = stream.url || stream.proxyUrl || '';
-                                const isMp4 = /\.mp4/i.test(u) || stream.type === 'mp4';
-                                if (isMp4) {
-                                    const targetUrl = extractDirectDownloadUrl(u);
-                                    const quality = (stream.quality || '1080p').toUpperCase();
-                                    const key = `${quality}_${pName}`;
-                                    if (!seenQualities.has(key)) {
-                                        seenQualities.add(key);
-                                        options.push({
-                                            quality,
-                                            url: targetUrl,
-                                            provider: pName
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.debug('[Masthead] Scraper fetch note:', e);
-            }
-
-            downloading.value = false;
-
-            if (options.length > 0) {
-                // Keep all unique stream download options (all qualities & sizes)
-                const seenUrls = new Set<string>();
-                options = options.filter(opt => {
-                    if (!opt.url || seenUrls.has(opt.url)) return false;
-                    seenUrls.add(opt.url);
-                    return true;
-                });
-
-                const rankMap: Record<string, number> = { '4K': 100, '2160': 90, '1080': 80, '720': 70, '480': 60, '360': 50 };
-                options.sort((a, b) => {
-                    const rA = rankMap[a.quality.replace(/P$/i, '').toUpperCase()] || 0;
-                    const rB = rankMap[b.quality.replace(/P$/i, '').toUpperCase()] || 0;
-                    return rB - rA;
-                });
-            }
-
-            if (options.length >= 1) {
-                downloadOptions.value = options;
-                showDownloadModal.value = true;
-                loadOptionSizes(options);
-            } else {
-                if (props.playRoute) {
-                    const pathStr = typeof props.playRoute === 'string' ? props.playRoute : (props.playRoute as any).path || '/';
-                    window.location.href = pathStr;
-                }
-            }
+            }));
         };
 
         return {
@@ -691,6 +822,13 @@ export default defineComponent({
             downloadOptions,
             triggerSingleDownload,
             handleDirectDownload,
+            openDownloadForEpisode,
+            selectedSeason,
+            selectedEpisode,
+            isModalLoading,
+            seasonOptions,
+            maxEpisodesForSelectedSeason,
+            onSeasonEpisodeChange,
             trailerVisible,
             trailerLive,
             trailerSrc,
@@ -1188,6 +1326,98 @@ export default defineComponent({
     transform: translateY(2px);
 }
 
+.masthead__dl-title-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.masthead__dl-show-name {
+    font-size: 0.8rem;
+    color: var(--bone-300, rgba(255, 255, 255, 0.6));
+    margin: 2px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.masthead__dl-picker {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    width: 100%;
+}
+
+.masthead__dl-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.masthead__dl-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #ff9d54;
+}
+
+.masthead__dl-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: rgba(255, 255, 255, 0.06);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 7px 30px 7px 10px;
+    outline: none;
+    cursor: pointer;
+    width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    transition: border-color 0.2s, background-color 0.2s;
+
+    &:hover, &:focus {
+        border-color: rgba(255, 107, 0, 0.6);
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    option {
+        background: #14161e;
+        color: #fff;
+        font-size: 0.85rem;
+    }
+}
+
+.masthead__dl-status-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 32px 16px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.86rem;
+    text-align: center;
+
+    &--empty {
+        color: rgba(255, 255, 255, 0.4);
+    }
+}
+
 @media (max-width: 520px) {
     .masthead__dl-overlay {
         padding: 0;
@@ -1195,9 +1425,11 @@ export default defineComponent({
     }
     .masthead__dl-modal {
         max-width: 100%;
-        max-height: 60vh;
+        max-height: 82vh;
+        max-height: 82dvh;
         border-radius: 20px 20px 0 0;
-        padding: 16px;
+        padding: 16px 14px 20px;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8);
     }
     .masthead__dl-header {
         margin-bottom: 12px;
@@ -1205,13 +1437,24 @@ export default defineComponent({
     .masthead__dl-title {
         font-size: 1rem;
     }
+    .masthead__dl-picker {
+        gap: 8px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+    }
+    .masthead__dl-select {
+        font-size: 0.78rem;
+        padding: 7px 24px 7px 8px;
+        border-radius: 8px;
+    }
     .masthead__dl-opt {
-        padding: 11px 12px;
+        padding: 10px 12px;
         gap: 10px;
+        border-radius: 12px;
     }
     .masthead__dl-badge {
         font-size: 0.7rem;
-        padding: 3px 8px;
+        padding: 3px 7px;
         min-width: 42px;
     }
     .masthead__dl-meta {

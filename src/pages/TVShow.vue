@@ -5,10 +5,12 @@
         <main id="main" class="tv-detail__main" role="main">
             <section class="tv-detail__snap-slide">
                 <TitleMasthead
+                    ref="mastheadRef"
                     :id="show ? show.id : ''"
                     type="tv"
                     :season="activeSeason"
                     :episode="activeEpisode"
+                    :seasons="show ? show.seasons : []"
                     :title="show ? show.name : ''"
                     :tagline="show ? show.tagline : ''"
                     :eyebrow="mastheadEyebrow"
@@ -34,6 +36,7 @@
                     title="Episode guide"
                     eyebrow="The Schedule"
                     description="Every installment, in running order."
+                    @download-episode="handleDownloadEpisode"
                 />
             </section>
 
@@ -417,6 +420,14 @@ export default defineComponent({
             }
         });
 
+        const mastheadRef = ref<any>(null);
+
+        const handleDownloadEpisode = ({ season, episode }: { season: number; episode: number }) => {
+            if (mastheadRef.value) {
+                mastheadRef.value.openDownloadForEpisode(season, episode);
+            }
+        };
+
         return {
             show,
             cast,
@@ -436,7 +447,9 @@ export default defineComponent({
             openTrailer,
             closeTrailer,
             activeSeason,
-            activeEpisode
+            activeEpisode,
+            mastheadRef,
+            handleDownloadEpisode
         };
     }
 });

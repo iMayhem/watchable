@@ -39,6 +39,20 @@
                 class="season-tabs__ep"
                 role="listitem"
             >
+                <button
+                    type="button"
+                    class="season-tabs__ep-dl"
+                    @click.stop.prevent="$emit('download-episode', { season: Number(activeSeason), episode: ep.episode_number })"
+                    :aria-label="`Download S${activeSeason} · E${ep.episode_number}`"
+                    :title="`Download S${activeSeason} · E${ep.episode_number}`"
+                >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                </button>
+
                 <router-link
                     :to="buildEpisodeRoute(ep)"
                     class="season-tabs__link"
@@ -88,6 +102,7 @@ import { useWebImage } from '../../utils/useWebImage';
 export default defineComponent({
     name: 'SeasonTabs',
     components: { LmTabs },
+    emits: ['download-episode'],
     props: {
         showId: { type: [Number, String], required: true },
         seasons: { type: Array as PropType<TVShowDetails['seasons']>, default: () => [] },
@@ -440,5 +455,36 @@ export default defineComponent({
 @media (prefers-reduced-motion: reduce) {
     .season-tabs__play,
     .season-tabs__link { transition: none; }
+}
+
+.season-tabs__ep {
+    position: relative;
+}
+
+.season-tabs__ep-dl {
+    position: absolute;
+    top: var(--s-3);
+    right: var(--s-3);
+    z-index: 5;
+    background: rgba(10, 11, 16, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.85);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: #ff6b00;
+        border-color: #ff6b00;
+        color: #fff;
+        transform: scale(1.1);
+        box-shadow: 0 4px 14px rgba(255, 107, 0, 0.5);
+    }
 }
 </style>

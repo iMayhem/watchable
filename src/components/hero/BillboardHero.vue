@@ -419,16 +419,15 @@ export default defineComponent({
                 }
                 return '';
             };
-            try { return await tryHead(rawUrl); } catch (e) {}
             try {
-                const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                const targetUrl = extractDirectDownloadUrl(rawUrl);
+                const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
                 const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-                return await tryHead(proxyUrl);
-            } catch (e) {}
-            try {
-                const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-                const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-                const res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(3000) });
+                let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(5000) }).catch(() => null);
+                if (!res || !res.ok) {
+                    res = await fetch(proxyUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) }).catch(() => null);
+                }
+                if (!res) return '';
                 const cr = res.headers.get('content-range');
                 const len = res.headers.get('content-length');
                 let totalBytes = 0;

@@ -258,30 +258,15 @@ const triggerDownload = (url: string, quality: string) => {
 
 const fetchExactFileSize = async (rawUrl: string): Promise<string> => {
     if (!rawUrl) return '';
-    const tryHead = async (url: string): Promise<string> => {
-        const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
-        const len = res.headers.get('content-length');
-        if (len) {
-            const bytes = parseInt(len, 10);
-            if (bytes > 0) {
-                const gb = bytes / (1024 * 1024 * 1024);
-                if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
-                const mb = bytes / (1024 * 1024);
-                return `${mb.toFixed(0)} MB`;
-            }
+    try {
+        const targetUrl = extractDirectDownloadUrl(rawUrl);
+        const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
+        let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(5000) }).catch(() => null);
+        if (!res || !res.ok) {
+            res = await fetch(proxyUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) }).catch(() => null);
         }
-        return '';
-    };
-    try { return await tryHead(rawUrl); } catch (e) {}
-    try {
-        const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-        return await tryHead(proxyUrl);
-    } catch (e) {}
-    try {
-        const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-        const res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(3000) });
+        if (!res) return '';
         const cr = res.headers.get('content-range');
         const len = res.headers.get('content-length');
         let totalBytes = 0;

@@ -247,7 +247,8 @@
                                     <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
                                 </circle>
                             </svg>
-                            <span>Fetching S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }} download links…</span>
+                            <span v-if="type === 'tv'">Fetching S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }} download links…</span>
+                            <span v-else>Fetching {{ title }} download links…</span>
                         </div>
 
                         <!-- Options List -->
@@ -290,7 +291,8 @@
 
                         <!-- Empty State -->
                         <div v-else class="masthead__dl-status-state masthead__dl-status-state--empty">
-                            <span>No direct MP4 download links found for S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }}.</span>
+                            <span v-if="type === 'tv'">No direct MP4 download links found for S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }}.</span>
+                            <span v-else>No direct MP4 download links found for {{ title }}.</span>
                         </div>
                     </div>
                 </div>
@@ -772,9 +774,16 @@ export default defineComponent({
         const fetchExactFileSize = async (rawUrl: string): Promise<string> => {
             if (!rawUrl) return '';
             try {
-                const uB64 = btoa(rawUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                const targetUrl = extractDirectDownloadUrl(rawUrl);
+                const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
                 const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-                const res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(2500) });
+                
+                let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(5000) }).catch(() => null);
+                if (!res || !res.ok) {
+                    res = await fetch(proxyUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) }).catch(() => null);
+                }
+                if (!res) return '';
+
                 const cr = res.headers.get('content-range');
                 const len = res.headers.get('content-length');
                 let totalBytes = 0;
@@ -801,10 +810,8 @@ export default defineComponent({
 
             void Promise.allSettled(targets.map(async (opt) => {
                 const sz = await fetchExactFileSize(opt.url);
-                if (sz) {
-                    opt.size = sz;
-                    downloadOptions.value = [...downloadOptions.value];
-                }
+                opt.size = sz || '-';
+                downloadOptions.value = [...downloadOptions.value];
             }));
         };
 

@@ -22,27 +22,6 @@
                             </svg>
                             Watch now
                         </span>
-                        <span
-                            class="m-home__hero-dl"
-                            :class="{ 'is-loading': downloading }"
-                            aria-label="Download"
-                            @click.stop.prevent="handleDownload"
-                        >
-                            <template v-if="downloading">
-                                <svg class="m-home__dl-spinner" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32" stroke-linecap="round" />
-                                </svg>
-                                Fetching…
-                            </template>
-                            <template v-else>
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                                Download
-                            </template>
-                        </span>
                     </div>
                 </div>
             </router-link>

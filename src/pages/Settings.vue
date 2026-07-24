@@ -83,10 +83,9 @@
                             <!-- Default Server Selection -->
                             <div class="settings-field">
                                 <label for="setting-server" class="settings-field__label eyebrow">Default Stream Server</label>
-                                <p class="settings-field__help">Server selection is coming soon — currently set to Thor (Ultra Fast).</p>
+                                <p class="settings-field__help">Server selection is coming soon — currently set to Poseidon (Multi-Audio HD).</p>
                                 <div class="settings-select-wrapper is-disabled">
                                     <select id="setting-server" v-model="defaultServerId" class="settings-select" disabled>
-                                        <option value="thor">Thor (Ultra Fast Stream)</option>
                                         <option value="poseidon">Poseidon (Multi-Audio HD)</option>
                                         <option value="athena">Athena (Moovie Scraper Catalog)</option>
                                         <option value="apollo">Apollo (4K Ultra Stream)</option>
@@ -250,7 +249,7 @@ const { addToast } = useToast();
 const selectedRegion = ref(region.value || 'global');
 const selectedLanguage = ref(language.value || 'en-US');
 const adsHidden = ref(localStorage.getItem('ads_hidden') === 'true');
-const defaultServerId = ref(localStorage.getItem('default_server_id') || 'thor');
+const defaultServerId = ref(localStorage.getItem('default_server_id') || 'poseidon');
 const imageQuality = ref<'low' | 'medium' | 'high'>(
     (localStorage.getItem('movora_image_quality') as any) || 'medium'
 );

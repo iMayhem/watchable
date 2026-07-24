@@ -3228,13 +3228,66 @@
             }, 250);
         }
 
-        // Close full size image modal on Escape key press
+        // Keyboard shortcuts for Watch Together player
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const modal = document.getElementById('image-view-modal');
                 if (modal && modal.classList.contains('active')) {
                     closeImageModal();
+                    return;
                 }
+            }
+
+            const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
+            const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable);
+            if (isEditable) return;
+
+            const video = netflixArt?.video;
+            const k = e.key;
+
+            if (k === ' ' || k === 'Spacebar' || k === 'k' || k === 'K') {
+                e.preventDefault();
+                netflixArt?.toggle();
+                revealPartyNfControls();
+            } else if (k === 'ArrowRight' || k === 'l' || k === 'L') {
+                e.preventDefault();
+                if (video) video.currentTime = Math.min(video.duration || 0, (video.currentTime || 0) + 5);
+                revealPartyNfControls();
+            } else if (k === 'ArrowLeft' || k === 'j' || k === 'J') {
+                e.preventDefault();
+                if (video) video.currentTime = Math.max(0, (video.currentTime || 0) - 5);
+                revealPartyNfControls();
+            } else if (k === 'ArrowUp') {
+                e.preventDefault();
+                if (video) {
+                    video.volume = Math.min(1, video.volume + 0.1);
+                    video.muted = false;
+                    updatePartyNfVolumeUi();
+                }
+                revealPartyNfControls();
+            } else if (k === 'ArrowDown') {
+                e.preventDefault();
+                if (video) {
+                    video.volume = Math.max(0, video.volume - 0.1);
+                    if (video.volume === 0) video.muted = true;
+                    updatePartyNfVolumeUi();
+                }
+                revealPartyNfControls();
+            } else if (k === 'f' || k === 'F') {
+                e.preventDefault();
+                const shell = document.getElementById('party-nf-watch');
+                if (!document.fullscreenElement) {
+                    shell?.requestFullscreen?.();
+                } else {
+                    document.exitFullscreen?.();
+                }
+            } else if (k === 'm' || k === 'M') {
+                e.preventDefault();
+                if (video) {
+                    video.muted = !video.muted;
+                    updatePartyNfVolumeUi();
+                }
+                revealPartyNfControls();
             }
         });
 

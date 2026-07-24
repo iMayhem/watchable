@@ -221,7 +221,7 @@
                         </header>
 
                         <!-- TV Show Season & Episode Selector -->
-                        <div v-if="type === 'tv'" class="masthead__dl-picker">
+                        <div v-if="isTvShow" class="masthead__dl-picker">
                             <div class="masthead__dl-field">
                                 <label class="masthead__dl-label">Season</label>
                                 <select v-model.number="selectedSeason" class="masthead__dl-select" @change="onSeasonEpisodeChange">
@@ -247,7 +247,7 @@
                                     <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
                                 </circle>
                             </svg>
-                            <span v-if="type === 'tv'">Fetching S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }} download links…</span>
+                            <span v-if="isTvShow">Fetching S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }} download links…</span>
                             <span v-else>Fetching {{ title }} download links…</span>
                         </div>
 
@@ -291,7 +291,7 @@
 
                         <!-- Empty State -->
                         <div v-else class="masthead__dl-status-state masthead__dl-status-state--empty">
-                            <span v-if="type === 'tv'">No direct MP4 download links found for S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }}.</span>
+                            <span v-if="isTvShow">No direct MP4 download links found for S{{ String(selectedSeason).padStart(2, '0') }}E{{ String(selectedEpisode).padStart(2, '0') }}.</span>
                             <span v-else>No direct MP4 download links found for {{ title }}.</span>
                         </div>
                     </div>
@@ -488,6 +488,11 @@ export default defineComponent({
             if (val) selectedEpisode.value = val;
         });
 
+        const isTvShow = computed(() => {
+            const t = (props.type || '').toLowerCase();
+            return t === 'tv' || t === 'show' || t === 'tv-show' || t === 'tvshow';
+        });
+
         const seasonOptions = computed(() => {
             if (props.seasons && props.seasons.length > 0) {
                 const filtered = props.seasons.filter(s => s.season_number > 0);
@@ -532,7 +537,7 @@ export default defineComponent({
             downloadOptions.value = [];
 
             const id = String(props.id || '').trim();
-            const type = props.type || 'movie';
+            const type = isTvShow.value ? 'tv' : 'movie';
             const allOptions: DownloadOption[] = [];
 
             const updateUIWithOptionBatch = (newOpts: DownloadOption[]) => {
@@ -562,55 +567,18 @@ export default defineComponent({
                 }
             };
 
-            let searchUrl = `https://proxy.moovie.fun/api/search?q=${encodeURIComponent(id)}&type=${type}`;
-            if (type === 'tv') {
-                searchUrl += `&s=${seasonNum}&e=${episodeNum}`;
-            }
-
-            // Trigger scrapers concurrently with abort signal
+            // Trigger default scrapers concurrently with abort signal
             const pNew = fetchProviderStream('4khdhubnew', id, type, seasonNum, episodeNum, signal)
                 .then(res => updateUIWithOptionBatch(res));
 
             const pOld = fetchProviderStream('4khdhub', id, type, seasonNum, episodeNum, signal)
                 .then(res => updateUIWithOptionBatch(res));
 
-            const pSearch = fetch(searchUrl, { signal })
-                .then(async r => r.ok ? r.json() : null)
-                .then(data => {
-                    if (data && data.results && !signal.aborted) {
-                        const apiOpts: DownloadOption[] = [];
-                        const seenQualities = new Set<string>();
-                        for (const group of (data.results || [])) {
-                            const pName = group.providerName || group.provider || 'Server';
-                            for (const stream of (group.streams || [])) {
-                                const u = stream.url || stream.proxyUrl || '';
-                                const isMp4 = /\.mp4/i.test(u) || stream.type === 'mp4';
-                                if (isMp4) {
-                                    const targetUrl = extractDirectDownloadUrl(u);
-                                    const quality = (stream.quality || '1080p').toUpperCase();
-                                    const key = `${quality}_${pName}`;
-                                    if (!seenQualities.has(key)) {
-                                        seenQualities.add(key);
-                                        apiOpts.push({
-                                            quality,
-                                            url: targetUrl,
-                                            provider: pName
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                        updateUIWithOptionBatch(apiOpts);
-                    }
-                })
-                .catch(() => {});
-
-            // Maximum 4-second timeout to turn off spinner if no options were found
-            const maxWait = new Promise((resolve) => setTimeout(resolve, 4000));
+            const maxWait = new Promise((resolve) => setTimeout(resolve, 7500));
 
             try {
                 await Promise.race([
-                    Promise.allSettled([pNew, pOld, pSearch]),
+                    Promise.allSettled([pNew, pOld]),
                     maxWait
                 ]);
             } catch (e) {
@@ -634,7 +602,7 @@ export default defineComponent({
             const finalUrl = extractDirectDownloadUrl(url);
             const titleClean = (props.title || 'media').replace(/[^a-zA-Z0-9_\-]/g, '_');
             let fileName = `${titleClean}_${quality}.mp4`;
-            if (props.type === 'tv') {
+            if (isTvShow.value) {
                 fileName = `${titleClean}_S${String(selectedSeason.value).padStart(2, '0')}E${String(selectedEpisode.value).padStart(2, '0')}_${quality}.mp4`;
             }
             console.log('[🚀 Trigger Download] Launching direct download:', { fileName, quality, finalUrl });
@@ -670,7 +638,7 @@ export default defineComponent({
         const fetchProviderStream = async (
             providerId: string,
             tmdbId: string,
-            type: string,
+            typeStr: string,
             season = 1,
             episode = 1,
             signal?: AbortSignal
@@ -680,9 +648,11 @@ export default defineComponent({
                     return resolve([]);
                 }
 
-                let url = `https://proxy.moovie.fun/scrape/source?id=${providerId}&tmdbId=${tmdbId}&type=${type}&_cb=${Date.now()}`;
-                if (type === 'tv') {
-                    url += `&s=${season}&e=${episode}&season=${season}&episode=${episode}`;
+                const isTv = typeStr === 'tv' || typeStr === 'show' || typeStr === 'tv-show' || typeStr === 'tvshow' || isTvShow.value;
+                const normType = isTv ? 'tv' : 'movie';
+                let url = `https://proxy.moovie.fun/scrape/source?id=${providerId}&tmdbId=${tmdbId}&type=${normType}&title=${encodeURIComponent(props.title || '')}&_cb=${Date.now()}`;
+                if (isTv) {
+                    url += `&s=${season}&e=${episode}&season=${season}&episode=${episode}&ep=${episode}`;
                 }
                 const es = new EventSource(url);
                 activeEventSources.push(es);
@@ -708,30 +678,33 @@ export default defineComponent({
                     });
                 }
 
-                timer = setTimeout(finish, 4500);
+                timer = setTimeout(finish, 7500);
 
                 const parseStreamItem = (item: any) => {
                     if (!item) return;
-                    const szMatch = (item.title || item.name || item.size || '').match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
-                    const extractedSize = szMatch ? szMatch[1].toUpperCase() : undefined;
+                    const itemTitle = item.title || item.name || item.filename || '';
+                    const mainSzMatch = (itemTitle || item.size || '').match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+                    const extractedSize = mainSzMatch ? mainSzMatch[1].toUpperCase() : undefined;
 
                     if (item.qualities) {
                         for (const [qLabel, qObj] of Object.entries(item.qualities as Record<string, any>)) {
                             if (qObj && qObj.url) {
                                 const targetUrl = extractDirectDownloadUrl(qObj.url);
+                                const qSizeMatch = (qObj.size || qObj.fileSize || qObj.title || '').match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+                                const itemSize = qSizeMatch ? qSizeMatch[1].toUpperCase() : extractedSize;
                                 options.push({
                                     quality: qLabel.toUpperCase(),
                                     url: targetUrl,
-                                    provider: '4KHDHub',
-                                    size: extractedSize
+                                    provider: item.provider || 'CineStream',
+                                    size: itemSize
                                 });
                             }
                         }
-                    } else if (item.url && (item.type === 'mp4' || /\.mp4/i.test(item.url))) {
+                    } else if (item.url) {
                         options.push({
                             quality: (item.quality || '1080P').toUpperCase(),
                             url: extractDirectDownloadUrl(item.url),
-                            provider: '4KHDHub',
+                            provider: item.provider || 'CineStream',
                             size: extractedSize
                         });
                     }
@@ -775,28 +748,36 @@ export default defineComponent({
             if (!rawUrl) return '';
             try {
                 const targetUrl = extractDirectDownloadUrl(rawUrl);
-                const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-                const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-                
-                let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(5000) }).catch(() => null);
-                if (!res || !res.ok) {
-                    res = await fetch(proxyUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) }).catch(() => null);
-                }
-                if (!res) return '';
+                try {
+                    const u = new URL(targetUrl);
+                    const querySz = u.searchParams.get('size') || u.searchParams.get('sz') || u.searchParams.get('filesize');
+                    if (querySz && /(\d+(?:\.\d+)?\s*(?:GB|MB))/i.test(querySz)) {
+                        return querySz.toUpperCase();
+                    }
+                } catch (e) {}
 
-                const cr = res.headers.get('content-range');
-                const len = res.headers.get('content-length');
-                let totalBytes = 0;
-                if (cr && cr.includes('/')) {
-                    totalBytes = parseInt(cr.split('/')[1], 10);
-                } else if (len) {
-                    totalBytes = parseInt(len, 10);
+                const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}&_size=1&_t=${Date.now()}`;
+                
+                let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
+                if (!res || !res.ok) {
+                    res = await fetch(proxyUrl, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
                 }
-                if (totalBytes > 0) {
-                    const gb = totalBytes / (1024 * 1024 * 1024);
-                    if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
-                    const mb = totalBytes / (1024 * 1024);
-                    return `${mb.toFixed(0)} MB`;
+                if (res) {
+                    const cr = res.headers.get('content-range') || res.headers.get('Content-Range');
+                    const len = res.headers.get('content-length') || res.headers.get('Content-Length') || res.headers.get('x-file-size');
+                    let totalBytes = 0;
+                    if (cr && cr.includes('/')) {
+                        totalBytes = parseInt(cr.split('/')[1], 10);
+                    } else if (len) {
+                        totalBytes = parseInt(len, 10);
+                    }
+                    if (totalBytes > 0) {
+                        const gb = totalBytes / (1024 * 1024 * 1024);
+                        if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
+                        const mb = totalBytes / (1024 * 1024);
+                        return `${mb.toFixed(0)} MB`;
+                    }
                 }
             } catch (e) {}
             return '';
@@ -810,8 +791,10 @@ export default defineComponent({
 
             void Promise.allSettled(targets.map(async (opt) => {
                 const sz = await fetchExactFileSize(opt.url);
-                opt.size = sz || '-';
-                downloadOptions.value = [...downloadOptions.value];
+                if (sz) {
+                    opt.size = sz;
+                    downloadOptions.value = [...downloadOptions.value];
+                }
             }));
         };
 
@@ -827,6 +810,7 @@ export default defineComponent({
             downloadStatus,
             showDownloadModal,
             downloadOptions,
+            isTvShow,
             triggerSingleDownload,
             handleDirectDownload,
             openDownloadForEpisode,

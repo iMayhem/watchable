@@ -261,10 +261,10 @@ const fetchExactFileSize = async (rawUrl: string): Promise<string> => {
     try {
         const targetUrl = extractDirectDownloadUrl(rawUrl);
         const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}`;
-        let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(5000) }).catch(() => null);
+        const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}&_size=1&_t=${Date.now()}`;
+        let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
         if (!res || !res.ok) {
-            res = await fetch(proxyUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) }).catch(() => null);
+            res = await fetch(proxyUrl, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
         }
         if (!res) return '';
         const cr = res.headers.get('content-range');
@@ -298,21 +298,21 @@ const handleDownload = async () => {
     downloading.value = true;
     try {
         const fetchProvider = (providerId: string) => new Promise<{ quality: string; url: string; size?: string }[]>((resolve) => {
-            let url = `https://proxy.moovie.fun/scrape/source?id=${providerId}&tmdbId=${h.id}&type=movie&_cb=${Date.now()}`;
+            let url = `https://proxy.moovie.fun/scrape/source?id=${providerId}&tmdbId=${h.id}&type=movie&title=${encodeURIComponent(h.title || '')}&_cb=${Date.now()}`;
             const es = new EventSource(url);
             const options: { quality: string; url: string; size?: string }[] = [];
             let done = false;
             const finish = () => {
                 if (!done) { done = true; es.close(); resolve(options); }
             };
-            setTimeout(finish, 5000);
+            setTimeout(finish, 7500);
             const parse = (item: any) => {
                 if (!item) return;
                 if (item.qualities) {
                     for (const [ql, qo] of Object.entries(item.qualities as Record<string, any>)) {
                         if (qo && qo.url) options.push({ quality: ql.toUpperCase(), url: extractDirectDownloadUrl(qo.url), size: '' });
                     }
-                } else if (item.url && (item.type === 'mp4' || /\.mp4/i.test(item.url))) {
+                } else if (item.url) {
                     options.push({ quality: (item.quality || '1080P').toUpperCase(), url: extractDirectDownloadUrl(item.url), size: '' });
                 }
             };
@@ -336,7 +336,18 @@ const handleDownload = async () => {
             es.onerror = finish;
         });
 
-        const allOptions = (await Promise.all(['4khdhubnew', '4khdhub', 'moovie-catalog'].map(fetchProvider))).flat();
+        const [pNew, pOld] = await Promise.all([
+            fetchProvider('4khdhubnew'),
+            fetchProvider('4khdhub')
+        ]);
+
+        const seenUrls = new Set<string>();
+        const allOptions = [...pNew, ...pOld].filter(opt => {
+            if (!opt.url || seenUrls.has(opt.url)) return false;
+            seenUrls.add(opt.url);
+            return true;
+        });
+
         if (allOptions.length === 0) {
             window.location.href = movie(h.id);
             return;

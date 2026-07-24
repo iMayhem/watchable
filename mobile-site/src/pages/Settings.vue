@@ -66,10 +66,9 @@
                     </div>
                     <div class="m-settings__field">
                         <label class="m-settings__label">Default Stream Server</label>
-                        <p class="m-settings__field-help">Server selection is coming soon — currently set to Thor (Ultra Fast).</p>
+                        <p class="m-settings__field-help">Server selection is coming soon — currently set to Poseidon (Multi-Audio HD).</p>
                         <div class="m-settings__select-wrapper is-disabled">
                             <select class="m-settings__select" disabled>
-                                <option value="thor">Thor (Ultra Fast Stream)</option>
                                 <option value="poseidon">Poseidon (Multi-Audio HD)</option>
                                 <option value="athena">Athena (Moovie Scraper Catalog)</option>
                                 <option value="apollo">Apollo (4K Ultra Stream)</option>

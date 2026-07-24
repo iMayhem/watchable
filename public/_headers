@@ -24,3 +24,17 @@
   Cache-Control: no-cache, no-store, must-revalidate
 /manifest.json
   Cache-Control: public, max-age=86400
+
+# 4. Dynamic API, Proxy & Scraper Endpoints (Never Cache at Edge or Browser)
+/scrape/*
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0
+  Pragma: no-cache
+/proxy*
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0
+  Pragma: no-cache
+/api/*
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0
+  Pragma: no-cache
+/embed/*
+  Cache-Control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0
+  Pragma: no-cache

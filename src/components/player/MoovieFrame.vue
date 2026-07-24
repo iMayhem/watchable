@@ -2418,13 +2418,49 @@ export default defineComponent({
             }
         }, { immediate: true })
 
+        function changeVolume(delta: number) {
+            const video = videoRef.value;
+            if (!video) return;
+            const nextVol = Math.min(1, Math.max(0, volume.value + delta));
+            video.volume = nextVol;
+            volume.value = nextVol;
+            if (nextVol > 0) {
+                video.muted = false;
+                muted.value = false;
+            } else {
+                video.muted = true;
+                muted.value = true;
+            }
+        }
+
         function onKeydown(e: KeyboardEvent) {
             const tag = (e.target as HTMLElement)?.tagName
             const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
             if (isEditable) return
-            if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); togglePlay() }
-            if (e.key === 'ArrowRight') { seekBy(10); e.preventDefault() }
-            if (e.key === 'ArrowLeft') { seekBy(-10); e.preventDefault() }
+
+            const k = e.key
+            if (k === ' ' || k === 'Spacebar' || k === 'k' || k === 'K') {
+                e.preventDefault();
+                togglePlay();
+            } else if (k === 'ArrowRight' || k === 'l' || k === 'L') {
+                e.preventDefault();
+                seekBy(5);
+            } else if (k === 'ArrowLeft' || k === 'j' || k === 'J') {
+                e.preventDefault();
+                seekBy(-5);
+            } else if (k === 'ArrowUp') {
+                e.preventDefault();
+                changeVolume(0.1);
+            } else if (k === 'ArrowDown') {
+                e.preventDefault();
+                changeVolume(-0.1);
+            } else if (k === 'f' || k === 'F') {
+                e.preventDefault();
+                toggleFullscreen();
+            } else if (k === 'm' || k === 'M') {
+                e.preventDefault();
+                toggleMute();
+            }
         }
 
         function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement }

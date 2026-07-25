@@ -141,7 +141,7 @@ function buildDiscoverUrl(pageNum: number): string {
     if (band && 'lte' in band && band.lte !== undefined) params.set('with_runtime.lte', String(band.lte));
     if (f.language) params.set('with_original_language', f.language);
     if (companyId) params.set('with_companies', companyId);
-    return `https://proxy.moovie.fun/tmdb-api/3/discover/movie?${params.toString()}`;
+    return `https://api.themoviedb.org/3/discover/movie?${params.toString()}`;
 }
 
 async function fetchPage(pageNum: number, append: boolean) {

@@ -12,8 +12,8 @@ const IMAGE_CACHE_DIR = path.join(__dirname, 'tmdb-image-cache');
 if (!fs.existsSync(IMAGE_CACHE_DIR)) fs.mkdirSync(IMAGE_CACHE_DIR, { recursive: true });
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
-const PROXY_MOVIE_BASE = 'https://proxy.moovie.fun/tmdb-image/t/p/';
-const TMDB_ALLOWED_HOSTS = ['image.tmdb.org', 'proxy.moovie.fun'];
+const PROXY_MOVIE_BASE = 'https://image.tmdb.org/t/p/';
+const TMDB_ALLOWED_HOSTS = ['image.tmdb.org'];
 const ANILIST_API = 'https://graphql.anilist.co';
 
 const ANILIST_CACHE_DIR = path.join(__dirname, 'anilist-cache');

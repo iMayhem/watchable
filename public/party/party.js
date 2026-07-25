@@ -1035,7 +1035,7 @@
             btn.hidden = !(isHost && partyHasEpisodeRail());
         }
 
-        const PARTY_TMDB_API_BASE = 'https://proxy.moovie.fun/tmdb-api/3/';
+        const PARTY_TMDB_API_BASE = 'https://api.themoviedb.org/3/';
         const PARTY_CATALOG_META_API = 'https://api2.imdb4.shop/api';
         const PARTY_CATALOG_BROWSE_API = 'https://api2.imdb4.shop/api';
 

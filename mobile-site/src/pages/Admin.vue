@@ -35,6 +35,7 @@
                         <label class="admin-page__label" for="default-provider">Default Stream Player (PC)</label>
                         <select id="default-provider" v-model="settings.defaultProvider" class="admin-page__select">
                             <option value="moovie">Moovie (moovie server)</option>
+                            <option value="sugar">Sugar (vidcodin.net)</option>
                             <option value="rasmalai">Rasmalai (sweet server)</option>
                             <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
                             <option value="smashy">Jalebi (SmashyStream)</option>
@@ -63,6 +64,7 @@
                         <label class="admin-page__label" for="default-provider-mobile">Default Stream Player (Mobile)</label>
                         <select id="default-provider-mobile" v-model="settings.defaultProviderMobile" class="admin-page__select">
                             <option value="moovie">Moovie (moovie server)</option>
+                            <option value="sugar">Sugar (vidcodin.net)</option>
                             <option value="rasmalai">Rasmalai (sweet server)</option>
                             <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
                             <option value="smashy">Jalebi (SmashyStream)</option>
@@ -473,6 +475,7 @@ async function loadServerOrder() {
     const servers = getServers('movie')
     const idMap: Record<string, string> = {
         moovie: 'Moovie',
+        sugar: 'Sugar',
         rasmalai: 'Rasmalai', cinemaos: 'Gulab Jamun', smashy: 'Jalebi',
         mappletv: 'Kaju Katli', vidking: 'Kheer', videasy: 'Barfi',
         vidsrc_ru: 'Laddu', vidsrc_su: 'Peda', vidsrcme: 'Gajar Ka Halwa',
@@ -568,7 +571,7 @@ async function load4KCuration() {
 async function handleSearch4K() {
     if (!searchQuery.value.trim()) return
     try {
-        const res = await fetch(`https://proxy.moovie.fun/tmdb-api/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(searchQuery.value)}&language=en-US&page=1`)
+        const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(searchQuery.value)}&language=en-US&page=1`)
         const data = await res.json()
         searchResults.value = data.results || []
     } catch {

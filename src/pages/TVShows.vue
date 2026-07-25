@@ -254,16 +254,17 @@ export default defineComponent({
             if (band?.lte !== undefined) params.set('with_runtime.lte', String(band.lte));
             if (f.language) params.set('with_original_language', f.language);
 
-            return `https://proxy.moovie.fun/tmdb-api/3/discover/tv?${params.toString()}`;
+            return `https://api.themoviedb.org/3/discover/tv?${params.toString()}`;
         };
 
         const buildSearchUrl = (pageNum: number): string => {
             const params = new URLSearchParams({
+                api_key: 'dfa4c2c7c1de1005adee824dc5593672',
                 query: searchTerm.value,
                 page: String(pageNum),
                 include_adult: 'false'
             });
-            return `https://proxy.moovie.fun/tmdb-api/3/search/tv?${params.toString()}`;
+            return `https://api.themoviedb.org/3/search/tv?${params.toString()}`;
         };
 
         const fetchSearchPage = async (pageNum: number): Promise<TvShowResponse | null> => {

@@ -269,16 +269,17 @@ export default defineComponent({
                 params.set('with_companies', companyFilter.value.id);
             }
 
-            return `https://proxy.moovie.fun/tmdb-api/3/discover/movie?${params.toString()}`;
+            return `https://api.themoviedb.org/3/discover/movie?${params.toString()}`;
         };
 
         const buildSearchUrl = (pageNum: number): string => {
             const params = new URLSearchParams({
+                api_key: 'dfa4c2c7c1de1005adee824dc5593672',
                 query: searchTerm.value,
                 page: String(pageNum),
                 include_adult: 'false'
             });
-            return `https://proxy.moovie.fun/tmdb-api/3/search/movie?${params.toString()}`;
+            return `https://api.themoviedb.org/3/search/movie?${params.toString()}`;
         };
 
         const curateBrowseResults = (items: Movie[]) => {

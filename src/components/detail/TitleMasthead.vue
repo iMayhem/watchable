@@ -270,17 +270,24 @@
                                 >
                                     {{ opt.quality }}
                                 </span>
-                                <span class="masthead__dl-meta">
-                                    <span class="masthead__dl-chip">MP4</span>
-                                    <template v-if="opt.size && opt.size !== '-'">
-                                        <span class="masthead__dl-dot">•</span>
-                                        <span class="masthead__dl-size">{{ opt.size }}</span>
-                                    </template>
-                                    <template v-else-if="!opt.size">
-                                        <span class="masthead__dl-dot">•</span>
-                                        <span class="masthead__dl-loading">Checking…</span>
-                                    </template>
-                                </span>
+
+                                <div class="masthead__dl-opt-info">
+                                    <div v-if="opt.filename" class="masthead__dl-filename" :title="opt.filename">
+                                        {{ opt.filename }}
+                                    </div>
+                                    <span class="masthead__dl-meta">
+                                        <span class="masthead__dl-chip">MP4</span>
+                                        <template v-if="opt.size && opt.size !== '-'">
+                                            <span class="masthead__dl-dot">•</span>
+                                            <span class="masthead__dl-size">{{ opt.size }}</span>
+                                        </template>
+                                        <template v-else-if="!opt.size">
+                                            <span class="masthead__dl-dot">•</span>
+                                            <span class="masthead__dl-loading">Checking…</span>
+                                        </template>
+                                    </span>
+                                </div>
+
                                 <svg class="masthead__dl-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                     <polyline points="7 10 12 15 17 10" />
@@ -450,6 +457,7 @@ export default defineComponent({
             quality: string;
             url: string;
             provider: string;
+            filename?: string;
             size?: string;
         }
 
@@ -686,25 +694,53 @@ export default defineComponent({
                     const mainSzMatch = (itemTitle || item.size || '').match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
                     const extractedSize = mainSzMatch ? mainSzMatch[1].toUpperCase() : undefined;
 
+                    const titleClean = (props.title || 'Media').replace(/[^a-zA-Z0-9_\-\.]/g, '.');
+
                     if (item.qualities) {
                         for (const [qLabel, qObj] of Object.entries(item.qualities as Record<string, any>)) {
                             if (qObj && qObj.url) {
                                 const targetUrl = extractDirectDownloadUrl(qObj.url);
                                 const qSizeMatch = (qObj.size || qObj.fileSize || qObj.title || '').match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
                                 const itemSize = qSizeMatch ? qSizeMatch[1].toUpperCase() : extractedSize;
+
+                                let rawName = qObj.filename || qObj.title || item.filename || item.title || item.name || '';
+                                if (!rawName || rawName.length < 5) {
+                                    if (isTvShow.value) {
+                                        rawName = `${titleClean}.S${String(selectedSeason.value).padStart(2, '0')}E${String(selectedEpisode.value).padStart(2, '0')}.${qLabel.toUpperCase()}.WEB-DL.x264.mp4`;
+                                    } else {
+                                        rawName = `${titleClean}.${qLabel.toUpperCase()}.WEB-DL.x264.mp4`;
+                                    }
+                                } else if (!/\.mp4$/i.test(rawName)) {
+                                    rawName = `${rawName}.mp4`;
+                                }
+
                                 options.push({
                                     quality: qLabel.toUpperCase(),
                                     url: targetUrl,
                                     provider: item.provider || 'CineStream',
+                                    filename: rawName,
                                     size: itemSize
                                 });
                             }
                         }
                     } else if (item.url) {
+                        const qualityStr = (item.quality || '1080P').toUpperCase();
+                        let rawName = item.filename || item.title || item.name || '';
+                        if (!rawName || rawName.length < 5) {
+                            if (isTvShow.value) {
+                                rawName = `${titleClean}.S${String(selectedSeason.value).padStart(2, '0')}E${String(selectedEpisode.value).padStart(2, '0')}.${qualityStr}.WEB-DL.x264.mp4`;
+                            } else {
+                                rawName = `${titleClean}.${qualityStr}.WEB-DL.x264.mp4`;
+                            }
+                        } else if (!/\.mp4$/i.test(rawName)) {
+                            rawName = `${rawName}.mp4`;
+                        }
+
                         options.push({
-                            quality: (item.quality || '1080P').toUpperCase(),
+                            quality: qualityStr,
                             url: extractDirectDownloadUrl(item.url),
                             provider: item.provider || 'CineStream',
+                            filename: rawName,
                             size: extractedSize
                         });
                     }
@@ -1263,6 +1299,25 @@ export default defineComponent({
         color: #c084fc;
         border-color: rgba(192, 132, 252, 0.35);
     }
+}
+
+.masthead__dl-opt-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.masthead__dl-filename {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.35;
 }
 
 .masthead__dl-meta {

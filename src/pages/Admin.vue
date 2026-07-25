@@ -156,6 +156,7 @@
                                     placeholder="TMDB ID (e.g. 503)"
                                 />
                                 <select v-model="newOverride.server" class="admin-page__select" style="flex: 2; margin: 0; min-height: 38px;">
+                                    <option value="Sugar">Sugar</option>
                                     <option value="Poseidon">Poseidon</option>
                                     <option value="Thor">Thor</option>
                                     <option value="Athena">Athena</option>

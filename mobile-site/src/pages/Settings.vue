@@ -69,6 +69,7 @@
                         <p class="m-settings__field-help">Server selection is coming soon — currently set to Poseidon (Multi-Audio HD).</p>
                         <div class="m-settings__select-wrapper is-disabled">
                             <select class="m-settings__select" disabled>
+                                <option value="sugar">Sugar (vidcodin.net)</option>
                                 <option value="poseidon">Poseidon (Multi-Audio HD)</option>
                                 <option value="athena">Athena (Moovie Scraper Catalog)</option>
                                 <option value="apollo">Apollo (4K Ultra Stream)</option>

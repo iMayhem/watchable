@@ -73,11 +73,13 @@ export const movieServers = ref<Server[]>([
   { name: 'Icecream', urlTemplate: 'https://chillflix.pw/embed/movie/{tmdbId}?autoplay=true' },
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true' },
   { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/movie/{tmdbId}' },
-  { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true' }
+  { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true' },
+  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' }
 ]);
 
 export const tvServers = ref<Server[]>([
   { name: 'Moovie', urlTemplate: '', isApiProvider: true },
+  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{externalId}/{season}/{episode}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
@@ -98,11 +100,13 @@ export const tvServers = ref<Server[]>([
   { name: 'Icecream', urlTemplate: 'https://chillflix.pw/embed/tv/{externalId}/{season}/{episode}?autoplay=true&autonext=true' },
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/tv/{externalId}/{season}/{episode}?autoplay=true' },
   { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/tv/{externalId}/{season}/{episode}?autoplay=true' }
+  { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/tv/{externalId}/{season}/{episode}?autoplay=true' },
+  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' }
 ]);
 
 const idToNameMap: Record<string, string> = {
   moovie: 'Moovie',
+  sugar: 'Sugar',
   rasmalai: 'Rasmalai',
   cinemaos: 'Gulab Jamun',
   smashy: 'Jalebi',

@@ -1403,6 +1403,7 @@ export default defineComponent({
             const id = String(props.mediaId)
             if (!id) return ''
             const params = new URLSearchParams({ tmdbId: id, type: props.mediaType })
+            if (props.title) params.set('title', props.title)
             if (props.season > 0) params.set('season', String(props.season))
             if (props.episode > 0) params.set('episode', String(props.episode))
             params.set('_cb', String(Date.now()))
@@ -2010,6 +2011,7 @@ export default defineComponent({
 
             const id = String(props.mediaId)
             const params = new URLSearchParams({ id: providerId, tmdbId: id, type: props.mediaType })
+            if (props.title) params.set('title', props.title)
             if (props.season > 0) params.set('season', String(props.season))
             if (props.episode > 0) params.set('episode', String(props.episode))
             params.set('_cb', String(Date.now()))

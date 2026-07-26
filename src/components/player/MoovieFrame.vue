@@ -512,39 +512,47 @@ async function fetchLanguageVariantsFromHub(
     try {
         const providers = ['moovie-catalog', 'homecine', 'zetflix']
         const promises: Promise<LanguageVariant[]>[] = providers.map(async (provider) => {
-            try {
+            const fetchProviderVariants = async (attempt = 0): Promise<LanguageVariant[]> => {
+                let ctrl: AbortController | null = null
+                let timeout: ReturnType<typeof setTimeout> | null = null
+                try {
                 const params = new URLSearchParams({ q: title, type, provider })
                 if (tmdbId) params.set('tmdbId', String(tmdbId))
                 if (season != null) params.set('season', String(season))
                 if (episode != null) params.set('episode', String(episode))
-                const ctrl = new AbortController()
-                const t = setTimeout(() => ctrl.abort(), 15_000)
-                try {
+                    ctrl = new AbortController()
+                    timeout = setTimeout(() => ctrl?.abort(), 45_000)
                     const res = await fetch(`${STREAMSCRAPER_HUB}/api/search?${params}`, { signal: ctrl.signal })
-                    if (!res.ok) return []
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`)
                     const json = await res.json().catch(() => null)
-                    if (!json || typeof json !== 'object') return []
-                    const items: any[] = json.results?.reduce?.((acc: any[], r: any) => {
-                        const streamsList = r.streams || (r._languageVariants ? [r] : [])
-                        for (const st of streamsList) {
-                            const v = st._languageVariants
-                            if (v && Array.isArray(v)) acc.push(...v)
-                        }
-                        return acc
-                    }, []) ?? []
-                    return items.map((v: any): LanguageVariant => ({
-                        language: v.language ?? 'unknown',
-                        label: v.language ?? 'Unknown',
+                    if (!json || typeof json !== 'object') throw new Error('Invalid response')
+                    const items: any[] = json.results?.flatMap?.((result: any) =>
+                        (result.streams || (result._languageVariants ? [result] : []))
+                            .flatMap((stream: any) => Array.isArray(stream._languageVariants) ? stream._languageVariants : [])
+                    ) ?? []
+                    return items.map((variant: any): LanguageVariant => ({
+                        language: variant.language ?? 'unknown',
+                        label: variant.language ?? 'Unknown',
                         provider,
-                        id: `${provider}:${v.catalogId ?? v.id ?? ''}`,
-                        type: v.media_type === 'tv' ? 'show' : (v.type ?? type),
-                        season: v.season,
-                        episode: v.episode,
+                        id: `${provider}:${variant.catalogId ?? variant.id ?? ''}`,
+                        type: variant.media_type === 'tv' ? 'show' : (variant.type ?? type),
+                        season: variant.season,
+                        episode: variant.episode,
                     }))
+                } catch (error) {
+                    // HomeCine provides the dependable regional audio variants. Retry it
+                    // once because an in-flight source scan can briefly cancel this request.
+                    if (provider === 'homecine' && attempt === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 750))
+                        return fetchProviderVariants(1)
+                    }
+                    console.warn('[MoovieFrame] language variant request failed:', provider, error)
+                    return []
                 } finally {
-                    clearTimeout(t)
+                    if (timeout) clearTimeout(timeout)
                 }
-            } catch { return [] }
+            }
+            return fetchProviderVariants()
         })
 
         // French (fss), German (streamkiste), Chinese (iyf) — movie only, matches smov

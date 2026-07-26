@@ -38,14 +38,9 @@
                     <button type="button" class="moovie-frame__retry" @click="retry">Retry</button>
                 </div>
 
-                <!-- Premium Scraper Overlay -->
+                <!-- Minimal source status overlay -->
                 <div v-if="loading && !error" class="moovie-frame__scraper-overlay">
                     <div class="moovie-frame__scraper-card">
-                        <div class="moovie-frame__scraper-header">
-                            <div class="moovie-frame__scraper-scanner" />
-                            <span class="moovie-frame__scraper-title">Searching Sources</span>
-                            <span class="moovie-frame__scraper-subtitle">Locating high-quality streams...</span>
-                        </div>
                         <div class="moovie-frame__scraper-grid">
                             <div v-if="!providers.length" class="moovie-frame__provider-row">
                                 <div class="moovie-frame__provider-info">
@@ -73,13 +68,9 @@
                                     </span>
                                     <div class="moovie-frame__provider-details">
                                         <span class="moovie-frame__provider-label">{{ p.name }}</span>
-                                        <div v-if="p.status === 'pending'" class="moovie-frame__provider-progress">
-                                            <div class="moovie-frame__provider-progress-fill" :style="{ width: p.percentage + '%' }" />
-                                        </div>
                                     </div>
                                 </div>
-                                <span v-if="p.status === 'pending'" class="moovie-frame__provider-pct-val">{{ p.percentage }}%</span>
-                                <span v-else-if="p.status === 'success'" class="moovie-frame__provider-status-text is-success">Ready</span>
+                                <span v-if="p.status === 'success'" class="moovie-frame__provider-status-text is-success">Ready</span>
                                 <span v-else-if="p.status === 'failure'" class="moovie-frame__provider-status-text is-failed">Failed</span>
                                 <span v-else-if="p.status === 'notfound'" class="moovie-frame__provider-status-text is-notfound">Empty</span>
                                 <span v-else class="moovie-frame__provider-status-text">Queued</span>
@@ -166,9 +157,21 @@
                         <button v-if="mediaType === 'tv'" class="moovie-frame__ctrl-btn" @click="$emit('prev-episode')" aria-label="Previous Episode">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4" /><rect x="5" y="4" width="2" height="16" rx="0.5" /></svg>
                         </button>
-                        <button class="moovie-frame__ctrl-btn" @click="togglePlay" aria-label="Play/Pause">
+                        <button class="moovie-frame__ctrl-btn moovie-frame__mobile-skip" @click="seekBy(-15)" aria-label="Rewind 15 seconds" title="Rewind 15 seconds">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" />
+                                <text x="12" y="15" text-anchor="middle" fill="currentColor" stroke="none" font-size="7" font-family="system-ui, sans-serif" font-weight="700">15</text>
+                            </svg>
+                        </button>
+                        <button class="moovie-frame__ctrl-btn" :class="{ 'is-active': playing }" @click="togglePlay" aria-label="Play/Pause">
                             <svg v-if="!playing" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21" /></svg>
                             <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                        </button>
+                        <button class="moovie-frame__ctrl-btn moovie-frame__mobile-skip" @click="seekBy(15)" aria-label="Forward 15 seconds" title="Forward 15 seconds">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" />
+                                <text x="12" y="15" text-anchor="middle" fill="currentColor" stroke="none" font-size="7" font-family="system-ui, sans-serif" font-weight="700">15</text>
+                            </svg>
                         </button>
                         <button v-if="mediaType === 'tv'" class="moovie-frame__ctrl-btn" @click="$emit('next-episode')" aria-label="Next Episode">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20" /><rect x="17" y="4" width="2" height="16" rx="0.5" /></svg>
@@ -176,9 +179,24 @@
                         <span class="moovie-frame__time">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
                     </div>
                     <div class="moovie-frame__controls-right">
+                        <button
+                            class="moovie-frame__ctrl-btn moovie-frame__subtitle-toggle"
+                            :class="{ 'is-active': selectedSubtitleTrack !== -1 }"
+                            :disabled="!subtitleTracks.length"
+                            :aria-pressed="selectedSubtitleTrack !== -1"
+                            :aria-label="selectedSubtitleTrack !== -1 ? 'Turn subtitles off' : 'Turn subtitles on'"
+                            :title="selectedSubtitleTrack !== -1 ? 'Subtitles on' : 'Subtitles off'"
+                            @click.stop="toggleSubtitles"
+                        >
+                            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
+                                <path d="M7.5 10h3M13.5 10h3M7.5 14h9" />
+                            </svg>
+                        </button>
                         <div class="moovie-frame__volume-control">
                             <button
                                 class="moovie-frame__ctrl-btn"
+                                :class="{ 'is-active': muted }"
                                 @click.stop="handleVolumeButtonClick"
                                 aria-label="Mute"
                             >
@@ -214,274 +232,247 @@
                             :class="{ 'is-open': settingsOpen }"
                             @click.stop="settingsOpen ? (settingsOpen = false, settingsSection = null) : (settingsOpen = true, qualityOpen = false)"
                             aria-label="Settings"
+                            :aria-expanded="settingsOpen"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                 <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
                             </svg>
                         </button>
-                        <button class="moovie-frame__ctrl-btn" @click="toggleFullscreen" aria-label="Fullscreen">
+                        <button class="moovie-frame__ctrl-btn" :class="{ 'is-active': isFullscreen }" @click="toggleFullscreen" aria-label="Fullscreen">
                             <svg v-if="!isFullscreen" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
                             <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" /></svg>
                         </button>
                     </div>
                 </div>
 
-                <div v-if="settingsOpen" class="moovie-frame__settings-panel" @click.stop>
-                    <div class="moovie-frame__settings-mobile-handle" />
-                    <div class="moovie-frame__settings-header">
-                        <button
-                            v-if="settingsSection"
-                            class="moovie-frame__settings-back"
-                            @click="settingsSection = null"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-                        </button>
-                        <span>{{ settingsSection ? settingsSection.charAt(0).toUpperCase() + settingsSection.slice(1) : 'Settings' }}</span>
+                <Transition name="moovie-settings">
+                    <div v-if="settingsOpen" class="moovie-frame__settings-panel" @click.stop>
+                        <div class="moovie-frame__settings-mobile-handle" />
+                        <div class="moovie-frame__settings-header">
+                            <button
+                                v-if="settingsSection"
+                                class="moovie-frame__settings-back"
+                                @click="settingsSection = null"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                            </button>
+                            <div class="moovie-frame__settings-heading">
+                                <span class="moovie-frame__settings-eyebrow">{{ settingsSection ? 'Playback control' : 'Moovie control room' }}</span>
+                                <span class="moovie-frame__settings-title">{{ settingsSection ? settingsSection.charAt(0).toUpperCase() + settingsSection.slice(1) : title }}</span>
+                            </div>
+                            <span v-if="!settingsSection" class="moovie-frame__settings-live"><i /> Live</span>
+                        </div>
+
+                        <div class="moovie-frame__settings-scroll">
+                            <template v-if="!settingsSection">
+                                <button class="moovie-frame__settings-item" @click="settingsSection = 'speed'">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Speed</span>
+                                    <span class="moovie-frame__settings-item-value">{{ playbackSpeed }}x</span>
+                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                                <button class="moovie-frame__settings-item" @click="togglePiP">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="8" rx="1"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Picture-in-Picture</span>
+                                    <span class="moovie-frame__settings-item-badge" :class="{ 'is-on': isPiP }">{{ isPiP ? 'On' : 'Off' }}</span>
+                                </button>
+                                <div class="moovie-frame__settings-divider" />
+                                <button class="moovie-frame__settings-item" @click="settingsSection = 'server'">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Server</span>
+                                    <span class="moovie-frame__settings-item-value">{{ selectedServer || 'Auto' }}</span>
+                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                                <button class="moovie-frame__settings-item" @click="settingsSection = 'quality'; qualityOpen = false">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Quality</span>
+                                    <span class="moovie-frame__settings-item-value">{{ hlsQualityLabel }}</span>
+                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                                <button class="moovie-frame__settings-item" @click="settingsSection = 'audio'">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Audio</span>
+                                    <span class="moovie-frame__settings-item-value">{{ currentAudioLabel }}</span>
+                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                                <button class="moovie-frame__settings-item" @click="settingsSection = 'subtitles'">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="14" x2="23" y2="14"/><path d="M7 14h4"/><path d="M13 14h4"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Subtitles</span>
+                                    <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : 'Search' }}</span>
+                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                            </template>
+
+                            <template v-if="settingsSection === 'server'">
+                                <button
+                                    v-for="server in availableServers"
+                                    :key="server.name"
+                                    class="moovie-frame__settings-item"
+                                    :class="{ 'is-active': selectedServer === server.name }"
+                                    @click="selectServer(server.name)"
+                                >
+                                    <span class="moovie-frame__settings-item-status" :class="`is-${server.hasStreams ? 'success' : server.status}`">
+                                        {{ server.hasStreams ? '✓' : server.status === 'pending' ? '⟳' : server.status === 'failure' ? '✕' : server.status === 'notfound' ? '–' : '○' }}
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">{{ server.name }}</span>
+                                </button>
+                            </template>
+
+                            <template v-if="settingsSection === 'quality'">
+                                <template v-if="hlsQualities.length > 0">
+                                    <button
+                                        class="moovie-frame__settings-item"
+                                        :class="{ 'is-active': selectedHlsQuality === -1 }"
+                                        @click="selectHlsQuality(-1)"
+                                    >
+                                        <span class="moovie-frame__settings-item-label">Auto</span>
+                                        <span class="moovie-frame__settings-item-badge" :class="{ 'is-on': selectedHlsQuality === -1 }">Adaptive</span>
+                                    </button>
+                                    <button
+                                        v-for="q in hlsQualities"
+                                        :key="q.id"
+                                        class="moovie-frame__settings-item"
+                                        :class="{ 'is-active': selectedHlsQuality === q.id }"
+                                        @click="selectHlsQuality(q.id)"
+                                    >
+                                        <span class="moovie-frame__settings-item-label">{{ q.label }}</span>
+                                    </button>
+                                </template>
+                                <template v-else>
+                                    <button
+                                        v-for="(q, i) in uniqueQualities"
+                                        :key="i"
+                                        class="moovie-frame__settings-item"
+                                        :class="{ 'is-active': selectedQualityIndex === i }"
+                                        @click="selectQuality(i)"
+                                    >
+                                        <span class="moovie-frame__settings-item-label">{{ q }}</span>
+                                    </button>
+                                </template>
+                            </template>
+
+                            <template v-if="settingsSection === 'audio'">
+                                <button
+                                    v-for="track in audioTracks"
+                                    :key="track.id"
+                                    class="moovie-frame__settings-item"
+                                    :class="{ 'is-active': selectedAudioTrack === track.id }"
+                                    @click="selectAudioTrack(track.id)"
+                                >
+                                    <span class="moovie-frame__settings-item-label">{{ track.name }}</span>
+                                    <span v-if="track.lang && track.lang !== track.name" class="moovie-frame__settings-item-hint">{{ track.lang }}</span>
+                                </button>
+                            </template>
+
+                            <template v-if="settingsSection === 'subtitles'">
+                                <div class="moovie-frame__settings-group">
+                                    <span class="moovie-frame__settings-group-title">Timing Delay</span>
+                                    <div class="moovie-frame__sync-row">
+                                        <button class="moovie-frame__sync-btn" @click="changeSubtitleDelay(-0.5)">-0.5s</button>
+                                        <span class="moovie-frame__sync-value">{{ subtitleDelay.toFixed(1) }}s</span>
+                                        <button class="moovie-frame__sync-btn" @click="changeSubtitleDelay(0.5)">+0.5s</button>
+                                        <button class="moovie-frame__sync-btn is-reset" @click="resetSubtitleDelay">Reset</button>
+                                    </div>
+                                </div>
+                                <div class="moovie-frame__settings-divider" />
+                                <div class="moovie-frame__settings-group">
+                                    <div class="moovie-frame__settings-slider-header">
+                                        <span class="moovie-frame__settings-group-title">Background</span>
+                                        <span class="moovie-frame__settings-slider-value">{{ Math.round(subtitleBgOpacity * 100) }}%</span>
+                                    </div>
+                                    <div class="moovie-frame__slider-wrapper">
+                                        <input type="range" class="moovie-frame__settings-slider" min="0" max="1" step="0.05" v-model.number="subtitleBgOpacity" />
+                                    </div>
+                                </div>
+                                <div class="moovie-frame__settings-group">
+                                    <div class="moovie-frame__settings-slider-header">
+                                        <span class="moovie-frame__settings-group-title">Text Opacity</span>
+                                        <span class="moovie-frame__settings-slider-value">{{ Math.round(subtitleTextOpacity * 100) }}%</span>
+                                    </div>
+                                    <div class="moovie-frame__slider-wrapper">
+                                        <input type="range" class="moovie-frame__settings-slider" min="0.1" max="1" step="0.05" v-model.number="subtitleTextOpacity" />
+                                    </div>
+                                </div>
+                                <div class="moovie-frame__settings-group">
+                                    <div class="moovie-frame__settings-slider-header">
+                                        <span class="moovie-frame__settings-group-title">Font Size</span>
+                                        <span class="moovie-frame__settings-slider-value">{{ subtitleFontSize }}%</span>
+                                    </div>
+                                    <div class="moovie-frame__slider-wrapper">
+                                        <input type="range" class="moovie-frame__settings-slider" min="50" max="250" step="5" v-model.number="subtitleFontSize" />
+                                    </div>
+                                </div>
+                                <div class="moovie-frame__settings-group">
+                                    <span class="moovie-frame__settings-group-title">Position</span>
+                                    <div class="moovie-frame__option-grid">
+                                        <button type="button" class="moovie-frame__option-btn" @click="moveSubtitles('up')" title="Move Subtitles Up">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+                                        </button>
+                                        <button type="button" class="moovie-frame__option-btn" @click="moveSubtitles('down')" title="Move Subtitles Down">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                                        </button>
+                                        <span class="moovie-frame__option-val">{{ 100 - subtitlePosition }}%</span>
+                                    </div>
+                                </div>
+                                <div class="moovie-frame__settings-divider" />
+                                <span class="moovie-frame__settings-group-title" style="padding: 0 0.75rem;">Tracks</span>
+                                <button
+                                    class="moovie-frame__settings-item"
+                                    :class="{ 'is-active': selectedSubtitleTrack === -1 }"
+                                    @click="selectSubtitleTrack(-1)"
+                                >
+                                    <span class="moovie-frame__settings-item-label">Off</span>
+                                </button>
+                                <button
+                                    v-for="track in subtitleTracks"
+                                    :key="track.id"
+                                    class="moovie-frame__settings-item"
+                                    :class="{ 'is-active': selectedSubtitleTrack === track.id }"
+                                    @click="selectSubtitleTrack(track.id)"
+                                >
+                                    <span class="moovie-frame__settings-item-label">{{ track.name }}</span>
+                                    <span v-if="track.lang && track.lang !== track.name" class="moovie-frame__settings-item-hint">{{ track.lang }}</span>
+                                </button>
+                                <button
+                                    v-if="!subtitleTracks.length"
+                                    class="moovie-frame__settings-item"
+                                    @click="loadOpenSubtitles()"
+                                >
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Search subtitles</span>
+                                </button>
+                            </template>
+
+                            <template v-if="settingsSection === 'speed'">
+                                <div class="moovie-frame__speed-grid">
+                                    <button
+                                        v-for="spd in PLAYBACK_SPEEDS"
+                                        :key="spd"
+                                        class="moovie-frame__speed-btn"
+                                        :class="{ 'is-active': playbackSpeed === spd }"
+                                        @click="setPlaybackSpeed(spd)"
+                                    >
+                                        {{ spd }}x
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
                     </div>
-
-                    <template v-if="!settingsSection">
-                        <button
-                            class="moovie-frame__settings-item"
-                            @click="settingsSection = 'speed'"
-                        >
-                            <span class="moovie-frame__settings-item-label">Playback Speed</span>
-                            <span class="moovie-frame__settings-item-value">{{ playbackSpeed }}x</span>
-                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                        </button>
-                        <button
-                            class="moovie-frame__settings-item"
-                            @click="togglePiP"
-                        >
-                            <span class="moovie-frame__settings-item-label">Picture-in-Picture</span>
-                            <span class="moovie-frame__settings-item-value">{{ isPiP ? 'On' : 'Off' }}</span>
-                        </button>
-                        <div class="moovie-frame__settings-divider" />
-                        <button
-                            class="moovie-frame__settings-item"
-                            @click="settingsSection = 'server'"
-                        >
-                            <span class="moovie-frame__settings-item-label">Server</span>
-                            <span class="moovie-frame__settings-item-value">{{ selectedServer || 'Auto' }}</span>
-                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                        </button>
-                        <button
-                            class="moovie-frame__settings-item"
-                            @click="settingsSection = 'quality'; qualityOpen = false"
-                        >
-                            <span class="moovie-frame__settings-item-label">Quality</span>
-                            <span class="moovie-frame__settings-item-value">{{ hlsQualityLabel }}</span>
-                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                        </button>
-                        <button
-                            class="moovie-frame__settings-item"
-                            @click="settingsSection = 'audio'"
-                        >
-                            <span class="moovie-frame__settings-item-label">Audio</span>
-                            <span class="moovie-frame__settings-item-value">{{ currentAudioLabel }}</span>
-                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                        </button>
-                        <button
-                            class="moovie-frame__settings-item"
-                            @click="settingsSection = 'subtitles'"
-                        >
-                            <span class="moovie-frame__settings-item-label">Subtitles</span>
-                            <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : 'Search' }}</span>
-                            <svg class="moovie-frame__settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                        </button>
-                    </template>
-
-                    <template v-if="settingsSection === 'server'">
-                        <button
-                            v-for="server in availableServers"
-                            :key="server.name"
-                            class="moovie-frame__settings-item"
-                            :class="{
-                                'is-active': selectedServer === server.name,
-                            }"
-                            @click="selectServer(server.name)"
-                        >
-                            <span class="moovie-frame__settings-item-status" :class="`is-${server.hasStreams ? 'success' : server.status}`">
-                                {{ server.hasStreams ? '✓' : server.status === 'pending' ? '⟳' : server.status === 'failure' ? '✕' : server.status === 'notfound' ? '–' : '○' }}
-                            </span>
-                            <span>{{ server.name }}</span>
-                        </button>
-                    </template>
-
-                    <template v-if="settingsSection === 'quality'">
-                        <template v-if="hlsQualities.length > 0">
-                            <button
-                                class="moovie-frame__settings-item"
-                                :class="{ 'is-active': selectedHlsQuality === -1 }"
-                                @click="selectHlsQuality(-1)"
-                            >
-                                <span>Auto</span>
-                            </button>
-                            <button
-                                v-for="q in hlsQualities"
-                                :key="q.id"
-                                class="moovie-frame__settings-item"
-                                :class="{ 'is-active': selectedHlsQuality === q.id }"
-                                @click="selectHlsQuality(q.id)"
-                            >
-                                <span>{{ q.label }}</span>
-                            </button>
-                        </template>
-                        <template v-else>
-                            <button
-                                v-for="(q, i) in uniqueQualities"
-                                :key="i"
-                                class="moovie-frame__settings-item"
-                                :class="{ 'is-active': selectedQualityIndex === i }"
-                                @click="selectQuality(i)"
-                            >
-                                <span>{{ q }}</span>
-                            </button>
-                        </template>
-                    </template>
-
-                    <template v-if="settingsSection === 'audio'">
-                        <button
-                            v-for="track in audioTracks"
-                            :key="track.id"
-                            class="moovie-frame__settings-item"
-                            :class="{ 'is-active': selectedAudioTrack === track.id }"
-                            @click="selectAudioTrack(track.id)"
-                        >
-                            <span>{{ track.name }}<span v-if="track.lang" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
-                        </button>
-                    </template>
-
-                    <template v-if="settingsSection === 'subtitles'">
-                        <!-- Subtitle Delay Sync Control -->
-                        <div class="moovie-frame__settings-group">
-                            <span class="moovie-frame__settings-group-title">Timing Delay</span>
-                            <div class="moovie-frame__sync-row">
-                                <button class="moovie-frame__sync-btn" @click="changeSubtitleDelay(-0.5)">-0.5s</button>
-                                <span class="moovie-frame__sync-value">{{ subtitleDelay.toFixed(1) }}s</span>
-                                <button class="moovie-frame__sync-btn" @click="changeSubtitleDelay(0.5)">+0.5s</button>
-                                <button class="moovie-frame__sync-btn is-reset" @click="resetSubtitleDelay">Reset</button>
-                            </div>
-                        </div>
-
-                        <div class="moovie-frame__settings-divider" />
-
-                        <!-- Subtitle Opacity & Style Controls -->
-                        <div class="moovie-frame__settings-group">
-                            <div class="moovie-frame__settings-slider-header">
-                                <span class="moovie-frame__settings-group-title">Background Opacity</span>
-                                <span class="moovie-frame__settings-slider-value">{{ Math.round(subtitleBgOpacity * 100) }}%</span>
-                            </div>
-                            <div class="moovie-frame__slider-wrapper">
-                                <input
-                                    type="range"
-                                    class="moovie-frame__settings-slider"
-                                    min="0"
-                                    max="1"
-                                    step="0.05"
-                                    v-model.number="subtitleBgOpacity"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="moovie-frame__settings-group">
-                            <div class="moovie-frame__settings-slider-header">
-                                <span class="moovie-frame__settings-group-title">Text Opacity</span>
-                                <span class="moovie-frame__settings-slider-value">{{ Math.round(subtitleTextOpacity * 100) }}%</span>
-                            </div>
-                            <div class="moovie-frame__slider-wrapper">
-                                <input
-                                    type="range"
-                                    class="moovie-frame__settings-slider"
-                                    min="0.1"
-                                    max="1"
-                                    step="0.05"
-                                    v-model.number="subtitleTextOpacity"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="moovie-frame__settings-group">
-                            <div class="moovie-frame__settings-slider-header">
-                                <span class="moovie-frame__settings-group-title">Font Size</span>
-                                <span class="moovie-frame__settings-slider-value">{{ subtitleFontSize }}%</span>
-                            </div>
-                            <div class="moovie-frame__slider-wrapper">
-                                <input
-                                    type="range"
-                                    class="moovie-frame__settings-slider"
-                                    min="50"
-                                    max="250"
-                                    step="5"
-                                    v-model.number="subtitleFontSize"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="moovie-frame__settings-group">
-                            <span class="moovie-frame__settings-group-title">Position</span>
-                            <div class="moovie-frame__option-grid" style="display: flex; gap: 8px;">
-                                <button
-                                    type="button"
-                                    class="moovie-frame__option-btn"
-                                    @click="moveSubtitles('up')"
-                                    title="Move Subtitles Up"
-                                >
-                                    Up
-                                </button>
-                                <button
-                                    type="button"
-                                    class="moovie-frame__option-btn"
-                                    @click="moveSubtitles('down')"
-                                    title="Move Subtitles Down"
-                                >
-                                    Down
-                                </button>
-                                <span class="moovie-frame__settings-item-value" style="margin-left: auto; align-self: center; font-size: 0.72rem; opacity: 0.8; padding-right: 8px; font-variant-numeric: tabular-nums;">
-                                    {{ 100 - subtitlePosition }}% Raised
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="moovie-frame__settings-divider" />
-
-                        <span class="moovie-frame__settings-group-title" style="padding: 0 0.75rem;">Tracks</span>
-                        <button
-                            class="moovie-frame__settings-item"
-                            :class="{ 'is-active': selectedSubtitleTrack === -1 }"
-                            @click="selectSubtitleTrack(-1)"
-                        >
-                            <span>Off</span>
-                        </button>
-                        <button
-                            v-for="track in subtitleTracks"
-                            :key="track.id"
-                            class="moovie-frame__settings-item"
-                            :class="{ 'is-active': selectedSubtitleTrack === track.id }"
-                            @click="selectSubtitleTrack(track.id)"
-                        >
-                            <span>{{ track.name }}<span v-if="track.lang && track.lang !== track.name" class="moovie-frame__settings-item-hint"> — {{ track.lang }}</span></span>
-                        </button>
-                        <button
-                            v-if="!subtitleTracks.length"
-                            class="moovie-frame__settings-item"
-                            @click="loadOpenSubtitles()"
-                        >
-                            <span class="moovie-frame__settings-item-label">Search subtitles</span>
-                        </button>
-                    </template>
-
-                    <template v-if="settingsSection === 'speed'">
-                        <button
-                            v-for="spd in PLAYBACK_SPEEDS"
-                            :key="spd"
-                            class="moovie-frame__settings-item"
-                            :class="{ 'is-active': playbackSpeed === spd }"
-                            @click="setPlaybackSpeed(spd)"
-                        >
-                            <span>{{ spd }}x</span>
-                        </button>
-                    </template>
-                </div>
+                </Transition>
             </div>
         </div>
     </div>
@@ -718,7 +709,7 @@ export default defineComponent({
         const subtitleBgOpacity = ref(0.75)
         const subtitleTextOpacity = ref(1.0)
         const subtitleFontSize = ref(100)
-        const subtitlePosition = ref(100)
+        const subtitlePosition = ref(95)
 
         const activeCueText = ref('This is a preview of the subtitles')
         const activeCueTextFormatted = computed(() => {
@@ -1865,44 +1856,44 @@ export default defineComponent({
         }
 
         async function downloadSubtitleBlob(subUrl: string, needsProxy: boolean): Promise<string | null> {
-            let fetchUrl = subUrl
+            // Helper: fetch a URL and convert SRT→VTT blob URL, returns null on failure
+            async function tryFetch(url: string, timeout = 10000): Promise<string | null> {
+                try {
+                    const resp = await fetch(url, { signal: AbortSignal.timeout(timeout) })
+                    if (!resp.ok) return null
+                    const text = await resp.text()
+                    const vtt = srtToVtt(text)
+                    const blob = new Blob([vtt], { type: 'text/vtt' })
+                    return URL.createObjectURL(blob)
+                } catch {
+                    return null
+                }
+            }
+
             if (needsProxy) {
+                // Race proxy vs direct — first to succeed wins. This avoids sequential
+                // 15s+15s worst case; subtitle appears as fast as the faster path.
+                let proxyUrl: string
                 try {
                     const u = btoa(subUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-                    fetchUrl = `https://providers.peestream.in/proxy?u=${u}`
-                } catch (e) {
-                    fetchUrl = `https://providers.peestream.in/proxy?u=${encodeURIComponent(subUrl)}`
+                    proxyUrl = `https://providers.peestream.in/proxy?u=${u}`
+                } catch {
+                    proxyUrl = `https://providers.peestream.in/proxy?u=${encodeURIComponent(subUrl)}`
                 }
-            }
-            try {
-                let resp = await fetch(fetchUrl, { signal: AbortSignal.timeout(15000) })
-                if (!resp.ok && needsProxy) {
-                    console.warn('[OpenSubtitles] Proxy fetch returned not-ok status. Falling back to direct fetch.');
-                    fetchUrl = subUrl;
-                    resp = await fetch(fetchUrl, { signal: AbortSignal.timeout(15000) })
-                }
-                if (!resp.ok) return null
-                const text = await resp.text()
-                const vtt = srtToVtt(text)
-                const blob = new Blob([vtt], { type: 'text/vtt' })
-                return URL.createObjectURL(blob)
-            } catch (err) {
-                if (needsProxy) {
-                    console.warn('[OpenSubtitles] Proxy fetch failed with error, trying direct fallback:', err);
-                    try {
-                        const resp = await fetch(subUrl, { signal: AbortSignal.timeout(15000) })
-                        if (resp.ok) {
-                            const text = await resp.text()
-                            const vtt = srtToVtt(text)
-                            const blob = new Blob([vtt], { type: 'text/vtt' })
-                            return URL.createObjectURL(blob)
-                        }
-                    } catch (fallbackErr) {
-                        console.warn('[OpenSubtitles] Direct fallback fetch also failed:', fallbackErr);
-                    }
-                }
+
+                // Race: proxy (8s) vs direct (8s) — first non-null result wins
+                const result = await Promise.any([
+                    tryFetch(proxyUrl, 8000),
+                    tryFetch(subUrl, 8000),
+                ]).catch(() => null)
+
+                if (result) return result
+                console.warn('[OpenSubtitles] Both proxy and direct fetch failed for:', subUrl)
                 return null
             }
+
+            // No proxy needed — direct fetch only
+            return tryFetch(subUrl, 10000)
         }
 
         async function loadOpenSubtitles() {
@@ -2301,6 +2292,16 @@ export default defineComponent({
             }
         }
 
+        function toggleSubtitles() {
+            if (selectedSubtitleTrack.value !== -1) {
+                void selectSubtitleTrack(-1)
+                return
+            }
+
+            const firstTrack = subtitleTracks.value[0]
+            if (firstTrack) void selectSubtitleTrack(firstTrack.id)
+        }
+
 
         function selectHlsQuality(index: number) {
             selectedHlsQuality.value = index
@@ -2525,7 +2526,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>
@@ -2534,6 +2535,10 @@ export default defineComponent({
 .moovie-frame {
     position: relative;
     width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #080A10;
     isolation: isolate;
 
     // Theme override to match peestream in orange
@@ -2562,20 +2567,24 @@ export default defineComponent({
     &__stage {
         position: relative;
         width: 100%;
+        height: 100%;
         max-width: 100%;
         margin: 0 auto;
-        padding: 0 var(--s-4) var(--s-5) var(--s-4);
-        @media (min-width: 768px) and (max-width: 1023px) { padding: 0 var(--s-5) var(--s-6) var(--s-5); }
-        @media (min-width: 1024px) { padding: 0; }
+        padding: 0;
+        flex: 1;
+        display: flex;
     }
 
     &__player {
         position: relative;
-        aspect-ratio: 16 / 9;
-        background: #080808;
-        border-radius: 10px;
+        width: 100%;
+        height: 100%;
+        flex: 1;
+        background: #080A10;
+        border-radius: 0;
         overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        box-shadow: none;
+        border: none;
     }
 
     &:fullscreen {
@@ -2921,25 +2930,66 @@ export default defineComponent({
     color: #f3f1e9;
     cursor: pointer;
     border-radius: 8px;
-    transition: background-color 0.2s, transform 0.15s, color 0.2s;
+    transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease, color 0.18s ease;
     
     &:hover {
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: rgba(255, 255, 255, 0.09);
         color: #ffffff;
         transform: scale(1.05);
     }
     
     &:active {
         transform: scale(0.95);
+        color: var(--ember, #ff5a1f);
+        background-color: rgba(255, 90, 31, 0.18);
+        box-shadow: 0 0 0 1px rgba(255, 90, 31, 0.18) inset, 0 0 18px rgba(255, 90, 31, 0.38);
+    }
+
+    &.is-active,
+    &.is-open {
+        color: var(--ember, #ff5a1f);
+        background-color: rgba(255, 90, 31, 0.14);
+        box-shadow: 0 0 0 1px rgba(255, 90, 31, 0.14) inset, 0 0 15px rgba(255, 90, 31, 0.26);
+    }
+
+    &:focus-visible {
+        outline: none;
+        color: var(--ember, #ff5a1f);
+        background-color: rgba(255, 90, 31, 0.12);
+        box-shadow: 0 0 0 2px rgba(255, 90, 31, 0.55), 0 0 18px rgba(255, 90, 31, 0.24);
     }
 }
 
 .moovie-frame__three-dot-btn {
-    &.is-open {
-        background-color: rgba(255, 90, 31, 0.2);
-        color: var(--ember, #ff5a1f);
-        box-shadow: 0 0 12px rgba(255, 90, 31, 0.25);
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: auto 9px 4px;
+        height: 2px;
+        border-radius: 999px;
+        background: var(--ember, #ff5a1f);
+        transform: scaleX(0);
+        transition: transform 0.22s ease;
     }
+
+    &.is-open {
+        &::after { transform: scaleX(1); }
+    }
+}
+
+.moovie-frame__subtitle-toggle {
+    &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        transform: none;
+    }
+}
+
+.moovie-frame__mobile-skip {
+    display: none;
 }
 
 .moovie-frame__time {
@@ -2959,26 +3009,55 @@ export default defineComponent({
     bottom: 56px;
     right: 12px;
     z-index: 30;
-    min-width: 240px;
-    max-width: 300px;
-    max-height: 60vh;
-    overflow-y: auto;
-    background: radial-gradient(circle at top left, rgba(22, 22, 22, 0.95), rgba(12, 12, 12, 0.99));
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 14px;
-    backdrop-filter: blur(24px) saturate(1.4);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.1);
-    padding: var(--s-2);
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    width: min(330px, calc(100vw - 24px));
+    max-height: 65vh;
+    isolation: isolate;
+    background:
+        linear-gradient(145deg, rgba(35, 29, 29, 0.98), rgba(12, 12, 15, 0.985) 48%, rgba(18, 13, 14, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    backdrop-filter: blur(32px) saturate(1.35);
+    box-shadow:
+        0 28px 80px -12px rgba(0, 0, 0, 0.9),
+        0 12px 28px -18px rgba(255, 90, 31, 0.65),
+        0 0 0 1px rgba(255, 255, 255, 0.035) inset;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
-    &::-webkit-scrollbar {
-        width: 4px;
+    &::before {
+        content: '';
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.55;
+        background:
+            radial-gradient(circle at 90% 0%, rgba(255, 90, 31, 0.2), transparent 31%),
+            repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 5px);
     }
-    &::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
-        border-radius: 99px;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 20px;
+        right: 20px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--ember, #ff5a1f), transparent);
+        opacity: 0.9;
     }
+}
+
+.moovie-frame__settings-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+    &::-webkit-scrollbar { width: 3px; }
+    &::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 99px; }
 }
 
 .moovie-frame__settings-mobile-handle {
@@ -2988,66 +3067,125 @@ export default defineComponent({
 .moovie-frame__settings-header {
     display: flex;
     align-items: center;
-    gap: var(--s-1);
-    padding: 0.4rem 0.5rem 0.5rem 0.25rem;
-    font-family: var(--font-ui);
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #ffffff;
+    gap: 8px;
+    min-height: 60px;
+    padding: 10px 14px 10px 16px;
+    font-family: var(--font-ui, system-ui, sans-serif);
+    color: rgba(255, 255, 255, 0.95);
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    margin-bottom: var(--s-2);
-    min-height: 38px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.008));
+}
+
+.moovie-frame__settings-heading {
+    min-width: 0;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.moovie-frame__settings-eyebrow {
+    color: rgba(255, 255, 255, 0.36);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
+.moovie-frame__settings-title {
+    overflow: hidden;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.moovie-frame__settings-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    color: rgba(255, 151, 112, 0.95);
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+
+    i {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--ember, #ff5a1f);
+        box-shadow: 0 0 0 4px rgba(255, 90, 31, 0.13), 0 0 9px var(--ember, #ff5a1f);
+        animation: moovie-live-pulse 1.8s ease-out infinite;
+    }
 }
 
 .moovie-frame__settings-back {
-    background: none;
-    border: 0;
-    color: rgba(255, 255, 255, 0.7);
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.075);
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
     cursor: pointer;
-    padding: 4px;
     display: grid;
     place-content: center;
-    border-radius: var(--r-sm);
-    transition: background-color 0.15s, color 0.15s;
-    
+    border-radius: 8px;
+    transition: all 0.18s ease;
     &:hover {
-        background-color: rgba(255, 255, 255, 0.08);
-        color: #ffffff;
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
     }
 }
 
 .moovie-frame__settings-item {
     display: flex;
     align-items: center;
-    gap: var(--s-2);
+    gap: 10px;
     width: 100%;
-    padding: 0.55rem 0.75rem;
-    background: none;
-    border: 0;
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.85);
-    font-family: var(--font-ui);
-    font-size: 0.85rem;
+    position: relative;
+    min-height: 42px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.008);
+    border: 1px solid transparent;
+    border-radius: 11px;
+    color: rgba(255, 255, 255, 0.82);
+    font-family: var(--font-ui, system-ui, sans-serif);
+    font-size: 13.5px;
     text-align: left;
     cursor: pointer;
-    transition: background-color 0.15s, color 0.15s, transform 0.1s;
-    margin-bottom: 2px;
-    
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
     &:hover {
-        background-color: rgba(255, 255, 255, 0.07);
-        color: #ffffff;
+        background: rgba(255, 255, 255, 0.065);
+        border-color: rgba(255, 255, 255, 0.045);
+        color: #fff;
+        transform: translateX(2px);
     }
-    
     &.is-active {
-        color: var(--ember, #ff5a1f);
-        font-weight: 600;
-        background-color: rgba(255, 90, 31, 0.08);
+        color: #fff;
+        border-color: rgba(255, 90, 31, 0.22);
+        background: linear-gradient(90deg, rgba(255, 90, 31, 0.18), rgba(255, 90, 31, 0.045));
+        box-shadow: 0 6px 16px -14px rgba(255, 90, 31, 0.8);
+        .moovie-frame__settings-item-icon { color: var(--ember, #ff5a1f); }
+        .moovie-frame__settings-item-label { color: #fff; }
     }
-    
-    &.is-dimmed {
-        opacity: 0.45;
-        cursor: pointer;
-    }
+    &.is-dimmed { opacity: 0.4; cursor: pointer; }
+}
+
+.moovie-frame__settings-item-icon {
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-content: center;
+    color: rgba(255, 255, 255, 0.42);
+    flex-shrink: 0;
+    transition: color 0.15s ease;
+    .moovie-frame__settings-item:hover & { color: rgba(255, 255, 255, 0.55); }
+    .moovie-frame__settings-item.is-active & { color: var(--ember, #ff5a1f); }
 }
 
 .moovie-frame__settings-item-label {
@@ -3055,34 +3193,69 @@ export default defineComponent({
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-weight: 500;
 }
 
 .moovie-frame__settings-item-value {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 194, 168, 0.72);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 120px;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 1px 6px;
-    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.moovie-frame__settings-item-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+    &.is-on {
+        color: rgba(34, 197, 94, 0.9);
+        background: rgba(34, 197, 94, 0.12);
+    }
 }
 
 .moovie-frame__settings-item-hint {
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 12px;
+    margin-left: 2px;
 }
 
 .moovie-frame__settings-chevron {
     flex-shrink: 0;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.2);
+    transition: color 0.15s ease;
+    .moovie-frame__settings-item:hover & { color: rgba(255, 255, 255, 0.4); }
 }
 
 .moovie-frame__settings-divider {
     height: 1px;
-    margin: 6px 8px;
-    background: rgba(255, 255, 255, 0.07);
+    margin: 7px 12px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+@keyframes moovie-live-pulse {
+    0%, 100% { transform: scale(0.9); opacity: 0.8; }
+    45% { transform: scale(1.15); opacity: 1; }
+}
+
+.moovie-frame__settings-item-status {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-content: center;
+    font-size: 11px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.04);
+    &.is-success { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    &.is-pending { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+    &.is-failure { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+    &.is-notfound { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.3); }
 }
 
 .moovie-frame__scraper-overlay {
@@ -3100,74 +3273,22 @@ export default defineComponent({
 }
 
 .moovie-frame__scraper-card {
-    width: 280px;
+    position: relative;
+    width: 340px;
     max-width: 100%;
-    background: radial-gradient(circle at top left, rgba(25, 25, 25, 0.88), rgba(13, 13, 13, 0.98));
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    padding: var(--s-4);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
     pointer-events: auto;
     display: flex;
     flex-direction: column;
-    gap: var(--s-3);
-    
+    gap: 12px;
+
     @media (max-width: 768px) {
-        width: 200px;
-        padding: 8px;
-        gap: 6px;
-        border-radius: 10px;
-    }
-}
-
-.moovie-frame__scraper-header {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    padding-bottom: var(--s-2);
-    overflow: hidden;
-    
-    @media (max-width: 768px) {
-        padding-bottom: 4px;
-        gap: 0px;
-    }
-}
-
-.moovie-frame__scraper-scanner {
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 60%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--ember, #ff5a1f), transparent);
-    animation: scanner-loop 2.2s infinite ease-in-out;
-}
-
-@keyframes scanner-loop {
-    0% { left: -60%; }
-    100% { left: 100%; }
-}
-
-.moovie-frame__scraper-title {
-    font-size: 0.9rem;
-    font-family: var(--font-ui);
-    font-weight: 600;
-    color: #ffffff;
-    letter-spacing: 0.01em;
-    
-    @media (max-width: 768px) {
-        font-size: 0.75rem;
-    }
-}
-
-.moovie-frame__scraper-subtitle {
-    font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.45);
-    
-    @media (max-width: 768px) {
-        font-size: 0.6rem;
+        width: min(300px, calc(100vw - 32px));
+        gap: 8px;
     }
 }
 
@@ -3185,32 +3306,27 @@ export default defineComponent({
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 8px;
-    transition: background-color 0.25s, border-color 0.25s;
+    min-height: 30px;
+    padding: 5px 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+    transition: opacity 0.25s ease, color 0.25s ease;
     
     &.is-pending {
-        background: rgba(255, 90, 31, 0.06);
-        border-color: rgba(255, 90, 31, 0.18);
+        .moovie-frame__provider-label { color: #fff; }
     }
     &.is-success {
-        background: rgba(34, 197, 94, 0.05);
-        border-color: rgba(34, 197, 94, 0.2);
+        .moovie-frame__provider-label { color: #fff; }
     }
     &.is-failure {
-        background: rgba(239, 68, 68, 0.05);
-        border-color: rgba(239, 68, 68, 0.2);
+        opacity: 0.45;
     }
     &.is-notfound {
-        background: rgba(255, 255, 255, 0.01);
-        opacity: 0.7;
+        opacity: 0.5;
     }
     
     @media (max-width: 768px) {
-        padding: 3px 6px;
-        border-radius: 4px;
+        min-height: 25px;
+        padding: 3px 1px;
     }
 }
 
@@ -3223,8 +3339,8 @@ export default defineComponent({
 }
 
 .moovie-frame__provider-status-icon {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     display: grid;
     place-content: center;
     flex-shrink: 0;
@@ -3263,9 +3379,9 @@ export default defineComponent({
 }
 
 .moovie-frame__provider-label {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.68);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -3276,32 +3392,6 @@ export default defineComponent({
     
     @media (max-width: 768px) {
         font-size: 0.7rem;
-    }
-}
-
-.moovie-frame__provider-progress {
-    height: 3px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 99px;
-    overflow: hidden;
-    width: 85%;
-}
-
-.moovie-frame__provider-progress-fill {
-    height: 100%;
-    background: var(--ember, #ff5a1f);
-    border-radius: 99px;
-    transition: width 0.25s ease;
-}
-
-.moovie-frame__provider-pct-val {
-    font-size: 0.74rem;
-    font-weight: 600;
-    color: var(--ember, #ff5a1f);
-    font-variant-numeric: tabular-nums;
-    
-    @media (max-width: 768px) {
-        font-size: 0.65rem;
     }
 }
 
@@ -3332,61 +3422,54 @@ export default defineComponent({
 }
 
 .moovie-frame__settings-label {
-    padding: 0.6rem 0.75rem 0.25rem;
-    font-size: 0.72rem;
-    font-family: var(--font-mono);
-    color: rgba(255, 255, 255, 0.4);
+    padding: 10px 12px 4px;
+    font-size: 10.5px;
+    font-family: var(--font-mono, monospace);
+    color: rgba(255, 255, 255, 0.3);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
 }
 
 .moovie-frame__settings-options {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    padding: 0.25rem 0.75rem 0.5rem;
+    padding: 4px 12px 8px;
 }
 
 .moovie-frame__settings-chip {
-    padding: 0.3rem 0.75rem;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: var(--r-pill);
-    color: rgba(255, 255, 255, 0.85);
-    font-family: var(--font-ui);
-    font-size: 0.75rem;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.75);
+    font-family: var(--font-ui, system-ui, sans-serif);
+    font-size: 12.5px;
     cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-    
-    &:hover {
-        background-color: rgba(255, 255, 255, 0.15);
-        color: #ffffff;
-    }
-    
+    transition: all 0.15s ease;
+    &:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
     &.is-active {
-        background-color: var(--ember, #ff5a1f);
+        background: var(--ember, #ff5a1f);
         border-color: var(--ember, #ff5a1f);
-        color: #000000;
+        color: #fff;
         font-weight: 600;
-        box-shadow: 0 2px 8px rgba(255, 90, 31, 0.3);
+        box-shadow: 0 2px 12px rgba(255, 90, 31, 0.3);
     }
-    
     &--icon {
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         display: grid;
         place-content: center;
         padding: 0;
     }
-    
     &--color {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
         padding: 0;
         border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.25);
+        border: 2px solid rgba(255, 255, 255, 0.2);
         &.is-active {
-            border-color: #ffffff;
+            border-color: #fff;
             box-shadow: 0 0 0 2px var(--ember, #ff5a1f);
         }
     }
@@ -3394,150 +3477,122 @@ export default defineComponent({
 
 .moovie-frame__settings-chip--reset {
     margin-left: auto;
-    background: rgba(255, 90, 31, 0.15);
+    background: rgba(255, 90, 31, 0.12);
     border-color: rgba(255, 90, 31, 0.1);
     color: var(--ember, #ff5a1f);
-    &:hover {
-        background: rgba(255, 90, 31, 0.25);
-    }
+    &:hover { background: rgba(255, 90, 31, 0.18); }
 }
 
 @media (max-width: 640px) {
+    .moovie-frame__mobile-skip {
+        display: grid;
+    }
+
     .moovie-frame__settings-panel {
-        position: absolute;
         bottom: 50px;
         right: 8px;
         left: auto;
         top: auto;
-        min-width: 220px;
-        max-width: 280px;
+        min-width: 240px;
+        max-width: 290px;
         max-height: calc(100% - 60px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.09);
-        padding: 6px;
+        border-radius: 14px;
+        padding: 0;
         z-index: 40;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     }
-    .moovie-frame__settings-item {
-        padding: 0.75rem 0.85rem;
-        font-size: 0.92rem;
-        min-height: 48px;
-    }
-    .moovie-frame__settings-chip {
-        padding: 0.55rem 0.9rem;
-        font-size: 0.85rem;
-        min-height: 40px;
-    }
-    .moovie-frame__settings-header {
-        padding: 0.5rem 0.5rem 0.75rem 0.25rem;
-        min-height: 44px;
-        font-size: 0.95rem;
-    }
-    .moovie-frame__settings-options {
-        gap: 0.5rem;
-    }
-    .moovie-frame__settings-label {
-        font-size: 0.8rem;
-        margin-bottom: 0.4rem;
-    }
+    .moovie-frame__settings-scroll { padding: 4px; }
+    .moovie-frame__settings-item { padding: 12px 12px; font-size: 14px; min-height: 46px; }
+    .moovie-frame__settings-chip { padding: 8px 14px; font-size: 13px; min-height: 40px; }
+    .moovie-frame__settings-header { padding: 14px 14px 10px; min-height: 44px; font-size: 14px; }
+    .moovie-frame__settings-options { gap: 6px; }
+    .moovie-frame__settings-label { font-size: 11px; }
+    .moovie-frame__speed-grid { grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 6px 10px; }
+    .moovie-frame__speed-btn { font-size: 13px; padding: 9px 0; }
 }
 
 .moovie-frame__settings-group {
-    padding: 0.35rem 0.75rem 0.5rem 0.75rem;
+    padding: 10px 12px 6px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .moovie-frame__settings-group-title {
-    font-size: 0.72rem;
-    font-weight: 700;
+    font-size: 10.5px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.3);
 }
 
 .moovie-frame__sync-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.04);
-    padding: 4px;
-    border-radius: 8px;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 5px;
+    border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .moovie-frame__sync-btn {
     flex: 1;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    color: #ffffff;
-    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
     font-weight: 600;
-    padding: 4px 0;
-    border-radius: 6px;
+    padding: 5px 0;
+    border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.15s, transform 0.1s;
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.12);
-    }
-    
-    &:active {
-        transform: scale(0.95);
-    }
-
+    transition: all 0.15s ease;
+    &:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+    &:active { transform: scale(0.96); }
     &.is-reset {
-        background: rgba(255, 90, 31, 0.15);
-        border-color: rgba(255, 90, 31, 0.1);
+        background: rgba(255, 90, 31, 0.1);
+        border-color: rgba(255, 90, 31, 0.12);
         color: var(--ember, #ff5a1f);
-
-        &:hover {
-            background: rgba(255, 90, 31, 0.25);
-        }
+        &:hover { background: rgba(255, 90, 31, 0.18); }
     }
 }
 
 .moovie-frame__sync-value {
-    font-size: 0.8rem;
+    font-size: 12.5px;
     font-weight: 700;
-    color: #ffffff;
-    min-width: 48px;
+    color: #fff;
+    min-width: 42px;
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
 .moovie-frame__option-grid {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    align-items: center;
+    gap: 6px;
 }
 
 .moovie-frame__option-btn {
-    flex: 1;
-    min-width: 40px;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-content: center;
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding: 4px 6px;
-    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
     cursor: pointer;
-    text-align: center;
+    border-radius: 8px;
     transition: all 0.15s ease;
+    &:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+    &:active { transform: scale(0.94); }
+}
 
-    &:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: #ffffff;
-    }
-
-    &.is-active {
-        background: rgba(255, 90, 31, 0.10);
-        border-color: rgba(255, 90, 31, 0.25);
-        color: var(--ember);
-        font-weight: 700;
-    }
+.moovie-frame__option-val {
+    margin-left: auto;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.35);
+    font-variant-numeric: tabular-nums;
+    padding-right: 8px;
 }
 
 /* Subtitle Cue styling rules */
@@ -3589,80 +3644,85 @@ export default defineComponent({
 
 
 
+.moovie-frame__speed-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 8px 12px;
+}
+
+.moovie-frame__speed-btn {
+    padding: 8px 0;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.65);
+    font-family: var(--font-ui, system-ui, sans-serif);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-variant-numeric: tabular-nums;
+    &:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+    &.is-active {
+        background: var(--ember, #ff5a1f);
+        border-color: var(--ember, #ff5a1f);
+        color: #fff;
+        box-shadow: 0 2px 12px rgba(255, 90, 31, 0.35);
+    }
+}
+
 /* Settings sliders styles */
 .moovie-frame__settings-slider-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
-    padding: 0 0.75rem;
 }
 
 .moovie-frame__settings-slider-value {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--ember);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ember, #ff5a1f);
     font-variant-numeric: tabular-nums;
 }
 
-.moovie-frame__slider-wrapper {
-    padding: 0 0.75rem;
-    display: flex;
-    align-items: center;
-    width: 100%;
-    box-sizing: border-box;
-}
+.moovie-frame__slider-wrapper { padding: 0; }
 
 .moovie-frame__settings-slider {
+    -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 4px;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 99px;
     outline: none;
-    appearance: none;
     cursor: pointer;
-    transition: background 0.2s;
-    margin: 6px 0;
-
-    &::-webkit-slider-runnable-track {
-        width: 100%;
-        height: 4px;
-        background: transparent;
-    }
-
     &::-webkit-slider-thumb {
+        -webkit-appearance: none;
         appearance: none;
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
+        background: #fff;
         border-radius: 50%;
-        background: #ffffff;
-        box-shadow: 0 0 8px var(--ember-glow), 0 0 0 1px rgba(255, 255, 255, 0.2);
         cursor: pointer;
-        margin-top: -4px;
-        transition: transform 0.1s ease, background-color 0.2s;
-        
-        &:hover {
-            transform: scale(1.2);
-            background-color: var(--ember);
-        }
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
     }
-
     &::-moz-range-thumb {
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
+        background: #fff;
+        border: none;
         border-radius: 50%;
-        background: #ffffff;
-        border: 0;
-        box-shadow: 0 0 8px var(--ember-glow), 0 0 0 1px rgba(255, 255, 255, 0.2);
         cursor: pointer;
-        transition: transform 0.1s ease, background-color 0.2s;
-        
-        &:hover {
-            transform: scale(1.2);
-            background-color: var(--ember);
-        }
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
     }
 }
+
+/* ── Settings panel transitions ──────────────────────────────────────────── */
+.moovie-settings-enter-active { transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.moovie-settings-leave-active { transition: all 0.16s ease-in; }
+.moovie-settings-enter-from { opacity: 0; transform: translateY(8px) scale(0.97); }
+.moovie-settings-leave-to { opacity: 0; transform: translateY(4px) scale(0.98); }
 
 
 

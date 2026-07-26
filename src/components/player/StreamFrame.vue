@@ -304,30 +304,24 @@ export default defineComponent({
     &__stage {
         position: relative;
         width: 100%;
+        height: 100%;
         max-width: 100%;
         margin: 0 auto;
-        padding: 0 var(--s-4) var(--s-5) var(--s-4);
-
-        @media (min-width: 768px) and (max-width: 1023px) {
-            padding: 0 var(--s-5) var(--s-6) var(--s-5);
-        }
-
-        @media (min-width: 1024px) {
-            padding: 0;
-        }
+        padding: 0;
+        flex: 1;
+        display: flex;
     }
 
     &__player {
         position: relative;
-        aspect-ratio: 16 / 9;
-        background: #000;
-        border-radius: var(--r-lg);
+        width: 100%;
+        height: 100%;
+        flex: 1;
+        background: #080A10;
+        border-radius: 0;
         overflow: hidden;
-        box-shadow:
-            0 32px 80px rgba(0, 0, 0, 0.6),
-            0 0 60px rgba(var(--ambient), 0.18),
-            0 0 0 1px var(--rule);
-        transition: box-shadow var(--dur-slow) var(--ease-out);
+        box-shadow: none;
+        border: none;
     }
 
     &__iframe {

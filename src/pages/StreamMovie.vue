@@ -1,8 +1,39 @@
 <template>
-    <div class="watch-stage" :class="{ 'is-embed': isEmbed }">
-        <header v-if="!isEmbed" class="watch-stage__chrome">
-            <div class="watch-stage__chrome-inner">
-                <div class="watch-stage__crumb">
+    <div
+        class="watch-stage"
+        :class="{ 'is-embed': isEmbed, 'controls-visible': controlsVisible }"
+        @mousemove="showControls"
+        @mouseleave="scheduleHide"
+        @touchstart.passive="showControls"
+        @click="showControls"
+    >
+        <!-- Full-screen video layer -->
+        <div class="watch-stage__video-layer">
+            <StreamFrame
+                v-if="!isMoovieServer"
+                :embed-url="currentEmbedUrl"
+                :title="movie?.title || 'Stream'"
+                :backdrop-path="movie?.backdrop_path || ''"
+                :poster-path="movie?.poster_path || ''"
+                :media-id="movieId"
+                media-type="movie"
+                @switch-to-server="changeServer"
+            />
+            <MoovieFrame
+                v-else
+                :media-id="movieId"
+                media-type="movie"
+                :title="movie?.title || 'Stream'"
+                :backdrop-path="movie?.backdrop_path || ''"
+                :poster-path="movie?.poster_path || ''"
+            />
+        </div>
+
+        <!-- TOP overlay: gradient + back + title + server -->
+        <div v-if="!isEmbed" class="watch-stage__top-overlay">
+            <div class="watch-stage__top-gradient" aria-hidden="true" />
+            <div class="watch-stage__top-bar">
+                <div class="watch-stage__top-left">
                     <button
                         type="button"
                         class="watch-stage__back"
@@ -11,24 +42,22 @@
                     >
                         <ArrowLeft />
                     </button>
-                    <p class="eyebrow">Now projecting</p>
+                    <div class="watch-stage__breadcrumb">
+                        <span class="watch-stage__breadcrumb-sep">·</span>
+                        <h1 v-if="movie" class="watch-stage__title">{{ movie.title }}</h1>
+                    </div>
                 </div>
-
-                <h1 v-if="movie" class="watch-stage__title">{{ movie.title }}</h1>
-                <span v-else class="watch-stage__title-skeleton" aria-hidden="true" />
-
-                <div class="watch-stage__actions">
+                <div class="watch-stage__top-right">
                     <ServerAccordion
                         variant="dropdown"
                         :servers="availableServers"
                         :active-server-index="activeAccordionIndex"
                         @server-change="changeServer"
                     />
-
                     <a
                         :href="`/party?media=${movieId}&title=${encodeURIComponent(movie?.title || '')}${isMoovieServer ? '&provider=moovie' : ''}`"
                         class="watch-stage__party-btn"
-                        title="Watch Together with friends!"
+                        title="Watch Together"
                         rel="nofollow"
                         @click.prevent="handleWatchTogether"
                     >
@@ -38,40 +67,16 @@
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                         </svg>
-                        <span class="button-text">Watch Together</span>
+                        <span class="watch-stage__party-label">Watch Together</span>
                     </a>
                 </div>
             </div>
-        </header>
+        </div>
 
-        <main class="watch-stage__main" id="main">
-            <div class="watch-stage__theater" :class="{ 'is-embed': isEmbed }">
-                <div class="watch-stage__player-container" :class="{ 'is-embed': isEmbed }">
-                    <StreamFrame
-                        v-if="!isMoovieServer"
-                        :embed-url="currentEmbedUrl"
-                        :title="movie?.title || 'Stream'"
-                        :backdrop-path="movie?.backdrop_path || ''"
-                        :poster-path="movie?.poster_path || ''"
-                        :media-id="movieId"
-                        media-type="movie"
-                        @switch-to-server="changeServer"
-                    />
-                    <MoovieFrame
-                        v-else
-                        :media-id="movieId"
-                        media-type="movie"
-                        :title="movie?.title || 'Stream'"
-                        :backdrop-path="movie?.backdrop_path || ''"
-                        :poster-path="movie?.poster_path || ''"
-                    />
-                </div>
-            </div>
-
-            <section v-if="!isEmbed && movie" class="watch-stage__rack">
-                <CommentsSection :media-id="movie.id" media-type="movie" />
-            </section>
-        </main>
+        <!-- BOTTOM overlay for comments (scrollable below player) -->
+        <div v-if="!isEmbed && movie" class="watch-stage__rack">
+            <CommentsSection :media-id="movie.id" media-type="movie" />
+        </div>
     </div>
 </template>
 
@@ -207,6 +212,25 @@ export default defineComponent({
             }, 50);
         };
 
+        // ── smov-style: auto-hide controls after 3s of inactivity ─────────────
+        const controlsVisible = ref(true);
+        let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const showControls = () => {
+            controlsVisible.value = true;
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                controlsVisible.value = false;
+            }, 3000);
+        };
+
+        const scheduleHide = () => {
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                controlsVisible.value = false;
+            }, 800);
+        };
+
         watch(
             () => route.params.id,
             (next, prev) => {
@@ -219,6 +243,7 @@ export default defineComponent({
 
         onMounted(() => {
             loadMovie();
+            showControls();
         });
 
         return {
@@ -232,139 +257,123 @@ export default defineComponent({
             currentEmbedUrl,
             changeServer,
             goBack,
-            handleWatchTogether
+            handleWatchTogether,
+            controlsVisible,
+            showControls,
+            scheduleHide,
         };
     }
 });
 </script>
 
 <style lang="scss" scoped>
+// ─── Global: hide scroll-car on stream pages ────────────────────────────────
+:global(.scroll-car-container) {
+    display: none !important;
+}
+
 .watch-stage {
+    position: relative;
+    width: 100vw;
     min-height: 100dvh;
-    height: auto;
-    // clip — not hidden — so overflow-y stays visible and the page scrolls (not this box)
-    overflow-x: clip;
-    overflow-y: visible;
-    background: var(--ink-900);
-    color: var(--bone-50);
+    background: #080A10;
+    color: #fff;
+    overflow-x: hidden;
+    cursor: none;
 
-    &.is-embed {
-        min-height: 100dvh !important;
-        height: 100dvh !important;
-        overflow: hidden !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        background: #000 !important;
+    &.controls-visible {
+        cursor: default;
 
-        .watch-stage__main {
-            height: 100dvh !important;
-            grid-template-rows: 1fr !important;
-            gap: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-
-        .watch-stage__theater {
-            max-width: 100% !important;
-            width: 100% !important;
-            height: 100dvh !important;
-            min-height: 100dvh !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            display: block !important;
-        }
-
-        .watch-stage__player-container {
-            width: 100% !important;
-            height: 100dvh !important;
-            max-width: 100% !important;
-            padding: 0 !important;
-            margin: 0 !important;
-
-            :deep(.stream-frame__player),
-            :deep(.moovie-frame__player) {
-                width: 100% !important;
-                height: 100dvh !important;
-                max-width: 100% !important;
-                max-height: 100dvh !important;
-                aspect-ratio: unset !important;
-                border-radius: 0 !important;
-                border: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-
-            :deep(.stream-frame__stage),
-            :deep(.moovie-frame__stage) {
-                padding: 0 !important;
-                height: 100dvh !important;
-                max-height: 100dvh !important;
-            }
+        .watch-stage__top-overlay,
+        .watch-stage__back,
+        .watch-stage__top-right {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
         }
     }
 
-    // Hide scroll car on all watch/stream pages
-    & ~ :global(.scroll-car-container) {
-        display: none !important;
+    // ── Full-screen video layer ──────────────────────────────────────────────
+    &__video-layer {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100dvh;
+        z-index: 0;
+
+        :deep(.stream-frame),
+        :deep(.moovie-frame) {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        :deep(.stream-frame__stage),
+        :deep(.moovie-frame__stage) {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        :deep(.stream-frame__player),
+        :deep(.moovie-frame__player) {
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+            box-shadow: none;
+            border: 0;
+            background: #080A10;
+        }
     }
 
-    &__chrome {
-        position: sticky;
+    // ── TOP overlay ─────────────────────────────────────────────────────────
+    &__top-overlay {
+        position: fixed;
         top: 0;
-        z-index: var(--z-header);
-        background: linear-gradient(
-            180deg,
-            rgba(11, 10, 8, 0.95),
-            rgba(11, 10, 8, 0.6) 70%,
-            rgba(11, 10, 8, 0)
-        );
-        backdrop-filter: blur(14px);
-
-        // Overlay the player slide — avoids double gap once scroll-snap is off.
-        @media (min-width: 1024px) {
-            position: fixed;
-            left: 0;
-            right: 0;
-        }
+        left: 0;
+        right: 0;
+        z-index: 50;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease, transform 0.25s ease;
     }
 
-    &__chrome-inner {
-        max-width: var(--container-max);
-        margin: 0 auto;
-        padding: var(--s-3) var(--s-4);
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        grid-template-areas: 'crumb title actions';
+    &__top-gradient {
+        position: absolute;
+        inset: 0;
+        height: 180px;
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+        pointer-events: none;
+    }
+
+    &__top-bar {
+        position: relative;
+        display: flex;
         align-items: center;
-        gap: var(--s-3) var(--s-4);
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem calc(2rem + env(safe-area-inset-left, 0px)) 1rem calc(2rem + env(safe-area-inset-right, 0px));
 
-        @media (min-width: 768px) {
-            padding: var(--s-4) var(--s-5);
-        }
-
-        // ── Mobile: controls row only, title removed ────────────────
         @media (max-width: 640px) {
-            grid-template-columns: auto 1fr;
-            grid-template-areas: 'crumb actions';
-            padding: var(--s-2) var(--s-3);
-            gap: var(--s-2);
+            padding: 0.75rem 1rem;
         }
     }
 
-    &__crumb {
-        grid-area: crumb;
-        display: inline-flex;
+    &__top-left {
+        display: flex;
         align-items: center;
-        gap: var(--s-3);
+        gap: 0.75rem;
         min-width: 0;
+        flex: 1;
+    }
 
-        @media (max-width: 1023px) {
-            gap: var(--s-2);
-
-            .eyebrow {
-                display: none !important;
-            }
-        }
+    &__top-right {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-shrink: 0;
     }
 
     &__back {
@@ -375,453 +384,109 @@ export default defineComponent({
         height: 40px;
         flex-shrink: 0;
         border-radius: 50%;
-        background: var(--surface-tint);
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(8px);
         cursor: pointer;
-        color: var(--bone-100);
-
-        @media (max-width: 640px) {
-            width: 36px;
-            height: 36px;
-        }
-        transition:
-            background-color var(--dur-fast) var(--ease-out),
-            transform var(--dur-fast) var(--ease-out);
+        color: #fff;
+        transition: background 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            background: var(--ember);
-            color: var(--ink-900);
+            background: rgba(255, 90, 31, 0.85);
+            color: #fff;
             transform: translateX(-2px);
         }
 
-        &:focus-visible {
-            outline: 2px solid var(--ember);
-            outline-offset: 2px;
-        }
-
         :deep(svg) { width: 18px; height: 18px; }
+
+        @media (max-width: 640px) { width: 36px; height: 36px; }
+    }
+
+    &__breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    &__breadcrumb-sep {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 1.1rem;
+        flex-shrink: 0;
+
+        @media (max-width: 640px) { display: none; }
     }
 
     &__title {
-        grid-area: title;
         margin: 0;
-        font-family: var(--font-display);
+        font-family: var(--font-display, system-ui);
         font-weight: 500;
-        font-size: var(--fs-lg);
-        letter-spacing: var(--ls-tight);
-        color: var(--bone-50);
-        text-align: center;
+        font-size: 1.05rem;
+        letter-spacing: -0.02em;
+        color: rgba(255, 255, 255, 0.95);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
 
-        @media (min-width: 768px) {
-            font-size: var(--fs-xl);
-        }
-
-        @media (max-width: 1023px) {
-            display: none !important;
-        }
+        @media (min-width: 768px) { font-size: 1.2rem; }
+        @media (max-width: 640px) { display: none; }
     }
-
-    &__title-skeleton {
-        grid-area: title;
-        display: block;
-        height: 18px;
-        max-width: 280px;
-        margin: 0 auto;
-        background: var(--surface-tint);
-        border-radius: var(--r-pill);
-
-        @media (max-width: 1023px) {
-            display: none !important;
-        }
-    }
-
-    &__actions {
-        grid-area: actions;
-        display: inline-flex;
-        align-items: center;
-        gap: var(--s-2);
-        justify-content: flex-end;
-    }
-
-    &__main {
-        display: grid;
-        gap: 0;
-    }
-
-    &__theater {
-        display: grid;
-        gap: var(--s-5);
-        max-width: var(--container-max);
-        width: 100%;
-        margin: 0 auto;
-        box-sizing: border-box;
-
-        @media (max-width: 1023px) {
-            display: flex;
-            flex-direction: column;
-            gap: var(--s-4);
-            padding: var(--s-3);
-            height: auto;
-            min-height: 0;
-        }
-
-        @media (min-width: 1024px) {
-            min-height: 100dvh;
-            padding: 72px var(--s-5) var(--s-2) var(--s-5);
-            grid-template-columns: 1fr;
-            align-items: stretch;
-        }
-    }
-
-    &__player-container {
-        min-width: 0;
-        flex-shrink: 0;
-
-        @media (max-width: 1023px) {
-            width: 100%;
-
-            :deep(.stream-frame__stage),
-            :deep(.moovie-frame__stage) {
-                padding: 0;
-            }
-
-            :deep(.stream-frame__player),
-            :deep(.moovie-frame__player) {
-                border-radius: var(--r-md);
-            }
-        }
-
-        @media (min-width: 1024px) {
-            :deep(.stream-frame__player),
-            :deep(.moovie-frame__player) {
-                width: 100%;
-                max-width: calc(80vh * 16 / 9);
-                aspect-ratio: 16 / 9;
-                height: auto;
-                margin: 0 auto;
-            }
-        }
-    }
-
-    &__aside {
-        min-width: 0;
-        flex-shrink: 0;
-
-        @media (max-width: 1023px) {
-            display: none !important;
-        }
-
-        @media (min-width: 1024px) {
-            position: relative;
-            align-self: stretch;
-        }
-
-        :deep(.server-accordion) {
-            background: var(--ink-850);
-            box-shadow: inset 0 0 0 1px var(--rule);
-
-            @media (min-width: 1024px) {
-                position: absolute;
-                inset: 0;
-                display: flex;
-                flex-direction: column;
-                box-sizing: border-box;
-            }
-        }
-
-        :deep(.server-accordion__body) {
-            @media (min-width: 1024px) {
-                flex: 1;
-                min-height: 0;
-                display: flex;
-                flex-direction: column;
-                box-sizing: border-box;
-                overflow: hidden;
-                padding-bottom: var(--s-4);
-            }
-        }
-
-        :deep(.server-accordion__grid) {
-            @media (min-width: 1024px) {
-                flex: 1;
-                overflow-y: auto;
-                margin-top: var(--s-3);
-                padding-right: var(--s-2);
-
-                &::-webkit-scrollbar {
-                    width: 6px;
-                }
-                &::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-                &::-webkit-scrollbar-thumb {
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: var(--r-pill);
-                }
-            }
-        }
-    }
-
-    &__server-picker {
-        display: none;
-
-        @media (max-width: 1023px) {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--rule-strong);
-            border-radius: var(--r-pill);
-            padding: 0.5rem 2.25rem 0.5rem 1rem;
-            min-height: 38px;
-            font-family: var(--font-ui);
-            font-size: var(--fs-sm);
-            font-weight: 600;
-            color: var(--bone-50);
-            cursor: pointer;
-            transition: background-color var(--dur-fast), border-color var(--dur-fast);
-
-            &:hover {
-                background: rgba(255, 255, 255, 0.12);
-                border-color: var(--bone-400);
-            }
-
-            @media (max-width: 640px) {
-                min-height: 36px;
-                padding: 0.4rem 2rem 0.4rem 0.85rem;
-            }
-        }
-    }
-
-    &__server-select {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-        -webkit-appearance: none;
-    }
-
-    &__server-select-arrow {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 16px;
-        height: 16px;
-        color: var(--bone-300);
-
-        svg {
-            width: 100%;
-            height: 100%;
-        }
-
-        @media (max-width: 640px) {
-            right: 8px;
-        }
-    }
-
-    &__rack {
-        max-width: var(--container-max);
-        width: 100%;
-        margin: 0 auto;
-        padding: var(--s-5) var(--s-4) calc(var(--s-9) + env(safe-area-inset-bottom, 0px));
-        box-sizing: border-box;
-
-        @media (min-width: 768px) {
-            padding: var(--s-6) var(--s-5) calc(var(--s-9) + env(safe-area-inset-bottom, 0px));
-        }
-    }
-
-    &__feature {
-        display: grid;
-        gap: var(--s-6);
-        max-width: var(--container-max);
-        margin: 0 auto;
-        width: 100%;
-        box-sizing: border-box;
-        padding: var(--s-6) var(--s-4);
-
-        @media (max-width: 1023px) {
-            height: auto;
-            min-height: 0;
-            align-content: start;
-            padding: var(--s-5) var(--s-3) var(--s-4);
-            grid-template-columns: 1fr;
-        }
-
-        @media (min-width: 1024px) {
-            padding: var(--s-6) var(--s-5);
-            grid-template-columns: 280px 1fr;
-            align-items: center;
-        }
-
-        @media (min-width: 768px) and (max-width: 1023px) {
-            grid-template-columns: 1fr;
-            align-items: start;
-        }
-    }
-
-    &__poster {
-        position: relative;
-        aspect-ratio: 2 / 3;
-        max-width: 280px;
-        border-radius: var(--r-lg);
-        overflow: hidden;
-        box-shadow: var(--shadow-lg);
-        margin: 0 auto;
-
-        @media (max-width: 1023px) {
-            display: none !important;
-        }
-
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-    }
-
-    &__rating {
-        position: absolute;
-        top: var(--s-3);
-        left: var(--s-3);
-        display: inline-flex;
-        align-items: baseline;
-        gap: 0.35rem;
-        background: rgba(11, 10, 8, 0.7);
-        backdrop-filter: blur(8px);
-        padding: 0.5rem 0.85rem;
-        border-radius: var(--r-pill);
-        box-shadow: inset 0 0 0 1px var(--rule-strong);
-
-        > .meta { color: var(--bone-300); }
-    }
-
-    &__rating-num {
-        font-family: var(--font-display);
-        font-weight: 600;
-        color: var(--gold-leaf);
-        font-size: var(--fs-lg);
-    }
-
-    &__feature-body {
-        display: grid;
-        gap: var(--s-3);
-        align-content: start;
-    }
-
-    &__feature-title {
-        margin: 0;
-        font-family: var(--font-display);
-        font-weight: 500;
-        font-size: var(--fs-3xl);
-        line-height: var(--lh-tight);
-        letter-spacing: var(--ls-tight);
-        color: var(--bone-50);
-
-        @media (min-width: 768px) {
-            font-size: var(--fs-4xl);
-        }
-    }
-
-    &__tagline {
-        margin: 0;
-        font-family: var(--font-display);
-        font-style: italic;
-        color: var(--bone-200);
-        font-size: var(--fs-lg);
-    }
-
-    &__meta {
-        list-style: none;
-        margin: 0;
-        padding: var(--s-3) 0;
-        display: grid;
-        gap: var(--s-3);
-        border-top: 1px solid var(--rule);
-        border-bottom: 1px solid var(--rule);
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-
-        li {
-            display: grid;
-            gap: 0.2rem;
-
-            > .meta {
-                color: var(--bone-400);
-                text-transform: uppercase;
-                letter-spacing: var(--ls-micro);
-                font-size: var(--fs-xs);
-            }
-
-            > span:not(.meta) {
-                color: var(--bone-50);
-                font-family: var(--font-ui);
-                font-size: var(--fs-base);
-            }
-        }
-    }
-
-    &__overview {
-        margin: 0;
-        color: var(--bone-200);
-        line-height: var(--lh-base);
-        max-width: 60ch;
-    }
-
-
 
     &__party-btn {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: rgba(255, 90, 31, 0.08);
-        border: 1px solid rgba(255, 90, 31, 0.25);
-        border-radius: var(--r-pill);
-        color: var(--ember);
-        padding: 0.5rem 1.1rem;
-        min-height: 38px;
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
+        background: rgba(255, 90, 31, 0.12);
+        border: 1px solid rgba(255, 90, 31, 0.3);
+        backdrop-filter: blur(8px);
+        border-radius: 999px;
+        color: #ff7842;
+        padding: 0.45rem 1rem;
+        min-height: 36px;
+        font-family: var(--font-ui, system-ui);
+        font-size: 0.8125rem;
         font-weight: 600;
         text-decoration: none;
-        transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            background: rgba(255, 90, 31, 0.16);
-            border-color: rgba(255, 90, 31, 0.45);
+            background: rgba(255, 90, 31, 0.22);
+            border-color: rgba(255, 90, 31, 0.5);
             transform: translateY(-1px);
         }
 
         @media (max-width: 640px) {
             width: 36px;
-            min-height: 36px;
             padding: 0;
-            display: inline-grid;
-            place-items: center;
-
-            .button-text {
-                display: none;
-            }
+            justify-content: center;
         }
     }
 
-    &__party-icon {
-        width: 16px;
-        height: 16px;
+    &__party-label {
+        @media (max-width: 640px) { display: none; }
     }
-}
 
-// Hide scroll car on all watch/stream pages
-:global(.scroll-car-container) {
-    display: none !important;
+    &__party-icon {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+    }
+
+    // ── Comments rack below the fixed video ─────────────────────────────────
+    &__rack {
+        position: relative;
+        z-index: 1;
+        margin-top: 100dvh;
+        max-width: var(--container-max, 1280px);
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 2.5rem 1.25rem calc(5rem + env(safe-area-inset-bottom, 0px));
+        box-sizing: border-box;
+        background: #080A10;
+
+        @media (min-width: 768px) {
+            padding: 3rem 2rem calc(5rem + env(safe-area-inset-bottom, 0px));
+        }
+    }
 }
 </style>

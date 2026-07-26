@@ -172,6 +172,7 @@
         }
 
         window.toggleRoomPrivacy = toggleRoomPrivacy;
+        window.openPartyEpisodesPanel = openPartyEpisodesPanel;
 
         // Host transfer
         let _hostTransferInFlight = false;
@@ -1379,13 +1380,19 @@
             if (shell) {
                 shell.classList.add('is-episodes-open');
                 shell.classList.remove('is-controls-hidden');
+                if (!isNetflix) shell.hidden = false;
             }
             clearPartyNfControlsTimer();
             setPartyNfMenuOpen(true);
             renderPartySeasonSelect();
             renderPartyEpisodeList();
             scrollPartyEpisodeIntoView();
-            void upgradePartyEpisodeCatalog(netflixCatalogMeta);
+
+            if (isNetflix) {
+                void upgradePartyEpisodeCatalog(netflixCatalogMeta);
+            } else if (activeRoom?.movie_title) {
+                void upgradePartyEpisodeCatalog({ title: activeRoom.movie_title });
+            }
         }
 
         function closePartyEpisodesPanel() {
@@ -1394,7 +1401,10 @@
             const shell = document.getElementById('party-nf-watch');
             if (panel) panel.hidden = true;
             if (btn) btn.setAttribute('aria-expanded', 'false');
-            if (shell) shell.classList.remove('is-episodes-open');
+            if (shell) {
+                shell.classList.remove('is-episodes-open');
+                if (!isNetflix) shell.hidden = true;
+            }
             setPartyNfMenuOpen(false);
             schedulePartyNfControlsHide();
         }
@@ -2520,6 +2530,12 @@
 
             const autoNextBtn = document.getElementById('party-auto-next-btn');
             if (autoNextBtn) autoNextBtn.style.display = 'none';
+
+            const barEpisodesBtn = document.getElementById('party-bar-episodes-btn');
+            if (barEpisodesBtn) {
+                barEpisodesBtn.hidden = !(isHost && (isTv || isAnime));
+            }
+
             updatePartyEpNavButtons();
             updateRoomPrivacyButton();
         }

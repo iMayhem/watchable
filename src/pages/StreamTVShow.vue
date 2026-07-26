@@ -674,9 +674,12 @@ export default defineComponent({
         }
     }
 
-    // ── Full-screen video layer ──────────────────────────────────────────────
+    // ── Video layer ──────────────────────────────────────────────────────────
+    // Keep the player in the document flow so the comments rack can follow it
+    // naturally when the page is scrolled. Embed routes still need a viewport-
+    // pinned player, handled by the override below.
     &__video-layer {
-        position: fixed;
+        position: absolute;
         inset: 0;
         width: 100vw;
         height: 100dvh;
@@ -706,6 +709,12 @@ export default defineComponent({
             box-shadow: none;
             border: 0;
             background: #080A10;
+        }
+    }
+
+    &.is-embed {
+        .watch-stage__video-layer {
+            position: fixed;
         }
     }
 
@@ -921,4 +930,3 @@ export default defineComponent({
     }
 }
 </style>
-

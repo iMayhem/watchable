@@ -2047,6 +2047,57 @@ export default defineComponent({
                 try {
                     const data = JSON.parse(e.data)
                     const rawStreams = Array.isArray(data.stream) ? data.stream : (data.stream ? [data.stream] : [])
+
+                    // A manual server selection uses a separate SSE endpoint from the
+                    // initial scraper run. Preserve that source's variants here too;
+                    // otherwise Athena's streams are playable but never appear in the
+                    // Audio menu.
+                    const sourceVariants = rawStreams.flatMap((mw: any) =>
+                        Array.isArray(mw._languageVariants) ? mw._languageVariants : []
+                    )
+                    for (const variant of sourceVariants) {
+                        const catalogId = variant?.catalogId ?? variant?.id
+                        if (!catalogId) continue
+                        const id = `${providerId}:${catalogId}`
+                        const exists = languageVariants.value.some(existing =>
+                            existing.id === id || (existing as any).catalogId === catalogId
+                        )
+                        if (!exists) {
+                            languageVariants.value.push({
+                                language: variant.language ?? 'Unknown',
+                                label: variant.language ?? 'Unknown',
+                                provider: providerId,
+                                id,
+                                catalogId,
+                                type: props.mediaType === 'tv' ? 'show' : 'movie',
+                                season: props.season,
+                                episode: props.episode,
+                            } as any)
+                        }
+                    }
+                    if (sourceVariants.length) {
+                        const existingHlsTracks = audioTracks.value.filter(t => t.id < 1999)
+                        const englishOriginalTrack = {
+                            id: 1999,
+                            name: 'English (Original)',
+                            lang: 'English',
+                            _isOriginal: true,
+                        }
+                        const variantTracks = languageVariants.value.map((v, i) => ({
+                            id: 2000 + i,
+                            name: v.label || v.language,
+                            lang: v.language,
+                            _variantId: v.id,
+                            _catalogId: (v as any).catalogId || v.id.replace(/^[a-z0-9-]+:/i, ''),
+                        }))
+                        audioTracks.value = [
+                            ...existingHlsTracks,
+                            englishOriginalTrack,
+                            ...variantTracks,
+                        ]
+                        console.debug('[MoovieFrame] added language variants from single source:', providerId, sourceVariants.length)
+                    }
+
                     for (const mw of rawStreams) {
                         const qualities = mw.qualities || {}
                         const qualityLabels = Object.keys(qualities)

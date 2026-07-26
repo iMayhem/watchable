@@ -1042,7 +1042,7 @@ export default defineComponent({
         font-size: var(--fs-xs);
         padding: 6px var(--s-4);
         border: 1px solid var(--rule);
-        border-radius: var(--r-sm);
+        border-radius: 999px;
         cursor: pointer;
         transition: transform var(--dur-fast), border-color var(--dur-fast);
 

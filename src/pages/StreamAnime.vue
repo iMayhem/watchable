@@ -1,8 +1,32 @@
 <template>
-    <div class="watch-stage">
-        <header class="watch-stage__chrome">
-            <div class="watch-stage__chrome-inner">
-                <div class="watch-stage__crumb">
+    <div
+        class="watch-stage"
+        :class="{ 'is-embed': isEmbed, 'controls-visible': controlsVisible }"
+        @mousemove="showControls"
+        @mouseleave="scheduleHide"
+        @touchstart.passive="showControls"
+        @click="showControls"
+    >
+        <!-- Full-screen video layer -->
+        <div class="watch-stage__video-layer">
+            <StreamFrame
+                :embed-url="currentEmbedUrl"
+                :title="animeTitle || 'Anime Player'"
+                :backdrop-path="tmdbBackdropPath"
+                :poster-path="tmdbPosterPath"
+                :media-id="resolvedAnilistId || animeId"
+                media-type="anime"
+                :embed-provider="isAnimeplayServer ? 'animeplay' : 'default'"
+                :episode="currentEpisode"
+                @switch-to-server="activeServerIndex = $event"
+            />
+        </div>
+
+        <!-- TOP overlay: gradient + back + title + episode nav + server -->
+        <div v-if="!isEmbed" class="watch-stage__top-overlay">
+            <div class="watch-stage__top-gradient" aria-hidden="true" />
+            <div class="watch-stage__top-bar">
+                <div class="watch-stage__top-left">
                     <button
                         type="button"
                         class="watch-stage__back"
@@ -11,13 +35,13 @@
                     >
                         <ArrowLeft />
                     </button>
-                    <p class="eyebrow">Now projecting</p>
-                </div>
-
-                <div class="watch-stage__title-block">
-                    <h1 v-if="tmdbShow" class="watch-stage__title">{{ animeTitle }}</h1>
-                    <span v-else class="watch-stage__title-skeleton" aria-hidden="true" />
-                    <div class="watch-stage__episode-nav">
+                    <div class="watch-stage__breadcrumb">
+                        <span class="watch-stage__breadcrumb-sep">·</span>
+                        <h1 v-if="tmdbShow" class="watch-stage__title">{{ animeTitle }}</h1>
+                        <span v-else class="watch-stage__title-skeleton" aria-hidden="true" />
+                    </div>
+                    <!-- Episode navigation pill -->
+                    <div class="watch-stage__ep-nav">
                         <button
                             type="button"
                             class="watch-stage__nav-btn"
@@ -25,13 +49,13 @@
                             @click="goToPreviousEpisode"
                             aria-label="Previous Episode"
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
                                 <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </button>
-                        <p class="meta watch-stage__code" @click="openEpisodePicker">
+                        <span class="watch-stage__ep-code" @click="openEpisodePicker">
                             Episode {{ getEpisodeInSeasonNumber(currentEpisode) }}
-                        </p>
+                        </span>
                         <button
                             type="button"
                             class="watch-stage__nav-btn"
@@ -39,81 +63,21 @@
                             @click="goToNextEpisode"
                             aria-label="Next Episode"
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
                                 <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </button>
                     </div>
                 </div>
-
-                <div class="watch-stage__actions">
-                    <details
-                        v-if="seasonsList.length > 1 || availableServers[activeServerIndex]?.name !== 'Videasy'"
-                        class="watch-stage__options"
-                    >
-                        <summary class="watch-stage__options-trigger">
-                            <span>Options</span>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                        </summary>
-
-                        <div class="watch-stage__options-menu">
-                            <div v-if="seasonsList.length > 1" class="watch-stage__option-group">
-                                <label class="eyebrow watch-stage__option-label" for="anime-season-select">
-                                    Season / Arc
-                                </label>
-                                <select
-                                    id="anime-season-select"
-                                    :value="activeSeasonSelectValue"
-                                    class="watch-stage__option-select"
-                                    @change="goToSeason(Number(($event.target as HTMLSelectElement).value))"
-                                >
-                                    <option
-                                        v-for="s in seasonsList"
-                                        :key="s.id"
-                                        :value="s.id"
-                                    >
-                                        {{ s.label }}
-                                    </option>
-                                </select>
-                            </div>
-
-                            <div
-                                v-if="availableServers[activeServerIndex]?.name !== 'Videasy'"
-                                class="watch-stage__option-group"
-                            >
-                                <p class="eyebrow watch-stage__option-label">Language Pref</p>
-                                <div class="watch-stage__language-tabs">
-                                    <button
-                                        type="button"
-                                        class="watch-stage__language-btn"
-                                        :class="{ 'is-active': activeLanguage === 'sub' }"
-                                        @click="activeLanguage = 'sub'"
-                                    >
-                                        Subtitled
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="watch-stage__language-btn"
-                                        :class="{ 'is-active': activeLanguage === 'dub' }"
-                                        @click="activeLanguage = 'dub'"
-                                    >
-                                        Dubbed
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </details>
-
-                    <!-- Mobile and Tablet direct sub/dub toggle button -->
+                <div class="watch-stage__top-right">
+                    <!-- Language toggle (only for non-Videasy servers) -->
                     <div
                         v-if="availableServers[activeServerIndex]?.name !== 'Videasy'"
-                        class="watch-stage__lang-toggle"
+                        class="watch-stage__lang-pill"
                     >
                         <button
                             type="button"
-                            class="watch-stage__lang-btn"
+                            class="watch-stage__lang-pill-btn"
                             :class="{ 'is-active': activeLanguage === 'sub' }"
                             @click="activeLanguage = 'sub'"
                         >
@@ -121,7 +85,7 @@
                         </button>
                         <button
                             type="button"
-                            class="watch-stage__lang-btn"
+                            class="watch-stage__lang-pill-btn"
                             :class="{ 'is-active': activeLanguage === 'dub' }"
                             @click="activeLanguage = 'dub'"
                         >
@@ -136,11 +100,81 @@
                         @server-change="activeServerIndex = $event"
                     />
 
+                    <template v-if="seasonsList.length > 1 || availableServers[activeServerIndex]?.name !== 'Videasy'">
+                        <details class="watch-stage__options">
+                            <summary class="watch-stage__options-trigger">
+                                <span>Options</span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </summary>
+                            <div class="watch-stage__options-menu">
+                                <div v-if="seasonsList.length > 1" class="watch-stage__option-group">
+                                    <label class="eyebrow watch-stage__option-label" for="anime-season-select">
+                                        Season / Arc
+                                    </label>
+                                    <select
+                                        id="anime-season-select"
+                                        :value="activeSeasonSelectValue"
+                                        class="watch-stage__option-select"
+                                        @change="goToSeason(Number(($event.target as HTMLSelectElement).value))"
+                                    >
+                                        <option
+                                            v-for="s in seasonsList"
+                                            :key="s.id"
+                                            :value="s.id"
+                                        >
+                                            {{ s.label }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div
+                                    v-if="availableServers[activeServerIndex]?.name !== 'Videasy'"
+                                    class="watch-stage__option-group"
+                                >
+                                    <p class="eyebrow watch-stage__option-label">Language Pref</p>
+                                    <div class="watch-stage__language-tabs">
+                                        <button
+                                            type="button"
+                                            class="watch-stage__language-btn"
+                                            :class="{ 'is-active': activeLanguage === 'sub' }"
+                                            @click="activeLanguage = 'sub'"
+                                        >
+                                            Subtitled
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="watch-stage__language-btn"
+                                            :class="{ 'is-active': activeLanguage === 'dub' }"
+                                            @click="activeLanguage = 'dub'"
+                                        >
+                                            Dubbed
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                    </template>
+
+                    <button
+                        type="button"
+                        class="watch-stage__fullscreen-btn"
+                        :title="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'"
+                        @click="toggleFullscreen"
+                    >
+                        <svg v-if="!isFullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__fullscreen-icon">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__fullscreen-icon">
+                            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+
                     <a
                         v-if="tmdbShow && partyHref"
                         :href="partyHref"
                         class="watch-stage__party-btn"
-                        title="Watch Together with friends!"
+                        title="Watch Together"
                         rel="nofollow"
                         @click.prevent="handleWatchTogether"
                     >
@@ -150,32 +184,33 @@
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                         </svg>
-                        <span class="button-text">Watch Together</span>
+                        <span class="watch-stage__party-label">Watch Together</span>
                     </a>
                 </div>
             </div>
-        </header>
+        </div>
 
-        <main class="watch-stage__main" id="main">
-            <div class="watch-stage__theater">
-                <div class="watch-stage__player-container">
-                    <StreamFrame
-                        :embed-url="currentEmbedUrl"
-                        :title="animeTitle || 'Anime Player'"
-                        :backdrop-path="tmdbBackdropPath"
-                        :poster-path="tmdbPosterPath"
-                        :media-id="resolvedAnilistId || animeId"
-                        media-type="anime"
-                        :embed-provider="isAnimeplayServer ? 'animeplay' : 'default'"
-                        :episode="currentEpisode"
-                        @switch-to-server="activeServerIndex = $event"
-                    />
-                </div>
+        <!-- Up-Next drawer -->
+        <UpNextDrawer
+            v-if="availableSeasons.length && !isFullscreen"
+            ref="upNextDrawerRef"
+            :current-season="navigatorSeason"
+            :current-episode="currentEpisode"
+            :season-episodes="seasonEpisodes"
+            :next-season-number="nextSeasonNumber"
+            :next-season-episodes="nextSeasonEpisodes"
+            :is-loading="isLoadingEpisodes"
+            :seasons="seasonsDropdownList"
+            :preview-episodes="previewEpisodes"
+            :is-preview-loading="isPreviewLoading"
+            @select="onUpNextSelect"
+            @season-change="onUpNextSeasonChange"
+            @preview-season="onPreviewSeason"
+        />
 
-            </div>
-
-            <!-- Mobile Episode Reel/Navigator Panel -->
-            <div v-if="availableSeasons.length" class="watch-stage__mobile-episodes">
+        <!-- Scrollable content below the fixed video -->
+        <div v-if="!isEmbed && tmdbShow" class="watch-stage__rack">
+            <div class="watch-stage__mobile-episodes">
                 <EpisodeNavigator
                     :available-seasons="availableSeasons"
                     :season-episodes="seasonEpisodes"
@@ -192,28 +227,8 @@
                     @next="goToNextEpisode"
                 />
             </div>
-
-            <section v-if="animeId" class="watch-stage__rack">
-                <CommentsSection :media-id="animeId" media-type="anime" />
-            </section>
-        </main>
-
-        <UpNextDrawer
-            v-if="availableSeasons.length"
-            ref="upNextDrawerRef"
-            :current-season="navigatorSeason"
-            :current-episode="currentEpisode"
-            :season-episodes="seasonEpisodes"
-            :next-season-number="nextSeasonNumber"
-            :next-season-episodes="nextSeasonEpisodes"
-            :is-loading="isLoadingEpisodes"
-            :seasons="seasonsDropdownList"
-            :preview-episodes="previewEpisodes"
-            :is-preview-loading="isPreviewLoading"
-            @select="onUpNextSelect"
-            @season-change="onUpNextSeasonChange"
-            @preview-season="onPreviewSeason"
-        />
+            <CommentsSection :media-id="animeId" media-type="anime" />
+        </div>
     </div>
 </template>
 
@@ -414,6 +429,50 @@ export default defineComponent({
         );
 
         const isNavigatingToParty = ref(false);
+
+        const isEmbed = computed(() => Boolean(route.meta.bareLayout));
+
+        const controlsVisible = ref(true);
+        let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const showControls = () => {
+            controlsVisible.value = true;
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                controlsVisible.value = false;
+            }, 3000);
+        };
+
+        const scheduleHide = () => {
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                controlsVisible.value = false;
+            }, 800);
+        };
+
+        const isFullscreen = ref(false);
+
+        const toggleFullscreen = async () => {
+            if (!document.fullscreenElement) {
+                try {
+                    await document.documentElement.requestFullscreen();
+                    isFullscreen.value = true;
+                } catch {
+                    isFullscreen.value = false;
+                }
+            } else {
+                try {
+                    await document.exitFullscreen();
+                    isFullscreen.value = false;
+                } catch {
+                    isFullscreen.value = true;
+                }
+            }
+        };
+
+        const onFullscreenChange = () => {
+            isFullscreen.value = !!document.fullscreenElement;
+        };
 
         const embedEpisode = computed(() => {
             if (!isAnimeplayServer.value) return currentEpisode.value;
@@ -1068,11 +1127,14 @@ export default defineComponent({
             loadAnime(animeId.value);
             window.addEventListener('message', handlePlayerMessage);
             window.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('fullscreenchange', onFullscreenChange);
+            showControls();
         });
 
         onUnmounted(() => {
             window.removeEventListener('message', handlePlayerMessage);
             window.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
         });
 
         watch(
@@ -1162,7 +1224,13 @@ export default defineComponent({
             onPreviewSeason,
             upNextDrawerRef,
             openEpisodePicker,
-            useWebImage
+            useWebImage,
+            isEmbed,
+            controlsVisible,
+            showControls,
+            scheduleHide,
+            isFullscreen,
+            toggleFullscreen
         };
     }
 });
@@ -1170,194 +1238,251 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .watch-stage {
+    position: relative;
+    width: 100vw;
     min-height: 100dvh;
-    height: auto;
-    // clip — not hidden — so overflow-y stays visible and the page scrolls (not this box)
-    overflow-x: clip;
-    overflow-y: visible;
-    background-color: var(--ink-950);
-    color: var(--bone-50);
+    background: #080A10;
+    color: #fff;
+    overflow-x: hidden;
+    cursor: none;
 
-    &__chrome {
-        background: rgba(10, 10, 12, 0.85);
-        backdrop-filter: blur(16px);
-        border-bottom: 1px solid var(--rule);
-        position: sticky;
-        top: 0;
-        z-index: 10;
+    &.controls-visible {
+        cursor: default;
 
-        @media (min-width: 1024px) {
-            position: fixed;
-            left: 0;
-            right: 0;
+        .watch-stage__top-overlay {
+            opacity: 1;
+            pointer-events: auto;
         }
     }
 
-    &__chrome-inner {
-        max-width: var(--container-max);
-        margin: 0 auto;
-        padding: 0.75rem var(--s-6);
+    // ── Video layer
+    &__video-layer {
+        position: absolute;
+        inset: 0;
+        width: 100vw;
+        height: 100dvh;
+        z-index: 0;
+
+        :deep(.stream-frame) {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        :deep(.stream-frame__stage) {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        :deep(.stream-frame__player) {
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+            box-shadow: none;
+            border: 0;
+            background: #080A10;
+        }
+    }
+
+    // ── TOP overlay
+    &__top-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+
+    &__top-gradient {
+        position: absolute;
+        inset: 0;
+        height: 180px;
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+        pointer-events: none;
+    }
+
+    &__top-bar {
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: var(--s-4);
-
-        @media (max-width: 1023px) {
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            grid-template-areas: 'crumb title actions';
-            gap: var(--s-3) var(--s-4);
-        }
+        gap: 1rem;
+        padding: 1.25rem calc(2rem + env(safe-area-inset-left, 0px)) 1rem calc(2rem + env(safe-area-inset-right, 0px));
 
         @media (max-width: 640px) {
-            grid-template-columns: auto 1fr;
-            grid-template-areas:
-                'crumb actions'
-                'title title';
-            padding: var(--s-2) var(--s-3);
-            gap: var(--s-2);
+            padding: 0.75rem 1rem;
         }
     }
 
-    &__crumb {
-        grid-area: crumb;
+    &__top-left {
         display: flex;
         align-items: center;
-        gap: var(--s-3);
+        gap: 0.75rem;
+        min-width: 0;
+        flex: 1;
+    }
 
-        @media (max-width: 1023px) {
-            .eyebrow {
-                display: none !important;
-            }
-        }
+    &__top-right {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-shrink: 0;
     }
 
     &__back {
-        background: none;
-        border: none;
-        color: var(--bone-200);
+        all: unset;
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(8px);
         cursor: pointer;
-        padding: 0.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: color var(--dur-fast), transform var(--dur-fast);
+        color: #fff;
+        transition: background 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            color: var(--ember);
+            background: rgba(255, 90, 31, 0.85);
             transform: translateX(-2px);
         }
 
-        svg {
-            width: 20px;
-            height: 20px;
-        }
+        :deep(svg) { width: 18px; height: 18px; }
 
-        @media (max-width: 640px) {
-            display: grid;
-            place-items: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--surface-tint);
-            color: var(--bone-100);
-            padding: 0;
-
-            svg {
-                width: 18px;
-                height: 18px;
-            }
-        }
+        @media (max-width: 640px) { width: 36px; height: 36px; }
     }
 
-    &__title-block {
-        grid-area: title;
-        text-align: center;
+    &__breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+        @media (max-width: 640px) { display: none; }
+    }
+
+    &__breadcrumb-sep {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 1.1rem;
+        flex-shrink: 0;
     }
 
     &__title {
-        font-family: var(--font-display);
-        font-weight: 600;
-        font-size: 1.15rem;
         margin: 0;
-        color: var(--bone-50);
+        font-family: var(--font-display, system-ui);
+        font-weight: 500;
+        font-size: 1.05rem;
+        letter-spacing: -0.02em;
+        color: rgba(255, 255, 255, 0.95);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
 
-        @media (max-width: 1023px) {
-            display: none !important;
-        }
+        @media (min-width: 768px) { font-size: 1.2rem; }
     }
 
     &__title-skeleton {
-        @media (max-width: 1023px) {
+        display: inline-block;
+        width: 180px;
+        height: 1.05rem;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.08);
+        animation: title-skeleton-pulse 1.4s ease-in-out infinite;
+    }
+
+    // Episode navigation pill
+    &__ep-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 999px;
+        padding: 0.3rem 0.5rem;
+        flex-shrink: 0;
+    }
+
+    &__nav-btn {
+        all: unset;
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.8);
+        transition: color 0.15s ease, background 0.15s ease;
+
+        &:hover:not(:disabled) {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        &:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+    }
+
+    &__ep-code {
+        font-family: var(--font-ui, system-ui);
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #fff;
+        letter-spacing: 0.03em;
+        padding: 0 0.35rem;
+        cursor: pointer;
+        user-select: none;
+
+        &:hover { color: rgba(255, 255, 255, 0.7); }
+    }
+
+    // Language pill (inline sub/dub toggle)
+    &__lang-pill {
+        display: flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 999px;
+        padding: 2px;
+        gap: 2px;
+
+        @media (max-width: 900px) {
             display: none !important;
         }
     }
 
-    &__code {
-        font-family: var(--font-mono);
-        font-size: 0.75rem;
-        color: var(--ember);
-        margin-top: 0;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        cursor: pointer;
-        padding: 2px 8px;
-        border-radius: var(--r-md);
-        transition: background-color var(--dur-fast), color var(--dur-fast);
-
-        &:hover {
-            background-color: var(--ink-700);
-            color: var(--bone-50);
-        }
-    }
-
-    &__episode-nav {
-        display: flex;
+    &__lang-pill-btn {
+        all: unset;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
-        margin-top: 4px;
-    }
-
-    &__nav-btn {
-        background: none;
-        border: none;
-        color: var(--bone-400);
+        padding: 0.25rem 0.6rem;
+        min-height: 26px;
+        border-radius: 999px;
+        font-family: var(--font-ui, system-ui);
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.5);
         cursor: pointer;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--r-sm);
-        transition: color var(--dur-fast), background-color var(--dur-fast);
+        transition: all 0.15s ease;
 
-        &:hover:not(:disabled) {
-            color: var(--ember);
-            background: rgba(255, 255, 255, 0.08);
-        }
+        &:hover { color: rgba(255, 255, 255, 0.8); }
 
-        &:disabled {
-            color: var(--bone-700);
-            cursor: not-allowed;
-            opacity: 0.35;
-        }
-
-        svg {
-            width: 14px;
-            height: 14px;
+        &.is-active {
+            background: rgba(255, 90, 31, 0.85);
+            color: #fff;
         }
     }
 
-    &__actions {
-        grid-area: actions;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: var(--s-2);
-        min-width: 0;
-        flex-wrap: wrap;
-    }
-
+    // Options dropdown
     &__options {
         position: relative;
 
@@ -1365,72 +1490,34 @@ export default defineComponent({
             transform: rotate(180deg);
         }
 
-        @media (max-width: 1023px) {
+        @media (max-width: 900px) {
             display: none !important;
-        }
-    }
-
-    &__lang-toggle {
-        display: none;
-
-        @media (max-width: 1023px) {
-            display: inline-flex;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--rule-strong);
-            border-radius: var(--r-pill);
-            padding: 3px;
-            height: 36px;
-            box-sizing: border-box;
-            gap: 2px;
-        }
-    }
-
-    &__lang-btn {
-        all: unset;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 0.65rem;
-        height: 100%;
-        font-family: var(--font-ui);
-        font-size: 0.72rem;
-        font-weight: 700;
-        color: var(--bone-400);
-        border-radius: var(--r-pill);
-        cursor: pointer;
-        transition: all var(--dur-fast);
-
-        &.is-active {
-            background: var(--ember);
-            color: var(--ink-950);
         }
     }
 
     &__options-trigger {
         display: inline-flex;
         align-items: center;
-        gap: var(--s-2);
-        min-height: 38px;
-        padding: 0.45rem 0.9rem;
-        border: 1px solid var(--rule-strong);
-        border-radius: var(--r-pill);
+        gap: 0.5rem;
+        min-height: 36px;
+        padding: 0.35rem 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 999px;
         background: rgba(255, 255, 255, 0.08);
-        color: var(--bone-50);
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
-        font-weight: 700;
+        backdrop-filter: blur(8px);
+        color: rgba(255, 255, 255, 0.9);
+        font-family: var(--font-ui, system-ui);
+        font-size: 0.8rem;
+        font-weight: 600;
         list-style: none;
         cursor: pointer;
 
-        &::-webkit-details-marker {
-            display: none;
-        }
+        &::-webkit-details-marker { display: none; }
 
         svg {
-            width: 16px;
-            height: 16px;
-            transition: transform var(--dur-base) var(--ease-out);
+            width: 14px;
+            height: 14px;
+            transition: transform 0.2s ease;
         }
 
         @media (max-width: 640px) {
@@ -1438,396 +1525,189 @@ export default defineComponent({
             min-height: 36px;
             padding: 0;
             justify-content: center;
-
-            span {
-                display: none;
-            }
+            span { display: none; }
         }
     }
 
     &__options-menu {
         position: absolute;
-        top: calc(100% + var(--s-2));
+        top: calc(100% + 0.5rem);
         right: 0;
-        z-index: calc(var(--z-header) + 1);
-        width: min(340px, calc(100vw - var(--s-4)));
+        z-index: 60;
+        width: min(340px, calc(100vw - 2rem));
         display: grid;
-        gap: var(--s-4);
-        padding: var(--s-4);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-lg);
-        background: rgba(19, 17, 14, 0.98);
+        gap: 1rem;
+        padding: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        background: rgba(16, 16, 20, 0.97);
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
         backdrop-filter: blur(16px);
     }
 
     &__option-group {
         display: grid;
-        gap: var(--s-2);
+        gap: 0.5rem;
     }
 
     &__option-label {
         margin: 0;
-        color: var(--bone-400);
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
     &__option-select {
         width: 100%;
         min-height: 40px;
         padding: 0 2.4rem 0 0.9rem;
-        border: 1px solid var(--rule);
-        border-radius: var(--r-md);
-        background: var(--ink-800);
-        color: var(--bone-50);
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        color: rgba(255, 255, 255, 0.9);
+        font-family: var(--font-ui, system-ui);
+        font-size: 0.85rem;
+        cursor: pointer;
+        appearance: none;
+        outline: none;
+
+        &:hover, &:focus {
+            border-color: rgba(255, 90, 31, 0.5);
+        }
     }
 
     &__language-tabs {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: var(--s-2);
+        gap: 0.5rem;
         padding: 4px;
-        border: 1px solid var(--rule);
-        border-radius: var(--r-md);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
         background: rgba(0, 0, 0, 0.2);
     }
 
     &__language-btn {
         min-height: 34px;
         padding: 0.45rem 0.7rem;
-        border-radius: var(--r-sm);
-        color: var(--bone-300);
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.4);
+        font-family: var(--font-ui, system-ui);
+        font-size: 0.8rem;
         font-weight: 600;
-        transition: color var(--dur-fast), background-color var(--dur-fast);
+        cursor: pointer;
+        transition: all 0.15s ease;
 
-        &:hover {
-            color: var(--bone-50);
-        }
+        &:hover { color: rgba(255, 255, 255, 0.8); }
 
         &.is-active {
-            background: var(--ember);
-            color: var(--ink-900);
+            background: rgba(255, 90, 31, 0.85);
+            color: #fff;
         }
     }
 
+    // Fullscreen toggle button
+    &__fullscreen-btn {
+        all: unset;
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(8px);
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.8);
+        transition: background 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            background: rgba(255, 90, 31, 0.85);
+            color: #fff;
+        }
+
+        @media (max-width: 640px) {
+            width: 32px;
+            height: 32px;
+        }
+    }
+
+    &__fullscreen-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    // Party / Watch Together button
     &__party-btn {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: rgba(255, 90, 31, 0.08);
-        border: 1px solid rgba(255, 90, 31, 0.25);
-        border-radius: var(--r-pill);
-        color: var(--ember);
-        padding: 0.5rem 1.1rem;
-        min-height: 38px;
-        font-family: var(--font-ui);
-        font-size: var(--fs-sm);
+        background: rgba(255, 90, 31, 0.12);
+        border: 1px solid rgba(255, 90, 31, 0.3);
+        backdrop-filter: blur(8px);
+        border-radius: 999px;
+        color: #ff7842;
+        padding: 0.45rem 1rem;
+        min-height: 36px;
+        font-family: var(--font-ui, system-ui);
+        font-size: 0.8125rem;
         font-weight: 600;
         text-decoration: none;
-        transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            background: rgba(255, 90, 31, 0.16);
-            border-color: rgba(255, 90, 31, 0.45);
+            background: rgba(255, 90, 31, 0.22);
+            border-color: rgba(255, 90, 31, 0.5);
             transform: translateY(-1px);
         }
 
         @media (max-width: 640px) {
             width: 36px;
-            min-height: 36px;
             padding: 0;
-            display: inline-grid;
-            place-items: center;
-
-            .button-text {
-                display: none;
-            }
+            justify-content: center;
         }
+    }
+
+    &__party-label {
+        @media (max-width: 640px) { display: none; }
     }
 
     &__party-icon {
-        width: 16px;
-        height: 16px;
-    }
-
-    &__party-icon {
-        width: 16px;
-        height: 16px;
-    }
-
-    &__main {
-        display: grid;
-        gap: 0;
-    }
-
-    &__theater {
-        display: grid;
-        gap: var(--s-5);
-        max-width: var(--container-max);
-        width: 100%;
-        margin: 0 auto;
-        box-sizing: border-box;
-
-        @media (max-width: 1023px) {
-            display: flex;
-            flex-direction: column;
-            gap: var(--s-4);
-            padding: var(--s-3);
-            height: auto;
-            min-height: 0;
-        }
-
-        @media (min-width: 1024px) {
-            min-height: 100dvh;
-            padding: 72px var(--s-5) var(--s-2) var(--s-5);
-            grid-template-columns: 1fr;
-            align-items: stretch;
-        }
-    }
-
-    &__player-container {
-        min-width: 0;
+        width: 15px;
+        height: 15px;
         flex-shrink: 0;
-
-        @media (max-width: 1023px) {
-            width: 100%;
-
-            :deep(.stream-frame__stage) {
-                padding: 0;
-            }
-
-            :deep(.stream-frame__player) {
-                border-radius: var(--r-md);
-            }
-        }
-
-        @media (min-width: 1024px) {
-            :deep(.stream-frame__player) {
-                width: 100%;
-                max-width: calc(80vh * 16 / 9);
-                aspect-ratio: 16 / 9;
-                height: auto;
-                margin: 0 auto;
-            }
-        }
     }
 
-    .player-stage-container {
-        width: 100%;
-        height: 100%;
-    }
-
-    .stream-iframe {
-        width: 100%;
-        height: 100%;
-        border: none;
-        background: #000;
-    }
-
-    &__aside {
-        min-width: 0;
-        flex-shrink: 0;
-
-        @media (max-width: 1023px) {
-            padding: 0;
-            width: 100%;
-        }
-
-        @media (min-width: 1024px) {
-            position: relative;
-            align-self: stretch;
-        }
-
-        :deep(.server-accordion) {
-            @media (max-width: 1023px) {
-                display: none !important;
-            }
-        }
-    }
-
-    &__server-picker {
-        display: none;
-
-        @media (max-width: 1023px) {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--rule-strong);
-            border-radius: var(--r-pill);
-            padding: 0.5rem 2.25rem 0.5rem 1rem;
-            min-height: 38px;
-            font-family: var(--font-ui);
-            font-size: var(--fs-sm);
-            font-weight: 600;
-            color: var(--bone-50);
-            cursor: pointer;
-            transition: background-color var(--dur-fast), border-color var(--dur-fast);
-
-            &:hover {
-                background: rgba(255, 255, 255, 0.12);
-                border-color: var(--bone-400);
-            }
-
-            @media (max-width: 640px) {
-                min-height: 36px;
-                padding: 0.4rem 2rem 0.4rem 0.85rem;
-            }
-        }
-    }
-
-    &__server-select {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-        -webkit-appearance: none;
-    }
-
-    &__server-select-arrow {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 16px;
-        height: 16px;
-        color: var(--bone-300);
-
-        svg {
-            width: 100%;
-            height: 100%;
-        }
-
-        @media (max-width: 640px) {
-            right: 8px;
-        }
-    }
-
+    // ── Rack: scrollable section below the fixed 100dvh video
     &__rack {
         position: relative;
-        z-index: 2;
-        max-width: var(--container-max);
+        z-index: 1;
+        margin-top: 100dvh;
+        max-width: var(--container-max, 1280px);
         width: 100%;
-        margin: 0 auto;
-        padding: var(--s-5) var(--s-4) calc(var(--s-7) + env(safe-area-inset-bottom, 0px));
+        margin-left: auto;
+        margin-right: auto;
+        padding: 2rem 1.25rem calc(5rem + env(safe-area-inset-bottom, 0px));
         box-sizing: border-box;
-        pointer-events: auto;
+        background: #080A10;
 
         @media (min-width: 768px) {
-            padding: var(--s-6) var(--s-5) calc(var(--s-7) + env(safe-area-inset-bottom, 0px));
-        }
-
-        &:last-of-type {
-            padding-bottom: calc(var(--s-9) + env(safe-area-inset-bottom, 0px));
+            padding: 2.5rem 2rem calc(5rem + env(safe-area-inset-bottom, 0px));
         }
     }
 
-    &__feature {
-        display: grid;
-        gap: var(--s-6);
-        max-width: var(--container-max);
-        margin: 0 auto;
-        width: 100%;
-        box-sizing: border-box;
-        padding: var(--s-6) var(--s-4);
-
-        @media (max-width: 1023px) {
-            height: auto;
-            min-height: 0;
-            align-content: start;
-            padding: var(--s-5) var(--s-3) var(--s-4);
-            grid-template-columns: 1fr;
-        }
-
-        @media (min-width: 1024px) {
-            padding: var(--s-6) var(--s-5);
-            grid-template-columns: 280px 1fr;
-            align-items: center;
-        }
-
-        @media (min-width: 768px) and (max-width: 1023px) {
-            grid-template-columns: 1fr;
-            align-items: start;
-        }
+    &__mobile-episodes {
+        margin-bottom: 1.5rem;
     }
-
-    &__poster {
-        position: relative;
-        aspect-ratio: 2 / 3;
-        max-width: 280px;
-        border-radius: var(--r-lg);
-        overflow: hidden;
-        box-shadow: var(--shadow-lg);
-        margin: 0 auto;
-
-        @media (max-width: 1023px) {
-            display: none !important;
-        }
-
-        img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-    }
-
-    &__feature-body {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-
-    &__feature-title {
-        font-family: var(--font-display);
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin-top: var(--s-1);
-        margin-bottom: var(--s-3);
-    }
-
-    &__meta {
-        list-style: none;
-        padding: 0;
-        margin: 0 0 var(--s-4) 0;
-        display: flex;
-        gap: var(--s-5);
-        font-size: var(--fs-sm);
-
-        li {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .meta {
-            font-size: var(--fs-xs);
-            color: var(--bone-450);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-    }
-
-    &__overview {
-        color: var(--bone-300);
-        line-height: 1.6;
-        font-size: var(--fs-sm);
-        max-width: 60ch;
-    }
-
-
 }
 
-// Hide scroll car on all watch/stream pages
+@keyframes title-skeleton-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+}
+
 :global(.scroll-car-container) {
     display: none !important;
 }

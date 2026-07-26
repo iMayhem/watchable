@@ -873,7 +873,7 @@ export default defineComponent({
         padding: 0.1rem 0.4rem;
         background: var(--ink-700);
         border: 1px solid var(--rule);
-        border-radius: 999px;
+        border-radius: var(--r-sm);
         color: var(--bone-300);
 
         @media (max-width: 1024px) {
@@ -981,7 +981,7 @@ export default defineComponent({
         padding: 6px 14px;
         background: rgba(255, 90, 31, 0.08);
         border: 1px solid rgba(255, 90, 31, 0.25);
-        border-radius: var(--r-sm);
+        border-radius: 999px;
         color: var(--ember);
         font-family: var(--font-ui);
         font-size: var(--fs-xs);

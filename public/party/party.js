@@ -1161,6 +1161,7 @@
             if (opts.useCache !== false && partySeasonEpisodesCache.has(cacheKey)) {
                 netflixEpisodes = partySeasonEpisodesCache.get(cacheKey);
                 renderPartyEpisodeList();
+                renderBarEpisodeList();
                 return;
             }
 
@@ -1173,6 +1174,7 @@
             }));
             partySeasonEpisodesCache.set(cacheKey, netflixEpisodes);
             renderPartyEpisodeList();
+            renderBarEpisodeList();
         }
 
         function buildPartyPlaceholderEpisodes(count, startSeason) {
@@ -1191,6 +1193,8 @@
             netflixSupportsEpisodes = true;
             renderPartySeasonSelect();
             renderPartyEpisodeList();
+            renderBarSeasonSelect();
+            renderBarEpisodeList();
         }
 
         function applyPartyEpisodeCache(meta) {
@@ -1213,6 +1217,8 @@
             applyPartyEpisodeTitle(meta);
             renderPartySeasonSelect();
             renderPartyEpisodeList();
+            renderBarSeasonSelect();
+            renderBarEpisodeList();
             return true;
         }
 
@@ -1226,6 +1232,8 @@
                 netflixEpisodes = [];
                 renderPartySeasonSelect();
                 renderPartyEpisodeList();
+                renderBarSeasonSelect();
+                renderBarEpisodeList();
                 updatePartyNfEpisodesButton();
                 updatePartyNfAutoNextButton();
                 return;
@@ -1277,6 +1285,7 @@
                 if (partySeasonEpisodesCache.has(cacheKey)) {
                     netflixEpisodes = partySeasonEpisodesCache.get(cacheKey);
                     renderPartyEpisodeList();
+                    renderBarEpisodeList();
                     return;
                 }
 
@@ -1290,6 +1299,8 @@
                 } finally {
                     setPartyEpisodesLoading(false);
                 }
+                renderBarSeasonSelect();
+                renderBarEpisodeList();
                 scrollPartyEpisodeIntoView();
                 return;
             }
@@ -1342,6 +1353,8 @@
                 netflixSupportsEpisodes = netflixEpisodes.length > 1 || isTv;
                 renderPartySeasonSelect();
                 renderPartyEpisodeList();
+                renderBarSeasonSelect();
+                renderBarEpisodeList();
                 updatePartyNfEpisodesButton();
                 updatePartyNfAutoNextButton();
                 scrollPartyEpisodeIntoView();
@@ -1410,6 +1423,115 @@
             }
             setPartyNfMenuOpen(false);
             schedulePartyNfControlsHide();
+        }
+
+        // ── Bar Episodes Drop-up (moovie player) ──────────────────────────────
+
+        function renderBarEpisodeList() {
+            const list = document.getElementById('party-bar-episodes-list');
+            if (!list) return;
+            if (!netflixEpisodes.length) {
+                list.innerHTML = '<p class="party-nf-watch__episodes-empty">No episodes found.</p>';
+                return;
+            }
+            list.innerHTML = netflixEpisodes.map((ep) => {
+                const active = ep.episode_number === episode && partyViewingSeason === season;
+                const thumb = ep.still_path
+                    ? `<img src="${partyStillUrl(ep.still_path)}" alt="" loading="lazy" />`
+                    : `<div class="party-nf-watch__episode-thumb-fallback">${ep.episode_number}</div>`;
+                const playing = active
+                    ? `<span class="party-nf-watch__episode-playing" aria-hidden="true">${PARTY_EP_PLAYING_SVG}</span>`
+                    : '';
+                return `
+                    <button type="button"
+                        class="party-nf-watch__episode-card ${active ? 'is-active' : ''}"
+                        data-episode="${ep.episode_number}"
+                        data-season="${partyViewingSeason}"
+                    >
+                        <div class="party-nf-watch__episode-thumb">${thumb}${playing}</div>
+                        <div class="party-nf-watch__episode-meta">
+                            <span class="party-nf-watch__episode-num">${ep.episode_number}</span>
+                            <span class="party-nf-watch__episode-name">${partyEscapeHtml(ep.name || `Episode ${ep.episode_number}`)}</span>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderBarSeasonSelect() {
+            const select = document.getElementById('party-bar-season-select');
+            if (!select) return;
+            if (!netflixSeasons.length || isAnime) {
+                select.closest('.bar-episodes-dropup__season').hidden = true;
+                return;
+            }
+            const seasonWrap = select.closest('.bar-episodes-dropup__season');
+            if (seasonWrap) seasonWrap.hidden = false;
+            select.innerHTML = netflixSeasons.map((row) => `
+                <option value="${row.season_number}" ${row.season_number === partyViewingSeason ? 'selected' : ''}>
+                    ${row.name || `Season ${row.season_number}`}${row.episode_count ? ` (${row.episode_count})` : ''}
+                </option>
+            `).join('');
+        }
+
+        function openPartyBarEpisodesPanel() {
+            if (!isHost) return;
+            const panel = document.getElementById('party-bar-episodes-panel');
+            if (!panel) return;
+            if (!panel.hidden) { closePartyBarEpisodesPanel(); return; }
+            panel.hidden = false;
+            partyViewingSeason = season;
+            renderBarSeasonSelect();
+            renderBarEpisodeList();
+            requestAnimationFrame(() => {
+                const active = panel.querySelector('.party-nf-watch__episode-card.is-active');
+                if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            });
+            if (activeRoom?.movie_title) {
+                void upgradePartyEpisodeCatalog({ title: activeRoom.movie_title });
+            }
+        }
+
+        function closePartyBarEpisodesPanel() {
+            const panel = document.getElementById('party-bar-episodes-panel');
+            if (panel) panel.hidden = true;
+        }
+
+        function onPartyBarSeasonChange(select) {
+            const nextSeason = parseInt(select?.value, 10);
+            if (!Number.isFinite(nextSeason) || nextSeason === partyViewingSeason) return;
+            partyViewingSeason = nextSeason;
+            if (netflixTmdbShowId) {
+                void ensurePartySeasonEpisodes(nextSeason);
+            } else if (activeRoom?.movie_title) {
+                void upgradePartyEpisodeCatalog({ title: activeRoom.movie_title });
+            }
+        }
+
+        window.openPartyBarEpisodesPanel = openPartyBarEpisodesPanel;
+        window.closePartyBarEpisodesPanel = closePartyBarEpisodesPanel;
+        window.onPartyBarSeasonChange = onPartyBarSeasonChange;
+
+        function initPartyBarEpisodesPanel() {
+            const list = document.getElementById('party-bar-episodes-list');
+            if (!list) return;
+            list.addEventListener('click', (e) => {
+                const card = e.target.closest('.party-nf-watch__episode-card');
+                if (!card || !list.contains(card)) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const epNum = parseInt(card.dataset.episode, 10);
+                const seasonNum = parseInt(card.dataset.season, 10);
+                if (!Number.isFinite(epNum)) return;
+                closePartyBarEpisodesPanel();
+                selectPartyEpisode(epNum, Number.isFinite(seasonNum) ? seasonNum : partyViewingSeason);
+            });
+            document.addEventListener('pointerdown', (e) => {
+                const panel = document.getElementById('party-bar-episodes-panel');
+                if (!panel || panel.hidden) return;
+                if (e.target.closest('#party-bar-episodes-panel, #party-bar-episodes-btn')) return;
+                closePartyBarEpisodesPanel();
+            });
         }
 
         function getNextPartyEpisodeTarget() {
@@ -1515,6 +1637,7 @@
             if (partyNfUiBound) return;
             partyNfUiBound = true;
             bindPartyEpisodesList();
+            initPartyBarEpisodesPanel();
             bindPartyNfControlsIdle();
             bindPartyNfVideoContentArea();
 

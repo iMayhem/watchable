@@ -422,7 +422,7 @@
                     </div>
 
                     <!-- Autoplay and Navigation Controls -->
-                    <div class="player-controls-bar" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--r-md); border: 1px solid var(--rule); display: none; position: relative;">
+                    <div class="player-controls-bar" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--r-md); border: 1px solid var(--rule); display: none;">
                         <div class="controls-left" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; flex: 1; min-width: 0;">
                             <button id="party-auto-next-btn" class="btn" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(139, 92, 246, 0.4); color: var(--bone-200); padding: 0.4rem 0.85rem; border-radius: var(--r-pill); font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; flex-shrink: 0;" onclick="togglePartyAutoNext()">
                                 <span class="indicator-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 6px var(--violet); display: inline-block;"></span>
@@ -455,7 +455,7 @@
                                 id="party-bar-episodes-btn"
                                 class="cinema-mode-btn"
                                 hidden
-                                onclick="openPartyBarEpisodesPanel()"
+                                onclick="openPartyEpisodesPanel()"
                             >Episodes</button>
                             <div class="make-host-wrap" style="position: relative;">
                                 <button
@@ -498,19 +498,6 @@
                             </div>
                         </div>
 
-                        <!-- Episodes Drop-Up (inside controls bar) -->
-                        <div id="party-bar-episodes-panel" class="bar-episodes-dropup" hidden>
-                            <div class="bar-episodes-dropup__head">
-                                <span class="bar-episodes-dropup__title">Episodes</span>
-                                <button type="button" class="bar-episodes-dropup__close" onclick="closePartyBarEpisodesPanel()" aria-label="Close episodes">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                </button>
-                            </div>
-                            <div class="bar-episodes-dropup__season">
-                                <select id="party-bar-season-select" class="bar-episodes-dropup__select" onchange="onPartyBarSeasonChange(this)"></select>
-                            </div>
-                            <div id="party-bar-episodes-list" class="bar-episodes-dropup__list"></div>
-                        </div>
                     </div>
 
                 </div>

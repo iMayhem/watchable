@@ -1321,6 +1321,16 @@ export default defineComponent({
                 await new Promise<void>((resolve, reject) => {
 
                     hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
+                        // NetMirror's alternate audio playlists are MPEG-TS bytes
+                        // served with a text/javascript MIME type. HLS.js can still
+                        // play the main video, but reports the secondary track load as
+                        // fatal. Keep playback alive and let the user choose another
+                        // track instead of replacing the player with an error state.
+                        if (data.details === 'audioTrackLoadError') {
+                            console.warn('[MoovieFrame] ignoring non-fatal audio track load error')
+                            buffering.value = false
+                            return
+                        }
                         if (data.fatal) {
                             console.error('[MoovieFrame] HLS fatal error:', data.type, data.details)
                             buffering.value = false

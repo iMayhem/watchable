@@ -2369,8 +2369,17 @@ export default defineComponent({
                 return
             }
 
-            const firstTrack = subtitleTracks.value[0]
-            if (firstTrack) void selectSubtitleTrack(firstTrack.id)
+            // Prefer English whenever captions are enabled. Track names from HLS
+            // and OpenSubtitles vary (English, en, eng, English (US), etc.), so
+            // match both the language code and the display label before falling
+            // back to the first available track.
+            const englishTrack = subtitleTracks.value.find(track => {
+                const name = (track.name || '').toLowerCase()
+                const lang = (track.lang || '').toLowerCase()
+                return name.includes('english') || /^(en|eng)([-_]|$)/.test(lang)
+            })
+            const trackToEnable = englishTrack || subtitleTracks.value[0]
+            if (trackToEnable) void selectSubtitleTrack(trackToEnable.id)
         }
 
 

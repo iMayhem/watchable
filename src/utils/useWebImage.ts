@@ -4,8 +4,8 @@ import { MovieDetails } from '../composables/useMovies';
 import { TVShowDetails } from '../composables/useTvShows';
 import { getSettings } from '../composables/useSettings';
 
-// TMDB posters/backdrops load directly from image.tmdb.org (browser → TMDB CDN).
-const TMDB_BASE = 'https://image.tmdb.org/t/p/';
+// TMDB posters/backdrops load via proxy.moovie.fun (30-Day Disk & Edge Cache).
+const TMDB_BASE = 'https://proxy.moovie.fun/tmdb-image/';
 let vpsProxyBaseUrl = '';
 
 export function setVpsProxyBaseUrl(url: string) {

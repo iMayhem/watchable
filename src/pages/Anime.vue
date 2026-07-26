@@ -225,6 +225,7 @@ export default defineComponent({
                                      filters.value.yearRange[1] === CURRENT_YEAR && 
                                      filters.value.sortBy === 'TRENDING_DESC';
 
+            let loadedDefaultCache = false;
             if (isInitialDefault) {
                 const cached = localStorage.getItem(CACHE_KEY);
                 if (cached) {
@@ -235,12 +236,18 @@ export default defineComponent({
                             totalPages.value = parsed.totalPages || 1;
                             totalResults.value = parsed.totalResults || 0;
                             isLoading.value = false;
+                            loadedDefaultCache = true;
                         }
                     } catch (e) {
                         console.error('Failed to parse anime cache', e);
                     }
                 }
             }
+
+            // Keep the default trending lineup stable while its 12-hour cache is
+            // valid. AniList may reorder TRENDING_DESC between identical requests,
+            // which otherwise makes posters visibly shuffle whenever this tab mounts.
+            if (loadedDefaultCache && !append) return;
 
             if (append) {
                 isLoadingMore.value = true;

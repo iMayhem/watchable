@@ -213,7 +213,7 @@ export function useDiscussPage() {
                 .limit(500);
 
             if (error) throw error;
-            selectedMovieComments.value = (data || []).filter((c: DiscussComment) => !isToxic(c.content || ''));
+            selectedMovieComments.value = data || [];
         } catch (e) {
             console.error(e);
         } finally {
@@ -232,7 +232,6 @@ export function useDiscussPage() {
                     { event: 'INSERT', schema: 'public', table: 'movora_comments' },
                     (payload: { new: DiscussComment }) => {
                         const newMsg = payload.new;
-                        if (isToxic(newMsg.content || '')) return;
                         if (
                             newMsg.media_type === selectedMovieType.value
                             && newMsg.media_id === selectedMovieId.value
@@ -351,7 +350,7 @@ export function useDiscussPage() {
     const fetchComments = async () => {
         loading.value = true;
         try {
-            comments.value = ((await consumeLoungeFeed()) as DiscussComment[]).filter(c => !isToxic(c.content || ''));
+            comments.value = (await consumeLoungeFeed()) as DiscussComment[];
             scrollToBottom();
         } catch (e) {
             console.error('Failed to load global discussions:', e);
@@ -363,7 +362,7 @@ export function useDiscussPage() {
     const fetchMovieComments = async () => {
         loadingMovie.value = true;
         try {
-            movieComments.value = ((await consumeReviewsFeed()) as DiscussComment[]).filter(c => !isToxic(c.content || ''));
+            movieComments.value = (await consumeReviewsFeed()) as DiscussComment[];
         } catch (e) {
             console.error('Failed to load movie reviews:', e);
         } finally {
@@ -393,7 +392,6 @@ export function useDiscussPage() {
                     { event: 'INSERT', schema: 'public', table: 'movora_chat' },
                     (payload: { new: DiscussComment }) => {
                         const newMsg = payload.new;
-                        if (isToxic(newMsg.content || '')) return;
                         if (!comments.value.some(c => c.id === newMsg.id)) {
                             comments.value.push(newMsg);
                             if (comments.value.length > 150) comments.value.shift();
@@ -423,7 +421,6 @@ export function useDiscussPage() {
                     { event: 'INSERT', schema: 'public', table: 'movora_comments' },
                     (payload: { new: DiscussComment }) => {
                         const newMsg = payload.new;
-                        if (isToxic(newMsg.content || '')) return;
                         if (
                             newMsg.media_type
                             && ['movie', 'tv', 'anime'].includes(newMsg.media_type)

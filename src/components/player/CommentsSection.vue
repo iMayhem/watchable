@@ -327,7 +327,7 @@ export default defineComponent({
 
                 if (error) throw error;
 
-                rawComments.value = (data || []).filter((c: Comment) => !isToxic(c.content));
+                rawComments.value = data || [];
                 processedComments.value = buildCommentTree(rawComments.value.map((c: any) => {
                     const isKnownUser = c.username === currentUsername.value;
                     return {

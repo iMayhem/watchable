@@ -172,6 +172,7 @@
 <script lang="ts">
 import { defineComponent, onMounted, ref, watch, computed } from 'vue';
 import { getSupabaseClient } from '../../lib/supabase';
+import { isToxic } from '../../composables/useToxicityFilter';
 
 interface Comment {
     id: number;
@@ -326,7 +327,7 @@ export default defineComponent({
 
                 if (error) throw error;
 
-                rawComments.value = data || [];
+                rawComments.value = (data || []).filter((c: Comment) => !isToxic(c.content));
                 processedComments.value = buildCommentTree(rawComments.value.map((c: any) => {
                     const isKnownUser = c.username === currentUsername.value;
                     return {
@@ -343,6 +344,11 @@ export default defineComponent({
 
         const submitMainComment = async () => {
             if (!newCommentText.value.trim()) return;
+            if (isToxic(newCommentText.value)) {
+                alert('Your comment has been removed for violating our community guidelines.');
+                submitting.value = false;
+                return;
+            }
             submitting.value = true;
 
             const nameToPost = isLoggedIn.value 
@@ -399,6 +405,11 @@ export default defineComponent({
 
         const submitReply = async (parentId: number) => {
             if (!replyText.value.trim()) return;
+            if (isToxic(replyText.value)) {
+                alert('Your reply has been removed for violating our community guidelines.');
+                submittingReply.value = false;
+                return;
+            }
             submittingReply.value = true;
 
             const nameToPost = isLoggedIn.value 

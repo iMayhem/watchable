@@ -354,6 +354,7 @@ import { useTvShows } from '../composables/useTvShows';
 import { useAniList } from '../composables/useAniList';
 import { resolveAnimeTmdbMetaByTmdbId, getAnilistIdForTmdbId } from '../composables/useAnimeTmdbArtwork';
 import { consumeLoungeFeed, consumeReviewsFeed, resetDiscussFeedCache } from '../composables/useDiscussPrefetch';
+import { isToxic } from '../composables/useToxicityFilter';
 
 interface Comment {
     id: string;
@@ -574,7 +575,7 @@ export default defineComponent({
                     .limit(500);
 
                 if (error) throw error;
-                selectedMovieComments.value = data || [];
+                selectedMovieComments.value = (data || []).filter((c: Comment) => !isToxic(c.content));
             } catch (e) {
                 console.error(e);
             } finally {
@@ -593,6 +594,7 @@ export default defineComponent({
                         { event: 'INSERT', schema: 'public', table: 'movora_comments' },
                         (payload: any) => {
                             const newMsg = payload.new as Comment;
+                            if (isToxic(newMsg.content)) return;
                             if (newMsg.media_type === selectedMovieType.value && newMsg.media_id === selectedMovieId.value) {
                                 if (!selectedMovieComments.value.some(c => c.id === newMsg.id)) {
                                     selectedMovieComments.value.push(newMsg);
@@ -611,6 +613,11 @@ export default defineComponent({
 
         const postSelectedMovieComment = async () => {
             if (!newSelectedCommentText.value.trim() || !selectedMovieId.value) return;
+            if (isToxic(newSelectedCommentText.value)) {
+                alert('Your comment has been removed for violating our community guidelines.');
+                submittingSelected.value = false;
+                return;
+            }
             submittingSelected.value = true;
 
             const nameToPost = isLoggedIn.value
@@ -734,7 +741,7 @@ export default defineComponent({
         const fetchComments = async () => {
             loading.value = true;
             try {
-                comments.value = (await consumeLoungeFeed()) as Comment[];
+                comments.value = ((await consumeLoungeFeed()) as Comment[]).filter(c => !isToxic(c.content));
                 scrollToBottom();
             } catch (e) {
                 console.error('Failed to load global discussions:', e);
@@ -747,7 +754,7 @@ export default defineComponent({
         const fetchMovieComments = async () => {
             loadingMovie.value = true;
             try {
-                movieComments.value = (await consumeReviewsFeed()) as Comment[];
+                movieComments.value = ((await consumeReviewsFeed()) as Comment[]).filter(c => !isToxic(c.content));
             } catch (e) {
                 console.error('Failed to load movie reviews:', e);
             } finally {
@@ -780,6 +787,7 @@ export default defineComponent({
                         { event: 'INSERT', schema: 'public', table: 'movora_chat' },
                         (payload: any) => {
                             const newMsg = payload.new as Comment;
+                            if (isToxic(newMsg.content)) return;
                             if (!comments.value.some(c => c.id === newMsg.id)) {
                                 comments.value.push(newMsg);
                                 if (comments.value.length > 150) {
@@ -813,6 +821,7 @@ export default defineComponent({
                         { event: 'INSERT', schema: 'public', table: 'movora_comments' },
                         (payload: any) => {
                             const newMsg = payload.new as Comment;
+                            if (isToxic(newMsg.content)) return;
                             if (['movie', 'tv', 'anime'].includes(newMsg.media_type) && newMsg.media_id !== 'lounge') {
                                 if (!movieComments.value.some(c => c.id === newMsg.id)) {
                                     movieComments.value.unshift(newMsg);
@@ -831,6 +840,11 @@ export default defineComponent({
 
         const handlePostComment = async () => {
             if (!newCommentText.value.trim()) return;
+            if (isToxic(newCommentText.value)) {
+                alert('Your message has been removed for violating our community guidelines.');
+                submitting.value = false;
+                return;
+            }
             submitting.value = true;
 
             const nameToPost = isLoggedIn.value

@@ -5,6 +5,7 @@ import { useTvShows } from './useTvShows';
 import { useAniList } from './useAniList';
 import { resolveAnimeTmdbMetaByTmdbId, getAnilistIdForTmdbId } from './useAnimeTmdbArtwork';
 import { consumeLoungeFeed, consumeReviewsFeed, resetDiscussFeedCache } from './useDiscussPrefetch';
+import { isToxic } from './useToxicityFilter';
 
 export interface DiscussComment {
     id: string;
@@ -212,7 +213,7 @@ export function useDiscussPage() {
                 .limit(500);
 
             if (error) throw error;
-            selectedMovieComments.value = data || [];
+            selectedMovieComments.value = (data || []).filter((c: DiscussComment) => !isToxic(c.content || ''));
         } catch (e) {
             console.error(e);
         } finally {
@@ -231,6 +232,7 @@ export function useDiscussPage() {
                     { event: 'INSERT', schema: 'public', table: 'movora_comments' },
                     (payload: { new: DiscussComment }) => {
                         const newMsg = payload.new;
+                        if (isToxic(newMsg.content || '')) return;
                         if (
                             newMsg.media_type === selectedMovieType.value
                             && newMsg.media_id === selectedMovieId.value
@@ -249,6 +251,11 @@ export function useDiscussPage() {
 
     const postSelectedMovieComment = async () => {
         if (!newSelectedCommentText.value.trim() || !selectedMovieId.value) return;
+        if (isToxic(newSelectedCommentText.value)) {
+            alert('Your comment has been removed for violating our community guidelines.');
+            submittingSelected.value = false;
+            return;
+        }
         submittingSelected.value = true;
 
         const nameToPost = isLoggedIn.value
@@ -344,7 +351,7 @@ export function useDiscussPage() {
     const fetchComments = async () => {
         loading.value = true;
         try {
-            comments.value = (await consumeLoungeFeed()) as DiscussComment[];
+            comments.value = ((await consumeLoungeFeed()) as DiscussComment[]).filter(c => !isToxic(c.content || ''));
             scrollToBottom();
         } catch (e) {
             console.error('Failed to load global discussions:', e);
@@ -356,7 +363,7 @@ export function useDiscussPage() {
     const fetchMovieComments = async () => {
         loadingMovie.value = true;
         try {
-            movieComments.value = (await consumeReviewsFeed()) as DiscussComment[];
+            movieComments.value = ((await consumeReviewsFeed()) as DiscussComment[]).filter(c => !isToxic(c.content || ''));
         } catch (e) {
             console.error('Failed to load movie reviews:', e);
         } finally {
@@ -386,6 +393,7 @@ export function useDiscussPage() {
                     { event: 'INSERT', schema: 'public', table: 'movora_chat' },
                     (payload: { new: DiscussComment }) => {
                         const newMsg = payload.new;
+                        if (isToxic(newMsg.content || '')) return;
                         if (!comments.value.some(c => c.id === newMsg.id)) {
                             comments.value.push(newMsg);
                             if (comments.value.length > 150) comments.value.shift();
@@ -415,6 +423,7 @@ export function useDiscussPage() {
                     { event: 'INSERT', schema: 'public', table: 'movora_comments' },
                     (payload: { new: DiscussComment }) => {
                         const newMsg = payload.new;
+                        if (isToxic(newMsg.content || '')) return;
                         if (
                             newMsg.media_type
                             && ['movie', 'tv', 'anime'].includes(newMsg.media_type)
@@ -434,6 +443,11 @@ export function useDiscussPage() {
 
     const handlePostComment = async () => {
         if (!newCommentText.value.trim()) return;
+        if (isToxic(newCommentText.value)) {
+            alert('Your message has been removed for violating our community guidelines.');
+            submitting.value = false;
+            return;
+        }
         submitting.value = true;
 
         const nameToPost = isLoggedIn.value ? `@${currentUsername.value}` : 'Anonymous';

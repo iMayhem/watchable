@@ -481,20 +481,28 @@ export default defineComponent({
                         totalPages = cached.total_pages || 1;
                     } else {
                         const regionParam = region ? `&regions=${region}` : '';
-                        try {
-                            const res = await fetch(
-                                `/api/watchmode-cache?sourceId=${sid}&page=${p}${regionParam}`
-                            );
-                            if (res.ok) {
-                                const data = await res.json().catch(() => null);
-                                titles = data?.titles ?? [];
-                                totalPages = data?.total_pages ?? 1;
-                                if (titles.length > 0) {
-                                    await setWatchmodeCache(sid, p, { titles, total_pages: totalPages, total_results: data?.total_results ?? 0 }, region);
+                        // Try Cloudflare Pages function first, fallback to VPS
+                        const endpoints = [
+                            `/api/watchmode-cache?sourceId=${sid}&page=${p}${regionParam}`,
+                            `https://providers.peestream.in/api/watchmode-cache?sourceId=${sid}&page=${p}${regionParam}`,
+                        ];
+                        for (const endpoint of endpoints) {
+                            try {
+                                const res = await fetch(endpoint, { signal: AbortSignal.timeout(10000) });
+                                if (res.ok) {
+                                    const data = await res.json().catch(() => null);
+                                    if (data && Array.isArray(data.titles)) {
+                                        titles = data.titles ?? [];
+                                        totalPages = data.total_pages ?? 1;
+                                        if (titles.length > 0) {
+                                            await setWatchmodeCache(sid, p, { titles, total_pages: totalPages, total_results: data?.total_results ?? 0 }, region);
+                                        }
+                                        break; // success — don't try next endpoint
+                                    }
                                 }
+                            } catch {
+                                /* try next endpoint */
                             }
-                        } catch {
-                            /* ignore network errors */
                         }
                     }
 
@@ -502,21 +510,48 @@ export default defineComponent({
 
                     const validTitles = titles.filter((t: WatchmodeTitle) => t.type === 'movie' || t.type === 'tv_series' || t.type === 'tv_miniseries');
                     const isCrunchyroll = cat.key === 'crunchyroll';
-                    items = validTitles.map((t: WatchmodeTitle) => {
-                        let pPath = t.poster || null;
-                        if (pPath && pPath.startsWith('http')) {
-                            // Watchmode poster URL is direct
-                            pPath = pPath;
+
+                    // Watchmode list-titles API returns NO poster URLs.
+                    // Batch-fetch TMDB to get poster_path for each tmdb_id.
+                    const tmdbIds = validTitles.map((t) => t.tmdb_id).filter(Boolean);
+                    const posterMap: Record<number, string | null> = {};
+
+                    if (tmdbIds.length > 0) {
+                        // Parallel TMDB lookups, capped at 20 concurrent
+                        const chunks: number[][] = [];
+                        for (let i = 0; i < tmdbIds.length; i += 20) {
+                            chunks.push(tmdbIds.slice(i, i + 20) as number[]);
                         }
-                        return {
-                            id: t.tmdb_id || t.id,
-                            title: t.title,
-                            poster_path: pPath,
-                            vote_average: t.rating || 0,
-                            release_date: t.year ? String(t.year) : '',
-                            type: isCrunchyroll ? 'anime' : (t.type === 'movie' ? 'movie' as const : 'tv' as const)
-                        };
-                    });
+                        for (const chunk of chunks) {
+                            if (reqId !== fetchReqId) break;
+                            await Promise.allSettled(
+                                chunk.map(async (tmdbId) => {
+                                    try {
+                                        // Use TMDB search via our existing proxy — avoids CORS and uses cache
+                                        const mediaType = isCrunchyroll ? 'tv' :
+                                            (validTitles.find(t => t.tmdb_id === tmdbId)?.type === 'movie' ? 'movie' : 'tv');
+                                        const res = await useAxios().get(`${mediaType}/${tmdbId}`, {
+                                            params: { append_to_response: '' }
+                                        });
+                                        posterMap[tmdbId] = res.data?.poster_path ?? null;
+                                    } catch {
+                                        posterMap[tmdbId] = null;
+                                    }
+                                })
+                            );
+                        }
+                    }
+
+                    items = validTitles.map((t: WatchmodeTitle) => ({
+                        id: t.tmdb_id || t.id,
+                        title: t.title,
+                        // Use TMDB poster_path (a /path string that goes through our image proxy)
+                        // Fall back to Watchmode's direct poster URL if TMDB has nothing
+                        poster_path: (t.tmdb_id && posterMap[t.tmdb_id]) ? posterMap[t.tmdb_id] : (t.poster || null),
+                        vote_average: t.rating || 0,
+                        release_date: t.year ? String(t.year) : '',
+                        type: isCrunchyroll ? 'anime' : (t.type === 'movie' ? 'movie' as const : 'tv' as const)
+                    }));
                     total = totalPages;
                 } else {
                     const endpoint = cat.isTv ? 'discover/tv' : 'discover/movie';

@@ -826,10 +826,6 @@ export default defineComponent({
                 return;
             }
 
-            const isCrossOrigin = (url: string) => {
-                try { return new URL(url).origin !== location.origin } catch { return true }
-            }
-
             const titleClean = (props.title || 'media').replace(/[^a-zA-Z0-9_\-]/g, '_');
             let epSuffix = '';
             if (props.mediaType === 'tv' && props.season && props.episode) {
@@ -838,17 +834,28 @@ export default defineComponent({
             const qualityLabel = currentStream?.quality || activeQualityLabel.value || 'HD';
             const fileName = `${titleClean}${epSuffix}_${qualityLabel}.mp4`;
 
-            if (!isCrossOrigin(targetUrl)) {
+            // Always route through the VPS /api/download proxy.
+            // Reason: browsers silently ignore <a download> for cross-origin URLs,
+            // and window.open just plays the video in a new tab.
+            // The proxy adds Content-Disposition: attachment which forces a real download.
+            try {
+                const encoded = btoa(targetUrl)
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=+$/, '');
+                const proxyUrl = `https://providers.peestream.in/api/download?u=${encoded}&filename=${encodeURIComponent(fileName)}`;
                 const a = document.createElement('a');
-                a.href = targetUrl;
+                a.href = proxyUrl;
                 a.download = fileName;
+                a.target = '_blank';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                return
+            } catch (err) {
+                // Last resort: open directly (browser may play it instead of downloading)
+                console.warn('[Download] Proxy routing failed, opening directly:', err);
+                window.open(targetUrl, '_blank');
             }
-
-            window.open(targetUrl, '_blank');
         }
 
         function resolveFullLanguageName(code?: string): string {

@@ -582,7 +582,7 @@ export default defineComponent({
             const pOld = fetchProviderStream('4khdhub', id, type, seasonNum, episodeNum, signal)
                 .then(res => updateUIWithOptionBatch(res));
 
-            const maxWait = new Promise((resolve) => setTimeout(resolve, 7500));
+            const maxWait = new Promise((resolve) => setTimeout(resolve, 25000));
 
             try {
                 await Promise.race([
@@ -686,7 +686,7 @@ export default defineComponent({
                     });
                 }
 
-                timer = setTimeout(finish, 7500);
+                timer = setTimeout(finish, 25000);
 
                 const parseStreamItem = (item: any) => {
                     if (!item) return;

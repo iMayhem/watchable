@@ -434,7 +434,7 @@ export default defineComponent({
                     const finish = () => {
                         if (!done) { done = true; es.close(); resolve(options); }
                     };
-                    setTimeout(finish, 7500);
+                    setTimeout(finish, 25000);
                     const parse = (item: any) => {
                         if (!item) return;
                         if (item.qualities) {

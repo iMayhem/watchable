@@ -209,7 +209,7 @@ export function useDiscussPage() {
                 .eq('media_type', selectedMovieType.value)
                 .eq('media_id', selectedMovieId.value)
                 .order('created_at', { ascending: true })
-                .limit(100);
+                .limit(500);
 
             if (error) throw error;
             selectedMovieComments.value = data || [];

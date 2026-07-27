@@ -40,7 +40,7 @@ async function loadReviewsFeed(): Promise<DiscussFeedComment[]> {
         .select('id, media_id, media_type, username, content, created_at')
         .in('media_type', ['movie', 'tv', 'anime'])
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(500);
 
     if (error) throw error;
     return (data || []).filter((comment: DiscussFeedComment) => comment.media_id !== 'lounge');

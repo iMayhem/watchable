@@ -277,6 +277,7 @@ export default defineComponent({
     position: relative;
     width: 100%;
     isolation: isolate;
+    overflow: hidden;
 
     &__bloom {
         position: absolute;

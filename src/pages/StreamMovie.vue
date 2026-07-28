@@ -275,6 +275,7 @@ export default defineComponent({
 .watch-stage {
     position: relative;
     width: 100%;
+    max-width: 100%;
     min-height: 100dvh;
     background: #080A10;
     color: #fff;

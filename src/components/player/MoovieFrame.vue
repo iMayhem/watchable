@@ -2627,6 +2627,7 @@ export default defineComponent({
     flex-direction: column;
     background: #080A10;
     isolation: isolate;
+    overflow: hidden;
 
     // Theme override to match peestream in orange
     --ember: #ff5a1f;

@@ -655,7 +655,7 @@ export default defineComponent({
 
 .watch-stage {
     position: relative;
-    width: 100vw;
+    width: 100%;
     min-height: 100dvh;
     background: #080A10;
     color: #fff;
@@ -681,7 +681,7 @@ export default defineComponent({
     &__video-layer {
         position: absolute;
         inset: 0;
-        width: 100vw;
+        width: 100%;
         height: 100dvh;
         z-index: 0;
 

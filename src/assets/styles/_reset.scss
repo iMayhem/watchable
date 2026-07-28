@@ -26,6 +26,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   line-height: var(--lh-base);
+  overflow-x: hidden;
 }
 
 img, picture, video, canvas, svg {

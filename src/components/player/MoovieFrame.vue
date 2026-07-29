@@ -1908,7 +1908,7 @@ export default defineComponent({
                 }
 
                 // Race: proxy (8s) vs direct (8s) — first non-null result wins
-                const result = await Promise.any([
+                const result = await (Promise as any).any([
                     tryFetch(proxyUrl, 8000),
                     tryFetch(subUrl, 8000),
                 ]).catch(() => null)

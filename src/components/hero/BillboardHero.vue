@@ -146,6 +146,26 @@
                             </svg>
                         </template>
                         Watch Together
+                    <LmButton
+                        variant="outline"
+                        size="lg"
+                        :disabled="downloading"
+                        @click.prevent="handleDownload"
+                        aria-label="Download Media Directly"
+                    >
+                        <template #leading>
+                            <svg v-if="downloading" class="billboard__download-spinner" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="31.4 31.4" stroke-linecap="round">
+                                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
+                                </circle>
+                            </svg>
+                            <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                        </template>
+                        Download
                     </LmButton>
                 </div>
             </div>

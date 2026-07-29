@@ -88,6 +88,22 @@
                         :active-server-index="currentStreamData.currentServer"
                         @server-change="changeServer"
                     />
+                    <button
+                        v-if="show"
+                        type="button"
+                        class="watch-stage__party-btn watch-stage__watchlist-btn"
+                        :class="{ 'is-added': inWatchlist }"
+                        :title="inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'"
+                        @click="toggleWatchlist"
+                    >
+                        <svg v-if="!inWatchlist" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__party-icon">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="watch-stage__party-icon">
+                            <path d="m5 13 4 4L19 7"/>
+                        </svg>
+                        <span class="watch-stage__party-label">{{ inWatchlist ? 'In Watchlist' : 'Watchlist' }}</span>
+                    </button>
                     <a
                         :href="`/party?media=${showId}_s${currentSeason}e${currentEpisode}&title=${encodeURIComponent((show?.name || '') + ' - S' + currentSeason + 'E' + currentEpisode)}${isMoovieServer ? '&provider=moovie' : ''}`"
                         class="watch-stage__party-btn"
@@ -167,6 +183,7 @@ import {
     buildStreamUrl
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
+import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../composables/useWatchlist';
 
 import { useAppPaths } from '../composables/useAppPaths';
 import { useWebImage } from '../utils/useWebImage';
@@ -601,6 +618,25 @@ export default defineComponent({
             showControls();
         });
 
+        const inWatchlist = computed(() => {
+            if (!showId.value) return false;
+            return isInWatchlist(showId.value, 'tv');
+        });
+
+        const toggleWatchlist = () => {
+            if (!showId.value || !show.value) return;
+            const item: WatchlistItem = {
+                id: show.value.id,
+                title: show.value.name,
+                image: show.value.poster_path || show.value.backdrop_path || null,
+                rating: show.value.vote_average || 0,
+                categories: (show.value.genres || []).map(g => g.id),
+                adult: false,
+                type: 'tv'
+            };
+            toggleWatchlistItem(item);
+        };
+
         return {
             showId,
             externalId,
@@ -642,6 +678,8 @@ export default defineComponent({
             controlsVisible,
             showControls,
             scheduleHide,
+            inWatchlist,
+            toggleWatchlist,
         };
     }
 });

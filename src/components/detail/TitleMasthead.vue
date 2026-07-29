@@ -171,6 +171,24 @@
                         </LmButton>
 
                         <LmButton
+                            variant="outline"
+                            size="lg"
+                            :class="{ 'masthead__watchlist-btn--active': inWatchlist }"
+                            @click="toggleWatchlist"
+                            :aria-label="inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'"
+                        >
+                            <template #leading>
+                                <svg v-if="!inWatchlist" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 5v14M5 12h14"/>
+                                </svg>
+                                <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="masthead__check-icon">
+                                    <path d="m5 13 4 4L19 7"/>
+                                </svg>
+                            </template>
+                            {{ inWatchlist ? 'In Watchlist' : 'Watchlist' }}
+                        </LmButton>
+
+                        <LmButton
                             v-if="playRoute && type !== 'anime'"
                             variant="outline"
                             size="lg"
@@ -192,7 +210,6 @@
                             </template>
                             {{ downloadStatus || 'Download' }}
                         </LmButton>
-
 
                     </div>
                 </div>
@@ -323,6 +340,7 @@ import { useDetailBackNavigation } from '../../composables/useDetailBackNavigati
 import { catalogDisplayImageSize, useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
 import { logDownload } from '../../composables/useDownloadTracking';
+import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../../composables/useWatchlist';
 
 export default defineComponent({
     name: 'TitleMasthead',
@@ -834,6 +852,25 @@ export default defineComponent({
             }));
         };
 
+        const inWatchlist = computed(() => {
+            if (!props.id) return false;
+            return isInWatchlist(props.id, props.type);
+        });
+
+        const toggleWatchlist = () => {
+            if (!props.id || !props.title) return;
+            const item: WatchlistItem = {
+                id: props.id,
+                title: props.title,
+                image: props.posterPath || props.backdropPath || null,
+                rating: props.rating || 0,
+                categories: props.genreIds || [],
+                adult: props.adult || false,
+                type: props.type
+            };
+            toggleWatchlistItem(item);
+        };
+
         return {
             goBackToIssue,
             rootRef,
@@ -865,7 +902,9 @@ export default defineComponent({
             togglePause,
             toggleMute,
             partyHref,
-            handlePlayHover
+            handlePlayHover,
+            inWatchlist,
+            toggleWatchlist
         };
     }
 });

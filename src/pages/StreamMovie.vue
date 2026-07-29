@@ -54,6 +54,22 @@
                         :active-server-index="activeAccordionIndex"
                         @server-change="changeServer"
                     />
+                    <button
+                        v-if="movie"
+                        type="button"
+                        class="watch-stage__party-btn watch-stage__watchlist-btn"
+                        :class="{ 'is-added': inWatchlist }"
+                        :title="inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'"
+                        @click="toggleWatchlist"
+                    >
+                        <svg v-if="!inWatchlist" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__party-icon">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="watch-stage__party-icon">
+                            <path d="m5 13 4 4L19 7"/>
+                        </svg>
+                        <span class="watch-stage__party-label">{{ inWatchlist ? 'In Watchlist' : 'Watchlist' }}</span>
+                    </button>
                     <a
                         :href="`/party?media=${movieId}&title=${encodeURIComponent(movie?.title || '')}${isMoovieServer ? '&provider=moovie' : ''}`"
                         class="watch-stage__party-btn"
@@ -92,6 +108,7 @@ import {
     buildStreamUrl
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
+import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../composables/useWatchlist';
 
 import { useAppPaths } from '../composables/useAppPaths';
 
@@ -246,6 +263,25 @@ export default defineComponent({
             showControls();
         });
 
+        const inWatchlist = computed(() => {
+            if (!movieId.value) return false;
+            return isInWatchlist(movieId.value, 'movie');
+        });
+
+        const toggleWatchlist = () => {
+            if (!movieId.value || !movie.value) return;
+            const item: WatchlistItem = {
+                id: movie.value.id,
+                title: movie.value.title,
+                image: movie.value.poster_path || movie.value.backdrop_path || null,
+                rating: movie.value.vote_average || 0,
+                categories: (movie.value.genres || []).map(g => g.id),
+                adult: movie.value.adult || false,
+                type: 'movie'
+            };
+            toggleWatchlistItem(item);
+        };
+
         return {
             isEmbed,
             movieId,
@@ -261,6 +297,8 @@ export default defineComponent({
             controlsVisible,
             showControls,
             scheduleHide,
+            inWatchlist,
+            toggleWatchlist,
         };
     }
 });

@@ -100,6 +100,23 @@
                         @server-change="activeServerIndex = $event"
                     />
 
+                    <button
+                        v-if="animeTitle || animeId"
+                        type="button"
+                        class="watch-stage__party-btn watch-stage__watchlist-btn"
+                        :class="{ 'is-added': inWatchlist }"
+                        :title="inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'"
+                        @click="toggleWatchlist"
+                    >
+                        <svg v-if="!inWatchlist" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__party-icon">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="watch-stage__party-icon">
+                            <path d="m5 13 4 4L19 7"/>
+                        </svg>
+                        <span class="watch-stage__party-label">{{ inWatchlist ? 'In Watchlist' : 'Watchlist' }}</span>
+                    </button>
+
                     <template v-if="seasonsList.length > 1 || availableServers[activeServerIndex]?.name !== 'Videasy'">
                         <details class="watch-stage__options">
                             <summary class="watch-stage__options-trigger">
@@ -246,6 +263,7 @@ import ServerAccordion from '../components/player/ServerAccordion.vue';
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import { useAppPaths } from '../composables/useAppPaths';
+import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../composables/useWatchlist';
 import CommentsSection from '../components/player/CommentsSection.vue';
 import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
 import {
@@ -1178,6 +1196,25 @@ export default defineComponent({
             }
         };
 
+        const inWatchlist = computed(() => {
+            if (!animeId.value) return false;
+            return isInWatchlist(animeId.value, 'anime');
+        });
+
+        const toggleWatchlist = () => {
+            if (!animeId.value || !animeTitle.value) return;
+            const item: WatchlistItem = {
+                id: animeId.value,
+                title: animeTitle.value,
+                image: tmdbPosterPath.value || tmdbBackdropPath.value || null,
+                rating: 0,
+                categories: [],
+                adult: false,
+                type: 'anime'
+            };
+            toggleWatchlistItem(item);
+        };
+
         return {
             animeId,
             resolvedAnilistId,
@@ -1229,6 +1266,8 @@ export default defineComponent({
             controlsVisible,
             showControls,
             scheduleHide,
+            inWatchlist,
+            toggleWatchlist,
             isFullscreen,
             toggleFullscreen
         };

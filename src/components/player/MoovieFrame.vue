@@ -1323,9 +1323,13 @@ export default defineComponent({
                     enableWorker: true,
                     maxBufferLength: 30,
                     maxMaxBufferLength: 60,
+                    maxBufferHole: 0.5,
+                    highBufferWatchdogPeriod: 2,
+                    appendErrorMaxRetry: 5,
                 })
 
                 await new Promise<void>((resolve, reject) => {
+                    let mediaErrorRecoveryRetries = 0
 
                     hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
                         // NetMirror's alternate audio playlists are MPEG-TS bytes
@@ -1340,6 +1344,15 @@ export default defineComponent({
                         }
                         if (data.fatal) {
                             console.error('[MoovieFrame] HLS fatal error:', data.type, data.details)
+                            if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR) {
+                                if (mediaErrorRecoveryRetries < 3) {
+                                    mediaErrorRecoveryRetries++
+                                    console.warn(`[MoovieFrame] Attempting media error recovery for ${data.details} (${mediaErrorRecoveryRetries}/3)...`)
+                                    hlsInstance.recoverMediaError()
+                                    return
+                                }
+                                console.error('[MoovieFrame] Media error recovery failed after 3 attempts')
+                            }
                             buffering.value = false
                             error.value = `HLS error: ${data.details}`
                             reject(new Error(`HLS fatal: ${data.details}`))

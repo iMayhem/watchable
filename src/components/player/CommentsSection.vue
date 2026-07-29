@@ -1,5 +1,5 @@
 <template>
-    <section class="comments-panel">
+    <section ref="rootRef" class="comments-panel">
         <header class="comments-panel__header">
             <h3 class="comments-panel__title">
                 Discussion
@@ -545,10 +545,20 @@ export default defineComponent({
             });
         };
 
+        const rootRef = ref<HTMLElement | null>(null);
+
         onMounted(() => {
             checkAuth();
             fetchComments();
             window.addEventListener('movora_auth_change', checkAuth);
+            if (rootRef.value) {
+                rootRef.value.addEventListener('click', (e: MouseEvent) => {
+                    const target = (e.target as HTMLElement).closest('.comment-spoiler');
+                    if (target) {
+                        target.classList.toggle('is-revealed');
+                    }
+                });
+            }
         });
 
         watch(() => props.mediaId, () => {
@@ -568,9 +578,9 @@ export default defineComponent({
             if (!content) return '';
             let safe = escapeHtml(content);
 
-            // Format spoilers ||text|| -> clickable spoiler element
-            safe = safe.replace(/\|\|(.*?)\|\|/g, (_match, p1) => {
-                return `<span class="comment-spoiler" onclick="this.classList.toggle('is-revealed')" title="Click to reveal spoiler">${p1}</span>`;
+            // Format spoilers ||text|| -> clickable concealed spoiler element (supports multiline)
+            safe = safe.replace(/\|\|([\s\S]*?)\|\|/g, (_match, p1) => {
+                return `<span class="comment-spoiler" title="Click to reveal spoiler">${p1}</span>`;
             });
 
             // Format bold **text**
@@ -589,6 +599,7 @@ export default defineComponent({
         };
 
         return {
+            rootRef,
             rawComments,
             processedComments,
             visibleComments,
@@ -1227,29 +1238,32 @@ export default defineComponent({
 }
 
 :deep(.comment-spoiler) {
-    display: inline-block;
-    background: #181b25;
-    color: transparent;
-    text-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+    display: inline;
+    background: #252836 !important;
+    color: #252836 !important;
+    text-shadow: none !important;
     border-radius: 4px;
-    padding: 1px 7px;
+    padding: 2px 7px;
     margin: 0 2px;
     cursor: pointer;
-    user-select: none;
-    transition: all 0.2s ease;
-    border: 1px dashed rgba(255, 90, 31, 0.4);
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    transition: background 0.15s ease, color 0.15s ease;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
     line-height: 1.4;
 
     &:hover {
-        background: #242938;
-        border-color: rgba(255, 90, 31, 0.7);
+        background: #303446 !important;
+        color: #303446 !important;
+        border-color: rgba(255, 90, 31, 0.5);
     }
 
     &.is-revealed {
-        background: rgba(255, 90, 31, 0.15);
-        color: #f0f2f8;
-        text-shadow: none;
-        user-select: text;
+        background: rgba(255, 90, 31, 0.16) !important;
+        color: #f0f2f8 !important;
+        text-shadow: none !important;
+        user-select: text !important;
+        -webkit-user-select: text !important;
         border: 1px solid rgba(255, 90, 31, 0.35);
     }
 }

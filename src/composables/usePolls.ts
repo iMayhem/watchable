@@ -64,26 +64,27 @@ export function usePolls() {
     async function fetchPollResults(pollId: number) {
         try {
             const supabase = await getSupabaseClient()
-            const { data: votes } = await supabase
-                .from('poll_votes')
-                .select('selected_option')
-                .eq('poll_id', pollId)
-
             const poll = activePoll.value
             if (!poll) return
 
-            totalVotes.value = votes?.length || 0
-            const counts = new Array(poll.options.length).fill(0)
-            votes?.forEach((v: any) => {
-                if (v.selected_option >= 0 && v.selected_option < poll.options.length) {
-                    counts[v.selected_option]++
-                }
-            })
+            const counts = await Promise.all(
+                poll.options.map(async (_, idx) => {
+                    const { count } = await supabase
+                        .from('poll_votes')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('poll_id', pollId)
+                        .eq('selected_option', idx)
+                    return count || 0
+                })
+            )
+
+            const total = counts.reduce((a, b) => a + b, 0)
+            totalVotes.value = total
 
             pollResults.value = poll.options.map((opt, i) => ({
                 option: opt,
                 count: counts[i],
-                percentage: totalVotes.value > 0 ? Math.round((counts[i] / totalVotes.value) * 100) : 0
+                percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
             }))
         } catch (e) {
             console.error('Failed to fetch poll results:', e)
@@ -98,37 +99,37 @@ export function usePolls() {
                 .select('id, question, options, is_active, created_at')
                 .order('created_at', { ascending: false })
 
-            const polls: PollWithResults[] = []
+            const polls: PollWithResults[] = await Promise.all(
+                (data || []).map(async (row: any) => {
+                    const poll: Poll = {
+                        ...row,
+                        options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options
+                    }
 
-            for (const row of data || []) {
-                const poll: Poll = {
-                    ...row,
-                    options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options
-                }
+                    const counts = await Promise.all(
+                        poll.options.map(async (_, idx) => {
+                            const { count } = await supabase
+                                .from('poll_votes')
+                                .select('*', { count: 'exact', head: true })
+                                .eq('poll_id', poll.id)
+                                .eq('selected_option', idx)
+                            return count || 0
+                        })
+                    )
 
-                const { data: votes } = await supabase
-                    .from('poll_votes')
-                    .select('selected_option')
-                    .eq('poll_id', poll.id)
+                    const total = counts.reduce((a, b) => a + b, 0)
 
-                const total = votes?.length || 0
-                const counts = new Array(poll.options.length).fill(0)
-                votes?.forEach((v: any) => {
-                    if (v.selected_option >= 0 && v.selected_option < poll.options.length) {
-                        counts[v.selected_option]++
+                    return {
+                        ...poll,
+                        totalVotes: total,
+                        results: poll.options.map((opt, i) => ({
+                            option: opt,
+                            count: counts[i],
+                            percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
+                        }))
                     }
                 })
-
-                polls.push({
-                    ...poll,
-                    totalVotes: total,
-                    results: poll.options.map((opt, i) => ({
-                        option: opt,
-                        count: counts[i],
-                        percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
-                    }))
-                })
-            }
+            )
 
             allPolls.value = polls
         } catch (e) {

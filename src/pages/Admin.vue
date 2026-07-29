@@ -1172,44 +1172,30 @@ async function loadExistingPolls() {
 
         if (existingPolls.value.length === 0) return
 
-        // Batch fetch all votes for these polls in a single indexed query
-        const pollIds = existingPolls.value.map((p: any) => p.id)
-        const { data: allVotes } = await client
-            .from('poll_votes')
-            .select('poll_id, selected_option')
-            .in('poll_id', pollIds)
+        await Promise.all(
+            existingPolls.value.map(async (poll: any) => {
+                if (!poll.options || !Array.isArray(poll.options)) return
 
-        // Group votes by poll_id
-        const votesByPoll: Record<number, any[]> = {}
-        existingPolls.value.forEach((p: any) => {
-            votesByPoll[p.id] = []
-        })
-        allVotes?.forEach((v: any) => {
-            if (votesByPoll[v.poll_id]) {
-                votesByPoll[v.poll_id].push(v)
-            }
-        })
+                const counts = await Promise.all(
+                    poll.options.map(async (_: any, idx: number) => {
+                        const { count } = await client
+                            .from('poll_votes')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('poll_id', poll.id)
+                            .eq('selected_option', idx)
+                        return count || 0
+                    })
+                )
 
-        // Compute results in memory instantly
-        existingPolls.value.forEach((poll: any) => {
-            const votes = votesByPoll[poll.id] || []
-            const total = votes.length
-            pollVoteCounts.value[poll.id] = total
-
-            if (poll.options && Array.isArray(poll.options)) {
-                const counts = new Array(poll.options.length).fill(0)
-                votes.forEach((v: any) => {
-                    if (v.selected_option >= 0 && v.selected_option < poll.options.length) {
-                        counts[v.selected_option]++
-                    }
-                })
+                const total = counts.reduce((a, b) => a + b, 0)
+                pollVoteCounts.value[poll.id] = total
                 pollResultsMap.value[poll.id] = poll.options.map((opt: string, i: number) => ({
                     option: opt,
                     count: counts[i],
                     percentage: total > 0 ? Math.round((counts[i] / total) * 100) : 0
                 }))
-            }
-        })
+            })
+        )
     } catch (err) {
         console.error('Failed to load polls:', err)
     }

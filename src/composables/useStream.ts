@@ -74,7 +74,8 @@ export const movieServers = ref<Server[]>([
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true' },
   { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/movie/{tmdbId}' },
   { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true' },
-  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' }
+  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' },
+  { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={tmdbId}&type=movie' }
 ]);
 
 export const tvServers = ref<Server[]>([
@@ -101,7 +102,8 @@ export const tvServers = ref<Server[]>([
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/tv/{externalId}/{season}/{episode}?autoplay=true' },
   { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' }
+  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
+  { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={externalId}&type=tv&s={season}&e={episode}' }
 ]);
 
 const idToNameMap: Record<string, string> = {
@@ -127,7 +129,8 @@ const idToNameMap: Record<string, string> = {
   icecream: 'Icecream',
   cinezo: 'Cheesecake',
   nankhatai: 'Nankhatai',
-  petha: 'Petha'
+  petha: 'Petha',
+  spoider: 'Spoider'
 };
 
 export const isDefaultServerLoaded = ref(false);

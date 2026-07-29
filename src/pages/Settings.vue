@@ -87,6 +87,7 @@
                                 <div class="settings-select-wrapper is-disabled">
                                     <select id="setting-server" v-model="defaultServerId" class="settings-select" disabled>
                                         <option value="sugar">Sugar (vidcodin.net)</option>
+                                        <option value="spoider">Spoider (screenscape.me)</option>
                                         <option value="poseidon">Poseidon (Multi-Audio HD)</option>
                                         <option value="athena">Athena (Moovie Scraper Catalog)</option>
                                         <option value="apollo">Apollo (4K Ultra Stream)</option>

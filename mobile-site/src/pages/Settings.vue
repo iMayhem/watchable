@@ -70,6 +70,7 @@
                         <div class="m-settings__select-wrapper is-disabled">
                             <select class="m-settings__select" disabled>
                                 <option value="sugar">Sugar (vidcodin.net)</option>
+                                <option value="spoider">Spoider (screenscape.me)</option>
                                 <option value="poseidon">Poseidon (Multi-Audio HD)</option>
                                 <option value="athena">Athena (Moovie Scraper Catalog)</option>
                                 <option value="apollo">Apollo (4K Ultra Stream)</option>

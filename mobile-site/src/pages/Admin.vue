@@ -57,6 +57,7 @@
                             <option value="cinezo">Cheesecake (Cinezo)</option>
                             <option value="nankhatai">Nankhatai (NontonGo)</option>
                             <option value="petha">Petha (NontonGo)</option>
+                            <option value="spoider">Spoider (screenscape.me)</option>
                         </select>
                     </div>
 
@@ -86,6 +87,7 @@
                             <option value="cinezo">Cheesecake (Cinezo)</option>
                             <option value="nankhatai">Nankhatai (NontonGo)</option>
                             <option value="petha">Petha (NontonGo)</option>
+                            <option value="spoider">Spoider (screenscape.me)</option>
                         </select>
                     </div>
 
@@ -198,6 +200,7 @@
                     <div class="admin-page__server-row"><span>cinezo</span><span>Cheesecake</span></div>
                     <div class="admin-page__server-row"><span>nankhatai</span><span>Nankhatai</span></div>
                     <div class="admin-page__server-row"><span>petha</span><span>Petha</span></div>
+                    <div class="admin-page__server-row"><span>spoider</span><span>Spoider</span></div>
                 </div>
 
                 <!-- Server Reorder -->
@@ -482,7 +485,7 @@ async function loadServerOrder() {
         multiembed: 'Soan Papdi', vsrc: 'Sandesh', vidlink: 'Cham Cham',
         autoembed: 'Kulfi', vidfast: 'Mysore Pak', movies111: 'Imarti',
         vidora: 'Ghevar', vidsuper: 'Motichoor Ladoo', icecream: 'Icecream',
-        cinezo: 'Cheesecake', nankhatai: 'Nankhatai', petha: 'Petha'
+        cinezo: 'Cheesecake', nankhatai: 'Nankhatai', petha: 'Petha', spoider: 'Spoider'
     }
     const reverseMap: Record<string, string> = {}
     for (const [id, name] of Object.entries(idMap)) reverseMap[name.toLowerCase()] = id

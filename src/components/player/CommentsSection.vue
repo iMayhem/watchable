@@ -116,7 +116,7 @@
 
                         <!-- Main comment text & actions (hidden if directly collapsed) -->
                         <template v-if="!isDirectlyCollapsed(c.id)">
-                            <p class="comment-card__body">{{ c.content }}</p>
+                            <p class="comment-card__body" v-html="formatCommentContent(c.content)"></p>
                             
                             <div class="comment-card__footer">
                                 <!-- Reply action -->
@@ -555,6 +555,39 @@ export default defineComponent({
             fetchComments();
         });
 
+        const escapeHtml = (str: string): string => {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        };
+
+        const formatCommentContent = (content: string): string => {
+            if (!content) return '';
+            let safe = escapeHtml(content);
+
+            // Format spoilers ||text|| -> clickable spoiler element
+            safe = safe.replace(/\|\|(.*?)\|\|/g, (_match, p1) => {
+                return `<span class="comment-spoiler" onclick="this.classList.toggle('is-revealed')" title="Click to reveal spoiler">${p1}</span>`;
+            });
+
+            // Format bold **text**
+            safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            // Format italic *text*
+            safe = safe.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+            // Format strikethrough ~~text~~
+            safe = safe.replace(/~~(.*?)~~/g, '<s>$1</s>');
+
+            // Convert linebreaks
+            safe = safe.replace(/\n/g, '<br>');
+
+            return safe;
+        };
+
         return {
             rawComments,
             processedComments,
@@ -580,7 +613,8 @@ export default defineComponent({
             getAncestorIdAtDepth,
             countReplies,
             flagComment,
-            formatTimeAgo
+            formatTimeAgo,
+            formatCommentContent
         };
     }
 });
@@ -1190,5 +1224,33 @@ export default defineComponent({
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+:deep(.comment-spoiler) {
+    display: inline-block;
+    background: #181b25;
+    color: transparent;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+    padding: 1px 7px;
+    margin: 0 2px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    border: 1px dashed rgba(255, 90, 31, 0.4);
+    line-height: 1.4;
+
+    &:hover {
+        background: #242938;
+        border-color: rgba(255, 90, 31, 0.7);
+    }
+
+    &.is-revealed {
+        background: rgba(255, 90, 31, 0.15);
+        color: #f0f2f8;
+        text-shadow: none;
+        user-select: text;
+        border: 1px solid rgba(255, 90, 31, 0.35);
+    }
 }
 </style>

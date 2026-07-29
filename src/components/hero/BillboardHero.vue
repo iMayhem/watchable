@@ -146,6 +146,8 @@
                             </svg>
                         </template>
                         Watch Together
+                    </LmButton>
+
                     <LmButton
                         variant="outline"
                         size="lg"

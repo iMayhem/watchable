@@ -135,38 +135,38 @@ const containerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const showOldPolls = ref(false)
 const oldPollsLoading = ref(false)
-let allPollsPromise: Promise<void> | null = null
-const pollData = ref<{ question: string; results: { option: string; count: number; percentage: number }[]; totalVotes: number } | null>(null)
-const allPollsData = ref<{ id: number; question: string; is_active: boolean; results: { option: string; count: number; percentage: number }[]; totalVotes: number }[]>([])
-const hasOldPolls = ref(false)
 const dropdownStyle = ref<Record<string, string>>({})
 const oldPanelStyle = ref<Record<string, string>>({})
 
+const pollData = computed(() => {
+    if (!activePoll.value) return null
+    return {
+        question: activePoll.value.question,
+        results: pollResults.value,
+        totalVotes: totalVotes.value
+    }
+})
+
+const hasOldPolls = computed(() => {
+    const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
+    return old.length > 0
+})
+
+const allPollsData = computed(() => {
+    return allPolls.value.map(p => ({
+        id: p.id,
+        question: p.question,
+        is_active: p.is_active,
+        results: p.results,
+        totalVotes: p.totalVotes
+    }))
+})
+
 async function loadPollData() {
-    const p1 = fetchActivePoll().then(() => {
-        if (activePoll.value) {
-            pollData.value = {
-                question: activePoll.value.question,
-                results: pollResults.value,
-                totalVotes: totalVotes.value
-            }
-        } else {
-            pollData.value = null
-        }
-    })
-    const p2 = ensureAllPollsFetched().then(() => {
-        const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
-        hasOldPolls.value = old.length > 0
-    })
-    await Promise.all([p1, p2])
+    await Promise.all([fetchActivePoll(), fetchAllPolls()])
 }
 
 const votedThisPoll = computed(() => activePoll.value ? hasVoted(activePoll.value.id) : false)
-
-function ensureAllPollsFetched() {
-    if (!allPollsPromise) allPollsPromise = fetchAllPolls()
-    return allPollsPromise
-}
 
 async function handlePollVote(optionIndex: number) {
     if (votedThisPoll.value || voting.value || !activePoll.value) return
@@ -182,14 +182,7 @@ async function openOldPolls() {
     showOldPolls.value = true
     oldPollsLoading.value = true
     nextTick(positionDropdown)
-    await ensureAllPollsFetched()
-    allPollsData.value = allPolls.value.map(p => ({
-        id: p.id,
-        question: p.question,
-        is_active: p.is_active,
-        results: p.results,
-        totalVotes: p.totalVotes
-    }))
+    await fetchAllPolls()
     oldPollsLoading.value = false
 }
 
@@ -255,7 +248,7 @@ function handleReposition() {
 
 onMounted(() => {
     fetchNotifications()
-    ensureAllPollsFetched()
+    fetchAllPolls()
     window.addEventListener('scroll', handleReposition, { passive: true })
     window.addEventListener('resize', handleReposition, { passive: true })
 })

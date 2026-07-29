@@ -139,7 +139,6 @@
                         </LmButton>
 
                         <LmButton
-                            v-if="showTrailer"
                             variant="outline"
                             size="lg"
                             @click="$emit('trailer')"

@@ -243,7 +243,11 @@ export default defineComponent({
         });
 
         const openTrailer = () => {
-            if (trailers.value.length) trailerOpen.value = true;
+            if (trailers.value.length) {
+                trailerOpen.value = true;
+            } else if (show.value?.name) {
+                window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(show.value.name + ' official trailer')}`, '_blank');
+            }
         };
         const closeTrailer = () => {
             trailerOpen.value = false;

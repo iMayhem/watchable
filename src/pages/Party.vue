@@ -6,6 +6,7 @@
             :src="frameSrc"
             title="Watch Together"
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-downloads"
             @load="frameReady = true"
         />
     </div>

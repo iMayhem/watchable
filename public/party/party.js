@@ -1,4 +1,12 @@
 
+        // Anti-Ad / Anti-Popup Shield for WatchTogether
+        try {
+            window.open = function() {
+                console.warn('[WatchTogether Anti-Ad] Suppressed ad popup window');
+                return null;
+            };
+        } catch (e) {}
+
         // Safe localStorage wrapper to prevent crashes when opened via file:// protocol
         const safeLocalStorage = {
             getItem(key) {
@@ -2434,6 +2442,7 @@
                 newIframe.style.display = 'block';
                 newIframe.allowFullscreen = true;
                 newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+                newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-downloads');
                 newIframe.src = embedUrl;
                 parent.replaceChild(newIframe, oldIframe);
             }

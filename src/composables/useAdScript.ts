@@ -62,16 +62,14 @@ export function useAdScript(type: 'pc' | 'mobile') {
                 enabled.value = true
             }
         } else {
-            // If it was enabled before but is now disabled (e.g. toggled off or navigated away)
+            // If it was enabled before but is now disabled (navigated away from /stream player page)
             if (enabled.value) {
                 removeAd()
                 enabled.value = false
                 
-                // If the setting itself was turned off in the admin panel, reload the page to clear listeners
-                if (!isSettingEnabled) {
-                    console.log('[Ads] Toggled off in admin, reloading page to clean up...');
-                    window.location.reload()
-                }
+                // Reload page when leaving /stream to completely purge any global window click listeners registered by ad scripts!
+                console.log('[Ads] Navigated away from player page, reloading page to clean up ad listeners...')
+                window.location.reload()
             }
         }
     }

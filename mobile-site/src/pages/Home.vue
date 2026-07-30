@@ -196,7 +196,6 @@ const loadData = async () => {
 };
 
 const showDownloadModal = ref(false);
-const downloading = ref(false);
 const downloadOptions = ref<{ quality: string; url: string; size?: string }[]>([]);
 
 watch(showDownloadModal, (v) => {
@@ -233,42 +232,6 @@ const triggerDownload = (url: string, quality: string) => {
     }
     showDownloadModal.value = false;
     logDownload(h.id, 'movie', quality, h.title);
-};
-
-const fetchExactFileSize = async (rawUrl: string): Promise<string> => {
-    if (!rawUrl) return '';
-    try {
-        const targetUrl = extractDirectDownloadUrl(rawUrl);
-        const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}&_size=1&_t=${Date.now()}`;
-        let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
-        if (!res || !res.ok) {
-            res = await fetch(proxyUrl, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
-        }
-        if (!res) return '';
-        const cr = res.headers.get('content-range');
-        const len = res.headers.get('content-length');
-        let totalBytes = 0;
-        if (cr && cr.includes('/')) {
-            totalBytes = parseInt(cr.split('/')[1], 10);
-        } else if (len) {
-            totalBytes = parseInt(len, 10);
-        }
-        if (totalBytes > 0) {
-            const gb = totalBytes / (1024 * 1024 * 1024);
-            if (gb >= 0.9) return `${gb.toFixed(1)} GB`;
-            const mb = totalBytes / (1024 * 1024);
-            return `${mb.toFixed(0)} MB`;
-        }
-    } catch (e) {}
-    return '';
-};
-const loadOptionSizes = (opts: { quality: string; url: string; size?: string }[]) => {
-    opts.forEach(async (opt) => {
-        const sz = await fetchExactFileSize(opt.url);
-        opt.size = sz || '-';
-        downloadOptions.value = [...downloadOptions.value];
-    });
 };
 
 const handleSettingsChange = () => {

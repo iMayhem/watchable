@@ -1,0 +1,36 @@
+-- ====================================================================
+-- DROP & DISABLE ALL UNUSED SUPABASE TABLES
+-- Keeps ONLY: Login/Signup, Comments/Chat, Watch Together, Admin Panel
+-- ====================================================================
+
+-- 1. DROP UNUSED CATALOG & POSTER CACHE TABLES
+DROP TABLE IF EXISTS public.anime_catalog_cache CASCADE;
+DROP TABLE IF EXISTS public.catalog_audio_cache CASCADE;
+DROP TABLE IF EXISTS public.catalog_enrichment_cache CASCADE;
+DROP TABLE IF EXISTS public.poster_cache CASCADE;
+
+-- 2. VERIFY RLS IS ENABLED & PROTECTED FOR REQUIRED TABLES ONLY
+
+-- A) LOGIN / SIGNUP
+ALTER TABLE IF EXISTS public.movora_users ENABLE ROW LEVEL SECURITY;
+
+-- B) COMMENTS & CHAT
+ALTER TABLE IF EXISTS public.movora_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.movora_chat ENABLE ROW LEVEL SECURITY;
+
+-- C) WATCH TOGETHER FEATURES
+ALTER TABLE IF EXISTS public.rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.party_chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.youtube_rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.yt_chat_messages ENABLE ROW LEVEL SECURITY;
+
+-- D) ADMIN PANEL & ANNOUNCEMENTS
+ALTER TABLE IF EXISTS public.app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.notification_reads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.banners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.poll_votes ENABLE ROW LEVEL SECURITY;
+
+-- 3. NOTIFY SUPABASE SCHEMA RELOAD
+NOTIFY pgrst, 'reload schema';

@@ -45,21 +45,38 @@ export async function registerUser(username: string, password: string): Promise<
 
         const passwordHash = await hashPassword(password);
 
-        // Insert new user record
-        const { error: insertError } = await supabase
-            .from('movora_users')
-            .insert([{ 
-                username: cleanUsername, 
-                password_hash: passwordHash, 
-                liked_list: [], 
-                watchlist: createDefaultCollection(),
-                watch_history: [],
-                search_history: []
-            }]);
+        // Insert new user record with automatic retry handling for temporary network timeouts
+        let lastInsertError: any = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            const { error: insertErr } = await supabase
+                .from('movora_users')
+                .insert([{ 
+                    username: cleanUsername, 
+                    password_hash: passwordHash, 
+                    liked_list: [], 
+                    watchlist: createDefaultCollection(),
+                    watch_history: [],
+                    search_history: []
+                }]);
 
-        if (insertError) {
-            console.error('Error inserting user:', insertError);
-            return { success: false, error: 'Failed to write account records to Supabase.' };
+            if (!insertErr) {
+                lastInsertError = null;
+                break;
+            }
+
+            lastInsertError = insertErr;
+            console.warn(`[Auth] Registration insert attempt ${attempt} failed:`, insertErr);
+            if (attempt < 3) {
+                await new Promise(r => setTimeout(r, 500 * attempt));
+            }
+        }
+
+        if (lastInsertError) {
+            console.error('Error inserting user after retries:', lastInsertError);
+            return { 
+                success: false, 
+                error: lastInsertError.message || 'Failed to write account records to Supabase. Please try again.' 
+            };
         }
 
         // Auto-login after registration

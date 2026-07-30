@@ -130,7 +130,6 @@ import { useAppPaths } from '@/composables/useAppPaths';
 import AuthModal from '@/components/navigation/AuthModal.vue';
 import SettingsModal from '@/components/navigation/SettingsModal.vue';
 import NotificationBell from '../components/navigation/NotificationBell.vue';
-import { getCachedAppSetting } from '@/lib/settingsCache';
 
 withDefaults(defineProps<{
     immersive?: boolean;
@@ -145,8 +144,6 @@ const route = useRoute();
 
 const isAuthOpen = ref(false);
 const isSettingsOpen = ref(false);
-const isDonationOpen = ref(false);
-const supportBtnHidden = ref(localStorage.getItem('moovie_support_btn_hidden') === 'true');
 const currentUser = ref('');
 
 const moreOpen = ref(false);

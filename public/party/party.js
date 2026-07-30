@@ -23,6 +23,13 @@
                 } catch (e) {
                     console.warn('localStorage setItem failed:', e);
                 }
+            },
+            removeItem(key) {
+                try {
+                    localStorage.removeItem(key);
+                } catch (e) {
+                    console.warn('localStorage removeItem failed:', e);
+                }
             }
         };
 

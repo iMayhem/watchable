@@ -55,15 +55,24 @@ export function addViewedItem(item: ViewedItem): void {
   }
 }
 
-// Auto-sync watch history with Supabase when user is logged in
+let syncTimeout: any = null;
+
+function debouncedSyncToSupabase(viewedItems: ViewedItem[]) {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => {
+    const user = getCurrentUser();
+    if (user) {
+      pushUserDataToSupabase(user, undefined, viewedItems, undefined);
+    }
+  }, 5000);
+}
+
+// Event-driven auto-sync watch history with Supabase when user is logged in
 if (typeof window !== 'undefined') {
   watch(
     viewHistory,
     (newVal) => {
-      const user = getCurrentUser();
-      if (user) {
-        pushUserDataToSupabase(user, undefined, newVal, undefined);
-      }
+      debouncedSyncToSupabase(newVal);
     },
     { deep: true }
   );

@@ -218,7 +218,7 @@
                             </transition>
                         </div>
                         <button
-                            class="moovie-frame__ctrl-btn"
+                            class="moovie-frame__ctrl-btn moovie-frame__cast-btn"
                             @click.stop="handleCastToTV"
                             aria-label="Cast to TV"
                             title="Cast to Smart TV / Chromecast / AirPlay"
@@ -3939,5 +3939,11 @@ export default defineComponent({
 @keyframes pulse {
     0%, 100% { transform: scale(1); opacity: 0.6; }
     50% { transform: scale(1.15); opacity: 1; border-color: #ff7842; }
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+    .moovie-frame__cast-btn {
+        display: none !important;
+    }
 }
 </style>

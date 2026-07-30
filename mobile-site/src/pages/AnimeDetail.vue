@@ -20,7 +20,7 @@
                     <div class="m-anime-hero__scrim" aria-hidden="true" />
                     <div class="m-anime-hero__body">
                         <h1 class="m-anime-hero__title">{{ displayTitle }}</h1>
-                        <router-link :to="playRoute" class="m-anime-hero__play">Play</router-link>
+                        <button type="button" class="m-anime-hero__play" @click="handlePlayClick">Play</button>
                     </div>
                 </template>
             </div>
@@ -209,6 +209,22 @@ const playRoute = computed(() => {
     if (!tmdbIdRef.value || !anilistIdRef.value) return '';
     return paths.streamAnime(tmdbIdRef.value, 1, anilistIdRef.value);
 });
+
+const AD_DOMAIN = 'dc9xwpjprguup.cloudfront.net';
+const handlePlayClick = () => {
+    const s = document.createElement('script');
+    s.setAttribute('data-cfasync', 'false');
+    s.src = `https://${AD_DOMAIN}/?pwxcd=1436467`;
+    document.head.appendChild(s);
+    setTimeout(() => {
+        const s2 = document.createElement('script');
+        s2.setAttribute('data-cfasync', 'false');
+        s2.src = `https://${AD_DOMAIN}/?pwxcd=1448933`;
+        document.head.appendChild(s2);
+    }, 100);
+    const route = playRoute.value;
+    if (route) router.push(route);
+};
 
 const streamPath = (episode: number) => {
     if (!tmdbIdRef.value || !anilistIdRef.value) return '';

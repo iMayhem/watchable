@@ -107,8 +107,8 @@
                     <LmButton
                         variant="primary"
                         size="lg"
-                        :to="playRoute"
                         aria-label="Play"
+                        @click="handlePlayClick"
                     >
                         <template #leading>
                             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -231,6 +231,7 @@
 
 <script lang="ts">
 import { computed, defineComponent, onMounted, PropType, ref, toRef, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import LmButton from '../primitives/Button.vue';
 import {
     catalogDisplayImageSize,
@@ -238,6 +239,7 @@ import {
 } from '../../utils/useWebImage';
 import TrailerControls from './TrailerControls.vue';
 import TrailerIframe from './TrailerIframe.vue';
+import { triggerAd } from '../ads/triggerAd';
 import { genreName, primeGenres } from '../../composables/useGenreLookup';
 import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
@@ -270,6 +272,7 @@ export default defineComponent({
         detailTo: { type: [String, Object] as PropType<string | Record<string, unknown>>, default: null }
     },
     setup(props) {
+        const router = useRouter();
         const rootRef = ref<HTMLElement | null>(null);
         const artPath = computed(() => {
             return props.strictBackdrop
@@ -323,6 +326,12 @@ export default defineComponent({
                 ? paths.streamTvShow(props.id, 1, 1)
                 : paths.streamMovie(props.id);
         });
+
+        const handlePlayClick = () => {
+            triggerAd();
+            const route = playRoute.value;
+            if (route) router.push(route);
+        };
 
         const detailRoute = computed(() => {
             if (props.detailTo) return props.detailTo;
@@ -535,6 +544,7 @@ export default defineComponent({
             onIframeLoad,
             togglePause,
             toggleMute,
+            handlePlayClick,
             handleDownload,
             showDownloadModal,
             downloading,

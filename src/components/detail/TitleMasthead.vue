@@ -125,10 +125,10 @@
                         <LmButton 
                             variant="primary" 
                             size="lg" 
-                            :to="playRoute" 
                             :aria-label="playLabel"
                             @mouseenter="handlePlayHover"
                             @focus="handlePlayHover"
+                            @click="handlePlayClick"
                         >
                             <template #leading>
                                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -326,6 +326,8 @@
 
 <script lang="ts">
 import { computed, defineComponent, PropType, ref, toRef, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { triggerAd } from '../ads/triggerAd';
 import LmButton from '../primitives/Button.vue';
 import TrailerControls from '../hero/TrailerControls.vue';
 import TrailerIframe from '../hero/TrailerIframe.vue';
@@ -370,6 +372,13 @@ export default defineComponent({
         strictBackdrop: { type: Boolean, default: false }
     },
     setup(props) {
+        const router = useRouter();
+        const handlePlayClick = () => {
+            triggerAd();
+            const route = typeof props.playRoute === 'string' ? props.playRoute : props.playRoute;
+            if (route) router.push(route);
+        };
+
         const { goBackToIssue } = useDetailBackNavigation();
         const rootRef = ref<HTMLElement | null>(null);
         const ambientPath = computed(() =>
@@ -902,6 +911,7 @@ export default defineComponent({
             toggleMute,
             partyHref,
             handlePlayHover,
+            handlePlayClick,
             inWatchlist,
             toggleWatchlist
         };

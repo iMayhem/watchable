@@ -3,8 +3,8 @@
 // actually needed (login, register, sync, etc.).  This keeps the entire
 // Supabase bundle out of the initial JS payload for guest visitors.
 
-const DEFAULT_SUPABASE_URL = 'https://eeyiragtylotiwozbgqp.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVleWlyYWd0eWxvdGl3b3piZ3FwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzAyNzYsImV4cCI6MjA5NDk0NjI3Nn0.YB_alc7kt5l09eTfNH0x5q-ayBx-dHS1qE-yzHbRTFg';
+const DEFAULT_SUPABASE_URL = 'https://jagmmmnxgbinlugxeinc.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZ21tbW54Z2Jpbmx1Z3hlaW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NDExOTcsImV4cCI6MjA5OTAxNzE5N30.9oLJOU-HTk-YnhSckPxe_UnBG2yFIT9quAt_mYnMZH4';
 
 let _clientPromise: Promise<any> | null = null;
 
@@ -18,7 +18,7 @@ export async function getSupabaseClient(): Promise<any> {
             let url = localStorage.getItem('supabase_url');
             let key = localStorage.getItem('supabase_key');
 
-            if (!url || url.includes('idwjvciofkvspmumgzmg') || url === 'undefined' || url === 'null' || url.trim() === '') {
+            if (!url || url.includes('idwjvciofkvspmumgzmg') || url.includes('eeyiragtylotiwozbgqp') || url === 'undefined' || url === 'null' || url.trim() === '') {
                 url = DEFAULT_SUPABASE_URL;
                 localStorage.removeItem('supabase_url');
             }

@@ -11,11 +11,11 @@ from typing import Any
 
 import requests
 
-DEFAULT_SUPABASE_URL = "https://eeyiragtylotiwozbgqp.supabase.co"
+DEFAULT_SUPABASE_URL = "https://jagmmmnxgbinlugxeinc.supabase.co"
 DEFAULT_SUPABASE_ANON_KEY = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-    "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlkd2p2Y2lvZmt2c3BtdW1nem1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjkzNTAsImV4cCI6MjEwMDA0NTM1MH0."
-    "MY7UGcPNR3k1-WhdTPN5Mh7bwH_6ACD1XjKBoKb84cU"
+    "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZ21tbW54Z2Jpbmx1Z3hlaW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NDExOTcsImV4cCI6MjA5OTAxNzE5N30."
+    "9oLJOU-HTk-YnhSckPxe_UnBG2yFIT9quAt_mYnMZH4"
 )
 DEFAULT_CATALOG_API = "https://api2.imdb4.shop/api"
 UA = (

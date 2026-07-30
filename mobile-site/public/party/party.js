@@ -332,12 +332,12 @@
         }
 
         // Supabase Dynamic configuration
-        const defaultUrl = 'https://eeyiragtylotiwozbgqp.supabase.co';
-        const PUBLISHABLE_KEY = 'sb_publishable_9c7IjRtqmb5_ozRw2-3EGQ_oB1R_SN-';
-        const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVleWlyYWd0eWxvdGl3b3piZ3FwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzAyNzYsImV4cCI6MjA5NDk0NjI3Nn0.YB_alc7kt5l09eTfNH0x5q-ayBx-dHS1qE-yzHbRTFg';
+        const defaultUrl = 'https://jagmmmnxgbinlugxeinc.supabase.co';
+        const PUBLISHABLE_KEY = 'sb_publishable_sEdjXoX50ZSu2mY_gJEq4A_O0WzMf1D';
+        const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZ21tbW54Z2Jpbmx1Z3hlaW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NDExOTcsImV4cCI6MjA5OTAxNzE5N30.9oLJOU-HTk-YnhSckPxe_UnBG2yFIT9quAt_mYnMZH4';
         
         let defaultKey = safeLocalStorage.getItem('supabase_anon_key') || safeLocalStorage.getItem('supabase_key') || '';
-        if (!defaultKey || defaultKey === 'undefined' || defaultKey === 'null' || defaultKey.trim() === '' || defaultKey.includes('idwjvciofkvspmumgzmg')) {
+        if (!defaultKey || defaultKey === 'undefined' || defaultKey === 'null' || defaultKey.trim() === '' || defaultKey.includes('idwjvciofkvspmumgzmg') || defaultKey.includes('eeyiragtylotiwozbgqp')) {
             defaultKey = PUBLISHABLE_KEY;
             safeLocalStorage.removeItem('supabase_anon_key');
             safeLocalStorage.removeItem('supabase_key');

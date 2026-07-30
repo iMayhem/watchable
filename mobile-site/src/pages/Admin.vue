@@ -35,6 +35,7 @@
                         <label class="admin-page__label" for="default-provider">Default Stream Player (PC)</label>
                         <select id="default-provider" v-model="settings.defaultProvider" class="admin-page__select">
                             <option value="moovie">Moovie (moovie server)</option>
+                            <option value="moovie_x">Moovie X (peestream.in)</option>
                             <option value="sugar">Sugar (vidcodin.net)</option>
                             <option value="rasmalai">Rasmalai (sweet server)</option>
                             <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
@@ -65,6 +66,7 @@
                         <label class="admin-page__label" for="default-provider-mobile">Default Stream Player (Mobile)</label>
                         <select id="default-provider-mobile" v-model="settings.defaultProviderMobile" class="admin-page__select">
                             <option value="moovie">Moovie (moovie server)</option>
+                            <option value="moovie_x">Moovie X (peestream.in)</option>
                             <option value="sugar">Sugar (vidcodin.net)</option>
                             <option value="rasmalai">Rasmalai (sweet server)</option>
                             <option value="cinemaos">Gulab Jamun (CinemaOS)</option>

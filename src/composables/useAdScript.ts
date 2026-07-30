@@ -52,7 +52,7 @@ export function useAdScript(type: 'pc' | 'mobile') {
 
     async function refresh() {
         const isSettingEnabled = await fetchAdSetting(key)
-        const isAllowedPage = route.path === '/' || route.path.includes('/search')
+        const isAllowedPage = route.path.startsWith('/stream')
         const locallyDisabled = typeof localStorage !== 'undefined' && localStorage.getItem('ads_hidden') === 'true'
 
         if (isSettingEnabled && isAllowedPage && !locallyDisabled) {

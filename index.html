@@ -21,10 +21,11 @@
       })();
     </script>
     <script src="https://openpanel.dev/op1.js" defer async></script>
-    <!-- AdMaven Popunder Script (suppressed if Ad-Free Mode is enabled in Settings) -->
+    <!-- AdMaven Popunder Script (active ONLY on /stream player pages) -->
     <script>
       (function() {
         try {
+          if (!window.location.pathname.startsWith('/stream')) return;
           if (localStorage.getItem('ads_hidden') === 'true') return;
         } catch (e) {}
         var s = document.createElement('script');

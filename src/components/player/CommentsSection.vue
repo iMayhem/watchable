@@ -377,27 +377,33 @@ export default defineComponent({
 
             try {
                 const supabase = await getSupabaseClient();
-                const { data, error } = await supabase
-                    .from('movora_comments')
-                    .insert([
-                        {
-                            media_id: String(props.mediaId),
-                            media_type: props.mediaType,
-                            username: nameToPost,
-                            content: text
-                        }
-                    ])
-                    .select()
-                    .single();
-
-                if (error) throw error;
-
-                if (data) {
-                    await fetchComments();
+                let insertErr: any = null;
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    const { error } = await supabase
+                        .from('movora_comments')
+                        .insert([
+                            {
+                                media_id: String(props.mediaId),
+                                media_type: props.mediaType,
+                                username: nameToPost,
+                                content: text
+                            }
+                        ]);
+                    if (!error) {
+                        insertErr = null;
+                        break;
+                    }
+                    insertErr = error;
+                    if (attempt < 3) await new Promise(r => setTimeout(r, 400));
                 }
-            } catch (e) {
+
+                if (insertErr) throw insertErr;
+
+                await fetchComments();
+            } catch (e: any) {
                 console.error('Failed to post comment:', e);
-                processedComments.value = processedComments.value.filter(c => c.id !== optimistic.id)
+                alert(e?.message || 'Failed to post comment. Please try again.');
+                processedComments.value = processedComments.value.filter(c => c.id !== optimistic.id);
             } finally {
                 submitting.value = false;
             }
@@ -442,27 +448,33 @@ export default defineComponent({
 
             try {
                 const supabase = await getSupabaseClient();
-                const { data, error } = await supabase
-                    .from('movora_comments')
-                    .insert([
-                        {
-                            media_id: String(props.mediaId),
-                            media_type: props.mediaType,
-                            username: nameToPost,
-                            content: prefixedContent
-                        }
-                    ])
-                    .select()
-                    .single();
-
-                if (error) throw error;
-
-                if (data) {
-                    await fetchComments();
+                let insertErr: any = null;
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    const { error } = await supabase
+                        .from('movora_comments')
+                        .insert([
+                            {
+                                media_id: String(props.mediaId),
+                                media_type: props.mediaType,
+                                username: nameToPost,
+                                content: prefixedContent
+                            }
+                        ]);
+                    if (!error) {
+                        insertErr = null;
+                        break;
+                    }
+                    insertErr = error;
+                    if (attempt < 3) await new Promise(r => setTimeout(r, 400));
                 }
-            } catch (e) {
+
+                if (insertErr) throw insertErr;
+
+                await fetchComments();
+            } catch (e: any) {
                 console.error('Failed to post reply:', e);
-                processedComments.value = processedComments.value.filter(c => c.id !== optimistic.id)
+                alert(e?.message || 'Failed to post reply. Please try again.');
+                processedComments.value = processedComments.value.filter(c => c.id !== optimistic.id);
             } finally {
                 submittingReply.value = false;
             }

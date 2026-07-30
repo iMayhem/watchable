@@ -14,8 +14,7 @@ const TOXIC_EXACT: string[] = [
   'nigger', 'nigga', 'nigg3r', 'n1gger', 'n1gga',
   'faggot', 'fagot', 'fag',
   'retard', 'retarted',
-  'kill yourself', 'kys', 'k y s',
-  'kill', 'die',
+  'kill yourself', 'kys', 'k y s'
 ];
 
 function normalize(text: string): string {

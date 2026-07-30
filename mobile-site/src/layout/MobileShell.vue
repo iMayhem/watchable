@@ -13,14 +13,6 @@
                 @touchend="onTouchEnd"
                 @click="expandActions"
             >
-                <button
-                    v-if="!supportBtnHidden"
-                    type="button"
-                    class="m-app__support-btn"
-                    @click="isDonationOpen = true"
-                >
-                    Support
-                </button>
                 <!-- Discord Link -->
                 <a
                     href="https://discord.gg/6uAWf5Jbm"
@@ -128,7 +120,6 @@
 
         <AuthModal :is-open="isAuthOpen" @close="closeAuth" />
         <SettingsModal :is-open="isSettingsOpen" @close="isSettingsOpen = false" />
-        <DonationModal :is-open="isDonationOpen" @close="isDonationOpen = false" />
     </div>
 </template>
 
@@ -138,7 +129,6 @@ import { useRoute } from 'vue-router';
 import { useAppPaths } from '@/composables/useAppPaths';
 import AuthModal from '@/components/navigation/AuthModal.vue';
 import SettingsModal from '@/components/navigation/SettingsModal.vue';
-import DonationModal from '@/components/navigation/DonationModal.vue';
 import NotificationBell from '../components/navigation/NotificationBell.vue';
 import { getCachedAppSetting } from '@/lib/settingsCache';
 
@@ -285,21 +275,6 @@ onMounted(() => {
     syncUser();
     window.addEventListener('movora_auth_change', onAuthChange);
     document.addEventListener('click', onDocumentClick);
-    if (!localStorage.getItem('moovie_donation_seen')) {
-        getCachedAppSetting('donation_popup_enabled').then((val) => {
-            if (val !== 'false') {
-                isDonationOpen.value = true;
-            }
-        }).catch(() => {
-            isDonationOpen.value = true;
-        });
-        localStorage.setItem('moovie_donation_seen', '1');
-    }
-
-    getCachedAppSetting('support_btn_hidden').then((val) => {
-        supportBtnHidden.value = val === 'true';
-        localStorage.setItem('moovie_support_btn_hidden', String(supportBtnHidden.value));
-    }).catch(() => {});
 });
 
 onBeforeUnmount(() => {

@@ -232,8 +232,6 @@
         
         <!-- Regional Settings Modal -->
         <SettingsModal :is-open="isSettingsModalOpen" @close="isSettingsModalOpen = false" />
-        
-        <DonationModal :is-open="isDonationModalOpen" @close="isDonationModalOpen = false" />
 
     </header>
 </template>
@@ -251,11 +249,9 @@ import LmDrawer from '../primitives/Drawer.vue';
 import AuthModal from './AuthModal.vue';
 import SettingsModal from './SettingsModal.vue';
 import NotificationBell from './NotificationBell.vue';
-import DonationModal from './DonationModal.vue';
 
 import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
-import { getSupabaseClient } from '../../lib/supabase';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { prefetchPopularActors } from '../../composables/useActorsPrefetch';
 import { prefetchDiscussFeed } from '../../composables/useDiscussPrefetch';
@@ -313,7 +309,7 @@ const primaryNav: NavItem[] = [
 
 export default defineComponent({
     name: 'SiteHeader',
-    components: { LmDrawer, AuthModal, SettingsModal, NotificationBell, DonationModal },
+    components: { LmDrawer, AuthModal, SettingsModal, NotificationBell },
     setup() {
         const route = useRoute();
         const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
@@ -333,7 +329,6 @@ export default defineComponent({
 
         const isAuthModalOpen = ref(false);
         const isSettingsModalOpen = ref(false);
-        const isDonationModalOpen = ref(false);
 
         const currentUser = ref<string | null>(null);
         const { unreadCount } = useNotifications();
@@ -472,20 +467,6 @@ export default defineComponent({
             updateCurrentUser();
             window.addEventListener('movora_auth_change', updateCurrentUser);
             document.addEventListener('click', handleClickOutside);
-            if (!localStorage.getItem('moovie_donation_seen')) {
-                getSupabaseClient().then(client => {
-                    client.from('app_settings').select('value').eq('key', 'donation_popup_enabled').single().then((res: any) => {
-                        if (res?.data?.value !== 'false') {
-                            isDonationModalOpen.value = true;
-                        }
-                    }).catch(() => {
-                        isDonationModalOpen.value = true;
-                    });
-                }).catch(() => {
-                    isDonationModalOpen.value = true;
-                });
-                localStorage.setItem('moovie_donation_seen', '1');
-            }
         });
 
         onBeforeUnmount(() => {
@@ -519,7 +500,6 @@ export default defineComponent({
             openFromDrawer,
             isAuthModalOpen,
             isSettingsModalOpen,
-            isDonationModalOpen,
 
             currentUser,
             handleLogout,

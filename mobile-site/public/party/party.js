@@ -358,17 +358,38 @@
         }
 
         async function insertPartyRoom(row) {
+            let attemptRow = { ...row };
             let result = await supabaseClient
                 .from('rooms')
-                .insert([row])
+                .insert([attemptRow])
                 .select()
                 .single();
 
-            if (result.error && /media_id/i.test(result.error.message || '')) {
-                const { media_id, ...legacyRow } = row;
+            // Dynamic retry loop: strip any column missing in the Supabase schema cache
+            let maxRetries = 5;
+            while (result.error && maxRetries > 0 && (result.error.code === 'PGRST204' || /column/i.test(result.error.message || ''))) {
+                maxRetries--;
+                const msg = result.error.message || '';
+                const match = msg.match(/could not find the '([^']+)' column/i) || msg.match(/column "([^"]+)"/i) || msg.match(/column '([^']+)'/i);
+                if (match && match[1] && attemptRow[match[1]] !== undefined) {
+                    delete attemptRow[match[1]];
+                } else if (attemptRow.host !== undefined && /host/i.test(msg)) {
+                    delete attemptRow.host;
+                } else if (attemptRow.media_id !== undefined && /media_id/i.test(msg)) {
+                    delete attemptRow.media_id;
+                } else if (attemptRow.is_private !== undefined && /is_private/i.test(msg)) {
+                    delete attemptRow.is_private;
+                } else {
+                    // Fallback strip order if exact name parsing missed
+                    if (attemptRow.host !== undefined) delete attemptRow.host;
+                    else if (attemptRow.media_id !== undefined) delete attemptRow.media_id;
+                    else if (attemptRow.is_private !== undefined) delete attemptRow.is_private;
+                    else break;
+                }
+
                 result = await supabaseClient
                     .from('rooms')
-                    .insert([legacyRow])
+                    .insert([attemptRow])
                     .select()
                     .single();
             }

@@ -1,3 +1,4 @@
+import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import Movies from '../pages/Movies.vue'
 import TVShows from '../pages/TVShows.vue'
 import Anime from '../pages/Anime.vue'

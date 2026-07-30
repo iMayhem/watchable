@@ -141,6 +141,7 @@ import SettingsModal from '@/components/navigation/SettingsModal.vue';
 import DonationModal from '@/components/navigation/DonationModal.vue';
 import NotificationBell from '../components/navigation/NotificationBell.vue';
 import { getSupabaseClient } from '@/lib/supabase';
+import { getCachedAppSetting } from '@/lib/settingsCache';
 
 withDefaults(defineProps<{
     immersive?: boolean;
@@ -286,25 +287,19 @@ onMounted(() => {
     window.addEventListener('movora_auth_change', onAuthChange);
     document.addEventListener('click', onDocumentClick);
     if (!localStorage.getItem('moovie_donation_seen')) {
-        getSupabaseClient().then(client => {
-            client.from('app_settings').select('value').eq('key', 'donation_popup_enabled').single().then((res: any) => {
-                if (res?.data?.value !== 'false') {
-                    isDonationOpen.value = true;
-                }
-            }).catch(() => {
+        getCachedAppSetting('donation_popup_enabled').then((val) => {
+            if (val !== 'false') {
                 isDonationOpen.value = true;
-            });
+            }
         }).catch(() => {
             isDonationOpen.value = true;
         });
         localStorage.setItem('moovie_donation_seen', '1');
     }
 
-    getSupabaseClient().then(client => {
-        client.from('app_settings').select('value').eq('key', 'support_btn_hidden').single().then((res: any) => {
-            supportBtnHidden.value = res?.data?.value === 'true';
-            localStorage.setItem('moovie_support_btn_hidden', String(supportBtnHidden.value));
-        }).catch(() => {});
+    getCachedAppSetting('support_btn_hidden').then((val) => {
+        supportBtnHidden.value = val === 'true';
+        localStorage.setItem('moovie_support_btn_hidden', String(supportBtnHidden.value));
     }).catch(() => {});
 });
 

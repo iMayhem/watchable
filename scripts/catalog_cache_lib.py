@@ -11,7 +11,7 @@ from typing import Any
 
 import requests
 
-DEFAULT_SUPABASE_URL = "https://idwjvciofkvspmumgzmg.supabase.co"
+DEFAULT_SUPABASE_URL = "https://eeyiragtylotiwozbgqp.supabase.co"
 DEFAULT_SUPABASE_ANON_KEY = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
     "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlkd2p2Y2lvZmt2c3BtdW1nem1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NjkzNTAsImV4cCI6MjEwMDA0NTM1MH0."

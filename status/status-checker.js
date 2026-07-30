@@ -116,7 +116,7 @@ const services = {
     backendServices: [
         {
             name: 'Supabase',
-            url: 'https://idwjvciofkvspmumgzmg.supabase.co/rest/v1/',
+            url: 'https://eeyiragtylotiwozbgqp.supabase.co/rest/v1/',
             testType: 'supabase',
             note: 'Database & Auth'
         }

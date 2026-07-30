@@ -140,7 +140,6 @@ import AuthModal from '@/components/navigation/AuthModal.vue';
 import SettingsModal from '@/components/navigation/SettingsModal.vue';
 import DonationModal from '@/components/navigation/DonationModal.vue';
 import NotificationBell from '../components/navigation/NotificationBell.vue';
-import { getSupabaseClient } from '@/lib/supabase';
 import { getCachedAppSetting } from '@/lib/settingsCache';
 
 withDefaults(defineProps<{

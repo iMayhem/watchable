@@ -2801,35 +2801,9 @@
                 `;
                 }).join('');
 
-                // Subscribe to each room's shared channel for live participant counts
+                // Show static fallback counts in lobby list; WebSocket channel is created only when user joins a room
                 rooms.forEach(room => {
-                    const roomPresenceChannel = supabaseClient.channel(`party_room_${room.id}`, {
-                        config: {
-                            presence: {
-                                key: `${LOBBY_OBSERVER_PREFIX}${presenceSessionId}_${room.id}`
-                            }
-                        }
-                    });
-
-                    const updateLobbyParticipantCount = () => {
-                        const state = roomPresenceChannel.presenceState();
-                        updateLobbyParticipantLabel(room.id, countPresenceMembers(state));
-                    };
-
-                    roomPresenceChannel
-                        .on('broadcast', { event: 'lobby_count' }, ({ payload }) => {
-                            if (payload && Number.isFinite(payload.count)) {
-                                updateLobbyParticipantLabel(room.id, payload.count);
-                            }
-                        })
-                        .on('presence', { event: 'sync' }, updateLobbyParticipantCount)
-                        .on('presence', { event: 'join' }, updateLobbyParticipantCount)
-                        .on('presence', { event: 'leave' }, updateLobbyParticipantCount)
-                        .subscribe((status) => {
-                            if (status === 'SUBSCRIBED') updateLobbyParticipantCount();
-                        });
-
-                    lobbyChannels.push(roomPresenceChannel);
+                    updateLobbyParticipantLabel(room.id, 1);
                 });
 
             } catch (err) {

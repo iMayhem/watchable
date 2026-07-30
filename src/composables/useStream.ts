@@ -28,32 +28,26 @@ const defaultStreamData: StreamData = {
 
 export const streamData = useStorage<StreamData>('streamData', defaultStreamData);
 
-// Migrate legacy local storage preferences — force Rasmalai (index 0) as default
-if (streamData.value) {
-  if (!streamData.value.version || streamData.value.version < 7) {
-    // v6: Hard-reset ALL saved server preferences to Rasmalai (index 0).
-    // IMPORTANT: We must reassign the entire object — NOT mutate nested properties.
-    // VueUse's useStorage only tracks top-level ref reassignments; direct deep
-    // mutations (entry.serverIndex = 0) are silently lost and never written to localStorage.
-    const oldMap = streamData.value.movieServerMap || {};
-    const resetMap: Record<string, any> = {};
-    for (const key in oldMap) {
-      const entry = oldMap[key];
-      if (entry && typeof entry === 'object') {
-        resetMap[key] = { ...entry, serverIndex: 0 };
-      }
+// Force Moovie X (index 0) as hardcoded default and flush stale browser caches
+if (typeof window !== 'undefined') {
+  const currentVer = localStorage.getItem('watchable_server_v');
+  if (currentVer !== '9') {
+    localStorage.setItem('watchable_server_v', '9');
+    localStorage.setItem('default_server_id', 'moovie_x');
+    localStorage.removeItem('streamData');
+    if (streamData.value) {
+      streamData.value = {
+        movieServerMap: {},
+        version: 9
+      };
     }
-    // Reassign the entire value so useStorage detects and persists the change
-    streamData.value = {
-      movieServerMap: resetMap,
-      version: 7
-    };
   }
 }
 
 export const movieServers = ref<Server[]>([
-  { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Moovie X', urlTemplate: 'https://peestream.in/embed/?tmdbId={tmdbId}&type=movie' },
+  { name: 'Moovie', urlTemplate: '', isApiProvider: true },
+  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{tmdbId}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
@@ -75,13 +69,12 @@ export const movieServers = ref<Server[]>([
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true' },
   { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/movie/{tmdbId}' },
   { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true' },
-  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' },
   { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={tmdbId}&type=movie' }
 ]);
 
 export const tvServers = ref<Server[]>([
-  { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Moovie X', urlTemplate: 'https://peestream.in/embed/?tmdbId={externalId}&type=show&season={season}&episode={episode}' },
+  { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{externalId}/{season}/{episode}' },
@@ -104,7 +97,6 @@ export const tvServers = ref<Server[]>([
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/tv/{externalId}/{season}/{episode}?autoplay=true' },
   { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={externalId}&type=tv&s={season}&e={episode}' }
 ]);
 
@@ -178,7 +170,7 @@ async function fetchDefaultServerId() {
   } catch (e) {
     console.warn('Failed to fetch default provider from Supabase, using local default:', e);
   }
-  return null;
+  return 'moovie_x';
 }
 
 export async function loadDefaultServer() {

@@ -3345,7 +3345,14 @@
                     }
                 } else if (catalogMediaId) {
                     await createCatalogPartyRoom(catalogMediaId);
-        // Keyboard shortcuts for Watch Together player
+                } else {
+                    bootstrapLobbyView();
+                }
+            } catch (err) {
+                console.error('Error booting watch party room:', err);
+                showLobbyView();
+            }
+        });
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const modal = document.getElementById('image-view-modal');

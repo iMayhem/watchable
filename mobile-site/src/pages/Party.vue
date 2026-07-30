@@ -6,6 +6,7 @@
             :src="frameSrc"
             title="Watch Together"
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-downloads"
             @load="frameReady = true"
         />
     </div>
@@ -129,11 +130,6 @@ onBeforeUnmount(() => {
     height: 100%;
     min-height: 0;
     background: #0b0a08;
-    opacity: 0;
-    transition: opacity 0.2s var(--ease-out, ease-out);
-}
-
-.party-shell__frame.is-loaded {
     opacity: 1;
 }
 </style>

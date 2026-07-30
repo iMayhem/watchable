@@ -1,4 +1,8 @@
-import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import Movies from '../pages/Movies.vue'
+import TVShows from '../pages/TVShows.vue'
+import Anime from '../pages/Anime.vue'
+import Discover from '../pages/Discover.vue'
+import Search from '../pages/Search.vue'
 import Movie from '../pages/Movie.vue'
 import TVShow from '../pages/TVShow.vue'
 import AnimeDetail from '../pages/AnimeDetail.vue'
@@ -31,7 +35,7 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/discover',
         name: 'Discover',
-        component: () => import('../pages/Discover.vue'),
+        component: Discover,
         meta: {
             showInHeader: true,
             title: 'Discover'
@@ -50,7 +54,7 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/movies',
         name: 'Movies',
-        component: () => import('../pages/Movies.vue'),
+        component: Movies,
         meta: {
             showInHeader: true,
             title: 'Movies'
@@ -60,7 +64,7 @@ const routes: Array<RouteRecordRaw> = [
         path: '/tv-shows',
         alias: '/tv',
         name: 'TVShows',
-        component: () => import('../pages/TVShows.vue'),
+        component: TVShows,
         meta: {
             showInHeader: true,
             title: 'TV Shows'
@@ -69,7 +73,7 @@ const routes: Array<RouteRecordRaw> = [
     {
         path: '/anime',
         name: 'Anime',
-        component: () => import('../pages/Anime.vue'),
+        component: Anime,
         meta: {
             showInHeader: true,
             title: 'Anime'
@@ -115,7 +119,7 @@ const routes: Array<RouteRecordRaw> = [
     {
         'path': '/search',
         'name': 'Search',
-        'component': () => import('../pages/Search.vue'),
+        'component': Search,
         meta: {
             showInHeader: true,
             title: 'Search'

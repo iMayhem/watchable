@@ -337,8 +337,16 @@ let supabaseClient: any = null
 async function getClient() {
     if (supabaseClient) return supabaseClient
     const { createClient } = await import('@supabase/supabase-js')
-    const url = localStorage.getItem('supabase_url') || SUPABASE_URL
-    const key = localStorage.getItem('supabase_key') || SUPABASE_KEY
+    let url = localStorage.getItem('supabase_url')
+    if (!url || url.includes('idwjvciofkvspmumgzmg')) {
+        url = SUPABASE_URL
+        localStorage.removeItem('supabase_url')
+    }
+    let key = localStorage.getItem('supabase_key')
+    if (!key || url === SUPABASE_URL) {
+        key = SUPABASE_KEY
+        localStorage.removeItem('supabase_key')
+    }
     supabaseClient = createClient(url, key)
     return supabaseClient
 }

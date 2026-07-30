@@ -18,8 +18,14 @@ export async function getSupabaseClient(): Promise<any> {
             let url = localStorage.getItem('supabase_url');
             let key = localStorage.getItem('supabase_key');
 
-            if (!url || url === 'undefined' || url === 'null' || url.trim() === '') url = DEFAULT_SUPABASE_URL;
-            if (!key || key === 'undefined' || key === 'null' || key.trim() === '') key = DEFAULT_SUPABASE_KEY;
+            if (!url || url.includes('idwjvciofkvspmumgzmg') || url === 'undefined' || url === 'null' || url.trim() === '') {
+                url = DEFAULT_SUPABASE_URL;
+                localStorage.removeItem('supabase_url');
+            }
+            if (!key || url === DEFAULT_SUPABASE_URL || key === 'undefined' || key === 'null' || key.trim() === '') {
+                key = DEFAULT_SUPABASE_KEY;
+                localStorage.removeItem('supabase_key');
+            }
 
             return createClient(url, key);
         });

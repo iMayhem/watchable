@@ -28,26 +28,26 @@ const defaultStreamData: StreamData = {
 
 export const streamData = useStorage<StreamData>('streamData', defaultStreamData);
 
-// Force Moovie X (index 0) as hardcoded default and flush stale browser caches
+// Force Sugar (index 0) as hardcoded default and flush stale browser caches
 if (typeof window !== 'undefined') {
   const currentVer = localStorage.getItem('watchable_server_v');
-  if (currentVer !== '9') {
-    localStorage.setItem('watchable_server_v', '9');
-    localStorage.setItem('default_server_id', 'moovie_x');
+  if (currentVer !== '10') {
+    localStorage.setItem('watchable_server_v', '10');
+    localStorage.setItem('default_server_id', 'sugar');
     localStorage.removeItem('streamData');
     if (streamData.value) {
       streamData.value = {
         movieServerMap: {},
-        version: 9
+        version: 10
       };
     }
   }
 }
 
 export const movieServers = ref<Server[]>([
+  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' },
   { name: 'Moovie X', urlTemplate: 'https://peestream.in/embed/?tmdbId={tmdbId}&type=movie' },
   { name: 'Moovie', urlTemplate: '', isApiProvider: true },
-  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{tmdbId}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
@@ -73,9 +73,9 @@ export const movieServers = ref<Server[]>([
 ]);
 
 export const tvServers = ref<Server[]>([
+  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Moovie X', urlTemplate: 'https://peestream.in/embed/?tmdbId={externalId}&type=show&season={season}&episode={episode}' },
   { name: 'Moovie', urlTemplate: '', isApiProvider: true },
-  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{externalId}/{season}/{episode}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
@@ -170,7 +170,7 @@ async function fetchDefaultServerId() {
   } catch (e) {
     console.warn('Failed to fetch default provider from Supabase, using local default:', e);
   }
-  return 'moovie_x';
+  return 'sugar';
 }
 
 export async function loadDefaultServer() {

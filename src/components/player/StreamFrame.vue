@@ -12,7 +12,6 @@
                 <!-- Standard iframe embed -->
                 <iframe
                     v-if="embedUrl && shouldLoad && !hasError"
-                    :key="embedUrl"
                     ref="frameEl"
                     :src="embedUrl"
                     :title="title"

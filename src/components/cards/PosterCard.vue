@@ -137,16 +137,15 @@ export default defineComponent({
     setup(props) {
         const imgRef = ref<HTMLImageElement | null>(null);
         const posterFallback = ref(false);
-        const imgLoaded = ref(false);
+        const effectivePosterPath = computed(
+            () => props.posterPath || props.backdropPath || null
+        );
+        const imgLoaded = ref(Boolean(effectivePosterPath.value && loadedPosterUrls.has(effectivePosterPath.value)));
         const router = useRouter();
         const { detailPath } = useAppPaths();
         const peeking = ref(false);
         let enterTimer: number | null = null;
         let leaveTimer: number | null = null;
-
-        const effectivePosterPath = computed(
-            () => props.posterPath || props.backdropPath || null
-        );
 
         const imageUrl = computed(() => {
             const path = effectivePosterPath.value;

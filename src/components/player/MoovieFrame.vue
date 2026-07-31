@@ -152,7 +152,7 @@
                     </div>
                 </div>
 
-                <div v-if="!loading && !error" class="moovie-frame__controls">
+                <div v-if="!loading && !error" class="moovie-frame__controls" @mouseenter="isHoveringControls = true; resetIdleTimer()" @mouseleave="isHoveringControls = false; resetIdleTimer()">
                     <div class="moovie-frame__controls-left">
                         <button v-if="mediaType === 'tv'" class="moovie-frame__ctrl-btn" @click="$emit('prev-episode')" aria-label="Previous Episode">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4" /><rect x="5" y="4" width="2" height="16" rx="0.5" /></svg>
@@ -1020,6 +1020,7 @@ export default defineComponent({
         }
 
         const controlsHidden = ref(false)
+        const isHoveringControls = ref(false)
         const brandText = computed(() => {
             if (typeof window !== 'undefined') {
                 return window.location.hostname.includes('peestream') ? 'pee' : 'moovie'
@@ -1031,12 +1032,13 @@ export default defineComponent({
             controlsHidden.value = false
             if (idleTimer) clearTimeout(idleTimer)
             idleTimer = setTimeout(function() {
-                if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
+                if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value && !isHoveringControls.value) {
                     controlsHidden.value = true
                 }
             }, 3000)
         }
         function handleMouseLeave() {
+            isHoveringControls.value = false
             if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
                 controlsHidden.value = true
                 if (idleTimer) clearTimeout(idleTimer)
@@ -2626,7 +2628,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>

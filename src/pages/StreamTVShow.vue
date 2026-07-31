@@ -36,7 +36,7 @@
         </div>
 
         <!-- TOP overlay: gradient + back + title + episode nav + server -->
-        <div v-if="!isEmbed" class="watch-stage__top-overlay">
+        <div v-if="!isEmbed" class="watch-stage__top-overlay" :class="{ 'is-hidden': !controlsVisible }" @mouseenter="cancelHide" @mouseleave="onTopMouseLeave">
             <div class="watch-stage__top-gradient" aria-hidden="true" />
             <div class="watch-stage__top-bar">
                 <div class="watch-stage__top-left">
@@ -596,20 +596,40 @@ export default defineComponent({
 
         // ── smov-style: auto-hide controls after 3s of inactivity ─────────────
         const controlsVisible = ref(true);
+        const isHoveringTop = ref(false);
         let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const cancelHide = () => {
+            isHoveringTop.value = true;
+            controlsVisible.value = true;
+            if (hideTimer) {
+                clearTimeout(hideTimer);
+                hideTimer = null;
+            }
+        };
+
+        const onTopMouseLeave = () => {
+            isHoveringTop.value = false;
+            showControls();
+        };
 
         const showControls = () => {
             controlsVisible.value = true;
             if (hideTimer) clearTimeout(hideTimer);
             hideTimer = setTimeout(() => {
-                controlsVisible.value = false;
+                if (!isHoveringTop.value) {
+                    controlsVisible.value = false;
+                }
             }, 3000);
         };
 
         const scheduleHide = () => {
+            if (isHoveringTop.value) return;
             if (hideTimer) clearTimeout(hideTimer);
             hideTimer = setTimeout(() => {
-                controlsVisible.value = false;
+                if (!isHoveringTop.value) {
+                    controlsVisible.value = false;
+                }
             }, 800);
         };
 
@@ -676,6 +696,8 @@ export default defineComponent({
             useWebImage,
             seasons,
             controlsVisible,
+            cancelHide,
+            onTopMouseLeave,
             showControls,
             scheduleHide,
             inWatchlist,

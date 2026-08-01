@@ -327,7 +327,6 @@
 <script lang="ts">
 import { computed, defineComponent, PropType, ref, toRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { triggerAd } from '../ads/triggerAd';
 import LmButton from '../primitives/Button.vue';
 import TrailerControls from '../hero/TrailerControls.vue';
 import TrailerIframe from '../hero/TrailerIframe.vue';
@@ -374,7 +373,6 @@ export default defineComponent({
     setup(props) {
         const router = useRouter();
         const handlePlayClick = () => {
-            triggerAd();
             const route = typeof props.playRoute === 'string' ? props.playRoute : props.playRoute;
             if (route) router.push(route);
         };
@@ -736,7 +734,7 @@ export default defineComponent({
                                     } else {
                                         rawName = `${titleClean}.${qLabel.toUpperCase()}.WEB-DL.x264.mp4`;
                                     }
-                                } else if (!/\.mp4$/i.test(rawName)) {
+                                } else if (!/\.(mp4|mkv|avi|mov|webm|wmv|ts|m2ts|rar|zip)$/i.test(rawName)) {
                                     rawName = `${rawName}.mp4`;
                                 }
 
@@ -758,7 +756,7 @@ export default defineComponent({
                             } else {
                                 rawName = `${titleClean}.${qualityStr}.WEB-DL.x264.mp4`;
                             }
-                        } else if (!/\.mp4$/i.test(rawName)) {
+                        } else if (!/\.(mp4|mkv|avi|mov|webm|wmv|ts|m2ts|rar|zip)$/i.test(rawName)) {
                             rawName = `${rawName}.mp4`;
                         }
 

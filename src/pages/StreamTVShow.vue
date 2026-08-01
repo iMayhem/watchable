@@ -160,7 +160,6 @@
                     @next="goToNextEpisode"
                 />
             </div>
-            <CommentsSection :media-id="show.id" media-type="tv" />
         </div>
     </div>
 </template>
@@ -194,7 +193,6 @@ import ServerAccordion from '../components/player/ServerAccordion.vue';
 
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
-import CommentsSection from '../components/player/CommentsSection.vue';
 import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
 
 export default defineComponent({
@@ -206,7 +204,6 @@ export default defineComponent({
 
         UpNextDrawer,
         ArrowLeft,
-        CommentsSection,
         EpisodeNavigator
     },
     setup() {

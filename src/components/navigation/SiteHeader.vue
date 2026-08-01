@@ -254,7 +254,6 @@ import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
 import { prefetchPopularActors } from '../../composables/useActorsPrefetch';
-import { prefetchDiscussFeed } from '../../composables/useDiscussPrefetch';
 import { useNotifications } from '../../composables/useNotifications';
 
 interface NavItem {
@@ -265,7 +264,6 @@ interface NavItem {
 }
 
 const othersNav: NavItem[] = [
-    { label: 'Discuss', path: '/discuss', match: p => p === '/discuss', num: 5 },
     {
         label: 'Actors',
         path: '/actors',
@@ -442,7 +440,6 @@ export default defineComponent({
 
         const prefetchPrimaryNav = (item: { path: string }) => {
             if (item.path === '/actors') void prefetchPopularActors();
-            if (item.path === '/discuss') void prefetchDiscussFeed();
         };
 
         const handleClickOutside = (event: MouseEvent) => {

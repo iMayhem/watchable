@@ -244,7 +244,6 @@
                     @next="goToNextEpisode"
                 />
             </div>
-            <CommentsSection :media-id="animeId" media-type="anime" />
         </div>
     </div>
 </template>
@@ -264,7 +263,6 @@ import UpNextDrawer from '../components/player/UpNextDrawer.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import { useAppPaths } from '../composables/useAppPaths';
 import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../composables/useWatchlist';
-import CommentsSection from '../components/player/CommentsSection.vue';
 import EpisodeNavigator from '../components/player/EpisodeNavigator.vue';
 import {
     partitionStreamSeasonEpisodes,
@@ -300,7 +298,6 @@ export default defineComponent({
         StreamFrame,
 
         UpNextDrawer,
-        CommentsSection,
         EpisodeNavigator
     },
     setup() {

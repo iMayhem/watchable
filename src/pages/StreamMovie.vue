@@ -89,9 +89,8 @@
             </div>
         </div>
 
-        <!-- BOTTOM overlay for comments (scrollable below player) -->
+        <!-- BOTTOM overlay (scrollable below player) -->
         <div v-if="!isEmbed && movie" class="watch-stage__rack">
-            <CommentsSection :media-id="movie.id" media-type="movie" />
         </div>
     </div>
 </template>
@@ -116,11 +115,10 @@ import StreamFrame from '../components/player/StreamFrame.vue';
 import MoovieFrame from '../components/player/MoovieFrame.vue';
 import ServerAccordion from '../components/player/ServerAccordion.vue';
 import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
-import CommentsSection from '../components/player/CommentsSection.vue';
 
 export default defineComponent({
     name: 'StreamMovie',
-    components: { StreamFrame, MoovieFrame, ServerAccordion, ArrowLeft, CommentsSection },
+    components: { StreamFrame, MoovieFrame, ServerAccordion, ArrowLeft },
     setup() {
         const route = useRoute();
         const router = useRouter();

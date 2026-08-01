@@ -145,15 +145,6 @@ const routes: Array<RouteRecordRaw> = [
         }
     },
     {
-        path: '/discuss',
-        name: 'Discuss',
-        component: () => import('../pages/Discuss.vue'),
-        meta: {
-            showInHeader: true,
-            title: 'Discuss'
-        }
-    },
-    {
         path: '/upcoming',
         name: 'Upcoming',
         component: () => import('../pages/Upcoming.vue'),

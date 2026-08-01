@@ -239,7 +239,6 @@ import {
 } from '../../utils/useWebImage';
 import TrailerControls from './TrailerControls.vue';
 import TrailerIframe from './TrailerIframe.vue';
-import { triggerAd } from '../ads/triggerAd';
 import { genreName, primeGenres } from '../../composables/useGenreLookup';
 import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
@@ -328,7 +327,6 @@ export default defineComponent({
         });
 
         const handlePlayClick = () => {
-            triggerAd();
             const route = playRoute.value;
             if (route) router.push(route);
         };

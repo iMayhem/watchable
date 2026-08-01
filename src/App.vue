@@ -27,12 +27,13 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import { computed, onMounted, onBeforeUnmount, watch, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
 import { useAdScript } from './composables/useAdScript';
 import { getSupabaseClient } from './lib/supabase';
 import { setVpsProxyBaseUrl } from './utils/useWebImage';
+import { triggerAd } from './components/ads/triggerAd';
 import BannerBar from './components/navigation/BannerBar.vue';
 import PollPopup from './components/navigation/PollPopup.vue';
 
@@ -125,6 +126,16 @@ onMounted(async () => {
         setTimeout(() => initIdle(), 100);
     }
 });
+
+watch(
+    () => route.fullPath,
+    (path, prevPath) => {
+        if (path === prevPath) return;
+        if (isBareLayout.value || isPartyEmbed.value) return;
+        setTimeout(() => triggerAd(), 250);
+    },
+    { immediate: false }
+);
 
 onBeforeUnmount(() => {
     _stopReveal?.();

@@ -292,6 +292,13 @@
                                         {{ opt.filename }}
                                     </div>
                                     <span class="masthead__dl-meta">
+                                        <span
+                                            v-if="opt.server"
+                                            class="masthead__dl-speed"
+                                            :class="opt.server.toLowerCase().includes('10gbps') ? 'is-fast' : 'is-slow'"
+                                        >
+                                            {{ opt.server.toLowerCase().includes('10gbps') ? '⚡ Fast' : '🐢 Slow' }}
+                                        </span>
                                         <span class="masthead__dl-chip">MP4</span>
                                         <template v-if="opt.size && opt.size !== '-'">
                                             <span class="masthead__dl-dot">•</span>
@@ -743,7 +750,8 @@ export default defineComponent({
                                     url: targetUrl,
                                     provider: item.provider || 'CineStream',
                                     filename: rawName,
-                                    size: itemSize
+                                    size: itemSize,
+                                    server: qObj.server || ''
                                 });
                             }
                         }
@@ -1386,6 +1394,27 @@ export default defineComponent({
     padding: 1px 5px;
     border-radius: 4px;
     flex-shrink: 0;
+}
+
+.masthead__dl-speed {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.masthead__dl-speed.is-fast {
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.masthead__dl-speed.is-slow {
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .masthead__dl-dot {

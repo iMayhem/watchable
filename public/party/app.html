@@ -36,8 +36,8 @@
       } catch (e) {}
     </script>
     
-    <!-- Supabase JS Client CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Self-hosted sync client (REST + WebSocket, replaces Supabase) -->
+    <script src="/party/party-sync.js"></script>
     <script>
       window.op=window.op||function(){var n=[];return new Proxy(function(){arguments.length&&n.push([].slice.call(arguments))},{get:function(t,r){return"q"===r?n:function(){n.push([r].concat([].slice.call(arguments)))}} ,has:function(t,r){return"q"===r}}) }();
       (function() {

@@ -1,4 +1,3 @@
-import { getSupabaseClient } from './supabase';
 import { createDefaultCollection, normalizeWatchlistStorage } from '../composables/useWatchlist';
 
 export interface UserAccount {
@@ -7,11 +6,55 @@ export interface UserAccount {
     createdAt: string;
 }
 
-// Password Hashing helper (SHA-256) - Disabled to use plain text passwords
-async function hashPassword(password: string): Promise<string> {
-    return password;
+const API_ORIGIN = 'https://proxy.moovie.fun';
+
+interface ApiResult {
+    data: any;
+    error: { message: string; code?: string } | null;
+    status?: number;
 }
 
+async function apiCall(method: string, path: string, body?: unknown, auth = false): Promise<ApiResult> {
+    const headers: Record<string, string> = {};
+    if (body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+    }
+    if (auth) {
+        const token = typeof window !== 'undefined' ? window.localStorage.getItem('movora_token') : null;
+        if (token) headers.Authorization = `Bearer ${token}`;
+    }
+    try {
+        const res = await fetch(API_ORIGIN + path, {
+            method,
+            headers,
+            body: body !== undefined ? JSON.stringify(body) : undefined,
+        });
+        const parsed = await res.json().catch(() => ({ data: null }));
+        return { data: parsed.data ?? null, error: parsed.error ?? null, status: res.status };
+    } catch (e: any) {
+        return { data: null, error: { message: e?.message || 'Network error' } };
+    }
+}
+
+function applyLocalUserData(user: any) {
+    if (user.watchlist) {
+        window.localStorage.setItem('watchlist', JSON.stringify(normalizeWatchlistStorage(user.watchlist)));
+    }
+    if (user.watch_history) {
+        window.localStorage.setItem('viewHistory', JSON.stringify(user.watch_history));
+    }
+    if (user.search_history) {
+        window.localStorage.setItem('searchHistory', JSON.stringify(user.search_history));
+    }
+    window.dispatchEvent(new Event('movora_userdata_change'));
+}
+
+function completeLogin(username: string, token: string) {
+    window.localStorage.setItem('movora_current_user', username);
+    window.localStorage.setItem('watch_username', username);
+    if (token) window.localStorage.setItem('movora_token', token);
+    window.dispatchEvent(new Event('movora_auth_change'));
+}
 
 // Register Account
 export async function registerUser(username: string, password: string): Promise<{ success: boolean; error?: string }> {
@@ -25,71 +68,14 @@ export async function registerUser(username: string, password: string): Promise<
         return { success: false, error: 'Password must be at least 6 characters long.' };
     }
 
-    try {
-        const supabase = await getSupabaseClient();
-
-        // Check if user already exists
-        const { data: existingUser, error: checkError } = await supabase
-            .from('movora_users')
-            .select('username')
-            .eq('username', cleanUsername)
-            .maybeSingle();
-
-        if (checkError) {
-            console.error('Error checking user:', checkError);
-        }
-
-        if (existingUser) {
-            return { success: false, error: 'Username is already taken.' };
-        }
-
-        const passwordHash = await hashPassword(password);
-
-        // Insert new user record with automatic retry handling for temporary network timeouts
-        let lastInsertError: any = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-            const { error: insertErr } = await supabase
-                .from('movora_users')
-                .insert([{ 
-                    username: cleanUsername, 
-                    password_hash: passwordHash, 
-                    liked_list: [], 
-                    watchlist: createDefaultCollection(),
-                    watch_history: [],
-                    search_history: []
-                }]);
-
-            if (!insertErr) {
-                lastInsertError = null;
-                break;
-            }
-
-            lastInsertError = insertErr;
-            console.warn(`[Auth] Registration insert attempt ${attempt} failed:`, insertErr);
-            if (attempt < 3) {
-                await new Promise(r => setTimeout(r, 500 * attempt));
-            }
-        }
-
-        if (lastInsertError) {
-            console.error('Error inserting user after retries:', lastInsertError);
-            return { 
-                success: false, 
-                error: lastInsertError.message || 'Failed to write account records to Supabase. Please try again.' 
-            };
-        }
-
-        // Auto-login after registration
-        localStorage.setItem('movora_current_user', cleanUsername);
-        localStorage.setItem('watch_username', cleanUsername);
-        localStorage.setItem('watchlist', JSON.stringify(createDefaultCollection()));
-
-        window.dispatchEvent(new Event('movora_auth_change'));
-        return { success: true };
-    } catch (e) {
-        console.error(e);
-        return { success: false, error: 'Database connection failed.' };
+    const res = await apiCall('POST', '/api/sync-auth/register', { username: cleanUsername, password });
+    if (res.error || !res.data?.token) {
+        return { success: false, error: res.error?.message || 'Failed to create account. Please try again.' };
     }
+
+    completeLogin(cleanUsername, res.data.token);
+    window.localStorage.setItem('watchlist', JSON.stringify(createDefaultCollection()));
+    return { success: true };
 }
 
 // Login Account
@@ -97,177 +83,99 @@ export async function loginUser(username: string, password: string): Promise<{ s
     if (typeof window === 'undefined') return { success: false };
 
     const cleanUsername = username.trim().toLowerCase();
-    
-    try {
-        const supabase = await getSupabaseClient();
-
-        // Retrieve user record
-        const { data: user, error: fetchError } = await supabase
-            .from('movora_users')
-            .select('*')
-            .eq('username', cleanUsername)
-            .maybeSingle();
-
-        if (fetchError || !user) {
-            return { success: false, error: 'Incorrect username or password.' };
-        }
-
-        const passwordHash = await hashPassword(password);
-        if (user.password_hash !== passwordHash) {
-            return { success: false, error: 'Incorrect username or password.' };
-        }
-
-        localStorage.setItem('movora_current_user', cleanUsername);
-        localStorage.setItem('watch_username', cleanUsername);
-        
-        if (user.watchlist) {
-            localStorage.setItem(
-                'watchlist',
-                JSON.stringify(normalizeWatchlistStorage(user.watchlist))
-            );
-        }
-        if (user.watch_history) {
-            localStorage.setItem('viewHistory', JSON.stringify(user.watch_history));
-        }
-        if (user.search_history) {
-            localStorage.setItem('searchHistory', JSON.stringify(user.search_history));
-        }
-
-        window.dispatchEvent(new Event('movora_auth_change'));
-        return { success: true };
-    } catch (e) {
-        console.error(e);
-        return { success: false, error: 'Database authentication failed.' };
+    const res = await apiCall('POST', '/api/sync-auth/login', { username: cleanUsername, password });
+    if (res.error || !res.data?.token) {
+        return { success: false, error: res.error?.message || 'Incorrect username or password.' };
     }
+
+    completeLogin(cleanUsername, res.data.token);
+
+    const userRes = await apiCall('GET', `/api/user/${encodeURIComponent(cleanUsername)}`);
+    if (userRes.data) {
+        applyLocalUserData(userRes.data);
+    }
+    return { success: true };
 }
 
 // Logout Account
 export function logoutUser() {
     if (typeof window === 'undefined') return;
-    localStorage.removeItem('movora_current_user');
-    localStorage.removeItem('watch_username');
-    localStorage.removeItem('watchlist');
+    window.localStorage.removeItem('movora_current_user');
+    window.localStorage.removeItem('watch_username');
+    window.localStorage.removeItem('watchlist');
+    window.localStorage.removeItem('movora_token');
     window.dispatchEvent(new Event('movora_auth_change'));
 }
 
 // Get Active Session
 export function getCurrentUser(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('movora_current_user');
+    return window.localStorage.getItem('movora_current_user');
 }
 
-// Helper to push user lists to Supabase
+// Helper to push user lists to the VPS sync server
 export async function pushUserDataToSupabase(
     username: string,
     watchlist?: unknown,
     watchHistory?: any[],
     searchHistory?: string[]
 ): Promise<boolean> {
-    try {
-        const supabase = await getSupabaseClient();
-        const updateData: Record<string, unknown> = {};
+    const updateData: Record<string, unknown> = {};
 
-        if (watchlist !== undefined) {
-            updateData.watchlist = normalizeWatchlistStorage(watchlist);
-        }
-        if (watchHistory !== undefined) {
-            updateData.watch_history = watchHistory;
-        }
-        if (searchHistory !== undefined) {
-            updateData.search_history = searchHistory;
-        }
-
-        if (!Object.keys(updateData).length) return true;
-
-        const { error } = await supabase
-            .from('movora_users')
-            .update(updateData)
-            .eq('username', username.toLowerCase());
-
-        if (error) {
-            console.error('Error updating user data in Supabase:', error);
-            return false;
-        }
-        return true;
-    } catch (e) {
-        console.error('Failed to update user data in Supabase:', e);
-        return false;
+    if (watchlist !== undefined) {
+        updateData.watchlist = normalizeWatchlistStorage(watchlist);
     }
+    if (watchHistory !== undefined) {
+        updateData.watch_history = watchHistory;
+    }
+    if (searchHistory !== undefined) {
+        updateData.search_history = searchHistory;
+    }
+
+    if (!Object.keys(updateData).length) return true;
+
+    const res = await apiCall(
+        'PUT',
+        `/api/user/${encodeURIComponent(username.toLowerCase())}`,
+        updateData,
+        true
+    );
+    return !res.error;
 }
 
-// Helper to fetch user lists from Supabase
+// Helper to fetch user lists from the VPS sync server
 export async function syncUserDataWithSupabase(username: string) {
     if (typeof window === 'undefined' || !username) return;
-    try {
-        const supabase = await getSupabaseClient();
-        const { data: user, error } = await supabase
-            .from('movora_users')
-            .select('watchlist, watch_history, search_history')
-            .eq('username', username.toLowerCase())
-            .maybeSingle();
-
-        if (!error && user) {
-            if (user.watchlist) {
-                localStorage.setItem(
-                    'watchlist',
-                    JSON.stringify(normalizeWatchlistStorage(user.watchlist))
-                );
-            }
-            if (user.watch_history) {
-                localStorage.setItem('viewHistory', JSON.stringify(user.watch_history));
-            }
-            if (user.search_history) {
-                localStorage.setItem('searchHistory', JSON.stringify(user.search_history));
-            }
-            window.dispatchEvent(new Event('movora_userdata_change'));
-        }
-    } catch (e) {
-        console.error('Failed to sync user data from Supabase:', e);
+    const res = await apiCall('GET', `/api/user/${encodeURIComponent(username.toLowerCase())}`);
+    if (res.data) {
+        applyLocalUserData(res.data);
     }
 }
 
 // Clear watch history
 export async function clearWatchHistory(username: string) {
-    try {
-        const supabase = await getSupabaseClient();
-        const { error } = await supabase
-            .from('movora_users')
-            .update({ watch_history: [] })
-            .eq('username', username.toLowerCase());
-            
-        if (error) {
-            console.error('Error clearing watch history:', error);
-            return false;
-        }
-        
-        localStorage.setItem('viewHistory', '[]');
-        window.dispatchEvent(new Event('movora_userdata_change'));
-        return true;
-    } catch (e) {
-        console.error('Failed to clear watch history:', e);
-        return false;
-    }
+    const res = await apiCall(
+        'PUT',
+        `/api/user/${encodeURIComponent(username.toLowerCase())}`,
+        { watch_history: [] },
+        true
+    );
+    if (res.error) return false;
+    window.localStorage.setItem('viewHistory', '[]');
+    window.dispatchEvent(new Event('movora_userdata_change'));
+    return true;
 }
 
 // Clear search history
 export async function clearSearchHistory(username: string) {
-    try {
-        const supabase = await getSupabaseClient();
-        const { error } = await supabase
-            .from('movora_users')
-            .update({ search_history: [] })
-            .eq('username', username.toLowerCase());
-            
-        if (error) {
-            console.error('Error clearing search history:', error);
-            return false;
-        }
-        
-        localStorage.setItem('searchHistory', '[]');
-        window.dispatchEvent(new Event('movora_userdata_change'));
-        return true;
-    } catch (e) {
-        console.error('Failed to clear search history:', e);
-        return false;
-    }
+    const res = await apiCall(
+        'PUT',
+        `/api/user/${encodeURIComponent(username.toLowerCase())}`,
+        { search_history: [] },
+        true
+    );
+    if (res.error) return false;
+    window.localStorage.setItem('searchHistory', '[]');
+    window.dispatchEvent(new Event('movora_userdata_change'));
+    return true;
 }

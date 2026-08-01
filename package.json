@@ -12,7 +12,6 @@
     "deploy": "yarn run build && wrangler deploy"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.1",
     "@types/node": "^24.3.0",
     "@vueuse/core": "^13.1.0",
     "axios": "^1.4.0",

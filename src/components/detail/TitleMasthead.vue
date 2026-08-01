@@ -490,6 +490,7 @@ export default defineComponent({
             provider: string;
             filename?: string;
             size?: string;
+            server?: string;
         }
 
         const downloading = ref(false);

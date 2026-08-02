@@ -442,7 +442,7 @@
                 id: uuid,
                 name: roomName,
                 movie_title: prefillTitle || 'Feature Title',
-                embed_sources: catalogKey,
+                embed_sources: `nf_${catalogKey}`,
                 media_id: catalogKey,
                 scheduled_start_time: new Date().toISOString(),
                 host: currentUserName
@@ -2401,6 +2401,10 @@
             setPlayerStagePending(true);
 
             try {
+                if (isNetflix) {
+                    await loadNetflixPartyPlayer();
+                    return;
+                }
                 resolveDefaultStreamProvider();
                 populateServerDropdown();
                 switchStreamProvider(activeProvider);

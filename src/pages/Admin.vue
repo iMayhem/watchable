@@ -72,7 +72,7 @@
                                 <option value="vidfast">Mysore Pak (VidFast)</option>
                                 <option value="movies111">Imarti (111Movies)</option>
                                 <option value="vidora">Ghevar (Vidora)</option>
-                                <option value="icecream">Icecream (Chillflix)</option>
+                                <option value="icecream">Icecream (Videasy)</option>
                                 <option value="cinezo">Cheesecake (Cinezo)</option>
                                 <option value="nankhatai">Nankhatai (NontonGo)</option>
                                 <option value="petha">Petha (NontonGo)</option>
@@ -103,7 +103,7 @@
                                 <option value="vidfast">Mysore Pak (VidFast)</option>
                                 <option value="movies111">Imarti (111Movies)</option>
                                 <option value="vidora">Ghevar (Vidora)</option>
-                                <option value="icecream">Icecream (Chillflix)</option>
+                                <option value="icecream">Icecream (Videasy)</option>
                                 <option value="cinezo">Cheesecake (Cinezo)</option>
                                 <option value="nankhatai">Nankhatai (NontonGo)</option>
                                 <option value="petha">Petha (NontonGo)</option>

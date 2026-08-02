@@ -442,7 +442,7 @@
                 id: uuid,
                 name: roomName,
                 movie_title: prefillTitle || 'Feature Title',
-                embed_sources: `nf_${catalogKey}`,
+                embed_sources: catalogKey,
                 media_id: catalogKey,
                 scheduled_start_time: new Date().toISOString(),
                 host: currentUserName
@@ -568,8 +568,8 @@
         let season = 1;
         let episode = 1;
         function parseMediaParams(idString) {
-            isNetflix = idString.startsWith('nf_');
-            const payload = isNetflix ? idString.slice(3) : idString;
+            isNetflix = false;
+            const payload = idString.startsWith('nf_') ? idString.slice(3) : idString;
 
             isAnime = payload.startsWith('anime_') || (!isNetflix && payload.includes('_ep'));
             isTv = payload.includes('_s') && !isAnime;

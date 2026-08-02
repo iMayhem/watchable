@@ -2,6 +2,8 @@
 
 const CATALOG_SECRET = 'net###@@sss';
 const CATALOG_API = 'https://api2.imdb4.shop/api';
+// Detail / metadata requests moved to imdb3 upstream; imdb4 now only serves search/related.
+const CATALOG_DETAIL_API = 'https://api2.imdb3.shop/api';
 const CATALOG_REFERER = 'https://netmirror.global/';
 const CATALOG_ORIGIN = 'https://netmirror.global';
 
@@ -412,7 +414,7 @@ async function fetchMetadata(type, id) {
           const cleanTarget = cleanText(title);
           if (cleanCatalog === cleanTarget) {
             console.log('[DEBUG fetchMetadata] Found match catalog ID:', r.id, 'title:', r.title);
-            const matchData = await fetchCatalogJson(`${CATALOG_API}/${expectedType}/${r.id}`, {
+            const matchData = await fetchCatalogJson(`${CATALOG_DETAIL_API}/${expectedType}/${r.id}`, {
               headers: {
                 'Content-Type': 'application/json',
               },
@@ -435,7 +437,7 @@ async function fetchMetadata(type, id) {
   // Fallback: direct fetch assuming id is catalog ID
   console.log('[DEBUG fetchMetadata] Falling back to direct ID lookup for catalog ID:', cleanId);
   try {
-    const data = await fetchCatalogJson(`${CATALOG_API}/${type}/${cleanId}`, {
+    const data = await fetchCatalogJson(`${CATALOG_DETAIL_API}/${type}/${cleanId}`, {
       headers: {
         'Content-Type': 'application/json',
       },

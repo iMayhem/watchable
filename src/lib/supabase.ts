@@ -83,7 +83,9 @@ class QueryBuilder {
     }
     limit(n: number) { this.filters.limit = n; return this; }
     select(cols?: string, opts?: { count?: 'exact'; head?: boolean }) {
-        this.op = 'select';
+        if (this.op !== 'insert' && this.op !== 'update' && this.op !== 'upsert' && this.op !== 'delete') {
+            this.op = 'select';
+        }
         if (cols) this.selectCols = cols;
         if (opts?.head) this.head = true;
         return this;

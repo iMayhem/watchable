@@ -74,7 +74,11 @@
     };
     QueryBuilder.prototype.limit = function (n) { this.filters.limit = n; return this; };
     QueryBuilder.prototype.select = function (cols, opts) {
-        this.op = 'select';
+        // Preserve write ops so `.insert().select().single()` still POSTs with the
+        // body and returns the inserted row instead of degrading into a bare select.
+        if (this.op !== 'insert' && this.op !== 'update' && this.op !== 'upsert' && this.op !== 'delete') {
+            this.op = 'select';
+        }
         if (cols) this.selectCols = cols;
         if (opts && opts.head) this.head = true;
         return this;

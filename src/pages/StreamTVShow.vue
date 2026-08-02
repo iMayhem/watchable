@@ -210,6 +210,7 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const isEmbed = computed(() => Boolean(route.meta.bareLayout));
+        const forceMoovieServer = computed(() => route.query.provider === 'moovie' || route.query.server === 'moovie');
         const paths = useAppPaths();
         const { fetchTvShow, fetchTvShowBySeason } = useTvShows();
 
@@ -321,6 +322,14 @@ export default defineComponent({
                 const preferred = getPreferredStreamData(showId.value, 'tv');
                 if (!preferred) {
                     savePreferredServer(showId.value, 0, 'tv');
+                }
+
+                if (forceMoovieServer.value) {
+                    const moovieIndex = getServers('tv').findIndex(s => s.name === 'Moovie');
+                    if (moovieIndex !== -1 && currentStreamData.value.currentServer !== moovieIndex) {
+                        savePreferredServer(showId.value, moovieIndex, 'tv');
+                        getPreferredStreamData(showId.value, 'tv');
+                    }
                 }
 
                 await loadSeason();

@@ -124,6 +124,7 @@ export default defineComponent({
         const router = useRouter();
         const paths = useAppPaths();
         const isEmbed = computed(() => Boolean(route.meta.bareLayout));
+        const forceMoovieServer = computed(() => route.query.provider === 'moovie' || route.query.server === 'moovie');
         const movieId = ref<string>(route.params.id as string);
         const movie = ref<MovieDetails | null>(null);
         const error = ref<string | null>(null);
@@ -199,6 +200,14 @@ export default defineComponent({
                 if (!getPreferredStreamData(movieId.value, 'movie')) {
                     savePreferredServer(movieId.value, 0, 'movie');
                     getPreferredStreamData(movieId.value, 'movie');
+                }
+
+                if (forceMoovieServer.value) {
+                    const moovieIndex = getServers('movie').findIndex(s => s.name === 'Moovie');
+                    if (moovieIndex !== -1 && currentStreamData.value.currentServer !== moovieIndex) {
+                        savePreferredServer(movieId.value, moovieIndex, 'movie');
+                        getPreferredStreamData(movieId.value, 'movie');
+                    }
                 }
             } catch (err) {
                 error.value = err instanceof Error ? err.message : 'Failed to load movie';

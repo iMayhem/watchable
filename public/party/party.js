@@ -2029,7 +2029,7 @@
 
         // Available Stream Servers
         const serversList = [
-            { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}' },
+            { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}?provider=moovie', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
         ];
         
         let activeProvider = 'moovie';

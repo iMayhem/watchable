@@ -28,17 +28,17 @@ const defaultStreamData: StreamData = {
 
 export const streamData = useStorage<StreamData>('streamData', defaultStreamData);
 
-// Force Moovie X (index 0) as hardcoded default and flush stale browser caches
+// Force Icecream (Videasy embed) as hardcoded default and flush stale browser caches
 if (typeof window !== 'undefined') {
   const currentVer = localStorage.getItem('watchable_server_v');
-  if (currentVer !== '11') {
-    localStorage.setItem('watchable_server_v', '11');
-    localStorage.setItem('default_server_id', 'moovie_x');
+  if (currentVer !== '13') {
+    localStorage.setItem('watchable_server_v', '13');
+    localStorage.setItem('default_server_id', 'icecream');
     localStorage.removeItem('streamData');
     if (streamData.value) {
       streamData.value = {
         movieServerMap: {},
-        version: 11
+        version: 13
       };
     }
   }
@@ -170,7 +170,7 @@ async function fetchDefaultServerId() {
   } catch (e) {
     console.warn('Failed to fetch default provider from Supabase, using local default:', e);
   }
-  return 'moovie_x';
+  return 'icecream';
 }
 
 export async function loadDefaultServer() {

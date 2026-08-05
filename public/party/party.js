@@ -2071,7 +2071,7 @@
         let loadRoomsTimer = null;
         let roomActivityHeartbeat = null;
 
-        const PARTY_INACTIVE_HOURS = 12;
+        const PARTY_INACTIVE_HOURS = 6;
 
         function partyInactiveThresholdIso() {
             return new Date(Date.now() - PARTY_INACTIVE_HOURS * 60 * 60 * 1000).toISOString();
@@ -2120,6 +2120,47 @@
             if (!countEl) return;
             countEl.classList.remove('skeleton-shimmer-inline');
             countEl.textContent = formatParticipantLabel(count);
+        }
+
+        // Subscribe to a room's presence channel as a passive observer so the lobby can
+        // show how many people are actually in it right now (0 if empty).
+        function observeLobbyRoomPresence(roomId) {
+            if (!roomId) return;
+            const ch = supabaseClient.channel(`party_room_${roomId}`, {
+                config: {
+                    presence: {
+                        key: `${LOBBY_OBSERVER_PREFIX}${presenceSessionId}`
+                    }
+                }
+            });
+
+            const refresh = () => {
+                const state = ch.presenceState();
+                let count = 0;
+                Object.entries(state || {}).forEach(([key, entries]) => {
+                    if (isLobbyObserverKey(key)) return;
+                    const present = Array.isArray(entries) ? entries.length > 0 : Boolean(entries);
+                    if (present) count += 1;
+                });
+                updateLobbyParticipantLabel(roomId, count);
+            };
+
+            ch.on('presence', { event: 'sync' }, refresh);
+            ch.on('presence', { event: 'join' }, refresh);
+            ch.on('presence', { event: 'leave' }, refresh);
+            ch.on('broadcast', { event: 'lobby_count' }, (payload) => {
+                const count = payload?.payload?.count;
+                if (Number.isFinite(count)) updateLobbyParticipantLabel(roomId, count);
+            });
+            ch.subscribe((status) => {
+                // Give the observer a presence entry so realtime delivers presence_sync.
+                void ch.track({ lobby_observer: true });
+                if (status === 'SUBSCRIBED' || status === 'CHANNEL_ESTABLISHED') {
+                    refresh();
+                }
+            });
+
+            lobbyChannels.push(ch);
         }
 
         function broadcastLobbyParticipantCount(activeChannel, presenceState) {
@@ -2187,6 +2228,40 @@
                     .eq('id', roomId);
             } catch (err) {
                 console.warn('Failed to update room activity:', err);
+            }
+        }
+
+        let lastStaleCleanupRun = 0;
+
+        async function cleanupStaleRooms() {
+            const now = Date.now();
+            if (now - lastStaleCleanupRun < 5 * 60 * 1000) return;
+            lastStaleCleanupRun = now;
+            try {
+                const cutoff = new Date(now - PARTY_INACTIVE_HOURS * 60 * 60 * 1000).toISOString();
+                const { data: stale, error } = await supabaseClient
+                    .from('rooms')
+                    .select('id')
+                    .lte('scheduled_start_time', cutoff);
+                if (error) throw error;
+                if (!stale || !stale.length) return;
+
+                for (const row of stale) {
+                    const roomId = row?.id;
+                    if (!roomId) continue;
+                    try {
+                        await purgePartyChat(roomId);
+                    } catch (e) {
+                        console.warn('Room chat cleanup failed:', e);
+                    }
+                    try {
+                        await supabaseClient.from('rooms').delete().eq('id', roomId);
+                    } catch (e) {
+                        console.warn('Room delete failed:', e);
+                    }
+                }
+            } catch (err) {
+                console.warn('Stale room cleanup failed:', err);
             }
         }
 
@@ -2780,6 +2855,7 @@
             if (!container) return;
 
             teardownLobbyPresence();
+            void cleanupStaleRooms();
             
             try {
                 // Only list rooms active in the last 12 hours.
@@ -2839,9 +2915,10 @@
                 `;
                 }).join('');
 
-                // Show static fallback counts in lobby list; WebSocket channel is created only when user joins a room
+                // Live participant counts via presence observers on each room's realtime channel.
+                // Channels are created only for listed (recently active) rooms.
                 rooms.forEach(room => {
-                    updateLobbyParticipantLabel(room.id, 1);
+                    observeLobbyRoomPresence(room.id);
                 });
 
             } catch (err) {
@@ -3569,6 +3646,7 @@
             updateSyncNoticeText();
             updateHeaderBadge();
             bindPartyEpNavButtons();
+            void cleanupStaleRooms();
 
             try {
                 if (joinRoomId) {

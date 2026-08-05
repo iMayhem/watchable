@@ -2555,7 +2555,7 @@
                 newIframe.style.display = 'block';
                 newIframe.allowFullscreen = true;
                 newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
-                newIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-downloads');
+
                 newIframe.src = embedUrl;
                 parent.replaceChild(newIframe, oldIframe);
             }

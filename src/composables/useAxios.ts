@@ -7,8 +7,8 @@ import {
 } from './useHomepageCuration'
 import { getSettings } from './useSettings'
 
-// Always call TMDB directly — skip the /api/tmdb Cloudflare proxy.
-const BASE_URL = 'https://proxy.moovie.fun/tmdb-api/3/'
+// Always call TMDB through the Cloudflare tmdb-proxy worker (edge-cached, VPS-independent).
+const BASE_URL = 'https://tmdb-proxy.sujeetunbeatable.workers.dev/3/'
 const API_KEY = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672'
 
 const CACHE_NAME = 'tmdb-api-cache-v2'; // v2: bumped to invalidate stale week-long entries
@@ -18,7 +18,7 @@ async function getCachedResponse(config: any): Promise<any | null> {
     if (config.method !== 'get' && config.method !== 'GET') return null;
     try {
         const cache = await caches.open(CACHE_NAME);
-        const url = new URL(config.url || '', config.baseURL || 'https://proxy.moovie.fun/tmdb-api/3/');
+        const url = new URL(config.url || '', config.baseURL || 'https://tmdb-proxy.sujeetunbeatable.workers.dev/3/');
         if (config.params) {
             Object.entries(config.params).forEach(([k, v]) => {
                 url.searchParams.set(k, String(v));
@@ -54,7 +54,7 @@ async function setCachedResponse(config: any, data: any): Promise<void> {
     if (config.method !== 'get' && config.method !== 'GET') return;
     try {
         const cache = await caches.open(CACHE_NAME);
-        const url = new URL(config.url || '', config.baseURL || 'https://proxy.moovie.fun/tmdb-api/3/');
+        const url = new URL(config.url || '', config.baseURL || 'https://tmdb-proxy.sujeetunbeatable.workers.dev/3/');
         if (config.params) {
             Object.entries(config.params).forEach(([k, v]) => {
                 url.searchParams.set(k, String(v));
@@ -98,7 +98,7 @@ const useAxios = () => {
                 return cached;
             }
             
-            const url = new URL(config.url || '', config.baseURL || 'https://proxy.moovie.fun/tmdb-api/3/');
+            const url = new URL(config.url || '', config.baseURL || 'https://tmdb-proxy.sujeetunbeatable.workers.dev/3/');
             if (config.params) {
                 Object.entries(config.params).forEach(([k, v]) => {
                     url.searchParams.set(k, String(v));

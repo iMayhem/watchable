@@ -134,7 +134,7 @@ export default defineComponent({
         const searchTerm = ref('');
 
         const buildPopularUrl = (pageNum: number): string =>
-            `https://proxy.moovie.fun/tmdb-api/3/person/popular?page=${pageNum}`;
+            `https://tmdb-proxy.sujeetunbeatable.workers.dev/3/person/popular?page=${pageNum}`;
 
         const buildSearchUrl = (pageNum: number): string => {
             const params = new URLSearchParams({
@@ -142,7 +142,7 @@ export default defineComponent({
                 page: String(pageNum),
                 include_adult: 'false'
             });
-            return `https://proxy.moovie.fun/tmdb-api/3/search/person?${params.toString()}`;
+            return `https://tmdb-proxy.sujeetunbeatable.workers.dev/3/search/person?${params.toString()}`;
         };
 
         const fetchPage = async (pageNum: number, append: boolean) => {

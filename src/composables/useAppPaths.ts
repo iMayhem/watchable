@@ -66,6 +66,7 @@ export function useAppPaths() {
     const liveTv = computed(() => `${prefix.value}/livetv`);
     const party = computed(() => `${prefix.value}/party`);
     const upcoming = computed(() => `${prefix.value}/upcoming`);
+    const discuss = computed(() => `${prefix.value}/discuss`);
     const help = computed(() => `${prefix.value}/help`);
     const more = computed(() => `${prefix.value}/more`);
 
@@ -89,6 +90,7 @@ export function useAppPaths() {
         liveTv,
         party,
         upcoming,
+        discuss,
         help,
         more,
         movie,

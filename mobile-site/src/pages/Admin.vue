@@ -329,27 +329,15 @@
 <script lang="ts" setup>
 import { ref, reactive, onMounted } from 'vue'
 import { serverOrder, setServerOrder, fetchServerOrder, getServers } from '@/composables/useStream'
+import { getSupabaseClient } from '@/lib/supabase'
 
 const DEFAULT_PASSCODE = 'admin123'
-const SUPABASE_URL = 'https://eeyiragtylotiwozbgqp.supabase.co'
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVleWlyYWd0eWxvdGl3b3piZ3FwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzAyNzYsImV4cCI6MjA5NDk0NjI3Nn0.YB_alc7kt5l09eTfNH0x5q-ayBx-dHS1qE-yzHbRTFg'
 
 let supabaseClient: any = null
 
 async function getClient() {
     if (supabaseClient) return supabaseClient
-    const { createClient } = await import('@supabase/supabase-js')
-    let url = localStorage.getItem('supabase_url')
-    if (!url || url.includes('idwjvciofkvspmumgzmg')) {
-        url = SUPABASE_URL
-        localStorage.removeItem('supabase_url')
-    }
-    let key = localStorage.getItem('supabase_key')
-    if (!key || url === SUPABASE_URL) {
-        key = SUPABASE_KEY
-        localStorage.removeItem('supabase_key')
-    }
-    supabaseClient = createClient(url, key)
+    supabaseClient = await getSupabaseClient()
     return supabaseClient
 }
 

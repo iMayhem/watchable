@@ -572,7 +572,7 @@ async function load4KCuration() {
 async function handleSearch4K() {
     if (!searchQuery.value.trim()) return
     try {
-        const res = await fetch(`https://tmdb-proxy.sujeetunbeatable.workers.dev/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(searchQuery.value)}&language=en-US&page=1`)
+        const res = await fetch(`https://proxy.moovie.fun/tmdb-api/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(searchQuery.value)}&language=en-US&page=1`)
         const data = await res.json()
         searchResults.value = data.results || []
     } catch {

@@ -289,7 +289,7 @@ export default defineComponent({
             if (!query.trim()) { tmdbSuggestions.value = []; return; }
             tmdbLoading.value = true;
             try {
-                const url = `https://tmdb-proxy.sujeetunbeatable.workers.dev/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&include_adult=false&page=1`;
+                const url = `https://proxy.moovie.fun/tmdb-api/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&include_adult=false&page=1`;
                 const res = await fetch(url);
                 const data = await res.json();
                 const results = (data.results || []).filter((r: any) => r.media_type === 'movie' || r.media_type === 'tv').slice(0, 8);

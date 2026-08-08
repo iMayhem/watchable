@@ -3954,7 +3954,7 @@ export default defineComponent({
 
 @media (max-width: 768px), (pointer: coarse) {
     .moovie-frame__cast-btn {
-        display: none !important;
+        display: inline-flex !important;
     }
 }
 </style>

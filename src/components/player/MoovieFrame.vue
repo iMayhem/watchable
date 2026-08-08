@@ -3249,7 +3249,7 @@ export default defineComponent({
 }
 
 .moovie-frame__center-skip {
-    display: grid;
+    display: none;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -3607,13 +3607,13 @@ export default defineComponent({
     &:hover { background: rgba(255, 90, 31, 0.18); }
 }
 
-@media (max-width: 960px), (max-height: 550px), (pointer: coarse), (hover: none) {
+@media (max-width: 640px), (pointer: coarse) {
     .moovie-frame__mobile-skip {
         display: none;
     }
 
     .moovie-frame__center-skip {
-        display: grid !important;
+        display: grid;
     }
 
     .moovie-frame__settings-panel {

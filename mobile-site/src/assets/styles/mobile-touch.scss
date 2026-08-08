@@ -25,3 +25,12 @@
         font-size: 0.875rem;
     }
 }
+
+/* Mobile-site player controls: Always keep 15-second skip buttons active in portrait & horizontal landscape */
+.moovie-frame__center-skip {
+    display: grid !important;
+}
+
+.moovie-frame__mobile-skip {
+    display: none !important;
+}

@@ -15,11 +15,15 @@
         >
             <header class="auth-modal__header">
                 <div class="auth-modal__sparkle animate-pulse">✦</div>
-                <h3 class="auth-modal__title">{{ mode === 'login' ? 'Welcome Back' : 'Create Account' }}</h3>
+                <h3 class="auth-modal__title">
+                    {{ mode === 'login' ? 'Welcome Back' : mode === 'reset' ? 'Set Password' : 'Create Account' }}
+                </h3>
                 <p class="auth-modal__subtitle">
                     {{ mode === 'login' 
                         ? 'Sign in to sync your watchlist and history with the cloud.' 
-                        : 'Choose a unique username to personalize your experience.' 
+                        : mode === 'reset'
+                            ? 'Set a new password for your account to finish signing in.'
+                            : 'Choose a unique username to personalize your experience.' 
                     }}
                 </p>
             </header>
@@ -57,16 +61,15 @@
                             v-model="password" 
                             class="form-input" 
                             :disabled="loading" 
-                            :required="mode === 'login' || mode === 'signup'"
                         />
                     </div>
                 </div>
 
-                <!-- Reset Password Field (Shown only for migrated users missing a password) -->
+                <!-- Reset Password Field (Shown for users whose password needs to be set/updated) -->
                 <div v-if="mode === 'reset'" class="form-group animate-fade-in">
-                    <label class="form-label" style="color: var(--ember, #ff5a1f);">Set New Password</label>
+                    <label class="form-label" style="color: var(--ember, #ff5a1f); font-weight: 600;">Set New Password</label>
                     <p class="meta" style="font-size: 0.8rem; margin-bottom: 8px; color: var(--bone-300, #b0b0b0);">
-                        Your account requires a new password set so you can log in directly in future visits.
+                        Your account requires a password update. Please enter your desired password below.
                     </p>
                     <div class="input-wrapper">
                         <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -81,6 +84,7 @@
                             :disabled="loading" 
                             required
                             minlength="4"
+                            autofocus
                         />
                     </div>
                 </div>
@@ -747,14 +751,27 @@ export default defineComponent({
             }
         };
 
-        // Form Submit interception -> Trigger Car Hyperdrive on signup
+        // Form Submit interception
         const handleSubmit = async () => {
             error.value = '';
             success.value = '';
 
-            if (!username.value.trim() || !password.value) {
-                error.value = 'Please fill in all fields.';
+            if (!username.value.trim()) {
+                error.value = 'Please enter your username.';
                 return;
+            }
+
+            if (mode.value === 'reset') {
+                const targetPass = newPassword.value || password.value;
+                if (!targetPass) {
+                    error.value = 'Please enter your new password.';
+                    return;
+                }
+            } else if (mode.value === 'signup') {
+                if (!password.value) {
+                    error.value = 'Please enter a password.';
+                    return;
+                }
             }
 
             loading.value = true;
@@ -787,7 +804,8 @@ export default defineComponent({
                         triggerFailureFeedback();
                     }
                 } else if (mode.value === 'reset') {
-                    const res = await setPasswordUser(username.value, newPassword.value);
+                    const passToSet = newPassword.value || password.value;
+                    const res = await setPasswordUser(username.value, passToSet);
                     if (res.success) {
                         success.value = 'Password set successfully! Logged in.';
                         spawnSuccessParticles();
@@ -812,10 +830,10 @@ export default defineComponent({
                             username.value = '';
                             password.value = '';
                         }, 1500);
-                    } else if (res.code === 'PASSWORD_RESET_REQUIRED') {
+                    } else if (res.code === 'PASSWORD_RESET_REQUIRED' || res.error === 'PASSWORD_RESET_REQUIRED') {
                         mode.value = 'reset';
                         error.value = '';
-                        success.value = 'Account found! Please set a new password below.';
+                        success.value = 'Account found! Please set your new password below.';
                     } else {
                         error.value = res.error || 'Failed to login.';
                         triggerFailureFeedback();

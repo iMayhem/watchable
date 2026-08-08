@@ -2379,12 +2379,20 @@ export default defineComponent({
                     el.src = blobUrl
                     el.default = false
                     video.appendChild(el)
-                    el.addEventListener('load', () => adjustCueStyles())
+                    el.addEventListener('load', () => {
+                        adjustCueStyles()
+                        // Activate only once cues are parsed so the browser
+                        // evaluates them against the LIVE playhead. Activating
+                        // at append time latches cues to the old position and
+                        // captions come in a few seconds behind the video.
+                        if (el.track && selectedSubtitleTrack.value === index) el.track.mode = 'showing'
+                    })
                     subBlobUrls.push(blobUrl)
                     entry = { el, blobUrl }
                     subLoadedTracks.set(index, entry)
+                } else {
+                    entry.el.track.mode = 'showing'
                 }
-                entry.el.track.mode = 'showing'
                 nextTick(() => adjustCueStyles())
             } else {
                 for (const { el } of subLoadedTracks.values()) { el.track.mode = 'disabled' }

@@ -7,6 +7,7 @@ export interface DiscussFeedComment {
     username: string;
     content: string;
     created_at: string;
+    is_hidden?: boolean | number;
 }
 
 let discussRoutePrefetch: Promise<unknown> | null = null;
@@ -37,7 +38,7 @@ async function loadReviewsFeed(): Promise<DiscussFeedComment[]> {
     const supabase = await getSupabaseClient();
     const { data, error } = await supabase
         .from('movora_comments')
-        .select('id, media_id, media_type, username, content, created_at')
+        .select('id, media_id, media_type, username, content, created_at, is_hidden')
         .in('media_type', ['movie', 'tv', 'anime'])
         .order('created_at', { ascending: false })
         .limit(500);

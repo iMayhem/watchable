@@ -1217,6 +1217,9 @@ async function handleCreatePoll() {
     pollLoading.value = true
     const client = supabase || await getSupabaseClient()
     try {
+        if (pollActive.value) {
+            await client.from('polls').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', 0)
+        }
         await client.from('polls').insert({
             question: pollQuestion.value.trim(),
             options: JSON.stringify(options),

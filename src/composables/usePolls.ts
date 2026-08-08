@@ -39,6 +39,7 @@ export function usePolls() {
             const { data } = await supabase
                 .from('polls')
                 .select('id, question, options, is_active, created_at')
+                .eq('is_active', true)
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle()

@@ -826,6 +826,20 @@ export default defineComponent({
                 return;
             }
 
+            // Decode proxied URLs back to the direct file when possible.
+            // Direct R2/google URLs already carry Content-Disposition: attachment,
+            // so opening them starts a real download without any proxy.
+            try {
+                const u = new URL(targetUrl, window.location.origin);
+                if (u.searchParams.get('u') && u.pathname.includes('/proxy')) {
+                    const b64 = u.searchParams.get('u')!;
+                    const direct = decodeURIComponent(escape(atob(b64.replace(/-/g, '+').replace(/_/g, '/'))));
+                    if (/^https?:\/\//i.test(direct)) targetUrl = direct;
+                }
+            } catch (err) {
+                // keep targetUrl as-is
+            }
+
             const titleClean = (props.title || 'media').replace(/[^a-zA-Z0-9_\-]/g, '_');
             let epSuffix = '';
             if (props.mediaType === 'tv' && props.season && props.episode) {
@@ -834,26 +848,21 @@ export default defineComponent({
             const qualityLabel = currentStream?.quality || activeQualityLabel.value || 'HD';
             const fileName = `${titleClean}${epSuffix}_${qualityLabel}.mp4`;
 
-            // Always route through the VPS /api/download proxy.
-            // Reason: browsers silently ignore <a download> for cross-origin URLs,
-            // and window.open just plays the video in a new tab.
-            // The proxy adds Content-Disposition: attachment which forces a real download.
+            // Direct download, no proxy. Cross-origin <a download> is ignored by
+            // browsers, so open the URL directly — the CDN serves it as an
+            // attachment (R2 signed URLs include response-content-disposition).
             try {
-                const encoded = btoa(targetUrl)
-                    .replace(/\+/g, '-')
-                    .replace(/\//g, '_')
-                    .replace(/=+$/, '');
-                const proxyUrl = `https://providers.peestream.in/api/download?u=${encoded}&filename=${encodeURIComponent(fileName)}`;
                 const a = document.createElement('a');
-                a.href = proxyUrl;
+                a.href = targetUrl;
                 a.download = fileName;
                 a.target = '_blank';
+                a.rel = 'noopener noreferrer';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
             } catch (err) {
                 // Last resort: open directly (browser may play it instead of downloading)
-                console.warn('[Download] Proxy routing failed, opening directly:', err);
+                console.warn('[Download] Direct link failed, opening in new tab:', err);
                 window.open(targetUrl, '_blank');
             }
         }

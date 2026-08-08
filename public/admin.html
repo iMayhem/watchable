@@ -835,6 +835,8 @@
 
             if (tabId === 'moderation') loadHtmlModerationComments();
             if (tabId === 'donations') refreshCryptoBalance();
+            if (tabId === 'polls') loadExistingPolls();
+            if (tabId === 'serverorder') loadServerOrder();
         }
 
         const DEFAULT_SUPABASE_URL = 'https://jagmmmnxgbinlugxeinc.supabase.co';
@@ -1286,12 +1288,12 @@
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'server_order')
-                    .single();
+                    .maybeSingle();
                 if (data && data.value) {
-                    const parsed = JSON.parse(data.value);
+                    const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         serverOrderIds = parsed;
-                        const existing = new Set(parsed.map(x => x.toLowerCase()));
+                        const existing = new Set(parsed.map(x => String(x).toLowerCase()));
                         defaultServerIds.forEach(id => {
                             if (!existing.has(id.toLowerCase())) {
                                 serverOrderIds.push(id);
@@ -1823,7 +1825,7 @@
         async function loadPollResults(pollId) {
             try {
                 const { data: votes } = await supabaseClient.from('poll_votes').select('selected_option').eq('poll_id', pollId);
-                const poll = existingPollsData.find(p => p.id === pollId);
+                const poll = existingPollsData.find(p => String(p.id) === String(pollId));
                 if (!poll) return [];
                 const total = votes?.length || 0;
                 const counts = new Array(poll.options.length).fill(0);
@@ -1869,9 +1871,9 @@
                         `).join('')}
                         <div style="text-align: center; font-size: 0.7rem; color: var(--bone-400); margin-top: 0.5rem;">${totalVotes} total votes</div>
                         <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
-                            <button type="button" class="btn btn-sm" onclick="handleTogglePoll(${poll.id}, ${!poll.is_active})">${poll.is_active ? 'Deactivate' : 'Activate'}</button>
-                            <button type="button" class="btn btn-sm" onclick="handleNotifyPoll(${poll.id})">Notify All</button>
-                            <button type="button" class="btn btn-sm" style="background: #8a2a1e; color: var(--bone-50); box-shadow: none;" onclick="handleDeletePoll(${poll.id})">Delete</button>
+                            <button type="button" class="btn btn-sm" onclick="handleTogglePoll('${poll.id}', ${!poll.is_active})">${poll.is_active ? 'Deactivate' : 'Activate'}</button>
+                            <button type="button" class="btn btn-sm" onclick="handleNotifyPoll('${poll.id}')">Notify All</button>
+                            <button type="button" class="btn btn-sm" style="background: #8a2a1e; color: var(--bone-50); box-shadow: none;" onclick="handleDeletePoll('${poll.id}')">Delete</button>
                         </div>
                     </div>
                 `;
@@ -1927,7 +1929,7 @@
                     await supabaseClient.from('polls').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', pollId);
                 }
                 await supabaseClient.from('polls').update({ is_active: newActive, updated_at: new Date().toISOString() }).eq('id', pollId);
-                const poll = existingPollsData.find(p => p.id === pollId);
+                const poll = existingPollsData.find(p => String(p.id) === String(pollId));
                 if (poll) poll.is_active = newActive;
                 showToast(`Poll ${newActive ? 'activated' : 'deactivated'}!`);
                 await renderExistingPolls();
@@ -1942,7 +1944,7 @@
             try {
                 await supabaseClient.from('poll_votes').delete().eq('poll_id', pollId);
                 await supabaseClient.from('polls').delete().eq('id', pollId);
-                existingPollsData = existingPollsData.filter(p => p.id !== pollId);
+                existingPollsData = existingPollsData.filter(p => String(p.id) !== String(pollId));
                 showToast('Poll deleted!');
                 await renderExistingPolls();
             } catch (err) {
@@ -1952,7 +1954,7 @@
         }
 
         async function handleNotifyPoll(pollId) {
-            const poll = existingPollsData.find(p => p.id === pollId);
+            const poll = existingPollsData.find(p => String(p.id) === String(pollId));
             if (!poll) return;
             try {
                 await supabaseClient.from('notifications').insert({

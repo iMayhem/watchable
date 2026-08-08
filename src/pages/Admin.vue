@@ -392,6 +392,132 @@
                     </form>
                 </div>
 
+                <!-- ── Moderation Tab ────────────────────────────────────── -->
+                <div v-if="activeTab === 'moderation'" class="admin-page__tab-content">
+                    <h2 class="admin-page__section-title">Moderation & Word Filter</h2>
+
+                    <!-- Banned Words Filter Section -->
+                    <div class="admin-page__mod-box">
+                        <h3 class="admin-page__subsection-title">Automated Vulgarity & Word Filter</h3>
+                        <p class="admin-page__mod-desc">
+                            Comments matching any of these words/phrases will be <strong>automatically blocked and hidden</strong> upon posting. Users will see <em>"[Comment removed due to inappropriate content]"</em> instead.
+                        </p>
+                        <form @submit.prevent="handleSaveBannedWords">
+                            <div class="admin-page__field">
+                                <label class="admin-page__label">Banned Words & Phrases (one per line)</label>
+                                <textarea
+                                    v-model="bannedWordsText"
+                                    class="admin-page__input admin-page__textarea"
+                                    placeholder="vulgarword1&#10;inappropriate_phrase&#10;spam_link"
+                                    rows="6"
+                                ></textarea>
+                            </div>
+                            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                                <button type="submit" class="admin-page__btn" :disabled="bannedWordsLoading">
+                                    <span>{{ bannedWordsLoading ? 'Saving Filter...' : 'Save Banned Words Filter' }}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="admin-page__btn admin-page__btn--secondary"
+                                    @click="handleLoadPresetBannedWords"
+                                >
+                                    <span>⚡ Load Preset Profanity Filter</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Comment Moderation Panel -->
+                    <div class="admin-page__mod-box" style="margin-top: 2.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+                            <h3 class="admin-page__subsection-title" style="margin-bottom: 0;">Comment Moderation Panel</h3>
+                            <button type="button" class="admin-page__btn admin-page__btn--sm" @click="loadModerationData">
+                                🔄 Refresh Comments
+                            </button>
+                        </div>
+
+                        <div class="admin-page__mod-filters">
+                            <div class="admin-page__field" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+                                <input
+                                    v-model="modSearchQuery"
+                                    type="text"
+                                    class="admin-page__input"
+                                    placeholder="Search by username or comment text..."
+                                />
+                            </div>
+                            <div class="admin-page__mod-filter-buttons">
+                                <button
+                                    type="button"
+                                    class="admin-page__filter-btn"
+                                    :class="{ 'is-active': modFilterType === 'all' }"
+                                    @click="modFilterType = 'all'"
+                                >
+                                    All ({{ modComments.length }})
+                                </button>
+                                <button
+                                    type="button"
+                                    class="admin-page__filter-btn"
+                                    :class="{ 'is-active': modFilterType === 'flagged' }"
+                                    @click="modFilterType = 'flagged'"
+                                >
+                                    🚩 Flagged / Blocked ({{ modComments.filter(c => c.is_hidden).length }})
+                                </button>
+                                <button
+                                    type="button"
+                                    class="admin-page__filter-btn"
+                                    :class="{ 'is-active': modFilterType === 'visible' }"
+                                    @click="modFilterType = 'visible'"
+                                >
+                                    ✅ Visible ({{ modComments.filter(c => !c.is_hidden).length }})
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="modLoading" class="admin-page__empty">Loading comments...</div>
+                        <div v-else-if="filteredModComments.length === 0" class="admin-page__empty">No comments match the selected filter</div>
+
+                        <div v-else class="admin-page__comment-list">
+                            <div v-for="c in filteredModComments" :key="c.id" class="admin-page__comment-card" :class="{ 'is-blocked': c.is_hidden }">
+                                <div class="admin-page__comment-header">
+                                    <span class="admin-page__comment-author">👤 {{ c.username || 'Anonymous' }}</span>
+                                    <span class="admin-page__comment-badge" :class="c.media_type">
+                                        {{ c.media_type === 'lounge' ? '💬 Lounge' : `🎬 ${String(c.media_type).toUpperCase()} #${c.media_id}` }}
+                                    </span>
+                                    <span class="admin-page__comment-time">{{ new Date(c.created_at).toLocaleString() }}</span>
+                                    <span class="admin-page__comment-status" :class="{ 'is-blocked': c.is_hidden }">
+                                        {{ c.is_hidden ? '🚫 BLOCKED' : '✅ VISIBLE' }}
+                                    </span>
+                                </div>
+                                <div class="admin-page__comment-body">
+                                    <p v-if="c.is_hidden" class="admin-page__comment-text admin-page__comment-text--blocked">
+                                        <em>Original Content:</em> {{ c.content }}
+                                        <br>
+                                        <span class="admin-page__comment-notice">(Publicly shown as: "[Comment removed due to inappropriate content]")</span>
+                                    </p>
+                                    <p v-else class="admin-page__comment-text">{{ c.content }}</p>
+                                </div>
+                                <div class="admin-page__comment-actions">
+                                    <button
+                                        type="button"
+                                        class="admin-page__btn admin-page__btn--sm"
+                                        :class="c.is_hidden ? 'admin-page__btn--success' : 'admin-page__btn--warning'"
+                                        @click="handleToggleHideComment(c)"
+                                    >
+                                        {{ c.is_hidden ? '✅ Restore Comment' : '🚫 Block / Hide Comment' }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="admin-page__btn admin-page__btn--sm admin-page__btn--danger"
+                                        @click="handleDeleteComment(c)"
+                                    >
+                                        🗑️ Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ── Polls Tab ────────────────────────────────────────── -->
                 <div v-if="activeTab === 'polls'" class="admin-page__tab-content">
                     <h2 class="admin-page__section-title">Polls</h2>
@@ -598,7 +724,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { getSupabaseClient } from '../lib/supabase'
 import { serverOrder, setServerOrder, fetchServerOrder, getServers } from '../composables/useStream'
 
@@ -617,6 +743,7 @@ const activeTab = ref('settings')
 
 const tabs = [
     { key: 'settings', icon: '⚙️', label: 'Settings' },
+    { key: 'moderation', icon: '🛡️', label: 'Moderation & Word Filter' },
     { key: '4k', icon: '🎬', label: '4K Curation' },
     { key: 'notifications', icon: '🔔', label: 'Notifications' },
     { key: 'banner', icon: '🏴', label: 'Banner' },
@@ -660,6 +787,19 @@ const bannerBgColor = ref('#ff5a1f')
 const bannerTextColor = ref('#ffffff')
 const bannerActive = ref(false)
 const bannerLoading = ref(false)
+
+// ── Moderation ─────────────────────────────────────────────────────────
+const bannedWordsText = ref('')
+const bannedWordsLoading = ref(false)
+const modComments = ref<any[]>([])
+const modFilterType = ref<'all' | 'flagged' | 'visible'>('all')
+const modSearchQuery = ref('')
+const modLoading = ref(false)
+
+const DEFAULT_PRESET_BANNED_WORDS = [
+    'fuck', 'shit', 'bitch', 'asshole', 'bastard', 'cunt', 'dick', 'pussy',
+    'slut', 'whore', 'nigger', 'faggot', 'retard', 'scam', 'spam', 'telegram', 'whatsapp'
+]
 
 // ── Polls ──────────────────────────────────────────────────────────────────────
 const pollQuestion = ref('')
@@ -1283,16 +1423,128 @@ async function handleNotifyPoll(poll: any) {
     }
 }
 
+// ── Moderation Functions ───────────────────────────────────────────────────────
+async function loadModerationData() {
+    const client = supabase || await getSupabaseClient()
+    modLoading.value = true
+    try {
+        const { data: settingRow } = await client
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'banned_words')
+            .maybeSingle()
+        if (settingRow && settingRow.value) {
+            try {
+                const arr = JSON.parse(settingRow.value)
+                if (Array.isArray(arr)) bannedWordsText.value = arr.join('\n')
+            } catch {
+                bannedWordsText.value = String(settingRow.value)
+            }
+        }
+
+        const { data: comments } = await client
+            .from('movora_comments')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(150)
+        modComments.value = comments || []
+    } catch (e) {
+        console.error('Failed to load moderation data:', e)
+    } finally {
+        modLoading.value = false
+    }
+}
+
+async function handleSaveBannedWords() {
+    bannedWordsLoading.value = true
+    const client = supabase || await getSupabaseClient()
+    try {
+        const wordList = bannedWordsText.value
+            .split('\n')
+            .map(w => w.trim().toLowerCase())
+            .filter(w => w.length > 0)
+
+        const uniqueList = Array.from(new Set(wordList))
+
+        await client.from('app_settings').upsert({
+            key: 'banned_words',
+            value: JSON.stringify(uniqueList),
+            updated_at: new Date().toISOString()
+        })
+        showToast(`Saved ${uniqueList.length} banned words/phrases!`)
+    } catch (e) {
+        showToast('Failed to save banned words', false)
+    } finally {
+        bannedWordsLoading.value = false
+    }
+}
+
+function handleLoadPresetBannedWords() {
+    const existing = bannedWordsText.value
+        .split('\n')
+        .map(w => w.trim().toLowerCase())
+        .filter(Boolean)
+    const combined = Array.from(new Set([...existing, ...DEFAULT_PRESET_BANNED_WORDS]))
+    bannedWordsText.value = combined.join('\n')
+    showToast('Loaded preset inappropriate word list!')
+}
+
+async function handleToggleHideComment(comment: any) {
+    const client = supabase || await getSupabaseClient()
+    const newHidden = comment.is_hidden ? 0 : 1
+    try {
+        await client
+            .from('movora_comments')
+            .update({ is_hidden: newHidden })
+            .eq('id', comment.id)
+        comment.is_hidden = newHidden
+        showToast(newHidden ? 'Comment blocked / hidden!' : 'Comment restored!')
+    } catch (e) {
+        showToast('Failed to update comment status', false)
+    }
+}
+
+async function handleDeleteComment(comment: any) {
+    if (!confirm('Permanently delete this comment?')) return
+    const client = supabase || await getSupabaseClient()
+    try {
+        await client.from('movora_comments').delete().eq('id', comment.id)
+        modComments.value = modComments.value.filter(c => c.id !== comment.id)
+        showToast('Comment permanently deleted!')
+    } catch (e) {
+        showToast('Failed to delete comment', false)
+    }
+}
+
+const filteredModComments = computed(() => {
+    let list = modComments.value
+    if (modFilterType.value === 'flagged') {
+        list = list.filter(c => c.is_hidden === 1 || c.is_hidden === true)
+    } else if (modFilterType.value === 'visible') {
+        list = list.filter(c => !c.is_hidden)
+    }
+    if (modSearchQuery.value.trim()) {
+        const q = modSearchQuery.value.toLowerCase().trim()
+        list = list.filter(c => 
+            (c.username || '').toLowerCase().includes(q) ||
+            (c.content || '').toLowerCase().includes(q)
+        )
+    }
+    return list
+})
+
 onMounted(() => {
     getSupabaseClient().then(client => {
         supabase = client
         loadBannerSettings()
         loadExistingPolls()
+        loadModerationData()
     })
 })
 
 watch(activeTab, (tab) => {
     if (tab === 'donations') void refreshCryptoBalance()
+    if (tab === 'moderation') void loadModerationData()
 })
 </script>
 

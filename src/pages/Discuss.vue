@@ -57,7 +57,10 @@
                                                 <span class="discuss-msg__username" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
                                                 <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
                                             </div>
-                                            <p class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
+                                            <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
+                                                🚫 <em>[Comment removed due to inappropriate content]</em>
+                                            </p>
+                                            <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                             <div class="discuss-msg__bubble-footer">
                                                 <span class="discuss-msg__time">{{ formatTimeAgo(c.created_at) }}</span>
                                                 <span v-if="isSelf(c.username)" class="discuss-msg__status">
@@ -189,7 +192,10 @@
                                                     <span class="discuss-msg__username" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
                                                     <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
                                                 </div>
-                                                <p class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
+                                                <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
+                                                    🚫 <em>[Comment removed due to inappropriate content]</em>
+                                                </p>
+                                                <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                                 <div class="discuss-msg__bubble-footer">
                                                     <span class="discuss-msg__time">{{ formatTimeAgo(c.created_at) }}</span>
                                                     <span v-if="isSelf(c.username)" class="discuss-msg__status">
@@ -312,7 +318,10 @@
                                             </div>
 
                                             <div class="discuss-msg__bubble discuss-msg__bubble--movie">
-                                                <p class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
+                                                <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
+                                                    🚫 <em>[Comment removed due to inappropriate content]</em>
+                                                </p>
+                                                <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                             </div>
 
                                             <div class="discuss-msg__movie-footer">
@@ -364,6 +373,7 @@ interface Comment {
     content: string;
     created_at: string;
     isReported?: boolean;
+    is_hidden?: boolean | number;
 }
 
 export default defineComponent({
@@ -1858,6 +1868,17 @@ export default defineComponent({
         opacity: 1;
         transform: translateY(0) scale(1);
     }
+}
+
+.discuss-msg__text--blocked {
+    color: var(--bone-400, #8a8270) !important;
+    font-style: italic;
+    opacity: 0.85;
+    background: rgba(201, 78, 61, 0.08);
+    border: 1px dashed rgba(201, 78, 61, 0.3);
+    padding: 6px 12px;
+    border-radius: var(--r-xs, 6px);
+    display: inline-block;
 }
 
 :deep(.comment-spoiler) {

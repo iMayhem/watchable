@@ -116,7 +116,10 @@
 
                         <!-- Main comment text & actions (hidden if directly collapsed) -->
                         <template v-if="!isDirectlyCollapsed(c.id)">
-                            <p class="comment-card__body" v-html="formatCommentContent(c.content)"></p>
+                            <p v-if="c.is_hidden" class="comment-card__body comment-card__body--blocked">
+                                🚫 <em>[Comment removed due to inappropriate content]</em>
+                            </p>
+                            <p v-else class="comment-card__body" v-html="formatCommentContent(c.content)"></p>
                             
                             <div class="comment-card__footer">
                                 <!-- Reply action -->
@@ -182,6 +185,7 @@ interface Comment {
     content: string;
     created_at: string;
     isGuest?: boolean;
+    is_hidden?: boolean | number;
 }
 
 interface RenderComment extends Comment {
@@ -1257,6 +1261,17 @@ export default defineComponent({
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+.comment-card__body--blocked {
+    color: var(--bone-400, #8a8270) !important;
+    font-style: italic;
+    opacity: 0.85;
+    background: rgba(201, 78, 61, 0.08);
+    border: 1px dashed rgba(201, 78, 61, 0.3);
+    padding: 6px 12px;
+    border-radius: var(--r-xs, 6px);
+    display: inline-block;
 }
 
 :deep(.comment-spoiler) {

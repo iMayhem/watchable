@@ -30,6 +30,30 @@
                     <div v-else-if="!playing" class="moovie-frame__big-play-btn">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19" /></svg>
                     </div>
+                    <button
+                        type="button"
+                        class="moovie-frame__center-skip moovie-frame__center-skip--back"
+                        @click.stop="seekBy(-15)"
+                        aria-label="Rewind 15 seconds"
+                        title="Rewind 15 seconds"
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" />
+                            <text x="12" y="15" text-anchor="middle" fill="currentColor" stroke="none" font-size="7" font-family="system-ui, sans-serif" font-weight="700">15</text>
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        class="moovie-frame__center-skip moovie-frame__center-skip--fwd"
+                        @click.stop="seekBy(15)"
+                        aria-label="Forward 15 seconds"
+                        title="Forward 15 seconds"
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" />
+                            <text x="12" y="15" text-anchor="middle" fill="currentColor" stroke="none" font-size="7" font-family="system-ui, sans-serif" font-weight="700">15</text>
+                        </svg>
+                    </button>
                 </div>
 
                 <div v-if="error && !loading" class="moovie-frame__overlay moovie-frame__overlay--error">
@@ -3112,6 +3136,31 @@ export default defineComponent({
     display: none;
 }
 
+.moovie-frame__center-skip {
+    display: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(10, 10, 10, 0.38);
+    color: #fff;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+
+    &:active {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    &--back { left: 5%; }
+    &--fwd { right: 5%; }
+}
+
 .moovie-frame__time {
     font-size: 0.82rem;
     font-family: var(--font-ui);
@@ -3605,6 +3654,10 @@ export default defineComponent({
 
 @media (max-width: 640px) {
     .moovie-frame__mobile-skip {
+        display: none;
+    }
+
+    .moovie-frame__center-skip {
         display: grid;
     }
 
@@ -3962,7 +4015,7 @@ export default defineComponent({
 
 @media (max-width: 768px), (pointer: coarse) {
     .moovie-frame__cast-btn {
-        display: inline-flex !important;
+        display: grid !important;
     }
 }
 </style>

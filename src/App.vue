@@ -132,6 +132,7 @@ watch(
     (path, prevPath) => {
         if (path === prevPath) return;
         if (isBareLayout.value || isPartyEmbed.value) return;
+        if (path.startsWith('/party')) return;
         setTimeout(() => triggerAd(), 250);
     },
     { immediate: false }

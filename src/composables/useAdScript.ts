@@ -53,9 +53,10 @@ export function useAdScript(type: 'pc' | 'mobile') {
     async function refresh() {
         const isSettingEnabled = await fetchAdSetting(key)
         const locallyDisabled = typeof localStorage !== 'undefined' && localStorage.getItem('ads_hidden') === 'true'
+        const isPartyPage = route.path.startsWith('/party')
 
-        // Ads run on every page (front, browse, detail, player, ...).
-        if (isSettingEnabled && !locallyDisabled) {
+        // Ads run on every page except the party (watch together) page.
+        if (isSettingEnabled && !locallyDisabled && !isPartyPage) {
             if (!enabled.value) {
                 injectAd()
                 injectFloater()

@@ -236,14 +236,19 @@ class RealtimeChannel {
             return;
         }
         if (msg.type === 'presence_diff' && msg.room === this.name) {
+            const reAdded: Record<string, boolean> = {};
             if (msg.add) {
                 for (const [key, presences] of Object.entries(msg.add as Record<string, any[]>)) {
                     this._presenceState[key] = presences;
+                    reAdded[key] = true;
                     this.firePresence('join', { key, newPresences: presences });
                 }
             }
             if (msg.remove) {
                 for (const [key, presences] of Object.entries(msg.remove as Record<string, any[]>)) {
+                    // A remove paired with an add for the same key is a re-track
+                    // update, not a real leave — don't delete the entry.
+                    if (reAdded[key]) continue;
                     delete this._presenceState[key];
                     this.firePresence('leave', { key, leftPresences: presences });
                 }

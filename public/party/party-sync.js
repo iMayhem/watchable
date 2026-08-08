@@ -276,15 +276,20 @@
             }
             if (msg.type === 'presence_diff' && msg.room === self.name) {
                 var changed = false;
+                var reAdded = {};
                 if (msg.add) {
                     Object.keys(msg.add).forEach(function (key) {
                         self._presenceState[key] = msg.add[key];
+                        reAdded[key] = true;
                         self._firePresence('join', { key: key, newPresences: msg.add[key] });
                         changed = true;
                     });
                 }
                 if (msg.remove) {
                     Object.keys(msg.remove).forEach(function (key) {
+                        // A remove paired with an add for the same key is a re-track
+                        // update, not a real leave — don't delete the entry.
+                        if (reAdded[key]) return;
                         if (self._presenceState[key]) delete self._presenceState[key];
                         self._firePresence('leave', { key: key, leftPresences: msg.remove[key] });
                         changed = true;

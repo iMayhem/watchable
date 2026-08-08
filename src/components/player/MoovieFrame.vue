@@ -18,16 +18,26 @@
 
 
 
-                <!-- Loading/Scraping backdrop: native embedded feel -->
+                <!-- Artwork: hi-res TMDB poster/backdrop until the actual video starts playing -->
                 <transition name="fade">
-                    <div v-if="loading && loadingBackdropUrl" class="moovie-frame__loading-backdrop" :style="{ backgroundImage: `url(${loadingBackdropUrl})` }" />
+                    <div v-if="showArtwork && artworkBackdropUrl" class="moovie-frame__artwork" :style="{ backgroundImage: `url(${artworkBackdropUrl})` }">
+                        <div class="moovie-frame__artwork-scrim moovie-frame__artwork-scrim--top" aria-hidden="true" />
+                        <div class="moovie-frame__artwork-scrim moovie-frame__artwork-scrim--bottom" aria-hidden="true" />
+                        <div class="moovie-frame__artwork-stage">
+                            <div v-if="artworkPosterUrl" class="moovie-frame__artwork-poster" :style="{ backgroundImage: `url(${artworkPosterUrl})` }" />
+                            <h2 class="moovie-frame__artwork-title">{{ title }}</h2>
+                            <p class="moovie-frame__artwork-sub">
+                                {{ artworkSubline }}<span class="moovie-frame__artwork-dots"><span>.</span><span>.</span><span>.</span></span>
+                            </p>
+                        </div>
+                    </div>
                 </transition>
 
 
 
                 <div v-if="!loading && !error" class="moovie-frame__center-btn" @click="togglePlay">
-                    <div v-if="buffering" class="moovie-frame__spinner" />
-                    <div v-else-if="!playing" class="moovie-frame__big-play-btn">
+                    <div v-if="buffering && !showArtwork" class="moovie-frame__spinner" />
+                    <div v-else-if="!playing && !showArtwork && !buffering" class="moovie-frame__big-play-btn">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19" /></svg>
                     </div>
                     <button
@@ -60,47 +70,6 @@
                     <p class="eyebrow">Hub Error</p>
                     <h3>{{ error }}</h3>
                     <button type="button" class="moovie-frame__retry" @click="retry">Retry</button>
-                </div>
-
-                <!-- Minimal source status overlay -->
-                <div v-if="loading && !error" class="moovie-frame__scraper-overlay">
-                    <div class="moovie-frame__scraper-card">
-                        <div class="moovie-frame__scraper-grid">
-                            <div v-if="!providers.length" class="moovie-frame__provider-row">
-                                <div class="moovie-frame__provider-info">
-                                    <span class="moovie-frame__provider-status-icon">
-                                        <span class="moovie-frame__provider-spinner" />
-                                    </span>
-                                    <div class="moovie-frame__provider-details">
-                                        <span class="moovie-frame__provider-label">Connecting to server...</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div
-                                v-for="p in providers"
-                                :key="p.id"
-                                class="moovie-frame__provider-row"
-                                :class="`is-${p.status}`"
-                            >
-                                <div class="moovie-frame__provider-info">
-                                    <span class="moovie-frame__provider-status-icon">
-                                        <span v-if="p.status === 'pending'" class="moovie-frame__provider-spinner" />
-                                        <span v-else-if="p.status === 'success'" class="moovie-frame__check-icon">✓</span>
-                                        <span v-else-if="p.status === 'failure'" class="moovie-frame__cross-icon">✕</span>
-                                        <span v-else-if="p.status === 'notfound'" class="moovie-frame__dash-icon">–</span>
-                                        <span v-else class="moovie-frame__dot-icon">○</span>
-                                    </span>
-                                    <div class="moovie-frame__provider-details">
-                                        <span class="moovie-frame__provider-label">{{ p.name }}</span>
-                                    </div>
-                                </div>
-                                <span v-if="p.status === 'success'" class="moovie-frame__provider-status-text is-success">Ready</span>
-                                <span v-else-if="p.status === 'failure'" class="moovie-frame__provider-status-text is-failed">Failed</span>
-                                <span v-else-if="p.status === 'notfound'" class="moovie-frame__provider-status-text is-notfound">Empty</span>
-                                <span v-else class="moovie-frame__provider-status-text">Queued</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <ul
@@ -1221,15 +1190,33 @@ export default defineComponent({
 
         useAmbientColor(computed(() => props.backdropPath || props.posterPath || null), rootRef)
 
-        const loadingBackdropUrl = computed(() => {
+        const artworkBackdropUrl = computed(() => {
             const path = props.backdropPath || props.posterPath
-            return path ? useWebImage(path, 'large') : ''
+            return path ? useWebImage(path, 'hero') : ''
+        })
+
+        const firstFrameShown = ref(false)
+
+        const artworkPosterUrl = computed(() => props.posterPath ? useWebImage(props.posterPath, 'hero') : '')
+
+        const showArtwork = computed(() => !error.value && !firstFrameShown.value)
+
+        const activeProviderName = computed(() => {
+            const active = providers.value.find(p => p.status === 'pending') || providers.value.find(p => p.status === 'waiting')
+            return active?.name || ''
+        })
+
+        const artworkSubline = computed(() => {
+            if (loading.value) {
+                return activeProviderName.value ? `Finding sources — Checking ${activeProviderName.value}` : 'Finding sources'
+            }
+            return 'Starting playback'
         })
 
         const ambientImage = ref('')
         const computeAmbient = () => {
             const path = props.backdropPath || props.posterPath
-            ambientImage.value = path ? useWebImage(path, 'large') : ''
+            ambientImage.value = path ? useWebImage(path, 'hero') : ''
         }
 
         const loadHlsJs = (() => {
@@ -1329,13 +1316,35 @@ export default defineComponent({
                 }
             }, 250);
             video.addEventListener('waiting', () => { buffering.value = true })
-            video.addEventListener('playing', onBufferEnd)
+            video.addEventListener('playing', () => { playbackStarted.value = true; firstFrameShown.value = true; onBufferEnd() })
             video.addEventListener('canplay', onBufferEnd)
             video.addEventListener('loadeddata', onBufferEnd)
             video.addEventListener('seeked', onSeeked)
             video.addEventListener('error', onBufferEnd)
             video.addEventListener('abort', onBufferEnd)
             video.addEventListener('timeupdate', onTimeUpdate)
+
+            // Autoplay: the `autoplay` attribute alone is ignored by browsers when
+            // sound is enabled and there's no user gesture, so force an explicit
+            // play() right after mounting and again on canplay. If the policy blocks
+            // it, fall back to muted playback and STAY muted — unmuting without a
+            // gesture makes Chrome pause the video again.
+            let autoplayTried = false
+            const tryAutoplay = () => {
+                if (autoplayTried || isRespondingToSync || !video.paused) return
+                autoplayTried = true
+                const p = video.play()
+                if (p) {
+                    p.catch(() => {
+                        video.muted = true
+                        muted.value = true
+                        const p2 = video.play()
+                        if (p2) p2.catch(() => {})
+                    })
+                }
+            }
+            tryAutoplay()
+            video.addEventListener('canplay', tryAutoplay, { once: true })
             video.addEventListener('play', onPlayPause)
             video.addEventListener('pause', onPlayPause)
             video.addEventListener('volumechange', () => {
@@ -1787,7 +1796,7 @@ export default defineComponent({
 
         async function doLoad() {
             console.log('[MOVIEFRAME] doLoad start - season:', props.season, 'episode:', props.episode)
-            destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false; failedStreamUrls.value = new Set()
+            destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false; firstFrameShown.value = false; failedStreamUrls.value = new Set()
             langVariantFetchKey = '' // reset so variant fetch fires fresh
             try {
                 await ensureProxySetting()
@@ -2068,6 +2077,7 @@ export default defineComponent({
             playing.value = false
             loading.value = true
             error.value = ''
+            firstFrameShown.value = false
 
             if (providerObj) {
                 providerObj.status = 'pending'
@@ -2669,7 +2679,7 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, loadingBackdropUrl, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
+        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, artworkBackdropUrl, artworkPosterUrl, showArtwork, artworkSubline, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>
@@ -2681,7 +2691,7 @@ export default defineComponent({
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: #080A10;
+    background: #000;
     isolation: isolate;
     overflow: hidden;
 
@@ -2724,7 +2734,7 @@ export default defineComponent({
         width: 100%;
         height: 100%;
         flex: 1;
-        background: #080A10;
+        background: #000;
         border-radius: 0;
         overflow: hidden;
         box-shadow: none;
@@ -2873,16 +2883,103 @@ export default defineComponent({
         }
     }
 
-    &__loading-backdrop {
+    &__artwork {
         position: absolute;
         inset: 0;
         background-size: cover;
         background-position: center;
-        filter: brightness(0.25) blur(10px);
-        transform: scale(1.08); /* avoid blurred edges showing white */
         z-index: 1;
         pointer-events: none;
+        animation: moovie-artwork-in 0.7s ease-out both;
+
+        &-scrim {
+            position: absolute;
+            inset: 0;
+            &--top {
+                background: linear-gradient(to bottom, rgba(6, 8, 12, 0.85), rgba(6, 8, 12, 0.2) 38%, transparent 55%);
+            }
+            &--bottom {
+                background: linear-gradient(to top, rgba(6, 8, 12, 0.92) 0%, rgba(6, 8, 12, 0.35) 42%, transparent 62%);
+            }
+        }
+
+        &-stage {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-content: center;
+            justify-items: center;
+            gap: 14px;
+            text-align: center;
+            padding: 24px;
+        }
+
+        &-poster {
+            position: relative;
+            height: min(46vh, 360px);
+            width: auto;
+            max-width: 70vw;
+            aspect-ratio: 2 / 3;
+            border-radius: 18px;
+            background-size: cover;
+            background-position: center;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 70px rgba(255, 90, 31, 0.14);
+            animation: moovie-poster-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+            &::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                border-radius: inherit;
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+                pointer-events: none;
+            }
+        }
+
+        &-title {
+            margin: 0;
+            font-family: var(--font-display);
+            font-size: clamp(1.05rem, 2.4vw, 1.55rem);
+            color: #fff;
+            letter-spacing: var(--ls-tight, 0.01em);
+            max-width: 82vw;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
+        }
+
+        &-sub {
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        &-dots {
+            display: inline-flex;
+            width: 1.4em;
+            span { animation: moovie-dot 1.2s infinite; }
+            span:nth-child(2) { animation-delay: 0.2s; }
+            span:nth-child(3) { animation-delay: 0.4s; }
+        }
     }
+
+    @keyframes moovie-artwork-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes moovie-poster-in {
+        from { opacity: 0; transform: translateY(16px) scale(0.95); }
+        to { opacity: 1; transform: none; }
+    }
+    @keyframes moovie-dot {
+        0%, 60%, 100% { opacity: 0.25; }
+        30% { opacity: 1; }
+    }
+
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.45s ease; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
 
     &__video {
         position: absolute;
@@ -2914,7 +3011,22 @@ export default defineComponent({
         &--error h3 { color: #ff8f8f; }
     }
 
-    &__spinner { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--rule-strong); border-top-color: var(--ember); animation: spin 1.1s linear infinite; }
+    &__spinner {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.07);
+        border: 2px solid rgba(255, 90, 31, 0.22);
+        border-top-color: var(--ember);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        animation: spin 1.1s linear infinite;
+
+        @media (max-width: 640px) {
+            width: 60px;
+            height: 60px;
+        }
+    }
 
     &__retry {
         margin-top: var(--s-2); padding: 0.65rem 1.4rem;
@@ -3427,167 +3539,10 @@ export default defineComponent({
     &.is-notfound { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.3); }
 }
 
-.moovie-frame__scraper-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
-    display: grid;
-    place-content: center;
-    padding: var(--s-4);
-    pointer-events: none;
-    
-    @media (max-width: 768px) {
-        padding: var(--s-2);
-    }
-}
-
-.moovie-frame__scraper-card {
-    position: relative;
-    width: 340px;
-    max-width: 100%;
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 0;
-    pointer-events: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-
-    @media (max-width: 768px) {
-        width: min(300px, calc(100vw - 32px));
-        gap: 8px;
-    }
-}
-
-.moovie-frame__scraper-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    
-    @media (max-width: 768px) {
-        gap: 4px;
-    }
-}
-
-.moovie-frame__provider-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 30px;
-    padding: 5px 2px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.075);
-    transition: opacity 0.25s ease, color 0.25s ease;
-    
-    &.is-pending {
-        .moovie-frame__provider-label { color: #fff; }
-    }
-    &.is-success {
-        .moovie-frame__provider-label { color: #fff; }
-    }
-    &.is-failure {
-        opacity: 0.45;
-    }
-    &.is-notfound {
-        opacity: 0.5;
-    }
-    
-    @media (max-width: 768px) {
-        min-height: 25px;
-        padding: 3px 1px;
-    }
-}
-
-.moovie-frame__provider-info {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    flex: 1;
-    min-width: 0;
-}
-
-.moovie-frame__provider-status-icon {
-    width: 14px;
-    height: 14px;
-    display: grid;
-    place-content: center;
-    flex-shrink: 0;
-    
-    @media (max-width: 768px) {
-        width: 14px;
-        height: 14px;
-    }
-}
-
-.moovie-frame__provider-spinner {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 90, 31, 0.2);
-    border-top-color: var(--ember, #ff5a1f);
-    animation: moovie-spin 0.8s linear infinite;
-    
-    @media (max-width: 768px) {
-        width: 10px;
-        height: 10px;
-    }
-}
-
-.moovie-frame__check-icon { color: #22c55e; font-weight: bold; font-size: 13px; }
-.moovie-frame__cross-icon { color: #ef4444; font-weight: bold; font-size: 11px; }
-.moovie-frame__dash-icon  { color: #71717a; font-size: 13px; }
-.moovie-frame__dot-icon   { color: rgba(255,255,255,0.15); font-size: 10px; }
-
-.moovie-frame__provider-details {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    flex: 1;
-    min-width: 0;
-}
-
-.moovie-frame__provider-label {
-    font-size: 0.76rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.68);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    
-    .is-success & {
-        color: #ffffff;
-    }
-    
-    @media (max-width: 768px) {
-        font-size: 0.7rem;
-    }
-}
-
-.moovie-frame__provider-status-text {
-    font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.35);
-    font-weight: 500;
-    
-    &.is-success {
-        color: #22c55e;
-    }
-    &.is-failed {
-        color: #ef4444;
-    }
-    &.is-notfound {
-        color: #71717a;
-    }
-    
-    @media (max-width: 768px) {
-        font-size: 0.65rem;
-    }
-}
-
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-    .moovie-frame__spinner, .moovie-frame__scraper-handle { animation: none !important; }
+    .moovie-frame__spinner { animation: none !important; }
 }
 
 .moovie-frame__settings-label {
@@ -3796,23 +3751,47 @@ export default defineComponent({
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1.5px solid rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), inset 0 0 24px rgba(255, 255, 255, 0.05);
     color: #ffffff;
-    opacity: 0.85;
-    transition: opacity 0.2s, transform 0.2s;
-    transform: scale(1);
+    opacity: 0.9;
     cursor: pointer;
-    
+    transition: opacity 0.2s, transform 0.2s, background-color 0.2s, border-color 0.2s;
+    animation: moovie-play-pulse 2.6s ease-in-out infinite;
+
     svg {
-        width: 48px;
-        height: 48px;
-        margin-left: 4px;
-        filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+        width: 40px;
+        height: 40px;
+        margin-left: 5px;
+        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
     }
 
     &:hover {
         opacity: 1;
-        transform: scale(1.1);
+        transform: scale(1.07);
+        background: rgba(255, 90, 31, 0.35);
+        border-color: rgba(255, 160, 120, 0.5);
     }
+
+    @media (max-width: 640px) {
+        width: 64px;
+        height: 64px;
+        svg {
+            width: 28px;
+            height: 28px;
+        }
+    }
+}
+
+@keyframes moovie-play-pulse {
+    0%, 100% { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(255, 90, 31, 0.25); }
+    50% { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 14px rgba(255, 90, 31, 0); }
 }
 
 

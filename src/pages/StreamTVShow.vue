@@ -724,7 +724,7 @@ export default defineComponent({
     width: 100%;
     max-width: 100%;
     min-height: 100dvh;
-    background: #080A10;
+    background: #000;
     color: #fff;
     overflow-x: hidden;
     cursor: none;
@@ -775,7 +775,7 @@ export default defineComponent({
             border-radius: 0;
             box-shadow: none;
             border: 0;
-            background: #080A10;
+            background: #000;
         }
     }
 
@@ -985,7 +985,7 @@ export default defineComponent({
         margin-right: auto;
         padding: 2rem 1.25rem calc(5rem + env(safe-area-inset-bottom, 0px));
         box-sizing: border-box;
-        background: #080A10;
+        background: #000;
 
         @media (min-width: 768px) {
             padding: 2.5rem 2rem calc(5rem + env(safe-area-inset-bottom, 0px));

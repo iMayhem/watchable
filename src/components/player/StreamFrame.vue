@@ -317,7 +317,7 @@ export default defineComponent({
         width: 100%;
         height: 100%;
         flex: 1;
-        background: #080A10;
+        background: #000;
         border-radius: 0;
         overflow: hidden;
         box-shadow: none;

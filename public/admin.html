@@ -1180,7 +1180,7 @@
                     .from('movora_comments')
                     .select('*')
                     .order('created_at', { ascending: false })
-                    .limit(100);
+                    .limit(1000);
                 htmlModComments = data || [];
                 renderHtmlModerationComments();
             } catch (e) {
@@ -1210,12 +1210,16 @@
                 );
             }
 
+            const blockedCount = htmlModComments.filter(c => c.is_hidden === 1 || c.is_hidden === true).length;
+            const totalCount = htmlModComments.length;
+
             if (list.length === 0) {
-                container.innerHTML = '<div class="empty-state">No comments match the filter</div>';
+                container.innerHTML = `<div style="font-size:0.8rem;color:var(--bone-300);margin-bottom:0.75rem;">Total: <strong>${totalCount}</strong> comments &nbsp;|&nbsp; 🚫 Blocked: <strong>${blockedCount}</strong></div><div class="empty-state">No comments match the filter</div>`;
                 return;
             }
+            const summaryHtml = `<div style="font-size:0.8rem;color:var(--bone-300);margin-bottom:0.75rem;">Showing <strong>${list.length}</strong> of <strong>${totalCount}</strong> comments &nbsp;|&nbsp; 🚫 Blocked: <strong>${blockedCount}</strong></div>`;
 
-            container.innerHTML = list.map(c => `
+            container.innerHTML = summaryHtml + list.map(c => `
                 <div style="background: rgba(245,239,228,0.02); border: 1px solid ${c.is_hidden ? 'rgba(201,78,61,0.3)' : 'var(--rule)'}; border-radius: var(--r-md); padding: 0.85rem 1rem; margin-bottom: 0.75rem;">
                     <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--bone-300); margin-bottom: 0.4rem;">
                         <span>👤 <strong>${c.username || 'Anonymous'}</strong> (${c.media_type || 'lounge'})</span>

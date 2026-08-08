@@ -205,6 +205,9 @@
     var wsQueue = [];
     var sharedListeners = [];
 
+    // All active channels that have been subscribed — needed for auto-rejoin after reconnect.
+    var allActiveChannels = [];
+
     function ensureWs() {
         if (sharedWs && (sharedWs.readyState === WebSocket.OPEN || sharedWs.readyState === WebSocket.CONNECTING)) {
             return sharedWs;
@@ -217,6 +220,16 @@
             });
             wsQueue = [];
             wsReady = true;
+
+            // Re-join all active channels after reconnect so presence_sync is received again
+            allActiveChannels.forEach(function (ch) {
+                ch.subscribed = false;
+                wsSend({ type: 'join_room', room: ch.name });
+                // Re-track presence if any was set
+                if (ch.presenceKey && ch._lastPresencePayload) {
+                    wsSend({ type: 'presence_track', room: ch.name, key: ch.presenceKey, payload: ch._lastPresencePayload });
+                }
+            });
         };
         sharedWs.onmessage = function (ev) {
             var msg;
@@ -251,6 +264,7 @@
         this.pgHandlers = [];        // postgres_changes handlers
         this.presenceKey = (this.opts.config && this.opts.config.presence && this.opts.config.presence.key) || null;
         this._presenceState = {};
+        this._lastPresencePayload = null; // store for reconnect re-tracking
         this.subscribed = false;
         this.subscribeCallbacks = [];
         this._listen();
@@ -275,24 +289,19 @@
                 return;
             }
             if (msg.type === 'presence_diff' && msg.room === self.name) {
-                var changed = false;
                 var reAdded = {};
                 if (msg.add) {
                     Object.keys(msg.add).forEach(function (key) {
                         self._presenceState[key] = msg.add[key];
                         reAdded[key] = true;
                         self._firePresence('join', { key: key, newPresences: msg.add[key] });
-                        changed = true;
                     });
                 }
                 if (msg.remove) {
                     Object.keys(msg.remove).forEach(function (key) {
-                        // A remove paired with an add for the same key is a re-track
-                        // update, not a real leave — don't delete the entry.
                         if (reAdded[key]) return;
                         if (self._presenceState[key]) delete self._presenceState[key];
                         self._firePresence('leave', { key: key, leftPresences: msg.remove[key] });
-                        changed = true;
                     });
                 }
                 return;
@@ -334,6 +343,10 @@
 
     RealtimeChannel.prototype.subscribe = function (cb) {
         if (typeof cb === 'function') this.subscribeCallbacks.push(cb);
+        // Register in allActiveChannels so it gets auto-rejoined on WS reconnect
+        if (allActiveChannels.indexOf(this) === -1) {
+            allActiveChannels.push(this);
+        }
         wsSend({ type: 'join_room', room: this.name });
         return Promise.resolve({ ok: true });
     };
@@ -345,12 +358,15 @@
 
     RealtimeChannel.prototype.track = function (payload) {
         if (!this.presenceKey) return Promise.resolve();
+        // Persist latest payload for reconnect re-tracking
+        this._lastPresencePayload = payload || {};
         wsSend({ type: 'presence_track', room: this.name, key: this.presenceKey, payload: payload || {} });
         return Promise.resolve();
     };
 
     RealtimeChannel.prototype.untrack = function () {
         if (!this.presenceKey) return Promise.resolve();
+        this._lastPresencePayload = null;
         wsSend({ type: 'presence_untrack', room: this.name, key: this.presenceKey });
         return Promise.resolve();
     };
@@ -362,6 +378,10 @@
     RealtimeChannel.prototype.close = function () {
         wsSend({ type: 'leave_room', room: this.name });
         this.subscribed = false;
+        this._lastPresencePayload = null;
+        // Remove from active channels list
+        var idx = allActiveChannels.indexOf(this);
+        if (idx !== -1) allActiveChannels.splice(idx, 1);
     };
 
     // ------------------------------------------------------------------ client

@@ -79,12 +79,15 @@ export async function registerUser(username: string, password: string): Promise<
 }
 
 // Login Account
-export async function loginUser(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+export async function loginUser(username: string, password: string): Promise<{ success: boolean; error?: string; code?: string }> {
     if (typeof window === 'undefined') return { success: false };
 
     const cleanUsername = username.trim().toLowerCase();
     const res = await apiCall('POST', '/api/sync-auth/login', { username: cleanUsername, password });
     if (res.error || !res.data?.token) {
+        if (res.error?.code === 'PASSWORD_RESET_REQUIRED' || res.error?.message === 'PASSWORD_RESET_REQUIRED') {
+            return { success: false, error: 'PASSWORD_RESET_REQUIRED', code: 'PASSWORD_RESET_REQUIRED' };
+        }
         return { success: false, error: res.error?.message || 'Incorrect username or password.' };
     }
 
@@ -94,6 +97,24 @@ export async function loginUser(username: string, password: string): Promise<{ s
     if (userRes.data) {
         applyLocalUserData(userRes.data);
     }
+    return { success: true };
+}
+
+// Set / Create New Password for User (e.g. after database migration or reset)
+export async function setPasswordUser(username: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    if (typeof window === 'undefined') return { success: false };
+
+    const cleanUsername = username.trim().toLowerCase();
+    if (newPassword.length < 4) {
+        return { success: false, error: 'Password must be at least 4 characters long.' };
+    }
+
+    const res = await apiCall('POST', '/api/sync-auth/set-password', { username: cleanUsername, password: newPassword });
+    if (res.error || !res.data?.token) {
+        return { success: false, error: res.error?.message || 'Failed to set password.' };
+    }
+
+    completeLogin(cleanUsername, res.data.token);
     return { success: true };
 }
 

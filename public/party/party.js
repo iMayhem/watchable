@@ -2071,7 +2071,7 @@
         let loadRoomsTimer = null;
         let roomActivityHeartbeat = null;
 
-        const PARTY_INACTIVE_HOURS = 6;
+        const PARTY_INACTIVE_HOURS = 12;
 
         function partyInactiveThresholdIso() {
             return new Date(Date.now() - PARTY_INACTIVE_HOURS * 60 * 60 * 1000).toISOString();

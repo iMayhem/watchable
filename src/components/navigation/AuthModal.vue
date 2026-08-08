@@ -44,7 +44,7 @@
                     </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" v-if="mode === 'login' || mode === 'signup'">
                     <label class="form-label">Password</label>
                     <div class="input-wrapper">
                         <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -57,7 +57,30 @@
                             v-model="password" 
                             class="form-input" 
                             :disabled="loading" 
+                            :required="mode === 'login' || mode === 'signup'"
+                        />
+                    </div>
+                </div>
+
+                <!-- Reset Password Field (Shown only for migrated users missing a password) -->
+                <div v-if="mode === 'reset'" class="form-group animate-fade-in">
+                    <label class="form-label" style="color: var(--ember, #ff5a1f);">Set New Password</label>
+                    <p class="meta" style="font-size: 0.8rem; margin-bottom: 8px; color: var(--bone-300, #b0b0b0);">
+                        Your account requires a new password set so you can log in directly in future visits.
+                    </p>
+                    <div class="input-wrapper">
+                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        <input 
+                            type="password" 
+                            placeholder="Enter your new password" 
+                            v-model="newPassword" 
+                            class="form-input" 
+                            :disabled="loading" 
                             required
+                            minlength="4"
                         />
                     </div>
                 </div>
@@ -73,7 +96,7 @@
                 <!-- Submit Button -->
                 <button type="submit" class="btn btn-primary btn-submit" :disabled="loading">
                     <div v-if="loading" class="spinner-small"></div>
-                    <span>{{ mode === 'login' ? 'Sign In' : 'Sign Up' }}</span>
+                    <span>{{ mode === 'login' ? 'Sign In' : mode === 'reset' ? 'Set Password & Sign In' : 'Sign Up' }}</span>
                 </button>
             </form>
 
@@ -94,7 +117,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { loginUser, registerUser } from '../../lib/auth';
+import { loginUser, registerUser, setPasswordUser } from '../../lib/auth';
 import { useActiveVehicle } from '../../composables/useActiveVehicle';
 
 interface Particle {
@@ -143,9 +166,10 @@ export default defineComponent({
 
         const isMobileUi = ref(detectMobileUi());
 
-        const mode = ref<'login' | 'signup'>('login');
+        const mode = ref<'login' | 'signup' | 'reset'>('login');
         const username = ref('');
         const password = ref('');
+        const newPassword = ref('');
         const loading = ref(false);
         const error = ref('');
         const success = ref('');
@@ -762,6 +786,22 @@ export default defineComponent({
                         error.value = res.error || 'Failed to sign up.';
                         triggerFailureFeedback();
                     }
+                } else if (mode.value === 'reset') {
+                    const res = await setPasswordUser(username.value, newPassword.value);
+                    if (res.success) {
+                        success.value = 'Password set successfully! Logged in.';
+                        spawnSuccessParticles();
+                        setTimeout(() => {
+                            close();
+                            username.value = '';
+                            password.value = '';
+                            newPassword.value = '';
+                            mode.value = 'login';
+                        }, 1500);
+                    } else {
+                        error.value = res.error || 'Failed to set password.';
+                        triggerFailureFeedback();
+                    }
                 } else {
                     const res = await loginUser(username.value, password.value);
                     if (res.success) {
@@ -772,6 +812,10 @@ export default defineComponent({
                             username.value = '';
                             password.value = '';
                         }, 1500);
+                    } else if (res.code === 'PASSWORD_RESET_REQUIRED') {
+                        mode.value = 'reset';
+                        error.value = '';
+                        success.value = 'Account found! Please set a new password below.';
                     } else {
                         error.value = res.error || 'Failed to login.';
                         triggerFailureFeedback();
@@ -861,6 +905,7 @@ export default defineComponent({
             mode,
             username,
             password,
+            newPassword,
             loading,
             error,
             success,

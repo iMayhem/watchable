@@ -52,10 +52,10 @@ export function useAdScript(type: 'pc' | 'mobile') {
 
     async function refresh() {
         const isSettingEnabled = await fetchAdSetting(key)
-        const isAllowedPage = route.path.startsWith('/stream')
         const locallyDisabled = typeof localStorage !== 'undefined' && localStorage.getItem('ads_hidden') === 'true'
 
-        if (isSettingEnabled && isAllowedPage && !locallyDisabled) {
+        // Ads run on every page (front, browse, detail, player, ...).
+        if (isSettingEnabled && !locallyDisabled) {
             if (!enabled.value) {
                 injectAd()
                 injectFloater()

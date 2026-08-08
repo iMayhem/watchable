@@ -18,10 +18,11 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
+import { computed, onMounted, onBeforeUnmount, defineAsyncComponent, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import { useAdScript } from '@/composables/useAdScript';
+import { triggerAd } from '@/components/ads/triggerAd';
 import PollPopup from '@/components/navigation/PollPopup.vue';
 
 const route = useRoute();
@@ -68,6 +69,16 @@ const initIdle = async () => {
 };
 
 useAdScript('mobile');
+
+watch(
+    () => route.fullPath,
+    (path, prevPath) => {
+        if (path === prevPath) return;
+        if (isBareLayout.value) return;
+        setTimeout(() => triggerAd(), 250);
+    },
+    { immediate: false }
+);
 
 onMounted(() => {
     if ('requestIdleCallback' in window) {

@@ -117,7 +117,7 @@
                         <!-- Main comment text & actions (hidden if directly collapsed) -->
                         <template v-if="!isDirectlyCollapsed(c.id)">
                             <p v-if="c.is_hidden" class="comment-card__body comment-card__body--blocked">
-                                🚫 <em>[Comment removed due to inappropriate content]</em>
+                                <em>[Comment removed due to inappropriate content]</em>
                             </p>
                             <p v-else class="comment-card__body" v-html="formatCommentContent(c.content)"></p>
                             
@@ -1266,11 +1266,10 @@ export default defineComponent({
 .comment-card__body--blocked {
     color: var(--bone-400, #8a8270) !important;
     font-style: italic;
-    opacity: 0.85;
-    background: rgba(201, 78, 61, 0.08);
-    border: 1px dashed rgba(201, 78, 61, 0.3);
-    padding: 6px 12px;
-    border-radius: var(--r-xs, 6px);
+    opacity: 0.6;
+    background: none;
+    border: none;
+    padding: 0;
     display: inline-block;
 }
 

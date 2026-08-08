@@ -58,7 +58,7 @@
                                                 <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
                                             </div>
                                             <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
-                                                🚫 <em>[Comment removed due to inappropriate content]</em>
+                                                <em>[Comment removed due to inappropriate content]</em>
                                             </p>
                                             <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                             <div class="discuss-msg__bubble-footer">
@@ -193,7 +193,7 @@
                                                     <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
                                                 </div>
                                                 <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
-                                                    🚫 <em>[Comment removed due to inappropriate content]</em>
+                                                    <em>[Comment removed due to inappropriate content]</em>
                                                 </p>
                                                 <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                                 <div class="discuss-msg__bubble-footer">
@@ -319,7 +319,7 @@
 
                                             <div class="discuss-msg__bubble discuss-msg__bubble--movie">
                                                 <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
-                                                    🚫 <em>[Comment removed due to inappropriate content]</em>
+                                                    <em>[Comment removed due to inappropriate content]</em>
                                                 </p>
                                                 <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                             </div>
@@ -586,7 +586,7 @@ export default defineComponent({
                 const supabase = await getSupabaseClient();
                 const { data, error } = await supabase
                     .from('movora_comments')
-                    .select('id, media_id, media_type, username, content, parent_id, likes, dislikes, created_at, is_pinned')
+                    .select('id, media_id, media_type, username, content, parent_id, likes, dislikes, created_at, is_pinned, is_hidden')
                     .eq('media_type', selectedMovieType.value)
                     .eq('media_id', selectedMovieId.value)
                     .order('created_at', { ascending: true })
@@ -1873,11 +1873,10 @@ export default defineComponent({
 .discuss-msg__text--blocked {
     color: var(--bone-400, #8a8270) !important;
     font-style: italic;
-    opacity: 0.85;
-    background: rgba(201, 78, 61, 0.08);
-    border: 1px dashed rgba(201, 78, 61, 0.3);
-    padding: 6px 12px;
-    border-radius: var(--r-xs, 6px);
+    opacity: 0.6;
+    background: none;
+    border: none;
+    padding: 0;
     display: inline-block;
 }
 

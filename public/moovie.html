@@ -62,6 +62,18 @@
             object-fit: contain;
         }
     </style>
+    <!-- Admaven ad tag -->
+    <script data-cfasync="false">
+      (function () {
+        try {
+          if (localStorage.getItem('ads_hidden') === 'true') return;
+        } catch (e) {}
+        var s = document.createElement('script');
+        s.setAttribute('data-cfasync', 'false');
+        s.src = '//dc9xwpjprguup.cloudfront.net/?pwxcd=1436467';
+        document.head.appendChild(s);
+      })();
+    </script>
 </head>
 <body>
     <div id="player-container">

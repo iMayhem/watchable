@@ -178,6 +178,30 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Admaven ad tag — loads on every page (whole site), excluded on party/watch-together -->
+    <script data-cfasync="false">
+      (function () {
+        try {
+          var path = location.pathname;
+          if (path.indexOf('/party') === 0) return;
+          var hidden = false;
+          try { hidden = localStorage.getItem('ads_hidden') === 'true'; } catch (e) {}
+          if (hidden) return;
+          var d = document.createElement('script');
+          d.setAttribute('data-cfasync', 'false');
+          d.async = true;
+          d.src = 'https://dc9xwpjprguup.cloudfront.net/?pwxcd=1436467';
+          document.head.appendChild(d);
+          setTimeout(function () {
+            var f = document.createElement('script');
+            f.setAttribute('data-cfasync', 'false');
+            f.async = true;
+            f.src = 'https://dc9xwpjprguup.cloudfront.net/?pwxcd=1448933';
+            document.head.appendChild(f);
+          }, 100);
+        } catch (e) {}
+      })();
+    </script>
     <title>Moovie — Stream Movies, TV Shows & Anime Free</title>
     <meta name="description" content="Watch movies, TV shows, and anime online in high quality. Host watch parties with friends, search from a vast database of titles, and enjoy uninterrupted streaming on Moovie." />
     <meta name="keywords" content="movies, streaming, tv shows, anime, watch party, free movies, watchable, moovie" />

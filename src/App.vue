@@ -30,7 +30,6 @@
 import { computed, onMounted, onBeforeUnmount, watch, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
-import { useAdScript } from './composables/useAdScript';
 import { getSupabaseClient } from './lib/supabase';
 import { setVpsProxyBaseUrl } from './utils/useWebImage';
 import { triggerAd } from './components/ads/triggerAd';
@@ -104,8 +103,6 @@ const initIdle = async () => {
     import('./pages/Watchlist.vue');
     import('./pages/Upcoming.vue');
 };
-
-useAdScript('pc');
 
 onMounted(async () => {
     loadGlobalSettings();

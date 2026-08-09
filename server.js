@@ -411,7 +411,7 @@ app.get('/scrape', async (req, res) => {
   let completedAny = false;
   sse.emit('init', { sourceIds });
 
-  for (const [id, pConfig] of enabledProviders) {
+  const runProvider = async ([id, pConfig]) => {
     if (sse.cancelled()) return;
     try {
       sse.emit('start', id);
@@ -458,7 +458,11 @@ app.get('/scrape', async (req, res) => {
     } catch (e) {
       sse.emit('update', { id, percentage: 100, status: 'failure', error: e.message });
     }
-  }
+  };
+
+  // Run all providers concurrently so the fastest one (e.g. Hera) reports
+  // 'completed' first and playback starts as soon as possible.
+  await Promise.allSettled(enabledProviders.map(runProvider));
 
   if (!sse.cancelled() && !completedAny) {
     sse.emit('noOutput', '');

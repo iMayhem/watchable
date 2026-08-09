@@ -76,9 +76,6 @@ export default {
       })
     }
 
-    const target = url.searchParams.get('url')
-    if (!target) return new Response('Missing url', { status: 400 })
-
     const headers = new Headers()
     const referer = url.searchParams.get('referer')
     const origin  = url.searchParams.get('origin')
@@ -86,6 +83,28 @@ export default {
     if (referer) headers.set('Referer', referer)
     if (origin)  headers.set('Origin', origin)
     if (ua)      headers.set('User-Agent', ua)
+
+    // Opaque token mode: ?id=<streamId> — resolve the real URL from the hub
+    // so the origin URL is never exposed in query params.
+    const id = url.searchParams.get('id')
+    let target = url.searchParams.get('url')
+    if (!target && id) {
+      try {
+        const hub = new URL('/api/stream', 'https://proxy.moovie.fun')
+        hub.searchParams.set('id', id)
+        const resp = await fetch(hub)
+        if (resp.ok) {
+          const data = await resp.json()
+          target = data.url
+          if (data.headers) {
+            for (const [k, v] of Object.entries(data.headers)) {
+              if (v && (k === 'Referer' || k === 'Origin' || k === 'User-Agent')) headers.set(k, v)
+            }
+          }
+        }
+      } catch {}
+    }
+    if (!target) return new Response('Missing url', { status: 400 })
 
     const range = request.headers.get('Range')
     if (range) headers.set('Range', range)

@@ -1857,6 +1857,20 @@ export default defineComponent({
                     throw e
                 }
             } else if (s.headers && Object.keys(s.headers).length) {
+                // Dashboard "Cloudflare proxy" mode already routes provider streams
+                // through our proxies (cf-header-proxy / hub /proxy), embedding the
+                // headers as query params. Wrapping an already-wrapped URL nests
+                // worker calls and 522s — so play those directly.
+                const alreadyProxied = Boolean(
+                    s.url?.startsWith(CF_HEADER_PROXY) ||
+                    s.url?.includes('cf-header-proxy.moovie.fun') ||
+                    s.url?.startsWith(`${HUB_BASE}/proxy?`) ||
+                    s.url?.startsWith('https://providers.peestream.in/proxy')
+                )
+                if (alreadyProxied) {
+                    playUrl = s.url
+                    await tryMount(playUrl)
+                } else {
                 // If it is Athena (MoovieCatalog) or netmirror, use the VPS proxy instead of Cloudflare Worker
                 // because Cloudflare Worker IPs are blocked by netmirror/tv.imgcdn.kim!
                 const isAthena = s.providerName?.toLowerCase() === 'mooviecatalog' || 
@@ -1881,6 +1895,7 @@ export default defineComponent({
                     if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
                     playUrl = `${CF_HEADER_PROXY}/?${params}`
                     await tryMount(playUrl)
+                }
                 }
             } else {
                 playUrl = s.url

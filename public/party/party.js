@@ -100,7 +100,8 @@
                 user: currentUserName,
                 joinedAt: new Date().toISOString(),
                 isHost: isHost,
-                sessionId: presenceSessionId
+                sessionId: presenceSessionId,
+                lastSeen: Date.now()
             };
         }
 
@@ -108,6 +109,43 @@
             if (!channel) return;
             await channel.track(buildPresencePayload());
         }
+
+        // Refresh our presence entry periodically so the lastSeen staleness filter
+        // above never mistakes a live participant for a ghost.
+        let presenceHeartbeat = null;
+
+        function startPresenceHeartbeat() {
+            if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+            presenceHeartbeat = setInterval(() => {
+                if (channel) void syncPresenceTrack();
+            }, 20 * 1000);
+        }
+
+        function stopPresenceHeartbeat() {
+            if (presenceHeartbeat) {
+                clearInterval(presenceHeartbeat);
+                presenceHeartbeat = null;
+            }
+        }
+
+        // When the tab is hidden/closed, drop our presence entry immediately so the
+        // room doesn't keep showing us as an online ghost (mobile browsers suspend
+        // sockets without a clean disconnect).
+        function onPartyPageVisibility() {
+            if (document.visibilityState === 'hidden') {
+                stopPresenceHeartbeat();
+                if (channel) void channel.untrack();
+            } else if (document.visibilityState === 'visible') {
+                if (channel) void syncPresenceTrack();
+                startPresenceHeartbeat();
+            }
+        }
+
+        window.addEventListener('pagehide', () => {
+            stopPresenceHeartbeat();
+            if (channel) void channel.untrack();
+        });
+        document.addEventListener('visibilitychange', onPartyPageVisibility);
 
         function updateRoomPrivacyButton() {
             const btn = document.getElementById('room-privacy-btn');
@@ -253,6 +291,7 @@
             const state = channel ? channel.presenceState() : {};
             Object.entries(state).forEach(([key, entries]) => {
                 if (isLobbyObserverKey(key)) return;
+                if (keyIsStale(entries)) return;
                 const presence = Array.isArray(entries) ? entries[0] : entries;
                 if (!presence) return;
                 const name = presence.user || key.split(':')[0] || key || 'Guest';
@@ -2100,10 +2139,41 @@
             return typeof key === 'string' && key.startsWith(LOBBY_OBSERVER_PREFIX);
         }
 
+        // ── Stale presence filtering ────────────────────────────────────────────
+        // Presence entries are tied to WebSockets. When a tab/iframe dies without
+        // a clean disconnect (mobile backgrounding, laptop sleep, iframe replaced
+        // by the parent page), the server can keep the entry alive for a long time,
+        // making empty rooms look populated. Live clients refresh their entry via
+        // a heartbeat (see startPresenceHeartbeat), so entries whose lastSeen is
+        // old are ghosts and are excluded from every count/panel.
+        const PRESENCE_STALE_MS = 90 * 1000;
+
+        function isPresenceStale(presence) {
+            if (!presence || typeof presence !== 'object') return false;
+            if (Number.isFinite(presence.lastSeen)) {
+                return Date.now() - presence.lastSeen > PRESENCE_STALE_MS;
+            }
+            // Legacy entries (pre-heartbeat) have no lastSeen. Live clients now
+            // refresh their entry every 20s, so entries claiming to have joined
+            // more than 3 minutes ago are very likely ghosts.
+            const joinedAt = Date.parse(presence.joinedAt || '');
+            if (Number.isFinite(joinedAt)) {
+                return Date.now() - joinedAt > 3 * 60 * 1000;
+            }
+            return false;
+        }
+
+        function keyIsStale(entries) {
+            const list = Array.isArray(entries) ? entries : [entries];
+            if (!list.length) return false;
+            return list.every(e => isPresenceStale(e));
+        }
+
         function countPresenceMembers(presenceState) {
             let count = 0;
             Object.entries(presenceState || {}).forEach(([key, entries]) => {
                 if (isLobbyObserverKey(key)) return;
+                if (keyIsStale(entries)) return;
                 const present = Array.isArray(entries) ? entries.length > 0 : Boolean(entries);
                 if (present) count += 1;
             });
@@ -2135,14 +2205,7 @@
             });
 
             const refresh = () => {
-                const state = ch.presenceState();
-                let count = 0;
-                Object.entries(state || {}).forEach(([key, entries]) => {
-                    if (isLobbyObserverKey(key)) return;
-                    const present = Array.isArray(entries) ? entries.length > 0 : Boolean(entries);
-                    if (present) count += 1;
-                });
-                updateLobbyParticipantLabel(roomId, count);
+                updateLobbyParticipantLabel(roomId, countPresenceMembers(ch.presenceState()));
             };
 
             ch.on('presence', { event: 'sync' }, refresh);
@@ -3032,6 +3095,8 @@
             const roomId = activeRoom?.id;
             if (!channel) return;
 
+            stopPresenceHeartbeat();
+
             if (purgeChatIfLast && roomId) {
                 const state = channel.presenceState();
                 if (countPresenceMembers(state) <= 1) {
@@ -3233,6 +3298,7 @@
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     await syncPresenceTrack();
+                    startPresenceHeartbeat();
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
@@ -3545,6 +3611,7 @@
 
             Object.entries(presenceState || {}).forEach(([key, entries]) => {
                 if (isLobbyObserverKey(key)) return;
+                if (keyIsStale(entries)) return;
                 const presence = Array.isArray(entries) ? entries[0] : entries;
                 if (!presence) return;
 

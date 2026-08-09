@@ -1,4 +1,12 @@
 
+        // Anti-Ad / Anti-Popup Shield for WatchTogether
+        try {
+            window.open = function() {
+                console.warn('[WatchTogether Anti-Ad] Suppressed ad popup window');
+                return null;
+            };
+        } catch (e) {}
+
         // Safe localStorage wrapper to prevent crashes when opened via file:// protocol
         const safeLocalStorage = {
             getItem(key) {
@@ -92,7 +100,8 @@
                 user: currentUserName,
                 joinedAt: new Date().toISOString(),
                 isHost: isHost,
-                sessionId: presenceSessionId
+                sessionId: presenceSessionId,
+                lastSeen: Date.now()
             };
         }
 
@@ -101,23 +110,42 @@
             await channel.track(buildPresencePayload());
         }
 
-        function setPartyToolbarValue(baseId, value) {
-            const primary = document.getElementById(baseId);
-            if (primary) primary.textContent = value;
-            const mobile = document.getElementById(`${baseId}-mobile`);
-            if (mobile) mobile.textContent = value;
+        // Refresh our presence entry periodically so the lastSeen staleness filter
+        // above never mistakes a live participant for a ghost.
+        let presenceHeartbeat = null;
+
+        function startPresenceHeartbeat() {
+            if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+            presenceHeartbeat = setInterval(() => {
+                if (channel) void syncPresenceTrack();
+            }, 20 * 1000);
         }
 
-        function isPartyMobileToolbar() {
-            return window.matchMedia('(max-width: 768px)').matches;
+        function stopPresenceHeartbeat() {
+            if (presenceHeartbeat) {
+                clearInterval(presenceHeartbeat);
+                presenceHeartbeat = null;
+            }
         }
 
-        function syncPartyRoomToolbar() {
-            const toolbar = document.getElementById('party-room-toolbar');
-            if (!toolbar) return;
-            const inRoom = document.body.classList.contains('room-view-active');
-            toolbar.hidden = !inRoom;
+        // When the tab is hidden/closed, drop our presence entry immediately so the
+        // room doesn't keep showing us as an online ghost (mobile browsers suspend
+        // sockets without a clean disconnect).
+        function onPartyPageVisibility() {
+            if (document.visibilityState === 'hidden') {
+                stopPresenceHeartbeat();
+                if (channel) void channel.untrack();
+            } else if (document.visibilityState === 'visible') {
+                if (channel) void syncPresenceTrack();
+                startPresenceHeartbeat();
+            }
         }
+
+        window.addEventListener('pagehide', () => {
+            stopPresenceHeartbeat();
+            if (channel) void channel.untrack();
+        });
+        document.addEventListener('visibilitychange', onPartyPageVisibility);
 
         function updateRoomPrivacyButton() {
             const btn = document.getElementById('room-privacy-btn');
@@ -130,14 +158,9 @@
 
             btn.hidden = false;
             const locked = isRoomPrivate(activeRoom);
-            const publicLabel = 'Make public';
-            const privateLabel = 'Make private';
-            const label = locked ? publicLabel : privateLabel;
-            const desktopLabel = btn.querySelector('.party-tool-btn__text--desktop');
-            if (desktopLabel) desktopLabel.textContent = label;
+            btn.textContent = locked ? 'Make public' : 'Make private';
             btn.classList.toggle('is-private', locked);
             btn.setAttribute('aria-pressed', locked ? 'true' : 'false');
-            btn.setAttribute('aria-label', label);
             btn.title = locked
                 ? 'Open this room so new guests can join from the lobby'
                 : 'Lock this room so no new guests can join';
@@ -181,7 +204,13 @@
         window.toggleRoomPrivacy = toggleRoomPrivacy;
         window.openPartyEpisodesPanel = openPartyEpisodesPanel;
 
-        // Host transfer
+        /**
+         * giveHostControlTo(targetUser)
+         * Allows the current host to transfer host control to another participant.
+         * Broadcasts a 'moovie_host_transfer' event so all clients update host state.
+         * Also exposed globally so the inline "Make Host" button in chat can call it.
+         */
+        // Flag to prevent the sender from double-processing their own host transfer broadcast echo
         let _hostTransferInFlight = false;
 
         async function giveHostControlTo(targetUser) {
@@ -193,30 +222,39 @@
             if (!channel) return;
 
             const prevHost = currentUserName;
+
+            // Update local state BEFORE broadcasting so the echo (if received) is ignored
             isHost = false;
             _hostTransferInFlight = true;
             if (activeRoom) activeRoom.host = targetUser;
             await syncPresenceTrack();
             updateRoomPrivacyButton();
-            updateMakeHostButtonVisibility();
 
+            // Persist the new host in the database
             try {
                 await supabaseClient
                     .from('rooms')
                     .update({ host: targetUser })
                     .eq('id', activeRoom.id);
             } catch (err) {
-                console.error('[Party] Failed to persist host transfer:', err);
+                console.error('[Party] Failed to persist host transfer to database:', err);
             }
 
+            // Broadcast the transfer to all other participants
             channel.send({
                 type: 'broadcast',
                 event: 'moovie_host_transfer',
-                payload: { newHost: targetUser, prevHost }
+                payload: {
+                    newHost: targetUser,
+                    prevHost: prevHost
+                }
             });
 
-            appendChatMessage('System', '👑 You transferred host control to ' + targetUser + '.', 'system');
+            appendChatMessage('System', `👑 You transferred host control to ${targetUser}.`, 'system');
+            if (channel) updateParticipantsPanel(channel.presenceState());
             closeMakeHostMenu();
+
+            // Clear the in-flight flag after a short debounce
             setTimeout(() => { _hostTransferInFlight = false; }, 2000);
         }
 
@@ -253,6 +291,7 @@
             const state = channel ? channel.presenceState() : {};
             Object.entries(state).forEach(([key, entries]) => {
                 if (isLobbyObserverKey(key)) return;
+                if (keyIsStale(entries)) return;
                 const presence = Array.isArray(entries) ? entries[0] : entries;
                 if (!presence) return;
                 const name = presence.user || key.split(':')[0] || key || 'Guest';
@@ -261,7 +300,7 @@
                 item.type = 'button';
                 item.className = 'make-host-dropup__item';
                 item.textContent = name;
-                item.onclick = function() { giveHostControlTo(name); };
+                item.onclick = () => giveHostControlTo(name);
                 menu.appendChild(item);
             });
             if (!menu.children.length) {
@@ -279,13 +318,42 @@
             if (!isHost) closeMakeHostMenu();
         }
 
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', (e) => {
             const menu = document.getElementById('make-host-menu');
             const btn = document.getElementById('make-host-btn');
             if (menu && !menu.hidden && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
                 closeMakeHostMenu();
             }
         });
+        function formatDuration(seconds) {
+            const sec = Math.max(0, Math.floor(seconds));
+            const hrs = Math.floor(sec / 3600);
+            const mins = Math.floor((sec % 3600) / 60);
+            const secs = sec % 60;
+            const pad = (num) => String(num).padStart(2, '0');
+            if (hrs > 0) {
+                return `${hrs}:${pad(mins)}:${pad(secs)}`;
+            }
+            return `${mins}:${pad(secs)}`;
+        }
+
+        function getSeekDescription(newTime, oldTime) {
+            const diff = newTime - oldTime;
+            if (Math.abs(diff) < 2) return null;
+            if (diff > 0) {
+                if (diff < 65) {
+                    return `forward by ${Math.round(diff)}s`;
+                } else {
+                    return `to ${formatDuration(newTime)}`;
+                }
+            } else {
+                if (diff > -65) {
+                    return `backward by ${Math.round(Math.abs(diff))}s`;
+                } else {
+                    return `to ${formatDuration(newTime)}`;
+                }
+            }
+        }
 
         // Adjust links for file:// protocol vs http:// protocol dynamically
         if (window.location.protocol !== 'file:') {
@@ -415,7 +483,8 @@
                 movie_title: prefillTitle || 'Feature Title',
                 embed_sources: catalogKey,
                 media_id: catalogKey,
-                scheduled_start_time: new Date().toISOString()
+                scheduled_start_time: new Date().toISOString(),
+                host: currentUserName
             });
 
             activeRoom = newRoom;
@@ -538,8 +607,8 @@
         let season = 1;
         let episode = 1;
         function parseMediaParams(idString) {
-            isNetflix = idString.startsWith('nf_');
-            const payload = isNetflix ? idString.slice(3) : idString;
+            isNetflix = false;
+            const payload = idString.startsWith('nf_') ? idString.slice(3) : idString;
 
             isAnime = payload.startsWith('anime_') || (!isNetflix && payload.includes('_ep'));
             isTv = payload.includes('_s') && !isAnime;
@@ -974,39 +1043,20 @@
             const menu = document.getElementById('party-nf-quality-menu');
             const label = document.getElementById('party-nf-quality-label');
             const wrap = document.getElementById('party-nf-quality-wrap');
-            const toolbarMenu = document.getElementById('party-netflix-quality-menu');
-            const toolbarWrap = document.getElementById('party-netflix-quality-wrap');
-            const qualityValue = netflixStreams[netflixStreamIndex]?.quality || 'Auto';
-
+            if (!menu || !wrap) return;
             if (!netflixStreams.length) {
-                if (wrap) wrap.hidden = true;
-                if (toolbarWrap) toolbarWrap.style.display = 'none';
+                wrap.hidden = true;
                 return;
             }
-
-            const menuMarkup = netflixStreams.map((stream, index) => `
-                <button type="button" class="server-dropdown-item ${index === netflixStreamIndex ? 'active' : ''}" onclick="switchPartyNfQuality(${index})">
-                    ${stream.quality || 'Auto'}
-                </button>
+            wrap.hidden = false;
+            menu.innerHTML = netflixStreams.map((stream, index) => `
+                <li>
+                    <button type="button" class="party-nf-watch__quality-item ${index === netflixStreamIndex ? 'is-active' : ''}" onclick="switchPartyNfQuality(${index})">
+                        ${stream.quality || 'Auto'}
+                    </button>
+                </li>
             `).join('');
-
-            if (menu && wrap) {
-                wrap.hidden = false;
-                menu.innerHTML = netflixStreams.map((stream, index) => `
-                    <li>
-                        <button type="button" class="party-nf-watch__quality-item ${index === netflixStreamIndex ? 'is-active' : ''}" onclick="switchPartyNfQuality(${index})">
-                            ${stream.quality || 'Auto'}
-                        </button>
-                    </li>
-                `).join('');
-                if (label) label.textContent = qualityValue;
-            }
-
-            if (toolbarMenu && toolbarWrap) {
-                toolbarWrap.style.display = isNetflix ? '' : 'none';
-                toolbarMenu.innerHTML = menuMarkup;
-                setPartyToolbarValue('party-netflix-quality-label', qualityValue);
-            }
+            if (label) label.textContent = netflixStreams[netflixStreamIndex]?.quality || 'Quality';
         }
 
         function populatePartyNfAudioMenu() {
@@ -1192,6 +1242,7 @@
             if (opts.useCache !== false && partySeasonEpisodesCache.has(cacheKey)) {
                 netflixEpisodes = partySeasonEpisodesCache.get(cacheKey);
                 renderPartyEpisodeList();
+                renderBarEpisodeList();
                 return;
             }
 
@@ -1204,6 +1255,7 @@
             }));
             partySeasonEpisodesCache.set(cacheKey, netflixEpisodes);
             renderPartyEpisodeList();
+            renderBarEpisodeList();
         }
 
         function buildPartyPlaceholderEpisodes(count, startSeason) {
@@ -1222,6 +1274,8 @@
             netflixSupportsEpisodes = true;
             renderPartySeasonSelect();
             renderPartyEpisodeList();
+            renderBarSeasonSelect();
+            renderBarEpisodeList();
         }
 
         function applyPartyEpisodeCache(meta) {
@@ -1244,6 +1298,8 @@
             applyPartyEpisodeTitle(meta);
             renderPartySeasonSelect();
             renderPartyEpisodeList();
+            renderBarSeasonSelect();
+            renderBarEpisodeList();
             return true;
         }
 
@@ -1257,6 +1313,8 @@
                 netflixEpisodes = [];
                 renderPartySeasonSelect();
                 renderPartyEpisodeList();
+                renderBarSeasonSelect();
+                renderBarEpisodeList();
                 updatePartyNfEpisodesButton();
                 updatePartyNfAutoNextButton();
                 return;
@@ -1308,6 +1366,7 @@
                 if (partySeasonEpisodesCache.has(cacheKey)) {
                     netflixEpisodes = partySeasonEpisodesCache.get(cacheKey);
                     renderPartyEpisodeList();
+                    renderBarEpisodeList();
                     return;
                 }
 
@@ -1321,6 +1380,8 @@
                 } finally {
                     setPartyEpisodesLoading(false);
                 }
+                renderBarSeasonSelect();
+                renderBarEpisodeList();
                 scrollPartyEpisodeIntoView();
                 return;
             }
@@ -1373,6 +1434,8 @@
                 netflixSupportsEpisodes = netflixEpisodes.length > 1 || isTv;
                 renderPartySeasonSelect();
                 renderPartyEpisodeList();
+                renderBarSeasonSelect();
+                renderBarEpisodeList();
                 updatePartyNfEpisodesButton();
                 updatePartyNfAutoNextButton();
                 scrollPartyEpisodeIntoView();
@@ -1441,6 +1504,115 @@
             }
             setPartyNfMenuOpen(false);
             schedulePartyNfControlsHide();
+        }
+
+        // ── Bar Episodes Drop-up (moovie player) ──────────────────────────────
+
+        function renderBarEpisodeList() {
+            const list = document.getElementById('party-bar-episodes-list');
+            if (!list) return;
+            if (!netflixEpisodes.length) {
+                list.innerHTML = '<p class="party-nf-watch__episodes-empty">No episodes found.</p>';
+                return;
+            }
+            list.innerHTML = netflixEpisodes.map((ep) => {
+                const active = ep.episode_number === episode && partyViewingSeason === season;
+                const thumb = ep.still_path
+                    ? `<img src="${partyStillUrl(ep.still_path)}" alt="" loading="lazy" />`
+                    : `<div class="party-nf-watch__episode-thumb-fallback">${ep.episode_number}</div>`;
+                const playing = active
+                    ? `<span class="party-nf-watch__episode-playing" aria-hidden="true">${PARTY_EP_PLAYING_SVG}</span>`
+                    : '';
+                return `
+                    <button type="button"
+                        class="party-nf-watch__episode-card ${active ? 'is-active' : ''}"
+                        data-episode="${ep.episode_number}"
+                        data-season="${partyViewingSeason}"
+                    >
+                        <div class="party-nf-watch__episode-thumb">${thumb}${playing}</div>
+                        <div class="party-nf-watch__episode-meta">
+                            <span class="party-nf-watch__episode-num">${ep.episode_number}</span>
+                            <span class="party-nf-watch__episode-name">${partyEscapeHtml(ep.name || `Episode ${ep.episode_number}`)}</span>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderBarSeasonSelect() {
+            const select = document.getElementById('party-bar-season-select');
+            if (!select) return;
+            if (!netflixSeasons.length || isAnime) {
+                select.closest('.bar-episodes-dropup__season').hidden = true;
+                return;
+            }
+            const seasonWrap = select.closest('.bar-episodes-dropup__season');
+            if (seasonWrap) seasonWrap.hidden = false;
+            select.innerHTML = netflixSeasons.map((row) => `
+                <option value="${row.season_number}" ${row.season_number === partyViewingSeason ? 'selected' : ''}>
+                    ${row.name || `Season ${row.season_number}`}${row.episode_count ? ` (${row.episode_count})` : ''}
+                </option>
+            `).join('');
+        }
+
+        function openPartyBarEpisodesPanel() {
+            if (!isHost) return;
+            const panel = document.getElementById('party-bar-episodes-panel');
+            if (!panel) return;
+            if (!panel.hidden) { closePartyBarEpisodesPanel(); return; }
+            panel.hidden = false;
+            partyViewingSeason = season;
+            renderBarSeasonSelect();
+            renderBarEpisodeList();
+            requestAnimationFrame(() => {
+                const active = panel.querySelector('.party-nf-watch__episode-card.is-active');
+                if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            });
+            if (activeRoom?.movie_title) {
+                void upgradePartyEpisodeCatalog({ title: activeRoom.movie_title });
+            }
+        }
+
+        function closePartyBarEpisodesPanel() {
+            const panel = document.getElementById('party-bar-episodes-panel');
+            if (panel) panel.hidden = true;
+        }
+
+        function onPartyBarSeasonChange(select) {
+            const nextSeason = parseInt(select?.value, 10);
+            if (!Number.isFinite(nextSeason) || nextSeason === partyViewingSeason) return;
+            partyViewingSeason = nextSeason;
+            if (netflixTmdbShowId) {
+                void ensurePartySeasonEpisodes(nextSeason);
+            } else if (activeRoom?.movie_title) {
+                void upgradePartyEpisodeCatalog({ title: activeRoom.movie_title });
+            }
+        }
+
+        window.openPartyBarEpisodesPanel = openPartyBarEpisodesPanel;
+        window.closePartyBarEpisodesPanel = closePartyBarEpisodesPanel;
+        window.onPartyBarSeasonChange = onPartyBarSeasonChange;
+
+        function initPartyBarEpisodesPanel() {
+            const list = document.getElementById('party-bar-episodes-list');
+            if (!list) return;
+            list.addEventListener('click', (e) => {
+                const card = e.target.closest('.party-nf-watch__episode-card');
+                if (!card || !list.contains(card)) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const epNum = parseInt(card.dataset.episode, 10);
+                const seasonNum = parseInt(card.dataset.season, 10);
+                if (!Number.isFinite(epNum)) return;
+                closePartyBarEpisodesPanel();
+                selectPartyEpisode(epNum, Number.isFinite(seasonNum) ? seasonNum : partyViewingSeason);
+            });
+            document.addEventListener('pointerdown', (e) => {
+                const panel = document.getElementById('party-bar-episodes-panel');
+                if (!panel || panel.hidden) return;
+                if (e.target.closest('#party-bar-episodes-panel, #party-bar-episodes-btn')) return;
+                closePartyBarEpisodesPanel();
+            });
         }
 
         function getNextPartyEpisodeTarget() {
@@ -1546,6 +1718,7 @@
             if (partyNfUiBound) return;
             partyNfUiBound = true;
             bindPartyEpisodesList();
+            initPartyBarEpisodesPanel();
             bindPartyNfControlsIdle();
             bindPartyNfVideoContentArea();
 
@@ -1895,7 +2068,7 @@
 
         // Available Stream Servers
         const serversList = [
-            { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}' },
+            { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}?provider=moovie', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
         ];
         
         let activeProvider = 'moovie';
@@ -1966,10 +2139,41 @@
             return typeof key === 'string' && key.startsWith(LOBBY_OBSERVER_PREFIX);
         }
 
+        // ── Stale presence filtering ────────────────────────────────────────────
+        // Presence entries are tied to WebSockets. When a tab/iframe dies without
+        // a clean disconnect (mobile backgrounding, laptop sleep, iframe replaced
+        // by the parent page), the server can keep the entry alive for a long time,
+        // making empty rooms look populated. Live clients refresh their entry via
+        // a heartbeat (see startPresenceHeartbeat), so entries whose lastSeen is
+        // old are ghosts and are excluded from every count/panel.
+        const PRESENCE_STALE_MS = 90 * 1000;
+
+        function isPresenceStale(presence) {
+            if (!presence || typeof presence !== 'object') return false;
+            if (Number.isFinite(presence.lastSeen)) {
+                return Date.now() - presence.lastSeen > PRESENCE_STALE_MS;
+            }
+            // Legacy entries (pre-heartbeat) have no lastSeen. Live clients now
+            // refresh their entry every 20s, so entries claiming to have joined
+            // more than 3 minutes ago are very likely ghosts.
+            const joinedAt = Date.parse(presence.joinedAt || '');
+            if (Number.isFinite(joinedAt)) {
+                return Date.now() - joinedAt > 3 * 60 * 1000;
+            }
+            return false;
+        }
+
+        function keyIsStale(entries) {
+            const list = Array.isArray(entries) ? entries : [entries];
+            if (!list.length) return false;
+            return list.every(e => isPresenceStale(e));
+        }
+
         function countPresenceMembers(presenceState) {
             let count = 0;
             Object.entries(presenceState || {}).forEach(([key, entries]) => {
                 if (isLobbyObserverKey(key)) return;
+                if (keyIsStale(entries)) return;
                 const present = Array.isArray(entries) ? entries.length > 0 : Boolean(entries);
                 if (present) count += 1;
             });
@@ -1986,6 +2190,40 @@
             if (!countEl) return;
             countEl.classList.remove('skeleton-shimmer-inline');
             countEl.textContent = formatParticipantLabel(count);
+        }
+
+        // Subscribe to a room's presence channel as a passive observer so the lobby can
+        // show how many people are actually in it right now (0 if empty).
+        function observeLobbyRoomPresence(roomId) {
+            if (!roomId) return;
+            const ch = supabaseClient.channel(`party_room_${roomId}`, {
+                config: {
+                    presence: {
+                        key: `${LOBBY_OBSERVER_PREFIX}${presenceSessionId}`
+                    }
+                }
+            });
+
+            const refresh = () => {
+                updateLobbyParticipantLabel(roomId, countPresenceMembers(ch.presenceState()));
+            };
+
+            ch.on('presence', { event: 'sync' }, refresh);
+            ch.on('presence', { event: 'join' }, refresh);
+            ch.on('presence', { event: 'leave' }, refresh);
+            ch.on('broadcast', { event: 'lobby_count' }, (payload) => {
+                const count = payload?.payload?.count;
+                if (Number.isFinite(count)) updateLobbyParticipantLabel(roomId, count);
+            });
+            ch.subscribe((status) => {
+                // Give the observer a presence entry so realtime delivers presence_sync.
+                void ch.track({ lobby_observer: true });
+                if (status === 'SUBSCRIBED' || status === 'CHANNEL_ESTABLISHED') {
+                    refresh();
+                }
+            });
+
+            lobbyChannels.push(ch);
         }
 
         function broadcastLobbyParticipantCount(activeChannel, presenceState) {
@@ -2053,6 +2291,40 @@
                     .eq('id', roomId);
             } catch (err) {
                 console.warn('Failed to update room activity:', err);
+            }
+        }
+
+        let lastStaleCleanupRun = 0;
+
+        async function cleanupStaleRooms() {
+            const now = Date.now();
+            if (now - lastStaleCleanupRun < 5 * 60 * 1000) return;
+            lastStaleCleanupRun = now;
+            try {
+                const cutoff = new Date(now - PARTY_INACTIVE_HOURS * 60 * 60 * 1000).toISOString();
+                const { data: stale, error } = await supabaseClient
+                    .from('rooms')
+                    .select('id')
+                    .lte('scheduled_start_time', cutoff);
+                if (error) throw error;
+                if (!stale || !stale.length) return;
+
+                for (const row of stale) {
+                    const roomId = row?.id;
+                    if (!roomId) continue;
+                    try {
+                        await purgePartyChat(roomId);
+                    } catch (e) {
+                        console.warn('Room chat cleanup failed:', e);
+                    }
+                    try {
+                        await supabaseClient.from('rooms').delete().eq('id', roomId);
+                    } catch (e) {
+                        console.warn('Room delete failed:', e);
+                    }
+                }
+            } catch (err) {
+                console.warn('Stale room cleanup failed:', err);
             }
         }
 
@@ -2267,6 +2539,10 @@
             setPlayerStagePending(true);
 
             try {
+                if (isNetflix) {
+                    await loadNetflixPartyPlayer();
+                    return;
+                }
                 resolveDefaultStreamProvider();
                 populateServerDropdown();
                 switchStreamProvider(activeProvider);
@@ -2313,29 +2589,13 @@
         function toggleServerDropdown(e) {
             e.stopPropagation();
             document.getElementById('server-dropdown-menu').classList.toggle('active');
-            const nfMenu = document.getElementById('party-netflix-quality-menu');
-            if (nfMenu) nfMenu.classList.remove('active');
         }
-
-        function toggleNetflixQualityDropdown(e) {
-            e.stopPropagation();
-            const nfMenu = document.getElementById('party-netflix-quality-menu');
-            if (nfMenu) nfMenu.classList.toggle('active');
-            const menu = document.getElementById('server-dropdown-menu');
-            if (menu) menu.classList.remove('active');
-        }
-        window.toggleNetflixQualityDropdown = toggleNetflixQualityDropdown;
 
         window.addEventListener('click', () => {
             const menu = document.getElementById('server-dropdown-menu');
             if (menu) menu.classList.remove('active');
             const nfMenu = document.getElementById('party-netflix-quality-menu');
             if (nfMenu) nfMenu.classList.remove('active');
-        });
-
-        window.addEventListener('resize', () => {
-            syncPartyRoomToolbar();
-            updateControlsVisibility();
         });
 
         function populateServerDropdown() {
@@ -2358,6 +2618,7 @@
                 newIframe.style.display = 'block';
                 newIframe.allowFullscreen = true;
                 newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+
                 newIframe.src = embedUrl;
                 parent.replaceChild(newIframe, oldIframe);
             }
@@ -2378,7 +2639,7 @@
 
             const matched = serversList.find(s => s.id === providerId);
             if (matched) {
-                setPartyToolbarValue('active-server-name', matched.name);
+                document.getElementById('active-server-name').textContent = matched.name;
             }
 
             populateServerDropdown();
@@ -2396,8 +2657,7 @@
             const on = document.body.classList.contains('cinema-mode');
             btn.classList.toggle('is-active', on);
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-            btn.setAttribute('aria-label', on ? 'Exit cinema mode' : 'Cinema mode');
-            btn.title = on ? 'Exit cinema mode' : 'Cinema mode';
+            btn.textContent = 'Cinema mode';
         }
 
         function toggleCinemaMode() {
@@ -2531,23 +2791,15 @@
         function updatePartyNfInviteButton() {
             const btn = document.getElementById('party-nf-invite-btn');
             if (!btn) return;
-            btn.hidden = true;
+            btn.hidden = !(isNetflix && activeRoom);
         }
 
         function updateControlsVisibility() {
-            syncPartyRoomToolbar();
-
-            const serverDropdown = document.getElementById('party-server-dropdown');
-            const nfQualityWrap = document.getElementById('party-netflix-quality-wrap');
+            const controlsBar = document.querySelector('.player-controls-bar');
+            if (!controlsBar) return;
 
             if (isNetflix) {
-                if (serverDropdown) serverDropdown.style.display = 'none';
-                if (nfQualityWrap && netflixStreams.length) {
-                    nfQualityWrap.style.display = '';
-                } else if (nfQualityWrap) {
-                    nfQualityWrap.style.display = 'none';
-                }
-                populatePartyNfQualityMenu();
+                controlsBar.style.display = 'none';
                 updatePartyNfInviteButton();
                 updatePartyNfAutoNextButton();
                 updatePartyNfEpisodesButton();
@@ -2556,8 +2808,16 @@
                 return;
             }
 
-            if (serverDropdown) serverDropdown.style.display = '';
-            if (nfQualityWrap) nfQualityWrap.style.display = 'none';
+            controlsBar.style.display = 'flex';
+
+            const serverDropdown = document.getElementById('party-server-dropdown');
+            const nfQualityWrap = document.getElementById('party-netflix-quality-wrap');
+            if (serverDropdown) {
+                serverDropdown.style.display = '';
+            }
+            if (nfQualityWrap) {
+                nfQualityWrap.style.display = 'none';
+            }
 
             const inviteBtn = document.getElementById('party-nf-invite-btn');
             if (inviteBtn) inviteBtn.hidden = true;
@@ -2605,11 +2865,12 @@
             navigator.clipboard.writeText(shareUrl).then(() => {
                 const btn = document.getElementById(btnId);
                 if (!btn) return;
-                btn.classList.add('is-copied');
-                btn.setAttribute('aria-label', 'Invite link copied');
+                const oldText = btn.innerHTML;
+                btn.innerHTML = '✨ Invite Link Copied!';
+                btn.style.color = '#10b981';
                 setTimeout(() => {
-                    btn.classList.remove('is-copied');
-                    btn.setAttribute('aria-label', 'Invite friends');
+                    btn.innerHTML = oldText;
+                    btn.style.color = '';
                 }, 2500);
             }).catch(err => {
                 alert('Copy this URL to invite friends:\n' + shareUrl);
@@ -2657,6 +2918,7 @@
             if (!container) return;
 
             teardownLobbyPresence();
+            void cleanupStaleRooms();
             
             try {
                 // Only list rooms active in the last 12 hours.
@@ -2716,9 +2978,10 @@
                 `;
                 }).join('');
 
-                // Show static fallback counts in lobby list; WebSocket channel is created only when user joins a room
+                // Live participant counts via presence observers on each room's realtime channel.
+                // Channels are created only for listed (recently active) rooms.
                 rooms.forEach(room => {
-                    updateLobbyParticipantLabel(room.id, 1);
+                    observeLobbyRoomPresence(room.id);
                 });
 
             } catch (err) {
@@ -2832,6 +3095,8 @@
             const roomId = activeRoom?.id;
             if (!channel) return;
 
+            stopPresenceHeartbeat();
+
             if (purgeChatIfLast && roomId) {
                 const state = channel.presenceState();
                 if (countPresenceMembers(state) <= 1) {
@@ -2894,6 +3159,11 @@
                     const data = payload.payload || {};
                     if (data.sender === currentUserName) return;
 
+                    // If host seeked, show in chat
+                    if (data.event === 'seek' && data.seekDesc) {
+                        appendChatMessage('System', `👑 ${data.sender || 'Host'} seeked ${data.seekDesc}`, 'system');
+                    }
+
                     const iframe = document.getElementById('video-player-iframe');
                     if (iframe && iframe.contentWindow) {
                         console.warn('[Party] Forwarding to iframe: moovie-command-sync', data);
@@ -2913,19 +3183,57 @@
                     const data = payload.payload || {};
                     if (data.sender === currentUserName) return;
 
-                    // Send the current playback status back to the channel
+                    // Query the live player time before responding for accuracy
                     if (channel) {
-                        console.warn('[Party] Replying to sync request with:', lastMooviePlayerTime, lastMooviePlayerPlaying);
+                        const iframe = document.getElementById('video-player-iframe');
+                        const liveTime = (iframe && iframe.contentWindow)
+                            ? null  // will use lastMooviePlayerTime updated by heartbeat
+                            : null;
+                        const syncTime = lastMooviePlayerTime ?? 0;
+                        const syncPlaying = lastMooviePlayerPlaying ?? false;
+                        console.warn('[Party] Replying to sync request with seek event. time:', syncTime, 'playing:', syncPlaying);
                         channel.send({
                             type: 'broadcast',
                             event: 'moovie_playback_sync',
                             payload: {
-                                event: 'heartbeat',
-                                time: lastMooviePlayerTime,
-                                playing: lastMooviePlayerPlaying,
+                                event: 'seek',  // force-seek so guest always jumps to exact timestamp
+                                time: syncTime,
+                                playing: syncPlaying,
                                 sender: currentUserName
                             }
                         });
+                    }
+                })
+                .on('broadcast', { event: 'moovie_host_transfer' }, async (payload) => {
+                    const data = payload.payload || {};
+                    console.warn('[Party] Received moovie_host_transfer:', data, 'currentUser:', currentUserName, 'isHost:', isHost);
+                    if (!data.newHost) return;
+
+                    if (activeRoom) {
+                        activeRoom.host = data.newHost;
+                    }
+
+                    if (data.newHost === currentUserName) {
+                        // We are the new host
+                        isHost = true;
+                        await syncPresenceTrack();
+                        updateRoomPrivacyButton();
+                        if (channel) updateParticipantsPanel(channel.presenceState());
+                        appendChatMessage('System', '\ud83d\udc51 You are now the host! You control playback for everyone.', 'system');
+                    } else if (data.prevHost === currentUserName) {
+                        // We were the host but gave it away — skip if already handled locally
+                        if (_hostTransferInFlight) {
+                            console.warn('[Party] Skipping host transfer echo — already handled locally');
+                            return;
+                        }
+                        isHost = false;
+                        await syncPresenceTrack();
+                        updateRoomPrivacyButton();
+                        if (channel) updateParticipantsPanel(channel.presenceState());
+                        appendChatMessage('System', `\ud83d\udc51 You transferred host control to ${data.newHost}.`, 'system');
+                    } else {
+                        // Spectator — just notify
+                        appendChatMessage('System', `\ud83d\udc51 ${data.newHost} is now the host.`, 'system');
                     }
                 })
                 .on('presence', { event: 'sync' }, () => {
@@ -2940,9 +3248,13 @@
                     broadcastLobbyParticipantCount(channel, state);
                     const name = displayNameFromPresence(key, newPresences);
                     if (name !== currentUserName) {
-                        appendChatMessage('System', `${name} joined the watch party!`, 'system');
+                        const box = document.getElementById('chat-box');
+                        const bubble = document.createElement('div');
+                        bubble.className = 'chat-bubble system';
+                        bubble.textContent = `${name} joined the watch party!`;
+                        if (box) { box.appendChild(bubble); box.scrollTop = box.scrollHeight; }
 
-                        // If we are the host, immediately broadcast current state to help them sync on join
+                        // If we are the host, immediately force-seek the new guest to current timestamp
                         if (isHost && activeProvider === 'moovie' && channel) {
                             setTimeout(() => {
                                 if (channel && activeProvider === 'moovie') {
@@ -2950,36 +3262,27 @@
                                         type: 'broadcast',
                                         event: 'moovie_playback_sync',
                                         payload: {
-                                            event: 'heartbeat',
-                                            time: lastMooviePlayerTime,
-                                            playing: lastMooviePlayerPlaying,
+                                            event: 'seek',  // force-seek so new guest jumps to exact timestamp
+                                            time: lastMooviePlayerTime ?? 0,
+                                            playing: lastMooviePlayerPlaying ?? false,
                                             sender: currentUserName
                                         }
                                     });
                                 }
-                            }, 1000);
+                            }, 1200);
                         }
-                    }
-                })
-                .on('broadcast', { event: 'moovie_host_transfer' }, async (payload) => {
-                    const data = payload.payload || {};
-                    if (!data.newHost) return;
-                    if (activeRoom) activeRoom.host = data.newHost;
-                    if (data.newHost === currentUserName) {
-                        isHost = true;
-                        await syncPresenceTrack();
-                        updateRoomPrivacyButton();
-                        updateMakeHostButtonVisibility();
-                        appendChatMessage('System', '👑 You are now the host! You control playback for everyone.', 'system');
-                    } else if (data.prevHost === currentUserName) {
-                        if (_hostTransferInFlight) return;
-                        isHost = false;
-                        await syncPresenceTrack();
-                        updateRoomPrivacyButton();
-                        updateMakeHostButtonVisibility();
-                        appendChatMessage('System', '👑 You transferred host control to ' + data.newHost + '.', 'system');
                     } else {
-                        appendChatMessage('System', '👑 ' + data.newHost + ' is now the host.', 'system');
+                        // This is US joining the room!
+                        // Append a clean system message for ourselves
+                        if (!isHost) {
+                            setTimeout(() => {
+                                const box = document.getElementById('chat-box');
+                                const bubble = document.createElement('div');
+                                bubble.className = 'chat-bubble system';
+                                bubble.textContent = `You joined the watch party!`;
+                                if (box) { box.appendChild(bubble); box.scrollTop = box.scrollHeight; }
+                            }, 600);
+                        }
                     }
                 })
                 .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
@@ -2992,8 +3295,10 @@
                     appendChatMessage('System', `${name} left the watch party.`, 'system');
                 });
 
-            channel.subscribe((status) => {
+            channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
+                    await syncPresenceTrack();
+                    startPresenceHeartbeat();
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
@@ -3226,133 +3531,7 @@
             }, 250);
         }
 
-        // Close full size image modal on Escape key press
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                const modal = document.getElementById('image-view-modal');
-                if (modal && modal.classList.contains('active')) {
-                    closeImageModal();
-                }
-            }
-        });
-
-        // Participants count status helper
-        function updateUsersCount(presenceState) {
-            const onlineCountEl = document.getElementById('chat-online-count');
-            if (onlineCountEl) {
-                onlineCountEl.textContent = String(countPresenceMembers(presenceState));
-            }
-        }
-
-
-
-        // Listen for events from iframe players
-        window.addEventListener('message', (event) => {
-            let data = event.data;
-            if (typeof data === 'string') {
-                try {
-                    data = JSON.parse(data);
-                } catch (e) {
-                    return;
-                }
-            }
-            if (!data) return;
-
-            if (data.event === 'complete') {
-                if (isHost && (isAnime || isTv) && partyAutoNext) {
-                    changePartyEpisode(episode + 1);
-                }
-            } else if (data.type === 'watchable-player-sync') {
-                console.warn('[Party] Received watchable-player-sync from iframe:', data, 'isHost:', isHost);
-                if (isHost) {
-                    // Store the host's player time and state
-                    lastMooviePlayerTime = data.time;
-                    lastMooviePlayerPlaying = data.playing;
-
-                    // Broadcast the event to guests
-                    if (channel) {
-                        channel.send({
-                            type: 'broadcast',
-                            event: 'moovie_playback_sync',
-                            payload: {
-                                event: data.event,
-                                time: data.time,
-                                playing: data.playing,
-                                sender: currentUserName
-                            }
-                        });
-                    }
-                } else if (data.event === 'ready') {
-                    // Guest player loaded: request the latest state from the host
-                    console.warn('[Party] Guest player ready, sending sync request... channel subscribed?', !!channel);
-                    if (channel) {
-                        channel.send({
-                            type: 'broadcast',
-                            event: 'moovie_sync_request',
-                            payload: {
-                                sender: currentUserName
-                            }
-                        });
-                    } else {
-                        // Channel not ready yet — defer until it connects
-                        console.warn('[Party] Channel not yet available, deferring sync request...');
-                        pendingGuestSyncRequest = true;
-                    }
-                }
-            }
-        });
-
-        // Page Init logic
-        window.addEventListener('DOMContentLoaded', async () => {
-            restoreChatSyncNoticeState();
-            updateSyncNoticeText();
-            updateHeaderBadge();
-            bindPartyEpNavButtons();
-
-            try {
-                if (joinRoomId) {
-                    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
-                    const isShortCode = isPartyShortCode(joinRoomId);
-
-                    if (isUuid) {
-                        await joinExistingRoom(joinRoomId);
-                    } else if (isShortCode) {
-                        const codeUuid = shortCodeToUuid(joinRoomId);
-                        const { data: room, error } = await supabaseClient
-                            .from('rooms')
-                            .select('*')
-                            .eq('id', codeUuid)
-                            .single();
-
-                        if (!error && room) {
-                            if (!canJoinRoom(room)) {
-                                notifyPrivateRoomBlocked();
-                                showLobbyView();
-                                return;
-                            }
-                            activeRoom = room;
-                            applyRoomHostRole(room);
-                            showRoomView(room);
-                        } else {
-                            alert('Party room not found or has been closed.');
-                            showLobbyView();
-                        }
-                    } else if (isCatalogMediaKey(joinRoomId)) {
-                        // Legacy links used ?room=1084244 for the movie — always create a new lounge
-                        await createCatalogPartyRoom(joinRoomId);
-                    } else {
-                        showLobbyView();
-                    }
-                } else if (catalogMediaId) {
-                    await createCatalogPartyRoom(catalogMediaId);
-                } else {
-                    bootstrapLobbyView();
-                }
-            } catch (err) {
-                console.error('Error booting watch party room:', err);
-                showLobbyView();
-            }
-        });
+        // Keyboard shortcuts for Watch Together player
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 const modal = document.getElementById('image-view-modal');
@@ -3414,6 +3593,164 @@
                 revealPartyNfControls();
             }
         });
+
+        // Participants count status helper
+        function updateUsersCount(presenceState) {
+            const onlineCountEl = document.getElementById('chat-online-count');
+            if (onlineCountEl) {
+                onlineCountEl.textContent = String(countPresenceMembers(presenceState));
+            }
+            updateParticipantsPanel(presenceState);
+        }
+
+        function updateParticipantsPanel(presenceState) {
+            const list = document.getElementById('participants-list');
+            if (!list) return;
+
+            list.innerHTML = '';
+
+            Object.entries(presenceState || {}).forEach(([key, entries]) => {
+                if (isLobbyObserverKey(key)) return;
+                if (keyIsStale(entries)) return;
+                const presence = Array.isArray(entries) ? entries[0] : entries;
+                if (!presence) return;
+
+                const name = presence.user || key.split(':')[0] || key || 'Guest';
+                const isThisPersonHost = !!presence.isHost;
+                const isSelf = name === currentUserName;
+
+                const row = document.createElement('div');
+                row.className = 'participants-panel__row';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'participants-panel__name';
+                nameSpan.textContent = name + (isSelf ? ' (you)' : '') + (isThisPersonHost ? ' 👑' : '');
+                row.appendChild(nameSpan);
+
+                list.appendChild(row);
+            });
+        }
+
+        function toggleParticipantsPanel() {
+            const panel = document.getElementById('participants-panel');
+            if (!panel) return;
+            panel.hidden = !panel.hidden;
+            const btn = document.getElementById('chat-online-count-btn');
+            if (btn) btn.classList.toggle('active', !panel.hidden);
+        }
+
+        window.toggleParticipantsPanel = toggleParticipantsPanel;
+
+
+        // Listen for events from iframe players
+        window.addEventListener('message', (event) => {
+            let data = event.data;
+            if (typeof data === 'string') {
+                try {
+                    data = JSON.parse(data);
+                } catch (e) {
+                    return;
+                }
+            }
+            if (!data) return;
+
+            if (data.event === 'complete') {
+                if (isHost && (isAnime || isTv) && partyAutoNext) {
+                    changePartyEpisode(episode + 1);
+                }
+            } else if (data.type === 'watchable-player-sync') {
+                console.warn('[Party] Received watchable-player-sync from iframe:', data, 'isHost:', isHost);
+                if (isHost) {
+                    let seekDesc = null;
+                    if (data.event === 'seek') {
+                        seekDesc = getSeekDescription(data.time, lastMooviePlayerTime);
+                        if (seekDesc) {
+                            appendChatMessage('System', `👑 You seeked ${seekDesc}`, 'system');
+                        }
+                    }
+
+                    // Store the host's player time and state
+                    lastMooviePlayerTime = data.time;
+                    lastMooviePlayerPlaying = data.playing;
+
+                    // Broadcast the event to guests
+                    if (channel) {
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'moovie_playback_sync',
+                            payload: {
+                                event: data.event,
+                                time: data.time,
+                                playing: data.playing,
+                                sender: currentUserName,
+                                seekDesc: seekDesc
+                            }
+                        });
+                    }
+                }
+            } else if (data.event === 'ready') {
+                // Guest player loaded: request the latest state from the host
+                console.warn('[Party] Guest player ready, sending sync request... channel subscribed?', !!channel);
+                if (channel) {
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'moovie_sync_request',
+                        payload: {
+                            sender: currentUserName
+                        }
+                    });
+                } else {
+                    // Channel not ready yet — defer until it connects
+                    console.warn('[Party] Channel not yet available, deferring sync request...');
+                    pendingGuestSyncRequest = true;
+                }
+            }
+        });
+
+        // Page Init logic
+        window.addEventListener('DOMContentLoaded', async () => {
+            restoreChatSyncNoticeState();
+            updateSyncNoticeText();
+            updateHeaderBadge();
+            bindPartyEpNavButtons();
+            void cleanupStaleRooms();
+
+            try {
+                if (joinRoomId) {
+                    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(joinRoomId);
+                    const isShortCode = isPartyShortCode(joinRoomId);
+
+                    if (isUuid) {
+                        await joinExistingRoom(joinRoomId);
+                    } else if (isShortCode) {
+                        const codeUuid = shortCodeToUuid(joinRoomId);
+                        const { data: room, error } = await supabaseClient
+                            .from('rooms')
+                            .select('*')
+                            .eq('id', codeUuid)
+                            .single();
+
+                        if (!error && room) {
+                            if (!canJoinRoom(room)) {
+                                notifyPrivateRoomBlocked();
+                                showLobbyView();
+                                return;
+                            }
+                            activeRoom = room;
+                            applyRoomHostRole(room);
+                            showRoomView(room);
+                        } else {
+                            alert('Party room not found or has been closed.');
+                            showLobbyView();
+                        }
+                    } else if (isCatalogMediaKey(joinRoomId)) {
+                        // Legacy links used ?room=1084244 for the movie — always create a new lounge
+                        await createCatalogPartyRoom(joinRoomId);
+                    } else {
+                        showLobbyView();
+                    }
+                } else if (catalogMediaId) {
+                    await createCatalogPartyRoom(catalogMediaId);
                 } else {
                     bootstrapLobbyView();
                 }
@@ -3422,3 +3759,4 @@
                 showLobbyView();
             }
         });
+    

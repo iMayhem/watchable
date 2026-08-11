@@ -339,10 +339,7 @@ import TrailerControls from '../hero/TrailerControls.vue';
 import TrailerIframe from '../hero/TrailerIframe.vue';
 import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
-import { usePrefetch } from '../../composables/usePrefetch';
-import {
-    warmMooviePlayerAssets
-} from '../../composables/useMooviePlayer';
+import { warmMooviePlayerAssets } from '../../composables/useMooviePlayer';
 import { useDetailBackNavigation } from '../../composables/useDetailBackNavigation';
 import { catalogDisplayImageSize, useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
@@ -391,45 +388,6 @@ export default defineComponent({
         );
         useAmbientColor(ambientPath, rootRef);
 
-        const { prefetchStream } = usePrefetch();
-
-        // Hub warm-up: as soon as the detail page opens (no play click needed),
-        // ask the scraper hub to scrape in the background and fill its disk
-        // cache. When the user later hits play, /scrape returns from cache
-        // instantly. Re-fires when the season/episode changes on the page.
-        const HUB_BASE = 'https://hahaevilcraft.site';
-        const prefetchKey = ref('');
-        const prefetchInFlight = new Set<string>();
-
-        const prefetchHubScrape = () => {
-            const id = String(props.id || '').trim();
-            if (!id) return;
-            const t = (props.type || '').toLowerCase();
-            if (t !== 'movie' && t !== 'tv' && t !== 'show' && t !== 'tv-show' && t !== 'tvshow' && t !== 'series') return;
-            const normType = t === 'movie' ? 'movie' : 'tv';
-            const key = `${id}:${normType}:${props.season || 0}:${props.episode || 0}`;
-            if (prefetchKey.value === key || prefetchInFlight.has(key)) return;
-            prefetchKey.value = key;
-            prefetchInFlight.add(key);
-            const params = new URLSearchParams({ tmdbId: id, type: normType, prefetch: '1' });
-            if ((props.season || 0) > 0) params.set('season', String(props.season));
-            if ((props.episode || 0) > 0) params.set('episode', String(props.episode));
-            const run = () => fetch(`${HUB_BASE}/scrape?${params}`)
-                .catch(() => {})
-                .finally(() => prefetchInFlight.delete(key));
-            if ('requestIdleCallback' in window) {
-                requestIdleCallback(run, { timeout: 2000 });
-            } else {
-                setTimeout(run, 0);
-            }
-        };
-
-        watch(
-            () => [props.id, props.type, props.season, props.episode],
-            () => prefetchHubScrape(),
-            { immediate: true }
-        );
-
         // Also warm hls.js + hub connection so playback starts instantly
         if ('requestIdleCallback' in window) {
             requestIdleCallback(() => void warmMooviePlayerAssets(), { timeout: 1500 });
@@ -437,26 +395,11 @@ export default defineComponent({
             setTimeout(() => void warmMooviePlayerAssets(), 0);
         }
 
-        const warmPlayback = () => {
-            void warmMooviePlayerAssets();
-            const id = String(props.id || '').trim();
-            if (!id) return;
-
-            if (props.type === 'movie' || props.type === 'tv') {
-                prefetchStream(
-                    props.id,
-                    props.type,
-                    props.title,
-                    year.value || undefined
-                );
-            }
-        };
-
         const handlePlayHover = () => {
             if ('requestIdleCallback' in window) {
-                requestIdleCallback(warmPlayback, { timeout: 400 });
+                requestIdleCallback(() => void warmMooviePlayerAssets(), { timeout: 400 });
             } else {
-                setTimeout(warmPlayback, 0);
+                setTimeout(() => void warmMooviePlayerAssets(), 0);
             }
         };
 

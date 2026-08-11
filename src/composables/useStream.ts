@@ -304,7 +304,7 @@ export function getLastWatchedMetaData(mediaId: string | number): MovieServer | 
 
 export function getServers(type: 'movie' | 'tv' = 'movie'): Server[] {
   const servers = type === 'movie' ? movieServers.value : tvServers.value;
-  return servers.filter(s => ['icecream', 'gulab jamun'].includes(s.name.toLowerCase()));
+  return servers.filter(s => ['icecream', 'gulab jamun', 'rasmalai', 'kaju katli'].includes(s.name.toLowerCase()));
 }
 
 export async function fetchServerOrder() {

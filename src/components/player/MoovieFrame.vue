@@ -1859,7 +1859,16 @@ export default defineComponent({
                 originalStream.value = s
             }
             selectedServer.value = s.providerName || ''
-            const useProxy = proxyEnabled && !!s.proxyUrl
+            // Provider-side proxies (emebd / workers.dev / hub / cf) already relay
+            // the origin fetch — wrapping them through the hub again adds two extra
+            // hops per segment request, so they always play directly.
+            const alreadyProxied = Boolean(
+                s.url?.startsWith(`${HUB_BASE}/proxy?`) ||
+                s.url?.includes('cf-header-proxy.moovie.fun') ||
+                s.url?.startsWith('https://providers.peestream.in/proxy') ||
+                /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
+            )
+            const useProxy = proxyEnabled && !!s.proxyUrl && !alreadyProxied
             const isHlsStream = s.type === 'm3u8' || s.type === 'hls'
             async function tryMount(url: string) {
                 await Promise.all([
@@ -1880,15 +1889,6 @@ export default defineComponent({
                 // through our proxies (cf-header-proxy / hub /proxy), embedding the
                 // headers as query params. Wrapping an already-wrapped URL nests
                 // worker calls and 522s — so play those directly.
-                const alreadyProxied = Boolean(
-                    s.url?.startsWith(`${HUB_BASE}/proxy?`) ||
-                    s.url?.includes('cf-header-proxy.moovie.fun') ||
-                    s.url?.startsWith('https://providers.peestream.in/proxy') ||
-                    // Provider-side proxies (emebd / workers.dev) already relay
-                    // the origin fetch — wrapping them through the hub again adds
-                    // two extra hops per segment request. Play them directly.
-                    /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
-                )
                 if (alreadyProxied) {
                     playUrl = s.url
                     await tryMount(playUrl)

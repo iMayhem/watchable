@@ -31,16 +31,16 @@ export const streamData = useStorage<StreamData>('streamData', defaultStreamData
 // Force Icecream (Videasy embed) as hardcoded default and flush stale browser caches
 if (typeof window !== 'undefined') {
   const currentVer = localStorage.getItem('watchable_server_v');
-  if (currentVer !== '13') {
-    localStorage.setItem('watchable_server_v', '13');
+  if (currentVer !== '14') {
+    localStorage.setItem('watchable_server_v', '14');
     localStorage.setItem('default_server_id', 'icecream');
     localStorage.removeItem('streamData');
-    if (streamData.value) {
-      streamData.value = {
-        movieServerMap: {},
-        version: 13
-      };
-    }
+      if (streamData.value) {
+        streamData.value = {
+          movieServerMap: {},
+          version: 14
+        };
+      }
   }
 }
 
@@ -49,6 +49,7 @@ export const movieServers = ref<Server[]>([
   { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' },
   { name: 'Icecream', urlTemplate: 'https://player.videasy.to/movie/{tmdbId}' },
+  { name: 'Vidrock', urlTemplate: 'https://vidrock.ru/embed/movie/{tmdbId}' },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/movie/{tmdbId}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{tmdbId}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
@@ -77,6 +78,7 @@ export const tvServers = ref<Server[]>([
   { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Icecream', urlTemplate: 'https://player.videasy.to/tv/{externalId}/{season}/{episode}' },
+  { name: 'Vidrock', urlTemplate: 'https://vidrock.ru/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Rasmalai', urlTemplate: 'https://peachify.top/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&autoplay=true&autoplay=1' },
   { name: 'Gulab Jamun', urlTemplate: 'https://cinemaos.live/player/{externalId}/{season}/{episode}' },
   { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
@@ -122,6 +124,7 @@ const idToNameMap: Record<string, string> = {
   vidora: 'Ghevar',
   vidsuper: 'Motichoor Ladoo',
   icecream: 'Icecream',
+  vidrock: 'Vidrock',
   cinezo: 'Cheesecake',
   nankhatai: 'Nankhatai',
   petha: 'Petha',
@@ -304,7 +307,7 @@ export function getLastWatchedMetaData(mediaId: string | number): MovieServer | 
 
 export function getServers(type: 'movie' | 'tv' = 'movie'): Server[] {
   const servers = type === 'movie' ? movieServers.value : tvServers.value;
-  return servers.filter(s => s.isApiProvider);
+  return servers.filter(s => s.isApiProvider || ['icecream', 'vidrock'].includes(s.name.toLowerCase()));
 }
 
 export async function fetchServerOrder() {

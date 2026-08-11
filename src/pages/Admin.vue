@@ -997,6 +997,7 @@ async function loadServerOrder() {
         multiembed: 'Soan Papdi', vsrc: 'Sandesh', vidlink: 'Cham Cham',
         autoembed: 'Kulfi', vidfast: 'Mysore Pak', movies111: 'Imarti',
         vidora: 'Ghevar', vidsuper: 'Motichoor Ladoo', icecream: 'Icecream',
+        vidrock: 'Vidrock',
         cinezo: 'Cheesecake', nankhatai: 'Nankhatai', petha: 'Petha', spoider: 'Spoider'
     }
     const reverseMap: Record<string, string> = {}

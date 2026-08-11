@@ -170,8 +170,16 @@ export default defineComponent({
         }
 
         function streamUrl(s: HubStream): string {
-            if (proxyEnabled && s.proxyUrl) return s.proxyUrl
-            if (s.headers && Object.keys(s.headers).length) {
+            // Provider-side proxies (emebd / workers.dev) already relay the origin
+            // fetch — never wrap them through the hub again (double hops + 522s).
+            const alreadyProxied = Boolean(
+                s.url?.startsWith(`${HUB_PROXY}?`) ||
+                s.url?.includes('cf-header-proxy.moovie.fun') ||
+                s.url?.startsWith('https://providers.peestream.in/proxy') ||
+                /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
+            )
+            if (!alreadyProxied && proxyEnabled && s.proxyUrl) return s.proxyUrl
+            if (!alreadyProxied && s.headers && Object.keys(s.headers).length) {
                 const u = btoa(s.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
                 const h = btoa(JSON.stringify(s.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
                 return `${HUB_PROXY}?u=${u}&h=${h}`
@@ -266,24 +274,14 @@ export default defineComponent({
 
         async function playStream(stream: HubStream) {
             await ensureProxySetting()
-            const useProxy = proxyEnabled && !!stream.proxyUrl
-            let playUrl: string
-            if (useProxy) {
-                playUrl = stream.proxyUrl
-            } else if (stream.headers && Object.keys(stream.headers).length) {
-                const u = btoa(stream.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-                const h = btoa(JSON.stringify(stream.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-                playUrl = `${HUB_PROXY}?u=${u}&h=${h}`
-            } else {
-                playUrl = stream.url
-            }
+            let playUrl = streamUrl(stream)
             activeStreamUrl.value = playUrl
             activeTitle.value = `${stream._providerName} · ${stream.quality || 'Auto'}`
             playbackError.value = ''
             try {
                 await mountPlayer(playUrl)
             } catch (e) {
-                if (!useProxy && stream.proxyUrl && proxyEnabled) {
+                if (playUrl === stream.url && stream.proxyUrl && proxyEnabled) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', stream.proxyUrl)
                     activeStreamUrl.value = stream.proxyUrl
                     await mountPlayer(stream.proxyUrl)

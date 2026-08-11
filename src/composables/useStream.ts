@@ -302,30 +302,9 @@ export function getLastWatchedMetaData(mediaId: string | number): MovieServer | 
   return streamData.value.movieServerMap[id] || null;
 }
 
-function applyOrder(servers: Server[]): Server[] {
-  if (!serverOrder.value || serverOrder.value.length === 0) return servers;
-  const orderMap = new Map<string, number>();
-  serverOrder.value.forEach((id, i) => {
-    const name = idToNameMap[id.toLowerCase()];
-    if (name) orderMap.set(name.toLowerCase(), i);
-  });
-  if (orderMap.size === 0) return servers;
-  const ordered: (Server | null)[] = new Array(serverOrder.value.length).fill(null);
-  const remaining: Server[] = [];
-  for (const s of servers) {
-    const idx = orderMap.get(s.name.toLowerCase());
-    if (idx !== undefined) {
-      ordered[idx] = s;
-    } else {
-      remaining.push(s);
-    }
-  }
-  return [...ordered.filter(Boolean) as Server[], ...remaining];
-}
-
 export function getServers(type: 'movie' | 'tv' = 'movie'): Server[] {
   const servers = type === 'movie' ? movieServers.value : tvServers.value;
-  return applyOrder(servers);
+  return servers.filter(s => s.isApiProvider);
 }
 
 export async function fetchServerOrder() {

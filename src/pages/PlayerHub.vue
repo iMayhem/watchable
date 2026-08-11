@@ -172,11 +172,9 @@ export default defineComponent({
         function streamUrl(s: HubStream): string {
             if (proxyEnabled && s.proxyUrl) return s.proxyUrl
             if (s.headers && Object.keys(s.headers).length) {
-                const params = new URLSearchParams({ url: s.url })
-                if (s.headers.Referer) params.set('referer', s.headers.Referer)
-                if (s.headers.Origin) params.set('origin', s.headers.Origin)
-                if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
-                return `${CF_HEADER_PROXY}/?${params}`
+                const u = btoa(s.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+                const h = btoa(JSON.stringify(s.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+                return `${HUB_PROXY}?u=${u}&h=${h}`
             }
             return s.url
         }
@@ -196,7 +194,7 @@ export default defineComponent({
         let plyrInstance: Plyr | null = null
         let hlsInstance: any = null
 
-        const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
+        const HUB_PROXY = 'https://hahaevilcraft.site/proxy'
 
         const loadHlsJs = (() => {
             let promise: Promise<void> | null = null
@@ -273,11 +271,9 @@ export default defineComponent({
             if (useProxy) {
                 playUrl = stream.proxyUrl
             } else if (stream.headers && Object.keys(stream.headers).length) {
-                const params = new URLSearchParams({ url: stream.url })
-                if (stream.headers.Referer) params.set('referer', stream.headers.Referer)
-                if (stream.headers.Origin) params.set('origin', stream.headers.Origin)
-                if (stream.headers['User-Agent']) params.set('ua', stream.headers['User-Agent'])
-                playUrl = `${CF_HEADER_PROXY}/?${params}`
+                const u = btoa(stream.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+                const h = btoa(JSON.stringify(stream.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+                playUrl = `${HUB_PROXY}?u=${u}&h=${h}`
             } else {
                 playUrl = stream.url
             }

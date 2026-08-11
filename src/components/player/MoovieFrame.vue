@@ -478,10 +478,9 @@ import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
 import { getSupabaseClient } from '../../lib/supabase'
 
-const HUB_BASE = 'https://proxy.moovie.fun'
-const CF_HEADER_PROXY = 'https://cf-header-proxy.moovie.fun'
+const HUB_BASE = 'https://hahaevilcraft.site'
 // Language-variant hub — same VPS as HUB_BASE, mirrors smov's providers.peestream.in
-const STREAMSCRAPER_HUB = 'https://proxy.moovie.fun'
+const STREAMSCRAPER_HUB = 'https://hahaevilcraft.site'
 const OPENSUBTITLES_API = 'https://providers.peestream.in/api/subtitles'
 
 interface LanguageVariant {
@@ -492,6 +491,12 @@ interface LanguageVariant {
     type: 'movie' | 'show'
     season?: number
     episode?: number
+    catalogId?: string
+    // Pre-resolved variant (e.g. Shankar resolves every language at scrape time):
+    // when url is set, selectAudioTrack plays it directly instead of re-resolving.
+    url?: string
+    headers?: Record<string, string>
+    streamType?: 'm3u8' | 'mp4'
 }
 
 /** Mirror of smov fetchLanguageVariants — parallel multi-provider search */
@@ -1326,9 +1331,10 @@ export default defineComponent({
 
             // Autoplay: the `autoplay` attribute alone is ignored by browsers when
             // sound is enabled and there's no user gesture, so force an explicit
-            // play() right after mounting and again on canplay. If the policy blocks
-            // it, fall back to muted playback and STAY muted — unmuting without a
-            // gesture makes Chrome pause the video again.
+            // play() right after a source is attached (NOT before — calling play()
+            // on a source-less element rejects and would wrongly mute everything).
+            // If the policy blocks it, fall back to muted playback and STAY muted —
+            // unmuting without a gesture makes Chrome pause the video again.
             let autoplayTried = false
             const tryAutoplay = () => {
                 if (autoplayTried || isRespondingToSync || !video.paused) return
@@ -1343,7 +1349,6 @@ export default defineComponent({
                     })
                 }
             }
-            tryAutoplay()
             video.addEventListener('canplay', tryAutoplay, { once: true })
             video.addEventListener('play', onPlayPause)
             video.addEventListener('pause', onPlayPause)
@@ -1619,21 +1624,33 @@ export default defineComponent({
                             }
 
                             if (mw._languageVariants && Array.isArray(mw._languageVariants)) {
-                                for (const lv of mw._languageVariants) {
-                                    const variantId = `moovie-catalog:${lv.catalogId}`
-                                    const existsInVariants = languageVariants.value.some(v => v.id === variantId || (v as any).catalogId === lv.catalogId || v.language?.toLowerCase() === lv.language?.toLowerCase())
+                                for (const [lvIndex, lv] of (mw._languageVariants as any[]).entries()) {
+                                    const provider = lv.provider || 'moovie-catalog'
+                                    const catalogId = lv.catalogId || lv.id
+                                    const variantId = catalogId
+                                        ? `${provider}:${catalogId}`
+                                        : `${provider}:direct-${lvIndex}`
+                                    const existsInVariants = languageVariants.value.some(v =>
+                                        v.id === variantId ||
+                                        (v as any).catalogId === catalogId ||
+                                        (v.language?.toLowerCase() === lv.language?.toLowerCase() && v.provider === provider)
+                                    )
                                     if (!existsInVariants) {
                                         languageVariants.value.push({
                                             language: lv.language,
                                             label: lv.language,
-                                            provider: 'moovie-catalog',
+                                            provider,
                                             id: variantId,
-                                            catalogId: lv.catalogId,
+                                            catalogId,
                                             type: props.mediaType === 'tv' ? 'show' : 'movie',
                                             season: props.season,
                                             episode: props.episode,
+                                            // Pre-resolved variant: play directly with no re-resolution
+                                            url: lv.url,
+                                            headers: lv.headers,
+                                            streamType: lv.type,
                                         } as any)
-                                        console.debug('[MoovieFrame]  added language variant from SSE:', lv.language, lv.catalogId)
+                                        console.debug('[MoovieFrame]  added language variant from SSE:', provider, lv.language, lv.url ? '(playable directly)' : lv.catalogId)
                                     }
                                 }
                                 if (languageVariants.value.length > 0) {
@@ -1862,9 +1879,8 @@ export default defineComponent({
                 // headers as query params. Wrapping an already-wrapped URL nests
                 // worker calls and 522s — so play those directly.
                 const alreadyProxied = Boolean(
-                    s.url?.startsWith(CF_HEADER_PROXY) ||
-                    s.url?.includes('cf-header-proxy.moovie.fun') ||
                     s.url?.startsWith(`${HUB_BASE}/proxy?`) ||
+                    s.url?.includes('cf-header-proxy.moovie.fun') ||
                     s.url?.startsWith('https://providers.peestream.in/proxy')
                 )
                 if (alreadyProxied) {
@@ -1880,20 +1896,14 @@ export default defineComponent({
                                  s.url?.includes('imgcdn.kim') ||
                                  s.url?.includes('netmirror');
                 
+                const base64Url = btoa(s.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+                const base64Headers = btoa(JSON.stringify(s.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
                 if (isAthena) {
-                    const base64Url = btoa(s.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-                    const base64Headers = btoa(JSON.stringify(s.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
                     playUrl = `${HUB_BASE}/proxy?u=${base64Url}&h=${base64Headers}`
                     await tryMount(playUrl)
                 } else {
-                    // CF worker rewrites .m3u8 manifest so segments load directly
-                    // from the origin (no worker hop per segment). Only the manifest
-                    // goes through the worker, so no more Cloudflare rate-limit 429s.
-                    const params = new URLSearchParams({ url: s.url })
-                    if (s.headers.Referer) params.set('referer', s.headers.Referer)
-                    if (s.headers.Origin)  params.set('origin',  s.headers.Origin)
-                    if (s.headers['User-Agent']) params.set('ua', s.headers['User-Agent'])
-                    playUrl = `${CF_HEADER_PROXY}/?${params}`
+                    // VPS hub rewrites .m3u8 manifest so segments load through the proxy
+                    playUrl = `${HUB_BASE}/proxy?u=${base64Url}&h=${base64Headers}`
                     await tryMount(playUrl)
                 }
                 }
@@ -2147,12 +2157,15 @@ export default defineComponent({
                     const sourceVariants = rawStreams.flatMap((mw: any) =>
                         Array.isArray(mw._languageVariants) ? mw._languageVariants : []
                     )
-                    for (const variant of sourceVariants) {
+                    for (const [variantIndex, variant] of (sourceVariants as any[]).entries()) {
                         const catalogId = variant?.catalogId ?? variant?.id
-                        if (!catalogId) continue
-                        const id = `${providerId}:${catalogId}`
+                        const id = catalogId
+                            ? `${providerId}:${catalogId}`
+                            : `${providerId}:direct-${variantIndex}`
                         const exists = languageVariants.value.some(existing =>
-                            existing.id === id || (existing as any).catalogId === catalogId
+                            existing.id === id ||
+                            (existing as any).catalogId === catalogId ||
+                            (existing.language?.toLowerCase() === (variant.language ?? '').toLowerCase() && existing.provider === providerId)
                         )
                         if (!exists) {
                             languageVariants.value.push({
@@ -2164,6 +2177,10 @@ export default defineComponent({
                                 type: props.mediaType === 'tv' ? 'show' : 'movie',
                                 season: props.season,
                                 episode: props.episode,
+                                // Pre-resolved variant: play directly with no re-resolution
+                                url: variant.url,
+                                headers: variant.headers,
+                                streamType: variant.type,
                             } as any)
                         }
                     }
@@ -2318,6 +2335,24 @@ export default defineComponent({
             )
             if (!lv) {
                 console.warn('[MoovieFrame] selectAudioTrack: variant not found for', variantId)
+                return
+            }
+
+            // Pre-resolved variant (Shankar resolves every language at scrape time):
+            // play the cached direct URL, no re-resolution round-trip.
+            if (lv.url) {
+                console.debug('[MoovieFrame] selectAudioTrack: playing pre-resolved', lv.label, lv.url.slice(0, 80))
+                buffering.value = true
+                const s: HubStream = {
+                    name: lv.label,
+                    url: lv.url,
+                    proxyUrl: '',
+                    quality: 'Auto',
+                    type: lv.streamType === 'm3u8' ? 'm3u8' : 'mp4',
+                    headers: lv.headers,
+                    providerName: lv.provider,
+                }
+                await tryPlayStream(s)
                 return
             }
 

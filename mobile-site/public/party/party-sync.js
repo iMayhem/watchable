@@ -279,9 +279,17 @@
                 var reAdded = {};
                 if (msg.add) {
                     Object.keys(msg.add).forEach(function (key) {
+                        // Only announce a join for keys we don't already know —
+                        // heartbeat re-tracks and reconnects of existing members
+                        // must not re-fire 'join' (chat spam).
+                        var isNew = !self._presenceState[key];
                         self._presenceState[key] = msg.add[key];
                         reAdded[key] = true;
-                        self._firePresence('join', { key: key, newPresences: msg.add[key] });
+                        if (isNew) {
+                            self._firePresence('join', { key: key, newPresences: msg.add[key] });
+                        } else {
+                            self._firePresence('update', { key: key, newPresences: msg.add[key] });
+                        }
                         changed = true;
                     });
                 }

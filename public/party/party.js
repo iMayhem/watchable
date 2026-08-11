@@ -128,14 +128,12 @@
             }
         }
 
-        // When the tab is hidden/closed, drop our presence entry immediately so the
-        // room doesn't keep showing us as an online ghost (mobile browsers suspend
-        // sockets without a clean disconnect).
+        // When the tab is hidden (phone lock, app switch) we keep our presence
+        // entry and let the heartbeat continue — the server sweeps stale entries
+        // after 90s, so a genuinely dead socket is cleaned up there. Untracking on
+        // every hide caused "left/joined" chat spam on mobile.
         function onPartyPageVisibility() {
-            if (document.visibilityState === 'hidden') {
-                stopPresenceHeartbeat();
-                if (channel) void channel.untrack();
-            } else if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible') {
                 if (channel) void syncPresenceTrack();
                 startPresenceHeartbeat();
             }
@@ -3245,8 +3243,11 @@
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
                 })
-                .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                    if (isLobbyObserverKey(key)) return;
+                .on('presence', { event: 'update' }, () => {
+                    const state = channel.presenceState();
+                    updateUsersCount(state);
+                })
+                .on('presence', { event: 'join' }, ({ key, newPresences }) => {                    if (isLobbyObserverKey(key)) return;
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
@@ -3296,7 +3297,9 @@
                     broadcastLobbyParticipantCount(channel, state);
                     maybePurgePartyChatWhenEmpty(state);
                     const name = displayNameFromPresence(key, leftPresences);
-                    appendChatMessage('System', `${name} left the watch party.`, 'system');
+                    if (name !== currentUserName) {
+                        appendChatMessage('System', `${name} left the watch party.`, 'system');
+                    }
                 });
 
             channel.subscribe(async (status) => {

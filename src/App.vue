@@ -9,6 +9,7 @@
         <BannerBar v-if="!isPartyEmbed" />
 
         <PollPopup v-if="!isPartyEmbed" />
+        <SuggestionPopup v-if="!isPartyEmbed" />
 
         <router-view v-slot="{ Component, route }">
             <KeepAlive
@@ -35,6 +36,7 @@ import { setVpsProxyBaseUrl } from './utils/useWebImage';
 import { triggerAd } from './components/ads/triggerAd';
 import BannerBar from './components/navigation/BannerBar.vue';
 import PollPopup from './components/navigation/PollPopup.vue';
+import SuggestionPopup from './components/navigation/SuggestionPopup.vue';
 
 const route = useRoute();
 const isBareLayout = computed(() => Boolean(route.meta.bareLayout));

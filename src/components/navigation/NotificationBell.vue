@@ -62,8 +62,57 @@
                     </button>
                 </div>
 
+                <!-- Active suggestion form -->
+                <div v-if="activeSuggestion" class="notification-bell__suggestion">
+                    <div class="notification-bell__suggestion-label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        Suggestions
+                    </div>
+                    <div class="notification-bell__suggestion-prompt">{{ activeSuggestion.prompt }}</div>
+
+                    <!-- submitted thanks -->
+                    <div v-if="suggestionSubmitted || alreadySubmittedSuggestion" class="notification-bell__suggestion-thanks">
+                        ✓ Thanks for your feedback!
+                    </div>
+
+                    <!-- form -->
+                    <template v-else-if="showSuggestionForm">
+                        <textarea
+                            v-model="suggestionText"
+                            class="notification-bell__suggestion-textarea"
+                            :placeholder="activeSuggestion.placeholder || 'Write your feedback here…'"
+                            :maxlength="activeSuggestion.max_length || 500"
+                            rows="3"
+                        />
+                        <div class="notification-bell__suggestion-footer">
+                            <span class="notification-bell__suggestion-charcount">{{ suggestionText.length }}/{{ activeSuggestion.max_length || 500 }}</span>
+                            <div style="display:flex;gap:6px;align-items:center">
+                                <button type="button" class="notification-bell__suggestion-dismiss" @click="handleSuggestionDismiss">skip</button>
+                                <button
+                                    type="button"
+                                    class="notification-bell__suggestion-submit"
+                                    :disabled="submitting || suggestionText.trim().length === 0"
+                                    @click="handleSuggestionSubmit"
+                                >
+                                    {{ submitting ? '…' : 'Send' }}
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- dismissed / already submitted show old suggestions btn -->
+                    <button
+                        type="button"
+                        class="notification-bell__old-polls-btn"
+                        style="margin-top: 6px"
+                        @click="openOldSuggestions"
+                    >
+                        {{ showOldSuggestions ? 'Close Suggestions' : 'Active Suggestions' }}
+                    </button>
+                </div>
+
                 <div class="notification-bell__list">
-                    <div v-if="notifications.length === 0 && !pollData" class="notification-bell__empty">
+                    <div v-if="notifications.length === 0 && !pollData && !activeSuggestion" class="notification-bell__empty">
                         No notifications yet
                     </div>
                     <button
@@ -118,6 +167,22 @@
                     </div>
                 </div>
             </div>
+            <!-- Old suggestions panel -->
+            <div v-if="isOpen && showOldSuggestions" class="notification-bell__old-panel" :style="{ top: dropdownStyle.top, right: `calc(${dropdownStyle.right} + 368px)` }" @click.stop>
+                <div class="notification-bell__old-header">
+                    <span class="notification-bell__title">Active Suggestions</span>
+                    <button type="button" class="notification-bell__poll-back" @click="showOldSuggestions = false">Close</button>
+                </div>
+                <div class="notification-bell__old-list">
+                    <div v-if="oldSuggestions.length === 0" class="notification-bell__empty" style="padding:16px;text-align:center;color:var(--bone-500);font-size:12px">No suggestions yet</div>
+                    <div v-for="s in oldSuggestions" :key="s.id" class="notification-bell__old-poll">
+                        <div class="notification-bell__poll-question notification-bell__poll-question--sm">{{ s.prompt }}</div>
+                        <div v-if="s.is_active" style="display:inline-block;font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6ba368;background:rgba(107,163,104,0.12);padding:1px 6px;border-radius:999px;margin-bottom:6px">active</div>
+                        <div v-else class="notification-bell__poll-inactive-badge">closed</div>
+                        <div style="font-size:0.65rem;color:var(--bone-500)">{{ new Date(s.created_at).toLocaleDateString() }}</div>
+                    </div>
+                </div>
+            </div>
         </Teleport>
     </div>
 </template>
@@ -126,9 +191,11 @@
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useNotifications } from '../../composables/useNotifications'
 import { usePolls } from '../../composables/usePolls'
+import { useSuggestions } from '../../composables/useSuggestions'
 
 const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotifications()
 const { activePoll, pollResults, totalVotes, allPolls, fetchActivePoll, fetchAllPolls, vote, hasVoted, voting } = usePolls()
+const { activeSuggestion, submitting, fetchActiveSuggestion, submitResponse, hasSubmitted, hasDismissed, dismiss } = useSuggestions()
 
 const isOpen = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
@@ -137,6 +204,12 @@ const showOldPolls = ref(false)
 const oldPollsLoading = ref(false)
 const dropdownStyle = ref<Record<string, string>>({})
 const oldPanelStyle = ref<Record<string, string>>({})
+
+// Suggestion state
+const suggestionText = ref('')
+const suggestionSubmitted = ref(false)
+const showOldSuggestions = ref(false)
+const oldSuggestions = ref<any[]>([])
 
 const pollData = computed(() => {
     if (!activePoll.value) return null
@@ -174,6 +247,48 @@ async function handlePollVote(optionIndex: number) {
     await loadPollData()
 }
 
+// Suggestion computed + handlers
+const showSuggestionForm = computed(() => {
+    if (!activeSuggestion.value) return false
+    const id = activeSuggestion.value.id
+    return !hasSubmitted(id) && !hasDismissed(id)
+})
+
+const alreadySubmittedSuggestion = computed(() => {
+    if (!activeSuggestion.value) return false
+    return hasSubmitted(activeSuggestion.value.id)
+})
+
+async function handleSuggestionSubmit() {
+    if (!activeSuggestion.value || !suggestionText.value.trim()) return
+    const ok = await submitResponse(activeSuggestion.value.id, suggestionText.value)
+    if (ok) {
+        suggestionSubmitted.value = true
+        suggestionText.value = ''
+    }
+}
+
+function handleSuggestionDismiss() {
+    if (activeSuggestion.value) dismiss(activeSuggestion.value.id)
+}
+
+async function openOldSuggestions() {
+    if (showOldSuggestions.value) { showOldSuggestions.value = false; return }
+    showOldSuggestions.value = true
+    nextTick(positionDropdown)
+    try {
+        const { getSupabaseClient } = await import('../../lib/supabase')
+        const supabase = await getSupabaseClient()
+        const { data } = await supabase
+            .from('suggestions')
+            .select('*')
+            .order('created_at', { ascending: false })
+        oldSuggestions.value = data || []
+    } catch (e) {
+        oldSuggestions.value = []
+    }
+}
+
 async function openOldPolls() {
     if (showOldPolls.value) {
         showOldPolls.value = false
@@ -205,8 +320,11 @@ function toggleDropdown() {
     isOpen.value = !isOpen.value
     if (isOpen.value) {
         showOldPolls.value = false
+        showOldSuggestions.value = false
+        suggestionSubmitted.value = false
         fetchNotifications()
         loadPollData()
+        fetchActiveSuggestion()
         handleMarkAllRead()
         nextTick(positionDropdown)
     }
@@ -249,6 +367,7 @@ function handleReposition() {
 onMounted(() => {
     fetchNotifications()
     fetchAllPolls()
+    fetchActiveSuggestion()
     window.addEventListener('scroll', handleReposition, { passive: true })
     window.addEventListener('resize', handleReposition, { passive: true })
 })
@@ -627,5 +746,109 @@ onBeforeUnmount(() => {
 @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+}
+
+/* Suggestion form styles */
+.notification-bell__suggestion {
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--rule);
+    background: rgba(107, 163, 104, 0.03);
+}
+
+.notification-bell__suggestion-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6ba368;
+    margin-bottom: var(--s-2);
+}
+
+.notification-bell__suggestion-prompt {
+    font-family: var(--font-display);
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--bone-50);
+    margin-bottom: var(--s-2);
+    line-height: 1.4;
+}
+
+.notification-bell__suggestion-textarea {
+    width: 100%;
+    background: var(--ink-900, #0d1117);
+    border: 1px solid var(--rule);
+    border-radius: var(--r-sm);
+    color: var(--bone-100);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    padding: 8px 10px;
+    resize: none;
+    transition: border-color var(--dur-fast);
+    line-height: 1.4;
+}
+
+.notification-bell__suggestion-textarea:focus {
+    outline: none;
+    border-color: #6ba368;
+}
+
+.notification-bell__suggestion-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.notification-bell__suggestion-charcount {
+    font-size: 0.6rem;
+    color: var(--bone-500);
+}
+
+.notification-bell__suggestion-submit {
+    padding: 3px 12px;
+    background: #6ba368;
+    border: none;
+    border-radius: var(--r-pill);
+    color: var(--bone-50);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity var(--dur-fast);
+}
+
+.notification-bell__suggestion-submit:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.notification-bell__suggestion-submit:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.notification-bell__suggestion-dismiss {
+    background: none;
+    border: none;
+    color: var(--bone-500);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    padding: 0;
+}
+
+.notification-bell__suggestion-dismiss:hover {
+    color: var(--bone-300);
+}
+
+.notification-bell__suggestion-thanks {
+    font-size: var(--fs-xs);
+    color: #6ba368;
+    font-weight: 600;
+    padding: var(--s-1) 0;
 }
 </style>

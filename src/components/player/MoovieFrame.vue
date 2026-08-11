@@ -1816,10 +1816,12 @@ export default defineComponent({
             destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false; firstFrameShown.value = false; failedStreamUrls.value = new Set()
             langVariantFetchKey = '' // reset so variant fetch fires fresh
             try {
-                await ensureProxySetting()
-                // Fire language variant fetch in parallel — mirrors smov's useAutoFetchLanguageVariants
+                // Fire the proxy setting fetch and variant search in parallel —
+                // neither should block the actual stream scrape/playback start
+                const proxySettingPromise = ensureProxySetting()
                 void triggerLanguageVariantFetch()
                 const all = await fetchStreams()
+                await proxySettingPromise
                 console.log('[MOVIEFRAME] doLoad got', all.length, 'streams')
                 streams.value = all
                 if (!all.length) throw new Error('No streamable sources found')
@@ -1881,7 +1883,11 @@ export default defineComponent({
                 const alreadyProxied = Boolean(
                     s.url?.startsWith(`${HUB_BASE}/proxy?`) ||
                     s.url?.includes('cf-header-proxy.moovie.fun') ||
-                    s.url?.startsWith('https://providers.peestream.in/proxy')
+                    s.url?.startsWith('https://providers.peestream.in/proxy') ||
+                    // Provider-side proxies (emebd / workers.dev) already relay
+                    // the origin fetch — wrapping them through the hub again adds
+                    // two extra hops per segment request. Play them directly.
+                    /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
                 )
                 if (alreadyProxied) {
                     playUrl = s.url

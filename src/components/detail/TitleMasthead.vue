@@ -430,6 +430,13 @@ export default defineComponent({
             { immediate: true }
         );
 
+        // Also warm hls.js + hub connection so playback starts instantly
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => void warmMooviePlayerAssets(), { timeout: 1500 });
+        } else {
+            setTimeout(() => void warmMooviePlayerAssets(), 0);
+        }
+
         const warmPlayback = () => {
             void warmMooviePlayerAssets();
             const id = String(props.id || '').trim();

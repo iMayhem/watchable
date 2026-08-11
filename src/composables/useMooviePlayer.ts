@@ -154,9 +154,19 @@ const loadHlsJs = (() => {
     };
 })();
 
-/** Warm player assets. (Kept for compatibility) */
+/** Warm player assets before the user hits play: preload hls.js and open a
+ *  connection to the hub so the manifest/segment fetches start instantly. */
+let assetsWarmed = false;
 export function warmMooviePlayerAssets() {
-    return Promise.resolve();
+    if (assetsWarmed) return Promise.resolve();
+    assetsWarmed = true;
+    try {
+        const hints = document.createElement('link');
+        hints.rel = 'preconnect';
+        hints.href = 'https://hahaevilcraft.site';
+        document.head.appendChild(hints);
+    } catch {}
+    return loadHlsJs().catch(() => {});
 }
 
 async function fetchMoovieResolve(url: string): Promise<MoovieResolve> {

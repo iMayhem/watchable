@@ -56,7 +56,7 @@
                                 <option value="moovie_x">Moovie X (peestream.in)</option>
                                 <option value="sugar">Sugar (vidcodin.net)</option>
                                 <option value="rasmalai">Rasmalai (sweet server)</option>
-                                <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
+                                <option value="vidrock">Gulab Jamun (VidRock)</option>
                                 <option value="smashy">Jalebi (SmashyStream)</option>
                                 <option value="mappletv">Kaju Katli (MappleTV)</option>
                                 <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
@@ -87,7 +87,7 @@
                                 <option value="moovie_x">Moovie X (peestream.in)</option>
                                 <option value="sugar">Sugar (vidcodin.net)</option>
                                 <option value="rasmalai">Rasmalai (sweet server)</option>
-                                <option value="cinemaos">Gulab Jamun (CinemaOS)</option>
+                                <option value="vidrock">Gulab Jamun (VidRock)</option>
                                 <option value="smashy">Jalebi (SmashyStream)</option>
                                 <option value="mappletv">Kaju Katli (MappleTV)</option>
                                 <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
@@ -223,7 +223,7 @@
                         <div class="admin-page__server-row"><strong>ID</strong><strong>Sweet Name</strong></div>
                         <div class="admin-page__server-row"><span>moovie</span><span>Moovie</span></div>
                         <div class="admin-page__server-row"><span>rasmalai</span><span>Rasmalai</span></div>
-                        <div class="admin-page__server-row"><span>cinemaos</span><span>Gulab Jamun</span></div>
+                        <div class="admin-page__server-row"><span>vidrock</span><span>Gulab Jamun</span></div>
                         <div class="admin-page__server-row"><span>smashy</span><span>Jalebi</span></div>
                         <div class="admin-page__server-row"><span>mappletv</span><span>Kaju Katli</span></div>
                         <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
@@ -991,13 +991,12 @@ async function loadServerOrder() {
     const idMap: Record<string, string> = {
         moovie: 'Moovie',
         sugar: 'Sugar',
-        rasmalai: 'Rasmalai', cinemaos: 'Gulab Jamun', smashy: 'Jalebi',
+        rasmalai: 'Rasmalai', vidrock: 'Gulab Jamun', smashy: 'Jalebi',
         mappletv: 'Kaju Katli', vidking: 'Kheer', videasy: 'Barfi',
         vidsrc_ru: 'Laddu', vidsrc_su: 'Peda', vidsrcme: 'Gajar Ka Halwa',
         multiembed: 'Soan Papdi', vsrc: 'Sandesh', vidlink: 'Cham Cham',
         autoembed: 'Kulfi', vidfast: 'Mysore Pak', movies111: 'Imarti',
         vidora: 'Ghevar', vidsuper: 'Motichoor Ladoo', icecream: 'Icecream',
-        vidrock: 'Vidrock',
         cinezo: 'Cheesecake', nankhatai: 'Nankhatai', petha: 'Petha', spoider: 'Spoider'
     }
     const reverseMap: Record<string, string> = {}

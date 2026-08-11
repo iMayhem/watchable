@@ -126,7 +126,18 @@ export default defineComponent({
         const router = useRouter();
         const paths = useAppPaths();
         const isEmbed = computed(() => Boolean(route.meta.bareLayout));
-        const forceMoovieServer = computed(() => route.query.provider === 'moovie' || route.query.server === 'moovie');
+        const FORCE_SERVER_MAP: Record<string, string> = {
+            moovie: 'Moovie',
+            icecream: 'Icecream',
+            vidrock: 'Gulab Jamun',
+            vidfast: 'Rasmalai',
+            vidzee: 'Kaju Katli'
+        };
+        const forceServerName = computed(() => {
+            const q = String(route.query.server || route.query.provider || '').toLowerCase();
+            return FORCE_SERVER_MAP[q] || '';
+        });
+        const forceMoovieServer = computed(() => forceServerName.value === 'Moovie');
         const movieId = ref<string>(route.params.id as string);
         const movie = ref<MovieDetails | null>(null);
         const error = ref<string | null>(null);
@@ -146,6 +157,7 @@ export default defineComponent({
             return currentStreamData.value.currentServer;
         });
         const isMoovieServer = computed(() => {
+            if (forceMoovieServer.value) return true;
             const servers = getServers('movie');
             const idx = currentStreamData.value.currentServer;
             return servers[idx]?.name === 'Moovie';
@@ -204,10 +216,10 @@ export default defineComponent({
                     getPreferredStreamData(movieId.value, 'movie');
                 }
 
-                if (forceMoovieServer.value) {
-                    const moovieIndex = getServers('movie').findIndex(s => s.name === 'Moovie');
-                    if (moovieIndex !== -1 && currentStreamData.value.currentServer !== moovieIndex) {
-                        savePreferredServer(movieId.value, moovieIndex, 'movie');
+                if (forceServerName.value) {
+                    const forcedIndex = getServers('movie').findIndex(s => s.name.toLowerCase() === forceServerName.value.toLowerCase());
+                    if (forcedIndex !== -1 && currentStreamData.value.currentServer !== forcedIndex) {
+                        savePreferredServer(movieId.value, forcedIndex, 'movie');
                         getPreferredStreamData(movieId.value, 'movie');
                     }
                 }

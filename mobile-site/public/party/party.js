@@ -2069,6 +2069,10 @@
         // Available Stream Servers
         const serversList = [
             { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}?provider=moovie', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
+            { id: 'icecream', name: 'Icecream', movie: '/embed/movie/{tmdbId}?server=icecream', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?server=icecream' },
+            { id: 'vidrock', name: 'Gulab Jamun', movie: '/embed/movie/{tmdbId}?server=vidrock', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?server=vidrock' },
+            { id: 'vidfast', name: 'Rasmalai', movie: '/embed/movie/{tmdbId}?server=vidfast', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?server=vidfast' },
+            { id: 'vidzee', name: 'Kaju Katli', movie: '/embed/movie/{tmdbId}?server=vidzee', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?server=vidzee' },
         ];
         
         let activeProvider = 'moovie';

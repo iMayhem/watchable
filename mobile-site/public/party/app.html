@@ -30,21 +30,15 @@
     <script src="/party/party-sync.js"></script>
     <script>
       window.op=window.op||function(){var n=[];return new Proxy(function(){arguments.length&&n.push([].slice.call(arguments))},{get:function(t,r){return"q"===r?n:function(){n.push([r].concat([].slice.call(arguments)))}} ,has:function(t,r){return"q"===r}}) }();
-      (function() {
-        var isMob = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-        window.op('init', {
-          clientId: '01a2e66a-a6b1-4aaf-af69-98d36e97e699',
-          trackScreenViews: true,
-          trackOutgoingLinks: true,
-          trackAttributes: true,
-          profile: {
-            device: isMob ? 'mobile' : 'desktop',
-            platform: isMob ? 'Mobile Web' : 'Desktop Web',
-            screen_width: window.innerWidth,
-            screen_height: window.innerHeight,
-          }
-        });
-      })();
+      window.op('init', {
+        clientId: 'b7e49793-5fbe-4871-9ed9-a624f4f78137',
+        trackScreenViews: true,
+        trackOutgoingLinks: true,
+        trackAttributes: true,
+        // sessionReplay: {
+        //   enabled: true,
+        // },
+      });
     </script>
     <script src="https://openpanel.dev/op1.js" defer async></script>
 

@@ -212,7 +212,18 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const isEmbed = computed(() => Boolean(route.meta.bareLayout));
-        const forceMoovieServer = computed(() => route.query.provider === 'moovie' || route.query.server === 'moovie');
+        const FORCE_SERVER_MAP: Record<string, string> = {
+            moovie: 'Moovie',
+            icecream: 'Icecream',
+            vidrock: 'Gulab Jamun',
+            vidfast: 'Rasmalai',
+            vidzee: 'Kaju Katli'
+        };
+        const forceServerName = computed(() => {
+            const q = String(route.query.server || route.query.provider || '').toLowerCase();
+            return FORCE_SERVER_MAP[q] || '';
+        });
+        const forceMoovieServer = computed(() => forceServerName.value === 'Moovie');
         const paths = useAppPaths();
         const { fetchTvShow, fetchTvShowBySeason } = useTvShows();
 
@@ -248,6 +259,7 @@ export default defineComponent({
 
         const availableServers = computed(() => getServers('tv'));
         const isMoovieServer = computed(() => {
+            if (forceMoovieServer.value) return true;
             const servers = getServers('tv');
             const idx = currentStreamData.value.currentServer;
             return servers[idx]?.name === 'Moovie';
@@ -326,10 +338,10 @@ export default defineComponent({
                     savePreferredServer(showId.value, 0, 'tv');
                 }
 
-                if (forceMoovieServer.value) {
-                    const moovieIndex = getServers('tv').findIndex(s => s.name === 'Moovie');
-                    if (moovieIndex !== -1 && currentStreamData.value.currentServer !== moovieIndex) {
-                        savePreferredServer(showId.value, moovieIndex, 'tv');
+                if (forceServerName.value) {
+                    const forcedIndex = getServers('tv').findIndex(s => s.name.toLowerCase() === forceServerName.value.toLowerCase());
+                    if (forcedIndex !== -1 && currentStreamData.value.currentServer !== forcedIndex) {
+                        savePreferredServer(showId.value, forcedIndex, 'tv');
                         getPreferredStreamData(showId.value, 'tv');
                     }
                 }

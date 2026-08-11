@@ -31,14 +31,14 @@ export const streamData = useStorage<StreamData>('streamData', defaultStreamData
 // Force Icecream (Videasy embed) as hardcoded default and flush stale browser caches
 if (typeof window !== 'undefined') {
   const currentVer = localStorage.getItem('watchable_server_v');
-  if (currentVer !== '15') {
-    localStorage.setItem('watchable_server_v', '15');
+  if (currentVer !== '16') {
+    localStorage.setItem('watchable_server_v', '16');
     localStorage.setItem('default_server_id', 'icecream');
     localStorage.removeItem('streamData');
       if (streamData.value) {
         streamData.value = {
           movieServerMap: {},
-          version: 15
+          version: 16
         };
       }
   }
@@ -46,7 +46,6 @@ if (typeof window !== 'undefined') {
 
 export const movieServers = ref<Server[]>([
   { name: 'Moovie X', urlTemplate: 'https://peestream.in/embed/?tmdbId={tmdbId}&type=movie' },
-  { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' },
   { name: 'Icecream', urlTemplate: 'https://player.videasy.to/movie/{tmdbId}' },
   { name: 'Gulab Jamun', urlTemplate: 'https://vidrock.ru/embed/movie/{tmdbId}' },
@@ -69,12 +68,12 @@ export const movieServers = ref<Server[]>([
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true' },
   { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/movie/{tmdbId}' },
   { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true' },
-  { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={tmdbId}&type=movie' }
+  { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={tmdbId}&type=movie' },
+  { name: 'Moovie', urlTemplate: '', isApiProvider: true }
 ]);
 
 export const tvServers = ref<Server[]>([
   { name: 'Moovie X', urlTemplate: 'https://peestream.in/embed/?tmdbId={externalId}&type=show&season={season}&episode={episode}' },
-  { name: 'Moovie', urlTemplate: '', isApiProvider: true },
   { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Icecream', urlTemplate: 'https://player.videasy.to/tv/{externalId}/{season}/{episode}' },
   { name: 'Gulab Jamun', urlTemplate: 'https://vidrock.ru/embed/tv/{externalId}/{season}/{episode}' },
@@ -97,7 +96,8 @@ export const tvServers = ref<Server[]>([
   { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/tv/{externalId}/{season}/{episode}?autoplay=true' },
   { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/tv/{externalId}/{season}/{episode}' },
   { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={externalId}&type=tv&s={season}&e={episode}' }
+  { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={externalId}&type=tv&s={season}&e={episode}' },
+  { name: 'Moovie', urlTemplate: '', isApiProvider: true }
 ]);
 
 const idToNameMap: Record<string, string> = {
@@ -304,7 +304,7 @@ export function getLastWatchedMetaData(mediaId: string | number): MovieServer | 
 
 export function getServers(type: 'movie' | 'tv' = 'movie'): Server[] {
   const servers = type === 'movie' ? movieServers.value : tvServers.value;
-  return servers.filter(s => ['icecream', 'gulab jamun', 'rasmalai', 'kaju katli'].includes(s.name.toLowerCase()));
+  return servers.filter(s => s.isApiProvider || ['icecream', 'gulab jamun', 'rasmalai', 'kaju katli'].includes(s.name.toLowerCase()));
 }
 
 export async function fetchServerOrder() {

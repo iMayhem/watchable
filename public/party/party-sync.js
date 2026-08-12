@@ -119,6 +119,7 @@
         if (this.head) params.set('head', 'true');
         if (this.mode === 'single') params.set('single', 'true');
         if (this.filters.onConflict) params.set('onConflict', this.filters.onConflict);
+        params.set('_cb', '1');
         return params.toString();
     };
 

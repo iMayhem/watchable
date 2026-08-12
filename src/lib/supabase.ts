@@ -115,6 +115,9 @@ class QueryBuilder {
         if (this.head) params.set('head', 'true');
         if (this.mode === 'single') params.set('single', 'true');
         if (this.filters.onConflict) params.set('onConflict', this.filters.onConflict);
+        // Cache-buster: Cloudflare caches /api/* responses (7-day edge TTL),
+        // which can serve stale 404s/data. A fixed version param forces fresh URLs.
+        params.set('_cb', '1');
         return params.toString();
     }
 

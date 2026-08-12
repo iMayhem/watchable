@@ -72,7 +72,7 @@ const getRouteKey = (route: any) => {
     return route.path;
 };
 
-const getTransitionName = (route: any) => {
+const getTransitionName = (_route: any) => {
     // All transitions disabled for instant navigation
     return '';
 };

@@ -55,7 +55,7 @@ const selectedLanguage = useStorage<string>('movora_user_language', 'en-US');
 // The catalog is intentionally English-only. Reset older saved preferences so
 // a previous localized-title choice cannot leak back into TMDB requests.
 selectedLanguage.value = 'en-US';
-const selectedTmdbImageQuality = ref<'low' | 'medium' | 'high'>('medium');
+const selectedTmdbImageQuality = ref<'low' | 'medium' | 'high'>('low');
 let _globalSettingsLoaded = false;
 let _globalSettingsInterval: number | null = null;
 

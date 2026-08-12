@@ -51,7 +51,7 @@ const selectSize = (size: WebImageSize, quality: TmdbImageQuality) => {
         medium: 'w342',
         large: 'w500',
         xlarge: 'w780',
-        hero: 'w780',
+        hero: 'w1280',
     };
     const highQuality: Record<WebImageSize, string> = {
         small: 'w780',
@@ -105,7 +105,7 @@ export function catalogOssResizeWidth(
         if (size === 'small' || size === 'medium') return 300;
         if (size === 'large') return 400;
         if (size === 'xlarge') return 560;
-        return 840;
+        return 1080;
     }
     if (quality === 'high') {
         if (size === 'small' || size === 'medium') return 480;

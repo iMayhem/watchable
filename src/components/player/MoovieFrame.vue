@@ -1473,15 +1473,20 @@ export default defineComponent({
                         selectedAudioTrack.value = hlsInstance.audioTrack ?? -1
                     })
                     hlsInstance.on(HlsCtor.Events.SUBTITLE_TRACKS_UPDATED, () => {
-                        subtitleTracks.value = (hlsInstance.subtitleTracks || []).map((t: any, i: number) => {
-                            const fullName = resolveFullLanguageName(t.name || t.lang);
-                            return {
-                                id: i,
-                                name: fullName || `Track ${i}`,
-                                lang: resolveFullLanguageName(t.lang),
-                            };
-                        })
-                        selectedSubtitleTrack.value = hlsInstance.subtitleTrack ?? -1
+                        subtitleTracks.value = [
+                            ...(hlsInstance.subtitleTracks || []).map((t: any, i: number) => {
+                                const fullName = resolveFullLanguageName(t.name || t.lang);
+                                return {
+                                    id: i,
+                                    name: fullName || `Track ${i}`,
+                                    lang: resolveFullLanguageName(t.lang),
+                                };
+                            }),
+                            ...subtitleTracks.value.filter(t => t.id >= OPENSUBS_TRACK_OFFSET),
+                        ]
+                        if (selectedSubtitleTrack.value < OPENSUBS_TRACK_OFFSET) {
+                            selectedSubtitleTrack.value = hlsInstance.subtitleTrack ?? -1
+                        }
                     })
 
                     hlsInstance.loadSource(url)
@@ -2550,14 +2555,14 @@ resolve(false)
                     el.src = blobUrl
                     el.default = false
                     video.appendChild(el)
+                    // With MSE/HLS attached, Chrome defers fetching the track
+                    // resource until mode is 'showing' — activating at append
+                    // time (instead of waiting for the load event) unblocks
+                    // the fetch; the load handler then refreshes cue styling.
                     el.addEventListener('load', () => {
                         adjustCueStyles()
-                        // Activate only once cues are parsed so the browser
-                        // evaluates them against the LIVE playhead. Activating
-                        // at append time latches cues to the old position and
-                        // captions come in a few seconds behind the video.
-                        if (el.track && selectedSubtitleTrack.value === index) el.track.mode = 'showing'
                     })
+                    if (el.track) el.track.mode = 'showing'
                     subBlobUrls.push(blobUrl)
                     entry = { el, blobUrl }
                     subLoadedTracks.set(index, entry)

@@ -308,7 +308,7 @@ const selectedLanguage = ref(language.value || 'en-US');
 const adsHidden = ref(localStorage.getItem('ads_hidden') === 'true');
 const defaultServerId = ref(localStorage.getItem('default_server_id') || 'poseidon');
 const imageQuality = ref<'low' | 'medium' | 'high'>(
-    (localStorage.getItem('movora_image_quality') as any) || 'medium'
+    (localStorage.getItem('movora_image_quality') as any) || 'low'
 );
 const febboxEnabled = ref(localStorage.getItem('febbox_enabled') !== 'false');
 const febboxToken = ref(localStorage.getItem('febbox_token') || '');

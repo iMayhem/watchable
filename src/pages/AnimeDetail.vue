@@ -65,6 +65,7 @@
                         >
                             <div class="episode-card__image-container">
                                 <img :src="getEpisodeStill(ep)" class="episode-card__image" alt="Episode Cover" loading="lazy" />
+                                <div class="episode-card__scrim" aria-hidden="true" />
                                 <div class="episode-card__play">
                                     <svg viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M8 5v14l11-7z"/>
@@ -776,6 +777,15 @@ export default defineComponent({
         width: 100%;
         height: 100%;
         object-fit: cover;
+    }
+
+    &__scrim {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(180deg, rgba(11,10,8,0) 0%, rgba(11,10,8,0) 40%, rgba(11,10,8,0.75) 85%, rgba(11,10,8,0.95) 100%),
+            linear-gradient(90deg, rgba(11,10,8,0.85) 0%, rgba(11,10,8,0.45) 45%, rgba(11,10,8,0) 75%);
     }
 
     &__play {

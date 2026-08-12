@@ -477,11 +477,12 @@ onBeforeUnmount(() => {
     position: fixed;
     width: 360px;
     max-height: 480px;
-    background: #050505;
-    backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid var(--rule);
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
     border-radius: var(--r-lg);
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-pane);
+    backdrop-filter: var(--blur-pane);
+    -webkit-backdrop-filter: var(--blur-pane);
     z-index: 999;
     display: flex;
     flex-direction: column;
@@ -549,7 +550,7 @@ onBeforeUnmount(() => {
 .notification-bell__poll {
     padding: var(--s-3) var(--s-4);
     border-bottom: 1px solid var(--rule);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .notification-bell__poll-question {
@@ -648,7 +649,7 @@ onBeforeUnmount(() => {
 }
 
 .notification-bell__item.is-unread {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.025);
 }
 
 .notification-bell__item-dot {
@@ -719,11 +720,12 @@ onBeforeUnmount(() => {
     position: fixed;
     width: 360px;
     max-height: 480px;
-    background: #050505;
-    backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid var(--rule);
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
     border-radius: var(--r-lg);
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-pane);
+    backdrop-filter: var(--blur-pane);
+    -webkit-backdrop-filter: var(--blur-pane);
     z-index: 999;
     display: flex;
     flex-direction: column;
@@ -821,7 +823,7 @@ onBeforeUnmount(() => {
 .notification-bell__suggestion {
     padding: var(--s-3) var(--s-4);
     border-bottom: 1px solid var(--rule);
-    background: #080808;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .notification-bell__suggestion-label {

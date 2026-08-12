@@ -257,7 +257,9 @@ export default defineComponent({
     &__art-scrim {
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, transparent 55%, rgba(11, 10, 8, 0.55));
+        background:
+            linear-gradient(180deg, rgba(11,10,8,0) 0%, rgba(11,10,8,0) 40%, rgba(11,10,8,0.75) 85%, rgba(11,10,8,0.95) 100%),
+            linear-gradient(90deg, rgba(11,10,8,0.85) 0%, rgba(11,10,8,0.45) 45%, rgba(11,10,8,0) 75%);
         pointer-events: none;
     }
 

@@ -59,6 +59,7 @@
                                 <path d="m8 3 4 3 4-3" />
                             </svg>
                         </div>
+                        <div class="ep-row__scrim" aria-hidden="true" />
                         <span v-if="localSeason === currentSeason && ep.episode_number === currentEpisode" class="ep-row__playing">
                             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                 <path d="M8 5v14l11-7z" />
@@ -417,6 +418,15 @@ export default defineComponent({
             object-fit: cover;
             display: block;
         }
+    }
+
+    &__scrim {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(180deg, rgba(11,10,8,0) 0%, rgba(11,10,8,0) 40%, rgba(11,10,8,0.75) 85%, rgba(11,10,8,0.95) 100%),
+            linear-gradient(90deg, rgba(11,10,8,0.85) 0%, rgba(11,10,8,0.45) 45%, rgba(11,10,8,0) 75%);
     }
 
     &__placeholder {

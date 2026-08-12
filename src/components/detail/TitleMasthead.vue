@@ -1,14 +1,5 @@
 <template>
     <header ref="rootRef" class="masthead" :class="{ 'trailer-playing': trailerLive, 'is-loading': loading }" :aria-label="loading ? 'Loading...' : `${title} — masthead`">
-        <button
-            type="button"
-            class="masthead__crumb eyebrow"
-            :class="{ 'is-dimmed': loading }"
-            @click="goBackToIssue"
-        >
-            <span aria-hidden="true">←</span>
-            Back
-        </button>
 
         <!-- Skeleton Loading state -->
         <div v-if="loading" class="masthead__skeleton-wrapper">
@@ -343,7 +334,6 @@ import TrailerIframe from '../hero/TrailerIframe.vue';
 import { useAmbientColor } from '../../composables/useAmbientColor';
 import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { warmMooviePlayerAssets } from '../../composables/useMooviePlayer';
-import { useDetailBackNavigation } from '../../composables/useDetailBackNavigation';
 import { catalogDisplayImageSize, useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
 import { logDownload } from '../../composables/useDownloadTracking';
@@ -384,7 +374,6 @@ export default defineComponent({
             if (route) router.push(route);
         };
 
-        const { goBackToIssue } = useDetailBackNavigation();
         const rootRef = ref<HTMLElement | null>(null);
         const ambientPath = computed(() =>
             props.strictBackdrop ? props.backdropPath : props.backdropPath || props.posterPath
@@ -877,7 +866,6 @@ export default defineComponent({
         };
 
         return {
-            goBackToIssue,
             rootRef,
             backdropUrl,
             isVerticalBackdrop,

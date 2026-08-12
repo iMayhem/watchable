@@ -145,12 +145,9 @@ export default defineComponent({
         position: absolute;
         inset: 0;
         pointer-events: none;
-        background: linear-gradient(
-            180deg,
-            transparent 30%,
-            rgba(11, 10, 8, 0.35) 60%,
-            rgba(11, 10, 8, 0.9) 100%
-        );
+        background:
+            linear-gradient(180deg, rgba(11,10,8,0) 0%, rgba(11,10,8,0) 40%, rgba(11,10,8,0.75) 85%, rgba(11,10,8,0.95) 100%),
+            linear-gradient(90deg, rgba(11,10,8,0.85) 0%, rgba(11,10,8,0.45) 45%, rgba(11,10,8,0) 75%);
         opacity: 1;
         transition: opacity var(--dur-base) var(--ease-out);
     }

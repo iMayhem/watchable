@@ -41,6 +41,12 @@
         <div v-if="!isEmbed" class="watch-stage__top-overlay" :class="{ 'is-hidden': !controlsVisible }" @mouseenter="cancelHide" @mouseleave="onTopMouseLeave">
             <div class="watch-stage__top-bar">
                 <div class="watch-stage__top-left">
+                    <button type="button" class="watch-stage__back" aria-label="Back to show" title="Back to show" @click="goBack">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 12H5" />
+                            <path d="m12 19-7-7 7-7" />
+                        </svg>
+                    </button>
                     <div class="watch-stage__breadcrumb">
                         <span class="watch-stage__breadcrumb-sep">·</span>
                         <h1 v-if="show" class="watch-stage__title">{{ show.name }}</h1>

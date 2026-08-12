@@ -67,6 +67,7 @@
                             decoding="async"
                         />
                         <div v-else class="season-tabs__still season-tabs__still--placeholder" aria-hidden="true" />
+                        <div class="season-tabs__scrim" aria-hidden="true" />
                         <span class="season-tabs__play" aria-hidden="true">
                             <svg viewBox="0 0 24 24" width="20" height="20">
                                 <path fill="currentColor" d="M8 5v14l11-7z"/>
@@ -315,6 +316,15 @@ export default defineComponent({
             background:
                 radial-gradient(70% 70% at 50% 40%, var(--ink-700), var(--ink-900));
         }
+    }
+
+    &__scrim {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(180deg, rgba(11,10,8,0) 0%, rgba(11,10,8,0) 40%, rgba(11,10,8,0.75) 85%, rgba(11,10,8,0.95) 100%),
+            linear-gradient(90deg, rgba(11,10,8,0.85) 0%, rgba(11,10,8,0.45) 45%, rgba(11,10,8,0) 75%);
     }
 
     &__play {

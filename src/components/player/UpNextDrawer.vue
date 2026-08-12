@@ -106,6 +106,7 @@
                                             <path d="m8 3 4 3 4-3" />
                                         </svg>
                                     </div>
+                                    <div class="up-next__scrim" aria-hidden="true" />
                                     <span v-if="item.season === currentSeason && item.episode === currentEpisode" class="up-next__now-playing">
                                         Now Playing
                                     </span>
@@ -574,6 +575,15 @@ export default defineComponent({
             object-fit: cover;
             display: block;
         }
+    }
+
+    &__scrim {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(180deg, rgba(11,10,8,0) 0%, rgba(11,10,8,0) 40%, rgba(11,10,8,0.75) 85%, rgba(11,10,8,0.95) 100%),
+            linear-gradient(90deg, rgba(11,10,8,0.85) 0%, rgba(11,10,8,0.45) 45%, rgba(11,10,8,0) 75%);
     }
 
     &__placeholder {

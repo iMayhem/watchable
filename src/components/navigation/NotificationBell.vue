@@ -30,6 +30,16 @@
                     </button>
                 </div>
 
+                <!-- Archive access — always visible, even with no active poll/suggestion -->
+                <div class="notification-bell__archive-bar">
+                    <button type="button" class="notification-bell__archive-btn" @click="openOldPolls">
+                        {{ showOldPolls ? 'Close Old Polls' : 'Old Polls' }}
+                    </button>
+                    <button type="button" class="notification-bell__archive-btn" @click="openOldSuggestions">
+                        {{ showOldSuggestions ? 'Close Old Suggestions' : 'Old Suggestions' }}
+                    </button>
+                </div>
+
                 <!-- Active poll results -->
                 <div v-if="pollData" class="notification-bell__poll">
                     <div class="notification-bell__poll-question">{{ pollData.question }}</div>
@@ -52,14 +62,6 @@
                         </div>
                     </div>
                     <div class="notification-bell__poll-total">{{ pollData.totalVotes }} total votes</div>
-                    <button
-                        v-if="hasOldPolls"
-                        type="button"
-                        class="notification-bell__old-polls-btn"
-                        @click="openOldPolls"
-                    >
-                        {{ showOldPolls ? 'Close Old Polls' : 'Old Polls' }}
-                    </button>
                 </div>
 
                 <!-- Active suggestion form -->
@@ -100,15 +102,7 @@
                         </div>
                     </template>
 
-                    <!-- dismissed / already submitted show old suggestions btn -->
-                    <button
-                        type="button"
-                        class="notification-bell__old-polls-btn"
-                        style="margin-top: 6px"
-                        @click="openOldSuggestions"
-                    >
-                        {{ showOldSuggestions ? 'Close Suggestions' : 'Active Suggestions' }}
-                    </button>
+                    <!-- dismissed / already submitted -->
                 </div>
 
                 <div class="notification-bell__list">
@@ -520,6 +514,34 @@ onBeforeUnmount(() => {
 
 .notification-bell__mark-read:hover {
     text-decoration: underline;
+}
+
+.notification-bell__archive-bar {
+    display: flex;
+    gap: 6px;
+    padding: var(--s-2) var(--s-4);
+    border-bottom: 1px solid var(--rule);
+}
+
+.notification-bell__archive-btn {
+    flex: 1;
+    padding: 4px 8px;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-pill);
+    color: var(--bone-400);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+
+.notification-bell__archive-btn:hover {
+    color: var(--bone-50);
+    border-color: var(--rule-strong);
+    background: var(--surface-tint);
 }
 
 .notification-bell__poll {

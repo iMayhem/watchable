@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { getSupabaseClient } from '../lib/supabase'
+import { getSyncClient } from '../lib/syncClient'
 import { getCurrentUser } from '../lib/auth'
 
 export interface AppNotification {
@@ -45,8 +45,8 @@ export function useNotifications() {
     async function fetchNotifications() {
         loading.value = true
         try {
-            const supabase = await getSupabaseClient()
-            const { data: notifs } = await supabase
+            const sync = await getSyncClient()
+            const { data: notifs } = await sync
                 .from('notifications')
                 .select('id, title, message, type, created_at, created_by')
                 .order('created_at', { ascending: false })
@@ -55,7 +55,7 @@ export function useNotifications() {
             let readIds: number[] = []
 
             if (username && notifs?.length) {
-                const { data: reads } = await supabase
+                const { data: reads } = await sync
                     .from('notification_reads')
                     .select('notification_id')
                     .eq('username', username)
@@ -82,8 +82,8 @@ export function useNotifications() {
         const username = getCurrentUser()
         if (username) {
             try {
-                const supabase = await getSupabaseClient()
-                await supabase.from('notification_reads').upsert({
+                const sync = await getSyncClient()
+                await sync.from('notification_reads').upsert({
                     notification_id: notificationId,
                     username,
                     read_at: new Date().toISOString()
@@ -107,13 +107,13 @@ export function useNotifications() {
             if (!unread.length) return
 
             if (username) {
-                const supabase = await getSupabaseClient()
+                const sync = await getSyncClient()
                 const reads = unread.map(n => ({
                     notification_id: n.id,
                     username,
                     read_at: new Date().toISOString()
                 }))
-                await supabase.from('notification_reads').upsert(reads, { onConflict: 'notification_id,username' })
+                await sync.from('notification_reads').upsert(reads, { onConflict: 'notification_id,username' })
             } else {
                 addLocalReadIds(unread.map(n => n.id))
             }

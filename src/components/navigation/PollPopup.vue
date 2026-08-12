@@ -163,11 +163,11 @@ onMounted(() => {
 }
 
 .poll-modal__option:hover:not(:disabled) {
-    background: rgba(255, 90, 31, 0.1);
+    background: rgba(255, 255, 255, 0.1);
     border-color: var(--ember);
     color: var(--bone-50);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(255, 90, 31, 0.2);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
 }
 
 .poll-modal__option:active:not(:disabled) {

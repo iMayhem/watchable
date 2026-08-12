@@ -944,7 +944,7 @@ export default defineComponent({
     border: 1px solid var(--rule);
     border-radius: var(--r-lg);
     background:
-        radial-gradient(80% 120% at 0% 0%, rgba(255, 90, 31, 0.08), transparent 55%),
+        radial-gradient(80% 120% at 0% 0%, rgba(255, 255, 255, 0.08), transparent 55%),
         var(--surface-tint);
 
     @media (min-width: 900px) {
@@ -1106,7 +1106,7 @@ export default defineComponent({
         transform var(--dur-base) var(--ease-out);
 
     &:hover {
-        border-color: rgba(255, 90, 31, 0.35);
+        border-color: rgba(255, 255, 255, 0.35);
         transform: translateY(-2px);
     }
 
@@ -1207,8 +1207,8 @@ export default defineComponent({
             background-color var(--dur-fast) var(--ease-out);
 
         &:hover {
-            border-color: rgba(255, 90, 31, 0.45);
-            background: rgba(255, 90, 31, 0.08);
+            border-color: rgba(255, 255, 255, 0.45);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         &--loading {

@@ -1,6 +1,6 @@
 import { useStorage } from '@vueuse/core';
 import { readonly, ref } from 'vue';
-import { getSupabaseClient } from '../lib/supabase';
+import { getSyncClient } from '../lib/syncClient';
 
 export interface RegionOption {
     code: string;
@@ -47,33 +47,22 @@ export const REGIONS: RegionOption[] = [
 ];
 
 export const LANGUAGES: LanguageOption[] = [
-    { code: 'en-US', name: 'English' },
-    { code: 'es-ES', name: 'Español' },
-    { code: 'it-IT', name: 'Italiano' },
-    { code: 'fr-FR', name: 'Français' },
-    { code: 'de-DE', name: 'Deutsch' },
-    { code: 'pt-BR', name: 'Português' },
-    { code: 'ja-JP', name: '日本語' },
-    { code: 'ko-KR', name: '한국어' },
-    { code: 'zh-CN', name: '中文' },
-    { code: 'th-TH', name: 'ภาษาไทย' },
-    { code: 'tl-PH', name: 'Tagalog' },
-    { code: 'id-ID', name: 'Bahasa Indonesia' },
-    { code: 'tr-TR', name: 'Türkçe' },
-    { code: 'ru-RU', name: 'Русский' },
-    { code: 'ar-SA', name: 'العربية' }
+    { code: 'en-US', name: 'English' }
 ];
 
 const selectedRegion = useStorage<string>('movora_user_region', 'global');
 const selectedLanguage = useStorage<string>('movora_user_language', 'en-US');
+// The catalog is intentionally English-only. Reset older saved preferences so
+// a previous localized-title choice cannot leak back into TMDB requests.
+selectedLanguage.value = 'en-US';
 const selectedTmdbImageQuality = ref<'low' | 'medium' | 'high'>('medium');
 let _globalSettingsLoaded = false;
 let _globalSettingsInterval: number | null = null;
 
 export async function refreshGlobalSettings() {
     try {
-        const supabase = await getSupabaseClient();
-        const { data } = await supabase
+        const sync = await getSyncClient();
+        const { data } = await sync
             .from('app_settings')
             .select('key, value')
             .in('key', ['tmdb_image_quality', 'cache_bust_timestamp']);
@@ -89,6 +78,7 @@ export async function refreshGlobalSettings() {
             if (typeof window !== 'undefined' && window.caches) {
                 await window.caches.delete('tmdb-api-cache-v1');
                 await window.caches.delete('tmdb-api-cache-v2');
+                await window.caches.delete('tmdb-api-cache-v3');
             }
             localStorage.removeItem('moovie_poster_cache_v1');
             localStorage.setItem('last_cache_bust', cacheBust);
@@ -110,11 +100,11 @@ export async function loadGlobalSettings() {
 }
 
 export const getSettings = () => {
-    const updateSettings = (region: string, language: string) => {
+    const updateSettings = (region: string, _language: string) => {
         selectedRegion.value = region;
-        selectedLanguage.value = language;
+        selectedLanguage.value = 'en-US';
         window.dispatchEvent(new CustomEvent('movora_settings_change', {
-            detail: { region, language }
+            detail: { region, language: 'en-US' }
         }));
     };
 

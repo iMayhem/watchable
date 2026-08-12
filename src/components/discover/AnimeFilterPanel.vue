@@ -291,7 +291,7 @@ export default defineComponent({
 
     &:hover {
         background: var(--surface-tint-hover);
-        border-color: rgba(255, 90, 31, 0.4);
+        border-color: rgba(255, 255, 255, 0.4);
     }
 
     &.is-open {
@@ -322,7 +322,7 @@ export default defineComponent({
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--r-md);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 90, 31, 0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15);
     padding: var(--s-1);
     display: flex;
     flex-direction: column;
@@ -367,7 +367,7 @@ export default defineComponent({
         color: var(--ink-900);
         background: var(--ember);
         font-weight: 500;
-        box-shadow: 0 2px 10px rgba(255, 90, 31, 0.2);
+        box-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
     }
 }
 

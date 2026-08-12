@@ -208,10 +208,10 @@ export default defineComponent({
     }
 
     &__section {
-        margin-top: clamp(var(--s-5), 3vw, var(--s-7));
+        margin-top: var(--shelf-gap);
 
         &:last-of-type {
-            margin-bottom: clamp(var(--s-5), 3vw, var(--s-7));
+            margin-bottom: var(--shelf-gap-mobile);
         }
     }
 }

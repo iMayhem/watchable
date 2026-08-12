@@ -4,6 +4,7 @@
         :title="title"
         :eyebrow="eyebrow"
         density="keyart"
+        :columns="{ base: 1.7, sm: 2.4, md: 3.5, lg: 5.2, xl: 6.2, xxl: 7.2, huge: 8.2 }"
         :peek-room="false"
     >
         <article
@@ -149,6 +150,15 @@ export default defineComponent({
 <style lang="scss" scoped>
 .continue {
     display: block;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-lg);
+    background: var(--ink-800);
+    transition:
+        border-color var(--dur-fast) var(--ease-out),
+        background-color var(--dur-fast) var(--ease-out),
+        transform var(--dur-fast) var(--ease-out);
 
     &__link {
         display: block;
@@ -159,10 +169,10 @@ export default defineComponent({
     &__art {
         position: relative;
         aspect-ratio: 16 / 9;
-        border-radius: var(--r-md);
+        border-radius: 0;
         overflow: hidden;
         background: var(--ink-700);
-        box-shadow: var(--shadow-md);
+        box-shadow: none;
         transition:
             transform var(--dur-base) var(--ease-out),
             box-shadow var(--dur-base) var(--ease-out);
@@ -176,10 +186,16 @@ export default defineComponent({
         }
     }
 
+    &:hover,
+    &:focus-within {
+        transform: translateY(-4px);
+        border-color: var(--rule-strong);
+        background: var(--ink-700);
+    }
+
     &__link:hover &__art,
     &__link:focus-visible &__art {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-lg);
+        box-shadow: none;
 
         img { transform: scale(1.04); }
         .continue__play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -218,15 +234,15 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: var(--ember);
-        color: var(--ink-900);
+        background: #000;
+        color: var(--ember);
         border-radius: 50%;
         opacity: 0;
         transform: translate(-50%, -50%) scale(0.85);
         transition:
             opacity var(--dur-fast) var(--ease-out),
             transform var(--dur-fast) var(--ease-out);
-        box-shadow: 0 8px 22px rgba(255, 90, 31, 0.45);
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
 
         svg { width: 18px; height: 18px; margin-left: 2px; }
     }
@@ -236,15 +252,15 @@ export default defineComponent({
         left: 0;
         bottom: 0;
         height: 3px;
-        background: var(--ember);
-        box-shadow: 0 0 12px var(--ember-glow);
+        background: #050505;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.45);
         min-width: 6px;
         transition: width var(--dur-base) var(--ease-out);
     }
 
     // ── Body ──────────────────────────────────────────────────────────────
     &__body {
-        padding: var(--s-3) 0 0;
+        padding: 0.7rem 0.8rem 0.8rem;
     }
 
     &__eyebrow {
@@ -254,7 +270,7 @@ export default defineComponent({
     &__title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: var(--fs-base);
+        font-size: 0.9rem;
         line-height: 1.2;
         color: var(--bone-50);
         margin-top: 0.25rem;

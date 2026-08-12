@@ -281,7 +281,7 @@ export default defineComponent({
             removeFromWatchlist,
             setWatched,
             clearWatchlist,
-            syncWatchlistToSupabase
+            syncWatchlistToSync
         } = useWatchlist();
         const { addToast } = useToast();
 
@@ -438,7 +438,7 @@ export default defineComponent({
             if (!ok) return;
             if (deleteWatchlistList(list.id)) {
                 const user = getCurrentUser();
-                if (user) await syncWatchlistToSupabase();
+                if (user) await syncWatchlistToSync();
                 addToast(`Deleted "${list.name}"`, 'info', 2400);
             }
         };
@@ -526,7 +526,7 @@ export default defineComponent({
 
                 const user = getCurrentUser();
                 if (user) {
-                    const synced = await syncWatchlistToSupabase();
+                    const synced = await syncWatchlistToSync();
                     if (synced) {
                         addToast(`${summary} and synced to your account`, 'success', 3200);
                     } else {
@@ -710,7 +710,7 @@ function isValidItem(x: any): boolean {
 
         &--danger:hover {
             color: var(--ember);
-            border-color: rgba(255, 90, 31, 0.45);
+            border-color: rgba(255, 255, 255, 0.45);
         }
     }
 
@@ -852,11 +852,11 @@ function isValidItem(x: any): boolean {
     // ── Grid ─────────────────────────────────────────────────────────────
     &__grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: var(--s-6) var(--s-5);
 
         @media (max-width: 720px) {
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: var(--s-5) var(--s-4);
         }
     }
@@ -1042,7 +1042,7 @@ function isValidItem(x: any): boolean {
             transform: translateY(-4px);
             box-shadow:
                 var(--shadow-lg),
-                0 0 0 1px rgba(255, 90, 31, 0.22);
+                0 0 0 1px rgba(255, 255, 255, 0.22);
 
             img { transform: scale(1.04); }
         }
@@ -1087,14 +1087,14 @@ function isValidItem(x: any): boolean {
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
-        padding: 0.2rem 0.5rem;
-        background: rgba(11, 10, 8, 0.7);
-        backdrop-filter: blur(6px);
+        padding: 0;
+        background: transparent;
+        backdrop-filter: none;
         color: var(--gold-leaf);
         font-family: var(--font-mono);
         font-size: 0.6875rem;
         font-weight: 600;
-        border-radius: var(--r-sm);
+        text-shadow: 0 1px 4px #000;
 
         svg { width: 11px; height: 11px; }
     }
@@ -1107,7 +1107,7 @@ function isValidItem(x: any): boolean {
         align-items: center;
         gap: 0.3rem;
         padding: 0.3rem 0.65rem;
-        background: rgba(255, 90, 31, 0.92);
+        background: rgba(255, 255, 255, 0.92);
         color: var(--ink-900);
         font-family: var(--font-mono);
         font-size: 0.6875rem;
@@ -1115,7 +1115,7 @@ function isValidItem(x: any): boolean {
         text-transform: uppercase;
         letter-spacing: var(--ls-micro);
         border-radius: var(--r-sm);
-        box-shadow: 0 4px 14px rgba(255, 90, 31, 0.35);
+        box-shadow: 0 4px 14px rgba(255, 255, 255, 0.35);
     }
 
     &__body {
@@ -1178,8 +1178,8 @@ function isValidItem(x: any): boolean {
         }
 
         &.is-on {
-            background: rgba(255, 90, 31, 0.14);
-            border-color: rgba(255, 90, 31, 0.35);
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.35);
             color: var(--ember);
         }
 

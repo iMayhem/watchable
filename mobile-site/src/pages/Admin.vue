@@ -329,16 +329,16 @@
 <script lang="ts" setup>
 import { ref, reactive, onMounted } from 'vue'
 import { serverOrder, setServerOrder, fetchServerOrder, getServers } from '@/composables/useStream'
-import { getSupabaseClient } from '@/lib/supabase'
+import { getSyncClient } from '@/lib/syncClient'
 
 const DEFAULT_PASSCODE = 'admin123'
 
-let supabaseClient: any = null
+let syncClient: any = null
 
 async function getClient() {
-    if (supabaseClient) return supabaseClient
-    supabaseClient = await getSupabaseClient()
-    return supabaseClient
+    if (syncClient) return syncClient
+    syncClient = await getSyncClient()
+    return syncClient
 }
 
 const authenticated = ref(false)
@@ -552,7 +552,7 @@ async function handleSaveSettings() {
 
         showToast('Settings updated successfully!')
     } catch {
-        showToast('Failed to update settings in Supabase', false)
+        showToast('Failed to update settings in Sync', false)
     } finally {
         saveLoading.value = false
     }
@@ -630,7 +630,7 @@ async function handleSave4K() {
         await client.from('app_settings').upsert({ key: '4k_movies_today', value: JSON.stringify(selectedMovies.value), updated_at: new Date() }, { onConflict: 'key' })
         showToast('4K curation saved successfully!')
     } catch {
-        showToast('Failed to save 4K curation in Supabase', false)
+        showToast('Failed to save 4K curation in Sync', false)
     } finally {
         save4kLoading.value = false
     }

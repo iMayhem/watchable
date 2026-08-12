@@ -290,14 +290,14 @@ async function openOldSuggestions() {
     showOldSuggestions.value = true
     nextTick(positionDropdown)
     try {
-        const { getSupabaseClient } = await import('../../lib/supabase')
-        const supabase = await getSupabaseClient()
+        const { getSyncClient } = await import('../../lib/syncClient')
+        const sync = await getSyncClient()
         const [sugRes, respRes] = await Promise.all([
-            supabase
+            sync
                 .from('suggestions')
                 .select('*')
                 .order('created_at', { ascending: false }),
-            supabase
+            sync
                 .from('suggestion_responses')
                 .select('*')
         ])
@@ -415,16 +415,22 @@ onBeforeUnmount(() => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    background: var(--surface-tint);
-    border: 1px solid var(--rule);
-    border-radius: var(--r-pill);
+    width: auto;
+    height: auto;
+    padding: var(--s-2);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
     color: var(--bone-300);
     cursor: pointer;
     position: relative;
     transition: background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+
+.notification-bell__btn {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
 }
 
 .notification-bell__btn svg {
@@ -435,8 +441,9 @@ onBeforeUnmount(() => {
 
 .notification-bell__btn:hover,
 .notification-bell__btn.is-open {
-    background: var(--surface-tint-hover);
-    border-color: var(--rule-strong);
+    background: transparent !important;
+    background-color: transparent !important;
+    border: 0 !important;
     color: var(--bone-50);
 }
 
@@ -470,7 +477,7 @@ onBeforeUnmount(() => {
     position: fixed;
     width: 360px;
     max-height: 480px;
-    background: rgba(26, 24, 21, 0.97);
+    background: #050505;
     backdrop-filter: blur(16px) saturate(180%);
     border: 1px solid var(--rule);
     border-radius: var(--r-lg);
@@ -542,7 +549,7 @@ onBeforeUnmount(() => {
 .notification-bell__poll {
     padding: var(--s-3) var(--s-4);
     border-bottom: 1px solid var(--rule);
-    background: rgba(255, 90, 31, 0.03);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .notification-bell__poll-question {
@@ -641,7 +648,7 @@ onBeforeUnmount(() => {
 }
 
 .notification-bell__item.is-unread {
-    background: rgba(255, 90, 31, 0.04);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .notification-bell__item-dot {
@@ -712,7 +719,7 @@ onBeforeUnmount(() => {
     position: fixed;
     width: 360px;
     max-height: 480px;
-    background: rgba(26, 24, 21, 0.97);
+    background: #050505;
     backdrop-filter: blur(16px) saturate(180%);
     border: 1px solid var(--rule);
     border-radius: var(--r-lg);
@@ -814,7 +821,7 @@ onBeforeUnmount(() => {
 .notification-bell__suggestion {
     padding: var(--s-3) var(--s-4);
     border-bottom: 1px solid var(--rule);
-    background: rgba(107, 163, 104, 0.03);
+    background: #080808;
 }
 
 .notification-bell__suggestion-label {
@@ -871,10 +878,10 @@ onBeforeUnmount(() => {
 
 .notification-bell__suggestion-submit {
     padding: 3px 12px;
-    background: #6ba368;
+    background: #000;
     border: none;
     border-radius: var(--r-pill);
-    color: var(--bone-50);
+    color: var(--ember);
     font-family: var(--font-ui);
     font-size: var(--fs-xs);
     font-weight: 600;

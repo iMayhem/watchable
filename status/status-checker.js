@@ -115,10 +115,10 @@ const services = {
     ],
     backendServices: [
         {
-            name: 'Supabase',
-            url: 'https://jagmmmnxgbinlugxeinc.supabase.co/rest/v1/',
-            testType: 'supabase',
-            note: 'Database & Auth'
+            name: 'Sync Server',
+            url: 'https://hahaevilcraft.site/api/app_settings?select=key&limit=1',
+            testType: 'sync',
+            note: 'Self-hosted database & realtime'
         }
     ]
 };
@@ -139,18 +139,14 @@ async function checkService(service) {
         // For embed providers, we just check if the domain is reachable
         // For APIs, we make actual requests
         
-        if (service.testType === 'supabase') {
-            // Supabase health check - check REST API endpoint
+        if (service.testType === 'sync') {
+            // Sync server health check - check REST API endpoint
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
             
             try {
                 const response = await fetch(service.url, {
                     method: 'GET',
-                    headers: {
-                        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZ21tbW54Z2Jpbmx1Z3hlaW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NDExOTcsImV4cCI6MjA5OTAxNzE5N30.9oLJOU-HTk-YnhSckPxe_UnBG2yFIT9quAt_mYnMZH4',
-                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZ21tbW54Z2Jpbmx1Z3hlaW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NDExOTcsImV4cCI6MjA5OTAxNzE5N30.9oLJOU-HTk-YnhSckPxe_UnBG2yFIT9quAt_mYnMZH4'
-                    },
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
@@ -158,8 +154,8 @@ async function checkService(service) {
                 const endTime = performance.now();
                 const responseTime = Math.round(endTime - startTime);
                 
-                // Supabase returns 200 for successful connection
-                if (response.ok || response.status === 401 || response.status === 400) {
+                // Sync server returns 200 for successful connection
+                if (response.ok) {
                     return {
                         status: 'operational',
                         responseTime: responseTime,
@@ -360,8 +356,8 @@ function renderServiceCard(service, result) {
     const statusText = result.status === 'operational' ? 'Operational' : 
                       result.status === 'degraded' ? 'Degraded' : 'Down';
     
-    // Hide URL for Supabase to protect credentials
-    const displayUrl = service.name === 'Supabase' ? '••••••••••••••••••••' : service.url;
+    // Display service URL
+    const displayUrl = service.url;
     
     return `
         <div class="service-card">
@@ -389,8 +385,8 @@ function renderServiceCard(service, result) {
 
 // Render checking state
 function renderCheckingCard(service) {
-    // Hide URL for Supabase to protect credentials
-    const displayUrl = service.name === 'Supabase' ? '••••••••••••••••••••' : service.url;
+    // Display service URL
+    const displayUrl = service.url;
     
     return `
         <div class="service-card">

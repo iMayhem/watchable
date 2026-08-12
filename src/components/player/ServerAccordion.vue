@@ -111,9 +111,6 @@ export default defineComponent({
         };
 
         const getServerTitle = (server: Server) => {
-            if (server.name === 'Gulab Jamun') {
-                return `Gulab Jamun - If server does not load or takes time, click on gear icon - select server - and choose ultrafast`;
-            }
             return server.name;
         };
 
@@ -404,10 +401,10 @@ export default defineComponent({
     }
 
     &.is-active {
-        background: linear-gradient(135deg, rgba(255, 90, 31, 0.14), rgba(255, 90, 31, 0.06));
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
         box-shadow:
-            inset 0 0 0 1px rgba(255, 90, 31, 0.45),
-            0 0 0 1px rgba(255, 90, 31, 0.12);
+            inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+            0 0 0 1px rgba(255, 255, 255, 0.12);
     }
 
     &.is-disabled {

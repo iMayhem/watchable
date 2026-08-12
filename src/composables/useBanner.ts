@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { getSupabaseClient } from '../lib/supabase'
+import { getSyncClient } from '../lib/syncClient'
 
 export interface Banner {
     id: number
@@ -19,8 +19,8 @@ export function useBanner() {
     async function fetchActiveBanner() {
         loading.value = true
         try {
-            const supabase = await getSupabaseClient()
-            const { data } = await supabase
+            const sync = await getSyncClient()
+            const { data } = await sync
                 .from('banners')
                 .select('id, message, link, bg_color, text_color, is_active, created_at')
                 .eq('is_active', true)

@@ -134,7 +134,7 @@ export default defineComponent({
         const searchTerm = ref('');
 
         const buildPopularUrl = (pageNum: number): string =>
-            `https://proxy.moovie.fun/tmdb-api/3/person/popular?page=${pageNum}`;
+            `https://hahaevilcraft.site/tmdb-api/3/person/popular?page=${pageNum}`;
 
         const buildSearchUrl = (pageNum: number): string => {
             const params = new URLSearchParams({
@@ -142,7 +142,7 @@ export default defineComponent({
                 page: String(pageNum),
                 include_adult: 'false'
             });
-            return `https://proxy.moovie.fun/tmdb-api/3/search/person?${params.toString()}`;
+            return `https://hahaevilcraft.site/tmdb-api/3/search/person?${params.toString()}`;
         };
 
         const fetchPage = async (pageNum: number, append: boolean) => {
@@ -358,7 +358,7 @@ export default defineComponent({
     // ── Grid ──────────────────────────────────────────────────────────────
     &__grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: var(--s-6) var(--s-5);
 
         @media (max-width: 720px) {
@@ -370,7 +370,7 @@ export default defineComponent({
     // ── Loading skeleton ──────────────────────────────────────────────────
     &__loading {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: var(--s-6) var(--s-5);
 
         @media (max-width: 720px) {
@@ -474,7 +474,7 @@ export default defineComponent({
 
     &__sentinel-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: var(--s-6) var(--s-5);
 
         @media (max-width: 720px) {

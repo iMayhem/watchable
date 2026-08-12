@@ -32,16 +32,16 @@
         <template v-else>
             <div class="masthead__stage">
                 <template v-if="backdropUrl">
+                    <img
+                        :key="`masthead-blur-${id}-${backdropPath}`"
+                        class="masthead__art--blurred"
+                        :src="backdropUrl"
+                        alt=""
+                        fetchpriority="low"
+                        decoding="async"
+                        loading="eager"
+                    />
                     <div v-if="isVerticalBackdrop" class="masthead__art-fallback-container">
-                        <img
-                            :key="`masthead-blur-${id}-${backdropPath}`"
-                            class="masthead__art--blurred"
-                            :src="backdropUrl"
-                            alt=""
-                            fetchpriority="low"
-                            decoding="async"
-                            loading="eager"
-                        />
                         <img
                             :key="`masthead-contain-${id}-${backdropPath}`"
                             class="masthead__art--contained"
@@ -155,6 +155,8 @@
                         <LmButton
                             variant="outline"
                             size="lg"
+                            class="masthead__icon-action"
+                            :icon-only="true"
                             :href="partyHref"
                             rel="nofollow"
                         >
@@ -166,12 +168,13 @@
                                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                                 </svg>
                             </template>
-                            Watch Together
                         </LmButton>
 
                         <LmButton
                             variant="outline"
                             size="lg"
+                            class="masthead__icon-action"
+                            :icon-only="true"
                             :class="{ 'masthead__watchlist-btn--active': inWatchlist }"
                             @click="toggleWatchlist"
                             :aria-label="inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'"
@@ -184,13 +187,14 @@
                                     <path d="m5 13 4 4L19 7"/>
                                 </svg>
                             </template>
-                            {{ inWatchlist ? 'In Watchlist' : 'Watchlist' }}
                         </LmButton>
 
                         <LmButton
                             v-if="playRoute && type !== 'anime'"
                             variant="outline"
                             size="lg"
+                            class="masthead__icon-action"
+                            :icon-only="true"
                             :disabled="downloading"
                             @click.prevent="handleDirectDownload"
                             aria-label="Download Media Directly"
@@ -207,7 +211,6 @@
                                     <line x1="12" y1="15" x2="12" y2="3" />
                                 </svg>
                             </template>
-                            {{ downloadStatus || 'Download' }}
                         </LmButton>
 
                     </div>
@@ -491,7 +494,7 @@ export default defineComponent({
         const extractDirectDownloadUrl = (rawUrl: string): string => {
             if (!rawUrl) return '';
             try {
-                const fullUrl = rawUrl.startsWith('/') ? `https://proxy.moovie.fun${rawUrl}` : rawUrl;
+                const fullUrl = rawUrl.startsWith('/') ? `https://hahaevilcraft.site${rawUrl}` : rawUrl;
                 const u = new URL(fullUrl);
                 const embedded = u.searchParams.get('link') || u.searchParams.get('url') || u.searchParams.get('file') || u.searchParams.get('download');
                 if (embedded && /^https?:\/\//i.test(embedded)) {
@@ -499,7 +502,7 @@ export default defineComponent({
                 }
                 return fullUrl;
             } catch (e) {
-                return rawUrl.startsWith('/') ? `https://proxy.moovie.fun${rawUrl}` : rawUrl;
+                return rawUrl.startsWith('/') ? `https://hahaevilcraft.site${rawUrl}` : rawUrl;
             }
         };
 
@@ -677,7 +680,7 @@ export default defineComponent({
 
                 const isTv = typeStr === 'tv' || typeStr === 'show' || typeStr === 'tv-show' || typeStr === 'tvshow' || isTvShow.value;
                 const normType = isTv ? 'tv' : 'movie';
-                let url = `https://proxy.moovie.fun/scrape/source?id=${providerId}&tmdbId=${tmdbId}&type=${normType}&title=${encodeURIComponent(props.title || '')}&_cb=${Date.now()}`;
+                let url = `https://hahaevilcraft.site/scrape/source?id=${providerId}&tmdbId=${tmdbId}&type=${normType}&title=${encodeURIComponent(props.title || '')}&_cb=${Date.now()}`;
                 if (isTv) {
                     url += `&s=${season}&e=${episode}&season=${season}&episode=${episode}&ep=${episode}`;
                 }
@@ -813,7 +816,7 @@ export default defineComponent({
                 } catch (e) {}
 
                 const uB64 = btoa(unescape(encodeURIComponent(targetUrl))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-                const proxyUrl = `https://proxy.moovie.fun/proxy?u=${uB64}&_size=1&_t=${Date.now()}`;
+                const proxyUrl = `https://hahaevilcraft.site/proxy?u=${uB64}&_size=1&_t=${Date.now()}`;
                 
                 let res = await fetch(proxyUrl, { headers: { Range: 'bytes=0-0' }, cache: 'no-store', signal: AbortSignal.timeout(5000) }).catch(() => null);
                 if (!res || !res.ok) {
@@ -945,6 +948,7 @@ export default defineComponent({
     }
 
     &.trailer-playing &__art,
+    &.trailer-playing &__art--blurred,
     &.trailer-playing &__art-fallback-container { opacity: 0; }
 
     &__art-fallback-container {
@@ -968,7 +972,8 @@ export default defineComponent({
         object-fit: cover;
         filter: blur(30px) brightness(0.2) saturate(1.2);
         opacity: 0.9;
-        z-index: 1;
+        z-index: 0;
+        pointer-events: none;
     }
 
     &__art--contained {
@@ -1121,8 +1126,8 @@ export default defineComponent({
         &--audio {
             text-transform: none;
             letter-spacing: 0.06em;
-            background: rgba(255, 90, 31, 0.1);
-            border-color: rgba(255, 90, 31, 0.22);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.22);
         }
 
         &--english {

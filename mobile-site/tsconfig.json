@@ -27,7 +27,6 @@
       "vue": ["node_modules/vue"],
       "vue-router": ["node_modules/vue-router"],
       "@vueuse/core": ["node_modules/@vueuse/core"],
-      "@supabase/supabase-js": ["node_modules/@supabase/supabase-js"],
       "axios": ["node_modules/axios"],
       "artplayer": ["node_modules/artplayer"],
       "hls.js": ["node_modules/hls.js"],

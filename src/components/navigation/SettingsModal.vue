@@ -33,6 +33,21 @@
                         <span class="settings-modal__select-arrow"></span>
                     </div>
                 </div>
+
+                <div class="settings-modal__field">
+                    <label class="settings-modal__label eyebrow">Stream Route</label>
+                    <p class="settings-modal__desc">
+                        How scraped streams play — direct or through the VPS proxy. Applied on Save.
+                    </p>
+                    <div class="settings-modal__select-wrapper">
+                        <select v-model="draftRoute" class="settings-modal__select">
+                            <option value="auto">Auto (Follow Site Setting)</option>
+                            <option value="direct">Direct (Play Straight From Source)</option>
+                            <option value="proxy">VPS Proxy (Route Through Server)</option>
+                        </select>
+                        <span class="settings-modal__select-arrow"></span>
+                    </div>
+                </div>
             </div>
 
             <footer class="settings-modal__footer">
@@ -50,6 +65,7 @@
 <script lang="ts">
 import { defineComponent, ref, watch } from 'vue';
 import { getSettings, REGIONS } from '../../composables/useSettings';
+import { usePlaybackRoute } from '../../composables/usePlaybackRoute';
 
 export default defineComponent({
     name: 'SettingsModal',
@@ -62,6 +78,7 @@ export default defineComponent({
     emits: ['close'],
     setup(props, { emit }) {
         const { region, language, updateSettings } = getSettings();
+        const { savedRoute, draftRoute, saveRoute } = usePlaybackRoute();
 
         const localRegion = ref(region.value);
 
@@ -70,6 +87,7 @@ export default defineComponent({
             (newVal) => {
                 if (newVal) {
                     localRegion.value = region.value;
+                    draftRoute.value = savedRoute.value;
                 }
             }
         );
@@ -80,12 +98,14 @@ export default defineComponent({
 
         const save = () => {
             updateSettings(localRegion.value, language.value);
+            saveRoute();
             close();
         };
 
         return {
             regions: REGIONS,
             localRegion,
+            draftRoute,
             close,
             save
         };
@@ -102,18 +122,19 @@ export default defineComponent({
     align-items: center;
     justify-content: center;
     padding: var(--s-4);
-    background: rgba(11, 10, 8, 0.65);
+    background: var(--overlay-scrim);
     backdrop-filter: blur(8px);
     animation: fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
     &__card {
         width: 100%;
         max-width: 440px;
-        background: rgba(26, 24, 21, 0.85);
-        border: 1px solid var(--rule);
+        background: var(--glass);
+        border: 1px solid var(--glass-border);
         border-radius: var(--r-md);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(24px);
+        box-shadow: var(--shadow-pane);
+        backdrop-filter: var(--blur-pane);
+        -webkit-backdrop-filter: var(--blur-pane);
         overflow: hidden;
         animation: scale-up 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
@@ -217,7 +238,7 @@ export default defineComponent({
 
         &:focus {
             border-color: var(--ember);
-            box-shadow: 0 0 0 2px rgba(255, 90, 31, 0.15);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
         }
 
         option {
@@ -271,19 +292,19 @@ export default defineComponent({
         }
 
         &--save {
-            background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
+            background: linear-gradient(135deg, var(--ember) 0%, #ffffff 100%);
             border: none;
             color: var(--ink-900);
-            box-shadow: 0 4px 14px rgba(255, 90, 31, 0.35);
+            box-shadow: 0 4px 14px rgba(255, 255, 255, 0.35);
 
             &:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 8px 20px rgba(255, 90, 31, 0.5);
+                box-shadow: 0 8px 20px rgba(255, 255, 255, 0.5);
             }
 
             &:active {
                 transform: translateY(0) scale(0.97);
-                box-shadow: 0 2px 8px rgba(255, 90, 31, 0.3);
+                box-shadow: 0 2px 8px rgba(255, 255, 255, 0.3);
             }
         }
     }

@@ -4,8 +4,8 @@ import { MovieDetails } from '../composables/useMovies';
 import { TVShowDetails } from '../composables/useTvShows';
 import { getSettings } from '../composables/useSettings';
 
-// TMDB posters/backdrops load via proxy.moovie.fun (30-Day Disk & Edge Cache).
-const TMDB_BASE = 'https://proxy.moovie.fun/tmdb-image/';
+// TMDB posters/backdrops load via hahaevilcraft.site (30-Day Disk & Edge Cache).
+const TMDB_BASE = 'https://hahaevilcraft.site/tmdb-image/';
 let vpsProxyBaseUrl = '';
 
 export function setVpsProxyBaseUrl(url: string) {
@@ -154,7 +154,7 @@ function normalizeTmdbPath(path: string): string {
 
 /**
  * TMDB image URL (direct CDN). Path must include size token, e.g. w342/abc.jpg
- * Uses VPS proxy when configured, falls back to proxy.moovie.fun.
+ * Uses VPS proxy when configured, falls back to hahaevilcraft.site.
  */
 export function buildProxiedImageUrl(tmdbPath: string): string {
     if (!tmdbPath) return '';

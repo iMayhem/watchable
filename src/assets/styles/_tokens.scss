@@ -7,43 +7,71 @@
 
 :root {
   // ── Color: stage ─────────────────────────────────────────────────────────
-  --ink-900: #0b0a08;   // primary stage (warm near-black)
-  --ink-850: #0f0d0a;   // body variant
-  --ink-800: #13110e;   // surface / cards
-  --ink-700: #1c1915;   // elevated surface
-  --ink-600: #2a251e;   // hover surface
-  --ink-500: #3a342b;   // rule-heavy contexts
+  // Translucent inks — the ambient aurora (body::before) bleeds through every
+  // surface, so all panes share one blended, glassy ground.
+  --ink-900: #000000;                 // primary stage
+  --ink-850: rgba(6, 6, 6, 0.9);      // body variant
+  --ink-800: rgba(10, 10, 10, 0.92);  // surface / cards
+  --ink-700: rgba(16, 16, 16, 0.94);  // elevated surface
+  --ink-600: rgba(24, 24, 24, 0.96);  // hover surface
+  --ink-500: rgba(36, 36, 36, 0.96);  // rule-heavy contexts
 
   // ── Color: text ──────────────────────────────────────────────────────────
-  --bone-50: #f5efe4;   // primary text (warm off-white)
-  --bone-100: #e8e1d3;
-  --bone-200: #c7bfb0;  // secondary text
-  --bone-300: #a79f8d;
-  --bone-400: #8a8270;  // tertiary / captions
-  --bone-500: #6b6454;
+  --bone-50: #e8e3dc;   // softened primary text
+  --bone-100: #d8d2ca;
+  --bone-200: #b9b2aa;  // softened secondary text
+  --bone-300: #9b958e;
+  --bone-400: #817b75;  // tertiary / captions
+  --bone-500: #68635e;
 
   // ── Color: accent ────────────────────────────────────────────────────────
-  --ember: #ff5a1f;     // cinema-marquee spot accent
-  --ember-600: #e84817;
-  --ember-700: #b93c12;
-  --ember-glow: rgba(255, 90, 31, 0.35);
+  --ember: #d7cec4;     // softened neutral accent
+  --ember-600: #c5bbb1;
+  --ember-700: #b4a99f;
+  --ember-glow: rgba(215, 206, 196, 0.22);
 
-  --gold-leaf: #c9a76a; // rating / awards only
-  --gold-leaf-soft: rgba(201, 167, 106, 0.18);
+  --gold-leaf: #d7cec4; // softened neutral accent for active states
+  --gold-leaf-soft: rgba(215, 206, 196, 0.12);
 
   // ── Color: semantic ──────────────────────────────────────────────────────
-  --rule: rgba(245, 239, 228, 0.08);
-  --rule-strong: rgba(245, 239, 228, 0.16);
-  --surface-tint: rgba(245, 239, 228, 0.04);
-  --surface-tint-hover: rgba(245, 239, 228, 0.08);
-  --overlay-scrim: rgba(11, 10, 8, 0.72);
+  --rule: rgba(215, 206, 196, 0.09);
+  --rule-strong: rgba(215, 206, 196, 0.16);
+  --surface-tint: rgba(215, 206, 196, 0.035);
+  --surface-tint-hover: rgba(215, 206, 196, 0.07);
+  --overlay-scrim: rgba(6, 5, 4, 0.62);
+
+  // ── Color: glass ─────────────────────────────────────────────────────────
+  // Real-glass recipe: translucent panes + hairline + top sheen + blur.
+  --glass: rgba(10, 10, 10, 0.94);
+  --glass-strong: rgba(4, 4, 4, 0.98);
+  --glass-raised: rgba(20, 20, 20, 0.96);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-strong: rgba(255, 255, 255, 0.15);
+  --glass-sheen: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.015) 40%,
+    rgba(255, 255, 255, 0) 62%
+  );
+  --glass-sheen-strong: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(255, 255, 255, 0) 65%
+  );
+  --blur-soft: blur(6px) saturate(120%);
+  --blur-pane: blur(10px) saturate(125%);
+  --blur-strong: blur(14px) saturate(130%);
+  --shadow-pane:
+    0 20px 60px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
   --success: #6ba368;
   --warn: #d8a24b;
   --danger: #c94e3d;
 
   // Ambient bloom — overridden per-page via useAmbientColor
-  --ambient: 255, 90, 31;
+  --ambient: 255, 255, 255;
 
   // ── Typography ───────────────────────────────────────────────────────────
   --font-display: 'Fraunces', 'Times New Roman', Georgia, serif;
@@ -88,11 +116,11 @@
   --s-10: 7.5rem;   // 120
 
   // ── Layout ───────────────────────────────────────────────────────────────
-  --container-max: 1440px;
-  --container-gutter: 2rem;
+  --container-max: 1360px;
+  --container-gutter: clamp(1.25rem, 3vw, 2.5rem);
   --site-header-height: 68px;
-  --shelf-gap: var(--s-10);   // between editorial shelves
-  --shelf-gap-mobile: var(--s-8);
+  --shelf-gap: clamp(3rem, 6vw, 5.5rem);   // between editorial shelves
+  --shelf-gap-mobile: var(--s-7);
 
   // ── Radius ───────────────────────────────────────────────────────────────
   --r-sm: 4px;
@@ -202,4 +230,3 @@
     --container-max: 7200px;
   }
 }
-

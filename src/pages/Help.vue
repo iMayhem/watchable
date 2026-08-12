@@ -22,7 +22,7 @@
                         <div class="help-card__body">
                             <p>Moovie indexes media streams from multiple open providers. If a video is buffering or fails to load, you can easily switch servers:</p>
                             <ul>
-                                <li><strong>Server List:</strong> When watching a title, use the server selector below the video player (servers are named after Indian sweets, e.g., <em>Rasmalai</em>, <em>Gulab Jamun</em>).</li>
+                                <li><strong>Server:</strong> Moovie is the single playback server. Scraper sources and audio tracks are managed inside the player.</li>
                                 <li><strong>Subtitles & Audio:</strong> Click on the settings cog icon inside the video frame to choose audio languages and subtitles. For anime, dub and sub variants are sorted as separate providers in the server list.</li>
                             </ul>
                         </div>

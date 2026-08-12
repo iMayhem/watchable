@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '../lib/supabase';
+import { getSyncClient } from '../lib/syncClient';
 
 export interface DiscussFeedComment {
     id: string;
@@ -23,8 +23,8 @@ export function prefetchDiscussRoute() {
 }
 
 async function loadLoungeFeed(): Promise<DiscussFeedComment[]> {
-    const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
+    const sync = await getSyncClient();
+    const { data, error } = await sync
         .from('movora_chat')
         .select('id, username, content, created_at')
         .order('created_at', { ascending: true })
@@ -35,8 +35,8 @@ async function loadLoungeFeed(): Promise<DiscussFeedComment[]> {
 }
 
 async function loadReviewsFeed(): Promise<DiscussFeedComment[]> {
-    const supabase = await getSupabaseClient();
-    const { data, error } = await supabase
+    const sync = await getSyncClient();
+    const { data, error } = await sync
         .from('movora_comments')
         .select('id, media_id, media_type, username, content, created_at, is_hidden')
         .in('media_type', ['movie', 'tv', 'anime'])
@@ -67,10 +67,10 @@ function ensureReviewsFeedPrefetch() {
     return reviewsFeedPrefetch;
 }
 
-/** Warm route chunk and Supabase client without querying DB on hover. */
+/** Warm route chunk and Sync client without querying DB on hover. */
 export function prefetchDiscussFeed() {
     prefetchDiscussRoute();
-    void import('../lib/supabase');
+    void import('../lib/syncClient');
 }
 
 export function consumeLoungeFeed() {

@@ -53,6 +53,8 @@
 
             <div class="site-header__actions">
 
+                <NotificationBell />
+
                 <button
                     type="button"
                     class="site-header__search"
@@ -67,22 +69,6 @@
                     <span class="site-header__search-label">Search</span>
                     <kbd class="site-header__search-kbd">{{ modKey }}K</kbd>
                 </button>
-
-                <!-- Discord Link -->
-                <a
-                    href="https://discord.gg/6uAWf5Jbm"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="site-header__discord-action-btn"
-                    aria-label="Join Discord"
-                    title="Join Discord"
-                >
-                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.094 13.094 0 0 1-1.873-.894.077.077 0 0 1-.008-.128c.126-.093.252-.19.372-.287a.075.075 0 0 1 .077-.011c3.92 1.793 8.18 1.793 12.061 0a.073.073 0 0 1 .078.009c.12.099.246.195.373.289a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.156-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.955 2.418-2.156 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.156-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.156 2.418z"/>
-                    </svg>
-                </a>
-
-                <NotificationBell />
 
                 <router-link
                     to="/party"
@@ -541,7 +527,7 @@ export default defineComponent({
     position: sticky;
     top: 0;
     z-index: var(--z-header);
-    background: transparent;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.98), rgba(0, 0, 0, 0.78));
     transition:
         background-color var(--dur-base) var(--ease-out),
         border-color var(--dur-base) var(--ease-out),
@@ -553,8 +539,8 @@ export default defineComponent({
         inset: 0;
         background: linear-gradient(
             180deg,
-            rgba(11, 10, 8, 0.9) 0%,
-            rgba(11, 10, 8, 0) 100%
+            rgba(0, 0, 0, 0.92) 0%,
+            rgba(0, 0, 0, 0) 100%
         );
         pointer-events: none;
         opacity: 1;
@@ -562,9 +548,11 @@ export default defineComponent({
     }
 
     &.is-scrolled {
-        background: rgba(11, 10, 8, 0.72);
-        backdrop-filter: blur(14px) saturate(1.15);
-        border-bottom: 1px solid var(--rule);
+        background: rgba(0, 0, 0, 0.97);
+        backdrop-filter: var(--blur-strong);
+        -webkit-backdrop-filter: var(--blur-strong);
+        border-bottom: 1px solid var(--glass-border-strong);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 
         &::before { opacity: 0; }
     }
@@ -585,36 +573,6 @@ export default defineComponent({
         align-items: center;
         gap: var(--s-3);
         color: var(--bone-50);
-    }
-
-    &__discord-action-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        padding: 0;
-        background: var(--surface-tint);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-pill);
-        color: var(--bone-300);
-        cursor: pointer;
-        transition:
-            background-color var(--dur-fast),
-            border-color var(--dur-fast),
-            color var(--dur-fast);
-
-        svg {
-            width: 18px;
-            height: 18px;
-            flex: 0 0 auto;
-        }
-
-        &:hover {
-            color: #5865F2;
-            background: rgba(88, 101, 242, 0.08);
-            border-color: rgba(88, 101, 242, 0.4);
-        }
     }
 
     &__fight-chat-control {
@@ -652,7 +610,8 @@ export default defineComponent({
         letter-spacing: -0.07em;
         line-height: 1;
         color: var(--bone-50);
-        background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
+        // The header wordmark is the single remaining orange brand mark.
+        background: linear-gradient(135deg, #ff5a1f 0%, #ff8a00 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-transform: lowercase;
@@ -692,7 +651,7 @@ export default defineComponent({
     // ── Nav links ────────────────────────────────────────────────────────
     &__nav {
         display: flex;
-        gap: 0;
+        gap: 0.25rem;
 
         @media (max-width: 860px) {
             display: none;
@@ -774,6 +733,20 @@ export default defineComponent({
         }
     }
 
+    &__others-btn {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        color: var(--bone-300) !important;
+
+        &:hover,
+        &:focus-visible,
+        &.is-active {
+            background: transparent !important;
+            color: var(--bone-50) !important;
+        }
+    }
+
     &__new-badge {
         background: var(--ember);
         color: var(--ink-900) !important;
@@ -787,28 +760,31 @@ export default defineComponent({
         display: inline-block;
         line-height: 1;
         transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(255, 90, 31, 0.4);
+        box-shadow: 0 2px 6px rgba(255, 255, 255, 0.4);
     }
 
     // ── Actions ──────────────────────────────────────────────────────────
     &__actions {
         display: flex;
         align-items: center;
-        gap: var(--s-1);
+        gap: 0.15rem;
     }
 
     &__search {
         display: inline-flex;
         align-items: center;
         gap: var(--s-2);
+        min-width: 40px;
+        min-height: 40px;
         padding: 0.5rem 0.75rem 0.5rem 0.65rem;
-        background: var(--surface-tint);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-pill);
+        background: transparent;
+        border: 0;
+        border-radius: 0;
         color: var(--bone-300);
         font-family: var(--font-ui);
         font-size: var(--fs-sm);
-        min-width: 220px;
+        font-weight: 500;
+        min-width: 0;
         cursor: pointer;
         transition:
             background-color var(--dur-fast),
@@ -822,8 +798,6 @@ export default defineComponent({
         }
 
         &:hover {
-            background: var(--surface-tint-hover);
-            border-color: var(--rule-strong);
             color: var(--bone-50);
         }
 
@@ -849,9 +823,9 @@ export default defineComponent({
         font-family: var(--font-mono);
         font-size: 0.6875rem;
         padding: 0.1rem 0.4rem;
-        background: var(--ink-700);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-sm);
+        background: transparent;
+        border: 0;
+        border-radius: 0;
         color: var(--bone-300);
 
         @media (max-width: 1024px) {
@@ -865,10 +839,11 @@ export default defineComponent({
         justify-content: center;
         width: 40px;
         height: 40px;
-        border-radius: var(--r-pill);
+        padding: 0;
+        border-radius: 0;
         color: var(--bone-200);
-        background: var(--surface-tint);
-        border: 1px solid var(--rule);
+        background: transparent;
+        border: 0;
         transition:
             color var(--dur-fast),
             background-color var(--dur-fast),
@@ -878,8 +853,6 @@ export default defineComponent({
 
         &:hover {
             color: var(--bone-50);
-            background: var(--surface-tint-hover);
-            border-color: var(--rule-strong);
         }
     }
 
@@ -955,30 +928,26 @@ export default defineComponent({
     &__party-btn {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 14px;
-        background: rgba(255, 90, 31, 0.08);
-        border: 1px solid rgba(255, 90, 31, 0.25);
-        border-radius: 999px;
-        color: var(--ember);
+        gap: var(--s-2);
+        min-height: 40px;
+        padding: 0.5rem 0.75rem;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        color: var(--bone-300);
         font-family: var(--font-ui);
-        font-size: var(--fs-xs);
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: var(--ls-wide);
-        transition: background-color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        letter-spacing: var(--ls-snug);
+        transition: color var(--dur-fast);
         text-decoration: none;
 
         &:hover {
-            background: rgba(255, 90, 31, 0.16);
-            border-color: rgba(255, 90, 31, 0.45);
-            transform: translateY(-1px);
+            color: var(--bone-50);
         }
 
         &.is-active {
-            background: rgba(255, 90, 31, 0.2);
-            border-color: rgba(255, 90, 31, 0.55);
-            color: #fff;
+            color: var(--bone-50);
         }
     }
 
@@ -1013,20 +982,20 @@ export default defineComponent({
     }
 
     &__login-btn {
-        background: var(--surface-tint);
-        color: var(--bone-50);
-        font-weight: 700;
+        background: transparent;
+        color: var(--bone-300);
+        font-weight: 500;
         font-family: var(--font-ui);
-        font-size: var(--fs-xs);
-        padding: 6px var(--s-4);
-        border: 1px solid var(--rule);
-        border-radius: 999px;
+        font-size: var(--fs-sm);
+        min-height: 40px;
+        padding: 0.5rem 0.75rem;
+        border: 0;
+        border-radius: 0;
         cursor: pointer;
         transition: transform var(--dur-fast), border-color var(--dur-fast);
 
         &:hover {
-            transform: translateY(-1px);
-            border-color: var(--bone-400);
+            color: var(--bone-50);
         }
     }
 
@@ -1064,17 +1033,35 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         gap: var(--s-2);
-        padding: 5px var(--s-2) 5px var(--s-3);
-        background: var(--surface-tint);
-        border: 1px solid var(--rule);
-        border-radius: var(--r-sm);
+        min-height: 40px;
+        padding: 0.5rem 0.75rem;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
         cursor: pointer;
         transition: all var(--dur-fast) var(--ease-out);
 
         &:hover {
-            background: var(--surface-tint-hover);
-            border-color: var(--rule-strong);
-            transform: translateY(-1px);
+            transform: none;
+        }
+    }
+
+    // Header actions share the same quiet text-link treatment as catalogue
+    // navigation; they are not pill buttons.
+    &__search,
+    &__party-btn,
+    &__icon-btn,
+    &__login-btn,
+    &__user-badge {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        color: var(--bone-300) !important;
+
+        &:hover,
+        &:focus-visible,
+        &.is-active {
+            color: var(--bone-50) !important;
         }
     }
 
@@ -1092,7 +1079,7 @@ export default defineComponent({
         transition: color var(--dur-fast);
 
         .site-header__user-badge:hover & {
-            color: var(--ember);
+            color: var(--bone-50);
         }
     }
 
@@ -1115,7 +1102,7 @@ export default defineComponent({
 
         &:hover {
             color: var(--ember);
-            background: rgba(255, 90, 31, 0.08);
+            background: rgba(255, 255, 255, 0.08);
         }
     }
 
@@ -1278,9 +1265,9 @@ export default defineComponent({
     }
     
     &.is-active {
-        background: rgba(255, 90, 31, 0.16);
-        border: 1px solid rgba(255, 90, 31, 0.35);
-        box-shadow: 0 0 10px rgba(255, 90, 31, 0.25);
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
         transform: scale(1.05);
     }
 }
@@ -1295,7 +1282,7 @@ export default defineComponent({
     top: calc(100% + var(--s-2));
     right: 0;
     width: 240px;
-    background: rgba(26, 24, 21, 0.95);
+    background: rgba(8, 8, 8, 0.97);
     border: 1px solid var(--rule);
     border-radius: var(--r-md);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -1368,7 +1355,7 @@ export default defineComponent({
         }
 
         &.is-active {
-            background: rgba(255, 90, 31, 0.08);
+            background: rgba(255, 255, 255, 0.08);
             color: var(--ember);
         }
     }
@@ -1394,7 +1381,7 @@ export default defineComponent({
     top: calc(100% + var(--s-2));
     right: 0;
     width: 200px;
-    background: rgba(26, 24, 21, 0.95);
+    background: rgba(8, 8, 8, 0.97);
     border: 1px solid var(--rule);
     border-radius: var(--r-md);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -1458,7 +1445,7 @@ export default defineComponent({
     top: calc(100% + var(--s-2));
     left: 0;
     min-width: 180px;
-    background: rgba(26, 24, 21, 0.95);
+    background: rgba(8, 8, 8, 0.97);
     border: 1px solid var(--rule);
     border-radius: var(--r-md);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -1483,7 +1470,7 @@ export default defineComponent({
         }
 
         &.is-active {
-            background: rgba(255, 90, 31, 0.08);
+            background: rgba(255, 255, 255, 0.08);
             color: var(--ember);
         }
     }

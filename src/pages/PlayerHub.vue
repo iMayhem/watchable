@@ -3,11 +3,6 @@
         <header class="watch-stage__chrome">
             <div class="watch-stage__chrome-inner">
                 <div class="watch-stage__crumb">
-                    <button type="button" class="watch-stage__back" aria-label="Back" @click="goBack">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 12H5m7-7l-7 7 7 7" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
                     <p class="eyebrow">Hub Player</p>
                 </div>
 
@@ -71,7 +66,7 @@
                         <div v-if="!activeStreamUrl && !loading && !playbackError && !searched" class="player-frame__overlay">
                             <p class="eyebrow">Search a title</p>
                             <h3>Hub Player</h3>
-                            <p class="meta">providers.peestream.in</p>
+                            <p class="meta">hahaevilcraft.site</p>
                         </div>
 
                         <div v-if="!activeStreamUrl && !loading && searched && !playbackError && results.length === 0" class="player-frame__overlay">
@@ -144,29 +139,35 @@
 
 <script lang="ts">
 import { defineComponent, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import Plyr from 'plyr'
 import 'plyr/dist/plyr.css'
 import { useHubScraper, type HubStream } from '../composables/useHubScraper'
-import { getSupabaseClient } from '../lib/supabase'
+import { usePlaybackRoute } from '../composables/usePlaybackRoute'
+import { getSyncClient } from '../lib/syncClient'
 
 export default defineComponent({
     name: 'PlayerHub',
     setup() {
-        const router = useRouter()
         const { loading, error, results, totalStreams, search } = useHubScraper()
 
-        let proxyEnabled = true
+        let adminProxyEnabled = true
         let proxyFetched = false
+        const { routeProxyEnabled } = usePlaybackRoute()
 
         async function ensureProxySetting() {
             if (proxyFetched) return
             proxyFetched = true
             try {
-                const client = await getSupabaseClient()
+                const client = await getSyncClient()
                 const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
-                if (data) proxyEnabled = data.value === 'true'
+                if (data) adminProxyEnabled = data.value === 'true'
             } catch { /* keep default */ }
+        }
+
+        function shouldUseProxy(stream: HubStream): boolean {
+            if (stream.proxyMode === 'on') return true
+            if (stream.proxyMode === 'off') return false
+            return routeProxyEnabled(adminProxyEnabled)
         }
 
         function streamUrl(s: HubStream): string {
@@ -174,11 +175,11 @@ export default defineComponent({
             // fetch — never wrap them through the hub again (double hops + 522s).
             const alreadyProxied = Boolean(
                 s.url?.startsWith(`${HUB_PROXY}?`) ||
-                s.url?.includes('cf-header-proxy.moovie.fun') ||
-                s.url?.startsWith('https://providers.peestream.in/proxy') ||
+                s.url?.includes('cf-header-hahaevilcraft.site') ||
+                s.url?.startsWith('https://hahaevilcraft.site/proxy') ||
                 /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
             )
-            if (!alreadyProxied && proxyEnabled && s.proxyUrl) return s.proxyUrl
+            if (!alreadyProxied && shouldUseProxy(s) && s.proxyUrl) return s.proxyUrl
             if (!alreadyProxied && s.headers && Object.keys(s.headers).length) {
                 const u = btoa(s.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
                 const h = btoa(JSON.stringify(s.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -281,7 +282,7 @@ export default defineComponent({
             try {
                 await mountPlayer(playUrl)
             } catch (e) {
-                if (playUrl === stream.url && stream.proxyUrl && proxyEnabled) {
+                if (playUrl === stream.url && stream.proxyUrl && shouldUseProxy(stream)) {
                     console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', stream.proxyUrl)
                     activeStreamUrl.value = stream.proxyUrl
                     await mountPlayer(stream.proxyUrl)
@@ -322,10 +323,6 @@ export default defineComponent({
             }
         }
 
-        function goBack() {
-            router.push('/')
-        }
-
         onUnmounted(() => {
             destroyPlayer()
         })
@@ -335,7 +332,7 @@ export default defineComponent({
             loading, results, totalStreams, searched,
             timing, activeStreamUrl, activeTitle, playbackError,
             artContainer, bloomRef,
-            doSearch, playStream, copyUrl, streamUrl, clearResults, goBack,
+            doSearch, playStream, copyUrl, streamUrl, clearResults,
         }
     },
 })
@@ -454,8 +451,8 @@ export default defineComponent({
     gap: 0.4rem;
     padding: 0.35rem 0.75rem;
     border-radius: var(--r-pill);
-    background: rgba(255, 90, 31, 0.1);
-    border: 1px solid rgba(255, 90, 31, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     font-size: var(--fs-xs);
     font-family: var(--font-mono);
     &__time { color: var(--ember); }
@@ -617,7 +614,7 @@ export default defineComponent({
     &__bloom {
         position: absolute;
         inset: -10% -5%;
-        background: radial-gradient(ellipse at center, rgba(255,90,31,0.08) 0%, transparent 70%);
+        background: radial-gradient(ellipse at center, rgba(255, 255, 255,0.08) 0%, transparent 70%);
         filter: blur(60px);
         opacity: 0.5;
         z-index: -1;
@@ -843,7 +840,7 @@ export default defineComponent({
         font-size: 10px;
         padding: 1px 6px;
         border-radius: 4px;
-        background: rgba(255, 90, 31, 0.1);
+        background: rgba(255, 255, 255, 0.1);
         color: var(--ember);
         white-space: nowrap;
         flex-shrink: 0;

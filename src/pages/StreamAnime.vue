@@ -39,17 +39,8 @@
 
         <!-- TOP overlay: gradient + back + title + episode nav + server -->
         <div v-if="!isEmbed" class="watch-stage__top-overlay">
-            <div class="watch-stage__top-gradient" aria-hidden="true" />
             <div class="watch-stage__top-bar">
                 <div class="watch-stage__top-left">
-                    <button
-                        type="button"
-                        class="watch-stage__back"
-                        aria-label="Back to anime"
-                        @click="goBack"
-                    >
-                        <ArrowLeft />
-                    </button>
                     <div class="watch-stage__breadcrumb">
                         <span class="watch-stage__breadcrumb-sep">·</span>
                         <h1 v-if="tmdbShow" class="watch-stage__title">{{ animeTitle }}</h1>
@@ -276,7 +267,6 @@ import StreamFrame from '../components/player/StreamFrame.vue';
 import ServerAccordion from '../components/player/ServerAccordion.vue';
 
 import UpNextDrawer from '../components/player/UpNextDrawer.vue';
-import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import { useAppPaths } from '../composables/useAppPaths';
 import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../composables/useWatchlist';
 import CommentsSection from '../components/player/CommentsSection.vue';
@@ -310,7 +300,6 @@ import { buildStreamPartyHref } from '../utils/partyRoom';
 export default defineComponent({
     name: 'StreamAnime',
     components: {
-        ArrowLeft,
         ServerAccordion,
         StreamFrame,
         UpNextDrawer,
@@ -1356,6 +1345,8 @@ export default defineComponent({
         left: 0;
         right: 0;
         z-index: 50;
+        background: transparent !important;
+        background-color: transparent !important;
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.15s ease;
@@ -1365,12 +1356,15 @@ export default defineComponent({
         position: absolute;
         inset: 0;
         height: 180px;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+        background: transparent !important;
+        opacity: 0 !important;
         pointer-events: none;
     }
 
     &__top-bar {
         position: relative;
+        background: transparent !important;
+        background-color: transparent !important;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1405,14 +1399,19 @@ export default defineComponent({
         height: 40px;
         flex-shrink: 0;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(8px);
+        background: transparent !important;
+        background-color: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
         cursor: pointer;
         color: #fff;
         transition: background 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            background: rgba(255, 90, 31, 0.85);
+            background: transparent !important;
+            background-color: transparent !important;
             transform: translateX(-2px);
         }
 
@@ -1539,7 +1538,7 @@ export default defineComponent({
         &:hover { color: rgba(255, 255, 255, 0.8); }
 
         &.is-active {
-            background: rgba(255, 90, 31, 0.85);
+            background: rgba(255, 255, 255, 0.85);
             color: #fff;
         }
     }
@@ -1635,7 +1634,7 @@ export default defineComponent({
         outline: none;
 
         &:hover, &:focus {
-            border-color: rgba(255, 90, 31, 0.5);
+            border-color: rgba(255, 255, 255, 0.5);
         }
     }
 
@@ -1665,7 +1664,7 @@ export default defineComponent({
         &:hover { color: rgba(255, 255, 255, 0.8); }
 
         &.is-active {
-            background: rgba(255, 90, 31, 0.85);
+            background: rgba(255, 255, 255, 0.85);
             color: #fff;
         }
     }
@@ -1686,7 +1685,7 @@ export default defineComponent({
         transition: background 0.15s ease, color 0.15s ease;
 
         &:hover {
-            background: rgba(255, 90, 31, 0.85);
+            background: rgba(255, 255, 255, 0.85);
             color: #fff;
         }
 
@@ -1706,8 +1705,8 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: rgba(255, 90, 31, 0.12);
-        border: 1px solid rgba(255, 90, 31, 0.3);
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         backdrop-filter: blur(8px);
         border-radius: 999px;
         color: #ff7842;
@@ -1720,8 +1719,8 @@ export default defineComponent({
         transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            background: rgba(255, 90, 31, 0.22);
-            border-color: rgba(255, 90, 31, 0.5);
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.5);
             transform: translateY(-1px);
         }
 
@@ -2195,8 +2194,8 @@ export default defineComponent({
     gap: var(--s-3);
     margin-top: var(--s-4);
     padding: var(--s-3) var(--s-4);
-    background: rgba(255, 90, 31, 0.05);
-    border: 1px solid rgba(255, 90, 31, 0.25);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     border-radius: var(--r-md);
     font-size: var(--fs-sm);
     color: var(--bone-200);
@@ -2206,8 +2205,8 @@ export default defineComponent({
         align-items: center;
         gap: var(--s-2);
         padding: 0.2rem 0.5rem;
-        background: rgba(255, 90, 31, 0.12);
-        border: 1px solid rgba(255, 90, 31, 0.3);
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: var(--r-pill);
         color: var(--ember);
         font-family: var(--font-mono);
@@ -2222,7 +2221,7 @@ export default defineComponent({
             height: 6px;
             border-radius: 50%;
             background: var(--ember);
-            box-shadow: 0 0 8px rgba(255, 90, 31, 0.4);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
             animation: upcomingPulse 2s infinite;
         }
     }

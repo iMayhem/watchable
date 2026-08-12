@@ -1150,7 +1150,7 @@ function decadeForCredit(c: { release_date?: string; first_air_date?: string }):
 
     &__decade-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: var(--s-5) var(--s-4);
 
         @media (max-width: 720px) {
@@ -1261,7 +1261,7 @@ function decadeForCredit(c: { release_date?: string; first_air_date?: string }):
         transform: translateY(-4px);
         box-shadow:
             var(--shadow-lg),
-            0 0 0 1px rgba(255, 90, 31, 0.22);
+            0 0 0 1px rgba(255, 255, 255, 0.22);
 
         img { transform: scale(1.04); }
     }

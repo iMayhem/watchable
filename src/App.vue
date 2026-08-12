@@ -37,7 +37,7 @@
 import { computed, onMounted, onBeforeUnmount, watch, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import { getSettings, loadGlobalSettings } from './composables/useSettings';
-import { getSupabaseClient } from './lib/supabase';
+import { getSyncClient } from './lib/syncClient';
 import { setVpsProxyBaseUrl } from './utils/useWebImage';
 import { triggerAd } from './components/ads/triggerAd';
 import BannerBar from './components/navigation/BannerBar.vue';
@@ -120,8 +120,8 @@ const initIdle = async () => {
 onMounted(async () => {
     loadGlobalSettings();
     try {
-        const supabase = await getSupabaseClient();
-        const { data } = await supabase
+        const sync = await getSyncClient();
+        const { data } = await sync
             .from('app_settings')
             .select('value')
             .eq('key', 'vps_proxy_base_url')
@@ -179,8 +179,8 @@ onBeforeUnmount(() => {
     left: 0.5rem;
     z-index: 10000;
     padding: 0.6rem 1rem;
-    background: var(--ember);
-    color: var(--ink-900);
+    background: #000;
+    color: var(--ember);
     font-family: var(--font-ui);
     font-size: 0.875rem;
     font-weight: 600;

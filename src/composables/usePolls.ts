@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { getSupabaseClient } from '../lib/supabase'
+import { getSyncClient } from '../lib/syncClient'
 
 export interface Poll {
     id: number
@@ -35,8 +35,8 @@ export function usePolls() {
     async function fetchActivePoll() {
         loading.value = true
         try {
-            const supabase = await getSupabaseClient()
-            const { data } = await supabase
+            const sync = await getSyncClient()
+            const { data } = await sync
                 .from('polls')
                 .select('id, question, options, is_active, created_at')
                 .eq('is_active', true)
@@ -64,13 +64,13 @@ export function usePolls() {
 
     async function fetchPollResults(pollId: number) {
         try {
-            const supabase = await getSupabaseClient()
+            const sync = await getSyncClient()
             const poll = activePoll.value
             if (!poll) return
 
             const counts = await Promise.all(
                 poll.options.map(async (_, idx) => {
-                    const { count } = await supabase
+                    const { count } = await sync
                         .from('poll_votes')
                         .select('*', { count: 'exact', head: true })
                         .eq('poll_id', pollId)
@@ -94,8 +94,8 @@ export function usePolls() {
 
     async function fetchAllPolls() {
         try {
-            const supabase = await getSupabaseClient()
-            const { data } = await supabase
+            const sync = await getSyncClient()
+            const { data } = await sync
                 .from('polls')
                 .select('id, question, options, is_active, created_at')
                 .order('created_at', { ascending: false })
@@ -109,7 +109,7 @@ export function usePolls() {
 
                     const counts = await Promise.all(
                         poll.options.map(async (_, idx) => {
-                            const { count } = await supabase
+                            const { count } = await sync
                                 .from('poll_votes')
                                 .select('*', { count: 'exact', head: true })
                                 .eq('poll_id', poll.id)
@@ -144,8 +144,8 @@ export function usePolls() {
         if (localStorage.getItem(storageKey)) return false
         voting.value = true
         try {
-            const supabase = await getSupabaseClient()
-            await supabase.from('poll_votes').insert({
+            const sync = await getSyncClient()
+            await sync.from('poll_votes').insert({
                 poll_id: pollId,
                 selected_option: selectedOption,
                 voted_at: new Date().toISOString()

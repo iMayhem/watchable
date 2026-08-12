@@ -69,7 +69,7 @@ export default defineComponent({
         peekRoom: { type: Boolean, default: true },
         /** Columns for each breakpoint (min-width). */
         columns: {
-            type: Object as PropType<{ base?: number; sm?: number; md?: number; lg?: number; xl?: number }>,
+            type: Object as PropType<{ base?: number; sm?: number; md?: number; lg?: number; xl?: number; xxl?: number; huge?: number }>,
             default: () => ({})
         }
     },
@@ -79,13 +79,13 @@ export default defineComponent({
         const atEnd = ref(false);
         const showArrows = ref(false);
 
-        const defaultColumns: Record<Density, { base: number; sm: number; md: number; lg: number; xl: number }> = {
-            poster:     { base: 2.4, sm: 3.4, md: 4.4, lg: 5.4, xl: 6.4 },
-            keyart:     { base: 1.2, sm: 1.8, md: 2.4, lg: 3.2, xl: 3.6 },
-            episode:    { base: 1.2, sm: 1.8, md: 2.4, lg: 3.2, xl: 3.6 },
-            person:     { base: 3.4, sm: 4.4, md: 5.4, lg: 6.4, xl: 7.4 },
-            collection: { base: 1.4, sm: 2.2, md: 2.8, lg: 3.4, xl: 4 },
-            free:       { base: 1.2, sm: 2, md: 3, lg: 4, xl: 5 }
+        const defaultColumns: Record<Density, { base: number; sm: number; md: number; lg: number; xl: number; xxl: number; huge: number }> = {
+            poster:     { base: 2.8, sm: 3.8, md: 4.8, lg: 6.8, xl: 7.8, xxl: 9.8, huge: 11.8 },
+            keyart:     { base: 1.2, sm: 1.8, md: 2.4, lg: 3.2, xl: 3.6, xxl: 4.4, huge: 5.2 },
+            episode:    { base: 1.2, sm: 1.8, md: 2.4, lg: 3.2, xl: 3.6, xxl: 4.4, huge: 5.2 },
+            person:     { base: 3.4, sm: 4.4, md: 5.4, lg: 6.4, xl: 7.4, xxl: 9.4, huge: 11.4 },
+            collection: { base: 1.4, sm: 2.2, md: 2.8, lg: 3.4, xl: 4, xxl: 5, huge: 6 },
+            free:       { base: 1.2, sm: 2, md: 3, lg: 4, xl: 5, xxl: 6, huge: 7 }
         };
 
         const cols = computed(() => ({
@@ -93,13 +93,15 @@ export default defineComponent({
             ...props.columns
         }));
 
-        const trackStyle = computed(() => ({
-            '--rail-cols-base': String(cols.value.base),
-            '--rail-cols-sm': String(cols.value.sm),
-            '--rail-cols-md': String(cols.value.md),
-            '--rail-cols-lg': String(cols.value.lg),
-            '--rail-cols-xl': String(cols.value.xl)
-        } as Record<string, string>));
+        const trackStyle = computed(() => {
+            const style: Record<string, string> = {};
+            const keys: (keyof typeof cols.value)[] = ['base', 'sm', 'md', 'lg', 'xl', 'xxl', 'huge'];
+            for (const key of keys) {
+                const value = cols.value[key];
+                if (value !== undefined) style[`--rail-cols-${key}`] = String(value);
+            }
+            return style;
+        });
 
         const onScroll = () => {
             const el = track.value;
@@ -168,7 +170,7 @@ export default defineComponent({
         align-items: flex-end;
         justify-content: space-between;
         gap: var(--s-5);
-        margin-bottom: var(--s-5);
+        margin-bottom: var(--s-4);
     }
 
     &__heading {
@@ -185,7 +187,7 @@ export default defineComponent({
     &__title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(var(--fs-2xl), 4vw, var(--fs-3xl));
+        font-size: clamp(1.65rem, 3vw, 2.45rem);
         line-height: 1.0;
         letter-spacing: -0.02em;
         color: var(--bone-50);
@@ -302,7 +304,7 @@ export default defineComponent({
     }
 
     &__track {
-        --rail-gap: var(--s-4);
+        --rail-gap: clamp(0.65rem, 1.2vw, 1rem);
         --rail-cols: var(--rail-cols-base, 2.4);
 
         display: grid;
@@ -339,11 +341,17 @@ export default defineComponent({
         @media (min-width: 1600px) {
             --rail-cols: var(--rail-cols-xl, var(--rail-cols-lg, 6.4));
         }
+        @media (min-width: 1920px) {
+            --rail-cols: var(--rail-cols-xxl, var(--rail-cols-xl, 7.8));
+        }
+        @media (min-width: 2560px) {
+            --rail-cols: var(--rail-cols-huge, var(--rail-cols-xxl, var(--rail-cols-xl, 7.8)));
+        }
     }
 
     // Give hover-peeking cards a little vertical breathing room
     &.has-peek-room &__track {
-        padding-block: var(--s-3) var(--s-4);
+        padding-block: var(--s-2) var(--s-3);
     }
 }
 

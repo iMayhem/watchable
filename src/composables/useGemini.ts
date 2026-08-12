@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import useAxios from './useAxios'
-import { getSupabaseClient } from '../lib/supabase'
+import { getSyncClient } from '../lib/syncClient'
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const MODEL = 'llama-3.3-70b-versatile'
@@ -14,8 +14,8 @@ let keysLoaded = false;
 export async function loadGroqKeys(): Promise<string[]> {
     if (keysLoaded) return cachedKeys;
     try {
-        const supabase = await getSupabaseClient();
-        const { data } = await supabase
+        const sync = await getSyncClient();
+        const { data } = await sync
             .from('app_settings')
             .select('value')
             .eq('key', 'groq_keys')
@@ -29,7 +29,7 @@ export async function loadGroqKeys(): Promise<string[]> {
             }
         }
     } catch (err) {
-        console.warn('[AI] Error fetching keys from Supabase:', err);
+        console.warn('[AI] Error fetching keys from Sync:', err);
     }
     const fallbackKey = import.meta.env.VITE_GROQ_API_KEY || '';
     return [fallbackKey];
@@ -42,8 +42,8 @@ export async function updateKeyUsage(
     errorMessage = ''
 ) {
     try {
-        const supabase = await getSupabaseClient();
-        const { data: existing } = await supabase
+        const sync = await getSyncClient();
+        const { data: existing } = await sync
             .from('app_settings')
             .select('value')
             .eq('key', 'groq_keys_status')
@@ -90,7 +90,7 @@ export async function updateKeyUsage(
             if (resVal !== null) stat.reset_time_seconds = resVal;
         }
 
-        await supabase
+        await sync
             .from('app_settings')
             .upsert({
                 key: 'groq_keys_status',
@@ -98,7 +98,7 @@ export async function updateKeyUsage(
                 updated_at: new Date()
             }, { onConflict: 'key' });
     } catch (err) {
-        console.error('[AI] Error updating key usage in Supabase:', err);
+        console.error('[AI] Error updating key usage in Sync:', err);
     }
 }
 
@@ -205,15 +205,15 @@ function extractJson(text: string): string {
     return text.slice(startIdx, endIdx + 1)
 }
 
-async function logSearchToSupabase(query: string) {
+async function logSearchToSync(query: string) {
     try {
-        const supabase = await getSupabaseClient();
-        await supabase.from('movora_ai_searches').insert([{
+        const sync = await getSyncClient();
+        await sync.from('movora_ai_searches').insert([{
             query: query.trim(),
             created_at: new Date().toISOString()
         }]);
     } catch (e) {
-        console.error("Failed to log AI search query to Supabase:", e);
+        console.error("Failed to log AI search query to Sync:", e);
     }
 }
 
@@ -222,7 +222,7 @@ export function useGemini() {
         loading.value = true
         error.value = ''
         if (moodOrKind && moodOrKind.trim()) {
-            void logSearchToSupabase(moodOrKind);
+            void logSearchToSync(moodOrKind);
         }
 
         try {
@@ -239,8 +239,8 @@ Pick different, interesting titles. CRITICAL: All nested quotes within property 
             const keys = await loadGroqKeys();
             let stats: any[] = [];
             try {
-                const supabase = await getSupabaseClient();
-                const { data: statusData } = await supabase
+                const sync = await getSyncClient();
+                const { data: statusData } = await sync
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'groq_keys_status')

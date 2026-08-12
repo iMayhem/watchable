@@ -527,7 +527,7 @@ export default defineComponent({
         transition: box-shadow var(--dur-fast) var(--ease-out);
 
         &.is-priming {
-            box-shadow: inset 0 0 0 1px rgba(255, 90, 31, 0.45);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
         }
     }
 
@@ -748,7 +748,7 @@ export default defineComponent({
             &:focus {
                 outline: none;
                 border-color: var(--ember);
-                box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.2);
+                box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
             }
         }
 

@@ -1,7 +1,7 @@
 import { ref } from "vue"
 import useAxios from "./useAxios"
 import { queryAniListApi, type AnimeMedia, type AnimeResponse } from "./useAniList"
-import { getSupabaseClient } from "../lib/supabase"
+import { getSyncClient } from "../lib/syncClient"
 
 export interface SearchMovie {
     id: number;
@@ -164,15 +164,15 @@ function sortByRelevance<T extends Record<string, any>>(
     })
 }
 
-async function logSearchToSupabase(query: string) {
+async function logSearchToSync(query: string) {
     try {
-        const supabase = await getSupabaseClient();
-        await supabase.from('movora_searches').insert([{
+        const sync = await getSyncClient();
+        await sync.from('movora_searches').insert([{
             query: query.trim(),
             created_at: new Date().toISOString()
         }]);
     } catch (e) {
-        console.error("Failed to log search query to Supabase:", e);
+        console.error("Failed to log search query to Sync:", e);
     }
 }
 
@@ -183,7 +183,7 @@ export const useSearch = () => {
         try {
             loading.value = true
             if (pageNumber === 1 && query && query.trim()) {
-                void logSearchToSupabase(query);
+                void logSearchToSync(query);
             }
             const req = await useAxios().get(`search/multi?query=${query}&page=${pageNumber}`)
             const res = req.data.results

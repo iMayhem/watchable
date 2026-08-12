@@ -24,7 +24,6 @@ export default defineConfig({
       'vue': resolve(__dirname, `${nodeModulesPath}/vue`),
       'vue-router': resolve(__dirname, `${nodeModulesPath}/vue-router`),
       '@vueuse/core': resolve(__dirname, `${nodeModulesPath}/@vueuse/core`),
-      '@supabase/supabase-js': resolve(__dirname, `${nodeModulesPath}/@supabase/supabase-js`),
       'axios': resolve(__dirname, `${nodeModulesPath}/axios`),
       'plyr': resolve(__dirname, `${nodeModulesPath}/plyr`)
     }

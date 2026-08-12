@@ -1,8 +1,8 @@
 /* global window, fetch, WebSocket */
 /**
  * Moovie self-hosted sync client.
- * Drop-in replacement for the Supabase JS client used by party.js / admin.html:
- *   - REST: /api/* on proxy.moovie.fun (rooms, chat, settings, polls, ...)
+ * Exposes window.moovieSync for party.js / admin.html:
+ *   - REST: /api/* on hahaevilcraft.site (rooms, chat, settings, polls, ...)
  *   - Realtime: WebSocket /sync-ws (broadcast events, presence, lobby feed)
  *   - Storage: avatar / chat-image uploads served from the VPS
  * Zero dependencies.
@@ -119,7 +119,6 @@
         if (this.head) params.set('head', 'true');
         if (this.mode === 'single') params.set('single', 'true');
         if (this.filters.onConflict) params.set('onConflict', this.filters.onConflict);
-        params.set('_cb', '1');
         return params.toString();
     };
 
@@ -429,7 +428,7 @@
         },
     };
 
-    window.supabase = {
+    window.moovieSync = {
         createClient: function (url, key) {
             return new MiniClient(url, key);
         },

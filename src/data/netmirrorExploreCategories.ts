@@ -474,7 +474,7 @@ export function getExplorePageBatch(
         : EXPLORE_INDUSTRY_MORE_BATCH;
 }
 
-/** Cap Supabase artwork/audio upgrades per pass — never block first paint. */
+/** Cap Sync artwork/audio upgrades per pass — never block first paint. */
 export const EXPLORE_ARTWORK_UPGRADE_LIMIT = 24;
 
 export function resolveExploreFilterFromRoute(

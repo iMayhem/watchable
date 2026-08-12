@@ -210,11 +210,8 @@ export default defineComponent({
 
         const displayTitle = computed(() => tmdbShow.value?.name || '');
 
-        const displayTagline = computed(() => {
-            const original = tmdbShow.value?.original_name || '';
-            if (!original || original === displayTitle.value) return '';
-            return original;
-        });
+        // Never surface TMDB's original/native title in the English-only UI.
+        const displayTagline = computed(() => '');
 
         const cleanDescription = computed(() => tmdbShow.value?.overview || '');
 
@@ -747,7 +744,7 @@ export default defineComponent({
 
     &__grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: var(--s-4);
     }
 }

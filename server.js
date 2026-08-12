@@ -13,16 +13,57 @@ const { setupWebSocket } = require('./watch-together');
 
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const USER_PROVIDERS_PATH = path.join(__dirname, 'providers.json');
-const PROVIDERS_DIR = path.join(__dirname, '..', 'deobfuscated');
+const LOCAL_PROVIDERS_DIR = path.join(__dirname, 'deobfuscated');
+const LEGACY_PROVIDERS_DIR = path.join(__dirname, '..', 'deobfuscated');
 const MANIFEST_PATH = path.join(__dirname, '..', 'manifest.json');
 
 const PORT = parseInt(process.env.PORT, 10) || null;
+
+const DEFAULT_STARRED_PROVIDER_IDS = [
+  'vaplayer',
+  'poseidon',
+  'moovie-catalog',
+  'vidsuper-oneroom',
+  'vidsuper-insertunit',
+  'vidsuper-flixhq',
+  'vidsuper-castle',
+  'vidsuper-cinesu',
+  'vidsuper-vidnest',
+  'vidsuper-vidrock',
+  'vidsuper-vixsrc',
+];
+
+// These are the public playback embeds shown in Moovie's server switcher.
+// They are intentionally separate from scraper/provider sources.
+const EMBED_SERVERS = [
+  ['moovie', 'Moovie']
+].map(([id, name], index) => ({ id, name, priority: index + 1 }));
 
 let config = loadConfig();
 let providers = {};
 let providerMeta = {};
 const streamStore = new Map();
 let streamIdCounter = 0;
+
+function getProviderDisplayName(id) {
+  return config.providers[id]?.customName || providerMeta[id]?.name || id;
+}
+
+function getProviderFiles() {
+  const dirs = [LEGACY_PROVIDERS_DIR, LOCAL_PROVIDERS_DIR].filter((dir) => fs.existsSync(dir));
+  const seen = new Set();
+  const files = [];
+  for (const dir of dirs) {
+    for (const file of fs.readdirSync(dir)) {
+      if (!file.endsWith('.js') || file === 'vidsuper-bridge.js') continue;
+      const id = path.basename(file, '.js');
+      if (seen.has(id)) continue;
+      seen.add(id);
+      files.push({ id, filePath: path.join(dir, file) });
+    }
+  }
+  return files;
+}
 
 function generateStreamId() {
   return (++streamIdCounter).toString(36) + crypto.randomBytes(4).toString('hex');
@@ -64,6 +105,13 @@ function loadConfig() {
     cfg = { port: 3000, tmdbApiKey: '', autoplay: true, introSkip: false, streamProxy: false, proxy: { enabled: false }, globalTimeout: 12000, maxResultsPerProvider: 20, providers: {}, qualityFilter: { '4k': true, '1080': true, '720': true, 'sd': true, 'unknown': true } };
   }
   if (!cfg.providers) cfg.providers = {};
+  if (!cfg.embedServers || typeof cfg.embedServers !== 'object') cfg.embedServers = {};
+  for (const server of EMBED_SERVERS) {
+    if (!cfg.embedServers[server.id]) cfg.embedServers[server.id] = { enabled: true, priority: server.priority };
+    if (typeof cfg.embedServers[server.id].enabled !== 'boolean') cfg.embedServers[server.id].enabled = true;
+    if (typeof cfg.embedServers[server.id].priority !== 'number') cfg.embedServers[server.id].priority = server.priority;
+  }
+  if (!Array.isArray(cfg.starredProviders)) cfg.starredProviders = [...DEFAULT_STARRED_PROVIDER_IDS];
   // Merge user's provider overrides from gitignored file
   try {
     const user = JSON.parse(fs.readFileSync(USER_PROVIDERS_PATH, 'utf8'));
@@ -72,21 +120,42 @@ function loadConfig() {
         if (cfg.providers[id]) {
           if (typeof p.enabled === 'boolean') cfg.providers[id].enabled = p.enabled;
           if (typeof p.priority === 'number') cfg.providers[id].priority = p.priority;
+          if (typeof p.starred === 'boolean') cfg.providers[id].starred = p.starred;
+          if (typeof p.customName === 'string') cfg.providers[id].customName = p.customName.trim().slice(0, 80);
+          if (typeof p.proxyMode === 'string') cfg.providers[id].proxyMode = p.proxyMode;
           if (Array.isArray(p.disabledServers)) cfg.providers[id].disabledServers = p.disabledServers;
         } else {
           // Provider exists in user file but not in defaults — add it
-          cfg.providers[id] = { enabled: p.enabled !== false, priority: p.priority || Object.keys(cfg.providers).length + 1, disabledServers: p.disabledServers || [] };
+          cfg.providers[id] = {
+            enabled: p.enabled !== false,
+            priority: p.priority || Object.keys(cfg.providers).length + 1,
+            starred: typeof p.starred === 'boolean' ? p.starred : DEFAULT_STARRED_PROVIDER_IDS.includes(id),
+            proxyMode: typeof p.proxyMode === 'string' ? p.proxyMode : 'inherit',
+            disabledServers: p.disabledServers || [],
+            customName: typeof p.customName === 'string' ? p.customName.trim().slice(0, 80) : '',
+          };
         }
       }
     }
   } catch {}
+  for (const id of cfg.starredProviders) {
+    if (!cfg.providers[id]) continue;
+    if (typeof cfg.providers[id].starred !== 'boolean') cfg.providers[id].starred = true;
+  }
   return cfg;
 }
 
 function saveConfig() {
   const providersOnly = {};
   for (const [id, p] of Object.entries(config.providers || {})) {
-    providersOnly[id] = { enabled: p.enabled, priority: p.priority, disabledServers: p.disabledServers || [] };
+    providersOnly[id] = {
+      enabled: p.enabled,
+      priority: p.priority,
+      starred: Boolean(p.starred),
+      proxyMode: p.proxyMode || 'inherit',
+      disabledServers: p.disabledServers || [],
+      customName: p.customName || ''
+    };
   }
   fs.writeFileSync(USER_PROVIDERS_PATH, JSON.stringify(providersOnly, null, 2));
 }
@@ -95,6 +164,31 @@ function saveNonProviderSettings() {
   const cfgClean = { ...config };
   delete cfgClean.providers;
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfgClean, null, 2));
+}
+
+function getEmbedServers() {
+  return EMBED_SERVERS
+    .map((server) => ({ ...server, ...(config.embedServers?.[server.id] || {}) }))
+    .sort((a, b) => (a.priority || 999) - (b.priority || 999));
+}
+
+function getProviderFilePath(id) {
+  const candidates = [
+    path.join(LOCAL_PROVIDERS_DIR, `${id}.js`),
+    path.join(LEGACY_PROVIDERS_DIR, `${id}.js`)
+  ];
+  return candidates.find((filePath) => fs.existsSync(filePath)) || null;
+}
+
+function getProviderProxyMode(id) {
+  return config.providers[id]?.proxyMode || 'inherit';
+}
+
+function shouldUseProviderProxy(id) {
+  const mode = getProviderProxyMode(id);
+  if (mode === 'on') return true;
+  if (mode === 'off') return false;
+  return Boolean(config.streamProxy);
 }
 
 const CLIENT_PROVIDERS = [
@@ -113,25 +207,30 @@ const CLIENT_PROVIDERS = [
 ];
 
 function initProviderConfig() {
-  const files = fs.readdirSync(PROVIDERS_DIR).filter(f => f.endsWith('.js'));
   const allIds = [
-    ...files.map(f => path.basename(f, '.js')),
+    ...getProviderFiles().map((file) => file.id),
     ...CLIENT_PROVIDERS.map(p => p.id)
   ];
   for (const id of allIds) {
     if (!config.providers[id]) {
-      config.providers[id] = { enabled: true, priority: Object.keys(config.providers).length + 1, disabledServers: [] };
+      config.providers[id] = {
+        enabled: true,
+        priority: Object.keys(config.providers).length + 1,
+        starred: DEFAULT_STARRED_PROVIDER_IDS.includes(id),
+        proxyMode: 'inherit',
+        disabledServers: [],
+      };
+    } else if (typeof config.providers[id].starred !== 'boolean') {
+      config.providers[id].starred = DEFAULT_STARRED_PROVIDER_IDS.includes(id);
     }
+    if (!config.providers[id].proxyMode) config.providers[id].proxyMode = 'inherit';
   }
   saveConfig();
 }
 
 async function loadProviders() {
-  const files = fs.readdirSync(PROVIDERS_DIR).filter(f => f.endsWith('.js'));
-  for (const file of files) {
-    const id = path.basename(file, '.js');
+  for (const { id, filePath } of getProviderFiles()) {
     try {
-      const filePath = path.join(PROVIDERS_DIR, file);
       delete require.cache[require.resolve(filePath)];
       const mod = require(filePath);
       if (mod && typeof mod.getStreams === 'function') {
@@ -234,18 +333,58 @@ function filterStreams(streams, providerId) {
   return filtered;
 }
 
-function getEnabledProvidersSorted() {
-  return Object.entries(config.providers)
+function attachAudioVariants(streams, providerId) {
+  const variants = [];
+  const seen = new Set();
+  for (const stream of streams || []) {
+    const raw = stream?.audio ?? stream?.language ?? stream?.lang ?? stream?.dub;
+    const entries = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+    for (const entry of entries) {
+      const language = typeof entry === 'string'
+        ? entry.trim()
+        : String(entry?.language ?? entry?.lang ?? entry?.name ?? entry?.label ?? '').trim();
+      const url = typeof entry === 'object' ? (entry.url ?? entry.file ?? entry.streamUrl) : stream?.url;
+      if (!language || /^unknown|und$/i.test(language) || !url) continue;
+      const key = `${language.toLowerCase()}|${url}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      variants.push({
+        language,
+        label: language,
+        url,
+        type: typeof entry === 'object' ? (entry.type || stream.type) : stream.type,
+        provider: providerId,
+        id: `${providerId}-audio-${variants.length}`,
+      });
+    }
+  }
+  if (variants.length <= 1) return streams;
+  return (streams || []).map((stream, index) => index === 0
+    ? { ...stream, _languageVariants: [...(stream._languageVariants || []), ...variants] }
+    : stream);
+}
+
+function isTruthyQuery(value) {
+  return value === true || value === '1' || value === 'true' || value === 'yes' || value === 'starred';
+}
+
+function getEnabledProvidersSorted(options = {}) {
+  const starredOnly = Boolean(options.starredOnly);
+  let list = Object.entries(config.providers)
     .filter(([id, p]) => p.enabled && providers[id])
     .sort((a, b) => (a[1].priority || 999) - (b[1].priority || 999));
+  if (starredOnly) {
+    const starred = list.filter(([, p]) => p.starred);
+    list = starred;
+  }
+  return list;
 }
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const ADMIN_USERNAME = process.env.ADMIN_USER || "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "peestream2026";
+const ADMIN_PASSWORD = "passwords";
 const authSessions = new Set();
 
 function isReqAuthenticated(req) {
@@ -255,13 +394,13 @@ function isReqAuthenticated(req) {
 }
 
 app.post("/api/auth/login", (req, res) => {
-  const { username, password } = req.body || {};
-  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+  const { password } = req.body || {};
+  if (password === ADMIN_PASSWORD) {
     const token = crypto.randomBytes(32).toString("hex");
     authSessions.add(token);
     return res.json({ success: true, token });
   }
-  return res.status(401).json({ success: false, error: "Invalid username or password" });
+  return res.status(401).json({ success: false, error: "Invalid password" });
 });
 
 app.get("/api/auth/check", (req, res) => {
@@ -300,10 +439,13 @@ function sortStreamsByQuality(streams) {
 }
 
 // Convert a scraper stream to movie-web Stream format
-function scraperStreamToMwStream(stream, sourceId) {
+function scraperStreamToMwStream(stream, sourceId, providerId = sourceId) {
   const hasHeaders = stream.headers && typeof stream.headers === 'object' && Object.keys(stream.headers).length > 0;
-  const flags = config.streamProxy || !hasHeaders ? ['cors-allowed'] : ['ip-locked'];
-  const mwHeaders = config.streamProxy ? undefined : (hasHeaders ? stream.headers : undefined);
+  const useProxy = shouldUseProviderProxy(providerId);
+  const flags = useProxy || !hasHeaders ? ['cors-allowed'] : ['ip-locked'];
+  const mwHeaders = useProxy ? undefined : (hasHeaders ? stream.headers : undefined);
+  const captions = Array.isArray(stream.captions) ? stream.captions : [];
+  const languageVariants = Array.isArray(stream._languageVariants) ? stream._languageVariants : [];
 
   // Handle multi-quality streams (object with quality keys)
   if (stream.qualities && typeof stream.qualities === 'object') {
@@ -320,22 +462,28 @@ function scraperStreamToMwStream(stream, sourceId) {
     return {
       type: 'file',
       id: sourceId + '-' + Date.now(),
+      providerId: providerId,
+      proxyMode: getProviderProxyMode(providerId),
       flags,
-      captions: [],
+      captions,
       qualities,
       headers: mwHeaders,
+      ...(languageVariants.length ? { _languageVariants: languageVariants } : {}),
     };
   }
 
-  const isHls = stream.type === 'm3u8' || (stream.url && stream.url.includes('.m3u8'));
+  const isHls = stream.type === 'm3u8' || stream.type === 'hls' || (stream.url && stream.url.includes('.m3u8'));
   if (isHls) {
     return {
       type: 'hls',
       playlist: toProxyUrl(stream.url, stream.headers, 'm3u8'),
       id: sourceId + '-' + Date.now(),
+      providerId: providerId,
+      proxyMode: getProviderProxyMode(providerId),
       flags,
-      captions: [],
+      captions,
       headers: mwHeaders,
+      ...(languageVariants.length ? { _languageVariants: languageVariants } : {}),
     };
   }
 
@@ -347,14 +495,17 @@ function scraperStreamToMwStream(stream, sourceId) {
 
   const quality = stream.quality || 'unknown';
   const qualities = {};
-  qualities[quality] = { type: 'mp4', url: toProxyUrl(stream.url, stream.headers, 'mp4') };
+  qualities[quality] = { type: stream.type === 'mpd' || stream.type === 'dash' ? 'mpd' : 'mp4', url: toProxyUrl(stream.url, stream.headers, stream.type) };
   return {
     type: 'file',
     id: sourceId + '-' + Date.now(),
+    providerId: providerId,
+    proxyMode: getProviderProxyMode(providerId),
     flags,
-    captions: [],
+    captions,
     qualities,
     headers: mwHeaders,
+    ...(languageVariants.length ? { _languageVariants: languageVariants } : {}),
   };
 }
 
@@ -364,14 +515,16 @@ app.get('/metadata', (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   const result = [];
+  const starredOnly = isTruthyQuery(req.query.starred);
   const sorted = Object.entries(providerMeta)
     .sort((a, b) => (config.providers[a[0]]?.priority || 999) - (config.providers[b[0]]?.priority || 999));
   for (const [id, meta] of sorted) {
     const pConfig = config.providers[id];
     if (!pConfig || pConfig.enabled === false) continue;
+    if (starredOnly && !pConfig.starred) continue;
     result.push([{
       id,
-      name: meta.name || id,
+      name: getProviderDisplayName(id),
       type: 'source',
       rank: pConfig.priority || 999,
       flags: [],
@@ -405,46 +558,53 @@ app.get('/scrape', async (req, res) => {
   const sse = sendSSE(req, res);
   if (sse.cancelled()) return;
 
-  const enabledProviders = getEnabledProvidersSorted();
+  const enabledProviders = getEnabledProvidersSorted({ starredOnly: isTruthyQuery(req.query.starred) });
   const sourceIds = enabledProviders.map(([id]) => id);
 
   let completedAny = false;
-  sse.emit('init', { sourceIds });
+  sse.emit('init', {
+    sourceIds,
+    sources: sourceIds.map((id) => ({ id, name: getProviderDisplayName(id) })),
+  });
 
-  for (const [id, pConfig] of enabledProviders) {
+  const mediaType = type || 'movie';
+  const sNum = season || seasonNumber || null;
+  const eNum = episode || episodeNumber || null;
+  const CONCURRENCY = Math.max(1, Math.min(Number(process.env.SCRAPE_CONCURRENCY || 4), 6));
+  let cursor = 0;
+
+  async function processProvider(id) {
     if (sse.cancelled()) return;
+    let progressTimer = null;
     try {
       sse.emit('start', id);
 
-      // Emit realtime progress fill while the scraper works
       let progress = 0;
-      const progressTimer = setInterval(() => {
+      progressTimer = setInterval(() => {
         if (sse.cancelled()) { clearInterval(progressTimer); return; }
         progress = Math.min(progress + 4, 85);
         sse.emit('update', { id, percentage: progress, status: 'pending' });
       }, 400);
 
       const mod = providers[id];
-      const mediaType = type || 'movie';
-      const sNum = season || seasonNumber || null;
-      const eNum = episode || episodeNumber || null;
       const streams = await mod.getStreams(tmdbId, mediaType, sNum, eNum);
       clearInterval(progressTimer);
+      progressTimer = null;
       if (sse.cancelled()) return;
 
-      const filtered = sortStreamsByQuality(filterStreams(streams || [], id));
+      const filtered = sortStreamsByQuality(attachAudioVariants(filterStreams(streams || [], id), id));
 
       if (filtered && filtered.length > 0) {
         let foundValid = false;
         for (let i = 0; i < filtered.length; i++) {
           const stream = filtered[i];
-          const mwStream = scraperStreamToMwStream(stream, id);
+          const mwStream = scraperStreamToMwStream(stream, id, id);
           if (!mwStream) continue;
           foundValid = true;
           const pct = Math.round(85 + ((i + 1) / filtered.length) * 15);
           sse.emit('update', { id, percentage: pct, status: 'success' });
           makeStreamUrlsAbsolute(mwStream, req.headers.host);
-          const output = { sourceId: id, stream: mwStream };
+          const output = { sourceId: id, providerName: getProviderDisplayName(id), stream: mwStream };
           sse.emit('completed', output);
           completedAny = true;
           break; // Go to next provider
@@ -456,9 +616,22 @@ app.get('/scrape', async (req, res) => {
         sse.emit('update', { id, percentage: 100, status: 'notfound', reason: 'No streams returned' });
       }
     } catch (e) {
+      if (progressTimer) clearInterval(progressTimer);
       sse.emit('update', { id, percentage: 100, status: 'failure', error: e.message });
     }
   }
+
+  async function worker() {
+    while (!sse.cancelled()) {
+      const next = enabledProviders[cursor++];
+      if (!next) return;
+      await processProvider(next[0]);
+    }
+  }
+
+  await Promise.allSettled(
+    Array.from({ length: Math.min(CONCURRENCY, enabledProviders.length) }, () => worker())
+  );
 
   if (!sse.cancelled() && !completedAny) {
     sse.emit('noOutput', '');
@@ -479,7 +652,7 @@ app.get('/scrape/source', async (req, res) => {
   const eNum = episode || episodeNumber || null;
 
   // Build fallback chain: requested provider first, then all enabled in priority order
-  const enabled = getEnabledProvidersSorted();
+  const enabled = getEnabledProvidersSorted({ starredOnly: isTruthyQuery(req.query.starred) });
   const seen = new Set();
   const chain = [];
   if (providers[id]) chain.push([id, config.providers[id]]);
@@ -517,16 +690,16 @@ app.get('/scrape/source', async (req, res) => {
       clearInterval(progressTimer);
       if (sse.cancelled()) break;
 
-      const filtered = sortStreamsByQuality(filterStreams(streams || [], currentId));
+      const filtered = sortStreamsByQuality(attachAudioVariants(filterStreams(streams || [], currentId), currentId));
 
       if (filtered && filtered.length > 0) {
         const mwStreams = filtered
-          .map((s, i) => scraperStreamToMwStream(s, currentId + '-' + i))
+          .map((s, i) => scraperStreamToMwStream(s, currentId + '-' + i, currentId))
           .filter(Boolean);
         if (mwStreams.length > 0) {
           sse.emit('update', { id: currentId, percentage: 100, status: 'success' });
           mwStreams.forEach(s => makeStreamUrlsAbsolute(s, req.headers.host));
-          const output = { embeds: [], stream: mwStreams };
+          const output = { embeds: [], providerName: getProviderDisplayName(currentId), stream: mwStreams };
           sse.emit('completed', output);
           completedAny = true;
           break;
@@ -563,71 +736,181 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ============ API Routes ============
 
-// List all providers with config
-app.get('/api/providers', (req, res) => {
-  const result = {};
-  for (const [id, meta] of Object.entries(providerMeta)) {
-    result[id] = {
-      ...meta,
-      enabled: config.providers[id]?.enabled ?? true,
-      priority: config.providers[id]?.priority ?? 999,
-      disabledServers: config.providers[id]?.disabledServers || [],
-    };
-  }
-  res.json(result);
-});
-
-// Bulk reorder providers — atomic, single request
-app.post('/api/providers/reorder', (req, res) => {
-  const { order } = req.body;
-  if (!Array.isArray(order) || !order.length) return res.status(400).json({ error: 'Missing order array' });
-  for (let i = 0; i < order.length; i++) {
-    if (config.providers[order[i]]) {
-      config.providers[order[i]].priority = i + 1;
+function registerProviderRoutes(basePath) {
+  // List all providers with config
+  app.get(basePath, (req, res) => {
+    const result = {};
+    for (const [id, meta] of Object.entries(providerMeta)) {
+      result[id] = {
+        ...meta,
+        name: getProviderDisplayName(id),
+        enabled: config.providers[id]?.enabled ?? true,
+        priority: config.providers[id]?.priority ?? 999,
+        starred: Boolean(config.providers[id]?.starred),
+        hasFile: Boolean(getProviderFilePath(id)),
+        disabledServers: config.providers[id]?.disabledServers || [],
+      };
     }
-  }
-  saveConfig();
-  res.json({ ok: true });
+    res.json(result);
+  });
+
+  app.get(`${basePath}/starred`, (req, res) => {
+    const result = getEnabledProvidersSorted({ starredOnly: true }).map(([id, p]) => ({
+      id,
+      name: getProviderDisplayName(id),
+      priority: p.priority || 999,
+    }));
+    res.json({ providers: result });
+  });
+
+  // Bulk reorder providers — atomic, single request
+  app.post(`${basePath}/reorder`, (req, res) => {
+    const { order } = req.body;
+    if (!Array.isArray(order) || !order.length) return res.status(400).json({ error: 'Missing order array' });
+    for (let i = 0; i < order.length; i++) {
+      if (config.providers[order[i]]) {
+        config.providers[order[i]].priority = i + 1;
+      }
+    }
+    saveConfig();
+    res.json({ ok: true });
+  });
+
+  // Toggle provider
+  app.post(`${basePath}/:id/toggle`, (req, res) => {
+    const { id } = req.params;
+    if (!config.providers[id]) return res.status(404).json({ error: 'Provider not found' });
+    config.providers[id].enabled = !config.providers[id].enabled;
+    saveConfig();
+    res.json({ id, enabled: config.providers[id].enabled });
+  });
+
+  app.post(`${basePath}/:id/starred`, (req, res) => {
+    const { id } = req.params;
+    if (!config.providers[id]) return res.status(404).json({ error: 'Provider not found' });
+    const requested = req.body && typeof req.body.starred === 'boolean' ? req.body.starred : !config.providers[id].starred;
+    config.providers[id].starred = requested;
+    saveConfig();
+    res.json({ id, starred: config.providers[id].starred });
+  });
+
+  app.post(`${basePath}/:id/rename`, (req, res) => {
+    const { id } = req.params;
+    if (!config.providers[id] || !providerMeta[id]) return res.status(404).json({ error: 'Provider not found' });
+    const name = String(req.body?.name || '').trim().slice(0, 80);
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    config.providers[id].customName = name;
+    saveConfig();
+    res.json({ id, name });
+  });
+
+  app.post(`${basePath}/:id/proxy-mode`, (req, res) => {
+    const { id } = req.params;
+    if (!config.providers[id]) return res.status(404).json({ error: 'Provider not found' });
+    const valid = new Set(['inherit', 'on', 'off']);
+    const requested = String(req.body?.proxyMode || 'inherit').toLowerCase();
+    if (!valid.has(requested)) return res.status(400).json({ error: 'Invalid proxyMode' });
+    config.providers[id].proxyMode = requested;
+    saveConfig();
+    res.json({ id, proxyMode: config.providers[id].proxyMode });
+  });
+
+  app.get(`${basePath}/:id/file`, (req, res) => {
+    const { id } = req.params;
+    const filePath = getProviderFilePath(id);
+    if (!filePath) return res.status(404).json({ error: 'Provider file not found' });
+    res.setHeader('Content-Type', 'application/json');
+    res.json({
+      id,
+      filePath,
+      content: fs.readFileSync(filePath, 'utf8')
+    });
+  });
+
+  app.put(`${basePath}/:id/file`, async (req, res) => {
+    const { id } = req.params;
+    const filePath = getProviderFilePath(id);
+    if (!filePath) return res.status(404).json({ error: 'Provider file not found' });
+    const content = req.body?.content;
+    if (typeof content !== 'string') return res.status(400).json({ error: 'Missing content' });
+    fs.writeFileSync(filePath, content, 'utf8');
+    await loadProviders();
+    res.json({ id, filePath, ok: true });
+  });
+
+  app.delete(`${basePath}/:id/file`, async (req, res) => {
+    const { id } = req.params;
+    const filePath = getProviderFilePath(id);
+    if (!filePath) return res.status(404).json({ error: 'Provider file not found' });
+    fs.unlinkSync(filePath);
+    delete config.providers[id];
+    delete providers[id];
+    delete providerMeta[id];
+    saveConfig();
+    await loadProviders();
+    res.json({ id, deleted: true });
+  });
+
+  // Toggle all providers
+  app.post(`${basePath}/toggle-all`, (req, res) => {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Missing enabled boolean' });
+    for (const id of Object.keys(config.providers)) {
+      if (providerMeta[id]) config.providers[id].enabled = enabled;
+    }
+    saveConfig();
+    res.json({ enabled });
+  });
+
+  // Update provider priority
+  app.post(`${basePath}/:id/priority`, (req, res) => {
+    const { id } = req.params;
+    const { priority } = req.body;
+    if (!config.providers[id]) return res.status(404).json({ error: 'Provider not found' });
+    config.providers[id].priority = priority;
+    saveConfig();
+    res.json({ id, priority });
+  });
+
+  // Update disabled servers for a provider
+  app.post(`${basePath}/:id/servers`, (req, res) => {
+    const { id } = req.params;
+    const { disabledServers } = req.body;
+    if (!config.providers[id]) return res.status(404).json({ error: 'Provider not found' });
+    config.providers[id].disabledServers = disabledServers || [];
+    saveConfig();
+    res.json({ id, disabledServers: config.providers[id].disabledServers });
+  });
+}
+
+// List all providers with config
+registerProviderRoutes('/api/providers');
+registerProviderRoutes('/providers');
+
+// Public playback embed controls. This is deliberately not tied to scraper providers.
+app.get('/api/embed-servers', (req, res) => {
+  res.json(getEmbedServers());
 });
 
-// Toggle provider
-app.post('/api/providers/:id/toggle', (req, res) => {
-  const { id } = req.params;
-  if (!config.providers[id]) return res.status(404).json({ error: 'Provider not found' });
-  config.providers[id].enabled = !config.providers[id].enabled;
-  saveConfig();
-  res.json({ id, enabled: config.providers[id].enabled });
+app.post('/api/embed-servers/:id/toggle', (req, res) => {
+  const server = EMBED_SERVERS.find((entry) => entry.id === req.params.id);
+  if (!server) return res.status(404).json({ error: 'Embed server not found' });
+  const current = config.embedServers[server.id] || {};
+  current.enabled = typeof req.body?.enabled === 'boolean' ? req.body.enabled : !current.enabled;
+  config.embedServers[server.id] = current;
+  saveNonProviderSettings();
+  res.json({ id: server.id, enabled: current.enabled });
 });
 
-// Toggle all providers
-app.post('/api/providers/toggle-all', (req, res) => {
-  const { enabled } = req.body;
-  if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Missing enabled boolean' });
-  for (const id of Object.keys(config.providers)) {
-    if (providerMeta[id]) config.providers[id].enabled = enabled;
-  }
-  saveConfig();
-  res.json({ enabled });
-});
-
-// Update provider priority
-app.post('/api/providers/:id/priority', (req, res) => {
-  const { id } = req.params;
-  const { priority } = req.body;
-  if (!config.providers[id]) return res.status(404).json({ error: 'Provider not found' });
-  config.providers[id].priority = priority;
-  saveConfig();
-  res.json({ id, priority });
-});
-
-// Update disabled servers for a provider
-app.post('/api/providers/:id/servers', (req, res) => {
-  const { id } = req.params;
-  const { disabledServers } = req.body;
-  if (!config.providers[id]) return res.status(404).json({ error: 'Provider not found' });
-  config.providers[id].disabledServers = disabledServers || [];
-  saveConfig();
-  res.json({ id, disabledServers: config.providers[id].disabledServers });
+app.post('/api/embed-servers/reorder', (req, res) => {
+  if (!Array.isArray(req.body?.order) || !req.body.order.length) return res.status(400).json({ error: 'Missing order array' });
+  req.body.order.forEach((id, index) => {
+    if (EMBED_SERVERS.some((entry) => entry.id === id)) {
+      config.embedServers[id] = { ...(config.embedServers[id] || {}), priority: index + 1 };
+    }
+  });
+  saveNonProviderSettings();
+  res.json({ ok: true, servers: getEmbedServers() });
 });
 
 // Subtitles endpoint
@@ -717,18 +1000,34 @@ app.get('/api/subtitles', async (req, res) => {
 
 // Search endpoint
 app.get('/api/search', async (req, res) => {
-  let { q: query, type = 'movie', season, episode, provider, tmdbId } = req.query;
+  let { q: query, type = 'movie', season, episode, provider, providers: providerList, tmdbId } = req.query;
   if (type === 'show') type = 'tv';
   if (!query) return res.status(400).json({ error: 'Missing query' });
 
+  const resolveProviderId = (requested) => {
+    if (!requested) return null;
+    if (providers[requested]) return requested;
+    const needle = String(requested).trim().toLowerCase();
+    const match = Object.entries(providerMeta).find(([id, meta]) => {
+      const names = [id, meta?.name, getProviderDisplayName(id)]
+        .filter(Boolean)
+        .map((name) => String(name).trim().toLowerCase());
+      return names.includes(needle);
+    });
+    return match?.[0] || null;
+  };
+
   let enabledProviders = [];
-  if (provider) {
-    const mod = providers[provider];
-    if (mod) {
-      enabledProviders = [[provider, config.providers[provider] || { priority: 999 }]];
-    }
+  const requestedProviders = [
+    ...(provider ? [provider] : []),
+    ...(providerList ? String(providerList).split(',') : []),
+  ]
+    .map(resolveProviderId)
+    .filter((id, index, ids) => id && ids.indexOf(id) === index);
+  if (requestedProviders.length) {
+    enabledProviders = requestedProviders.map((id) => [id, config.providers[id] || { priority: 999 }]);
   } else {
-    enabledProviders = getEnabledProvidersSorted();
+    enabledProviders = getEnabledProvidersSorted({ starredOnly: isTruthyQuery(req.query.starred) });
   }
   const results = [];
   const errors = [];
@@ -738,10 +1037,9 @@ app.get('/api/search', async (req, res) => {
       const mod = providers[id];
       const streams = await mod.getStreams(tmdbId || query, type, season || null, episode || null, query);
       if (streams && streams.length > 0) {
-        const filtered = filterStreams(streams, id);
+        const filtered = attachAudioVariants(filterStreams(streams, id), id);
         if (filtered.length > 0) {
-          const sliced = filtered.slice(0, config.maxResultsPerProvider || 20);
-          for (const stream of sliced) {
+          const sliced = filtered.slice(0, config.maxResultsPerProvider || 20).map((stream) => {
             if (!stream.type) {
               if (stream.url.includes('.m3u8')) stream.type = 'm3u8';
               else if (stream.url.includes('.mpd')) stream.type = 'mpd';
@@ -756,12 +1054,18 @@ app.get('/api/search', async (req, res) => {
               headers: stream.headers || {},
               type: stream.type,
             });
-            stream.proxyUrl = `/proxy?id=${storeId}`;
-          }
+            return {
+              ...stream,
+              providerId: id,
+              proxyMode: getProviderProxyMode(id),
+              proxyUrl: shouldUseProviderProxy(id) ? `/proxy?id=${storeId}` : '',
+            };
+          });
           results.push({
             provider: id,
             providerName: providerMeta[id]?.name || id,
             priority: pConfig.priority,
+            proxyMode: getProviderProxyMode(id),
             count: filtered.length,
             servers: extractStreamServers(filtered),
             streams: sliced,
@@ -779,7 +1083,7 @@ app.get('/api/search', async (req, res) => {
 
 // Streaming search (SSE) — for real-time test panel
 app.get('/api/search/stream', async (req, res) => {
-  const { q: query, type = 'movie', season, episode } = req.query;
+  const { q: query, type = 'movie', season, episode, provider, providers: providerList } = req.query;
   if (!query) return res.status(400).json({ error: 'Missing query' });
 
   res.writeHead(200, {
@@ -806,7 +1110,27 @@ app.get('/api/search/stream', async (req, res) => {
     return ret;
   };
 
-  const enabledProviders = getEnabledProvidersSorted();
+  const resolveProviderId = (requested) => {
+    if (!requested) return null;
+    if (providers[requested]) return requested;
+    const needle = String(requested).trim().toLowerCase();
+    const match = Object.entries(providerMeta).find(([id, meta]) => {
+      const names = [id, meta?.name, getProviderDisplayName(id)]
+        .filter(Boolean)
+        .map((name) => String(name).trim().toLowerCase());
+      return names.includes(needle);
+    });
+    return match?.[0] || null;
+  };
+  const requestedProviders = [
+    ...(provider ? [provider] : []),
+    ...(providerList ? String(providerList).split(',') : []),
+  ]
+    .map(resolveProviderId)
+    .filter((id, index, ids) => id && ids.indexOf(id) === index);
+  const enabledProviders = requestedProviders.length
+    ? requestedProviders.map((id) => [id, config.providers[id] || { priority: 999 }])
+    : getEnabledProvidersSorted({ starredOnly: isTruthyQuery(req.query.starred) });
   const results = [];
   const errors = [];
   const CONCURRENCY = 6;
@@ -822,8 +1146,8 @@ app.get('/api/search/stream', async (req, res) => {
       const streams = await mod.getStreams(query, type, season || null, episode || null);
       if (cancelled) return;
       if (streams && streams.length > 0) {
-        const filtered = filterStreams(streams, id);
-        for (const stream of filtered.slice(0, config.maxResultsPerProvider || 20)) {
+        const filtered = attachAudioVariants(filterStreams(streams, id), id);
+        const sliced = filtered.slice(0, config.maxResultsPerProvider || 20).map((stream) => {
           if (cancelled) return;
           if (!stream.type) {
             if (stream.url.includes('.m3u8')) stream.type = 'm3u8';
@@ -833,12 +1157,25 @@ app.get('/api/search/stream', async (req, res) => {
             else if (stream.url.includes('.mkv')) stream.type = 'mkv';
             else stream.type = 'mp4';
           }
-          const proxyUrl = toProxyUrl(stream.url, stream.headers, stream.type);
-          if (proxyUrl !== stream.url) stream.proxyUrl = proxyUrl;
-          emit('stream', { provider: id, name, quality: stream.quality || 'Auto', url: stream.url, proxyUrl: stream.proxyUrl || '', type: stream.type, title: stream.title || '' });
-        }
+          const storeId = generateStreamId();
+          streamStore.set(storeId, {
+            ts: Date.now(),
+            url: stream.url,
+            headers: stream.headers || {},
+            type: stream.type,
+          });
+          const proxyUrl = shouldUseProviderProxy(id) ? `/proxy?id=${storeId}` : '';
+          const output = {
+            ...stream,
+            providerId: id,
+            proxyMode: getProviderProxyMode(id),
+            proxyUrl,
+          };
+          emit('stream', { provider: id, name, quality: output.quality || 'Auto', url: output.url, proxyUrl: output.proxyUrl || '', type: output.type, title: output.title || '', proxyMode: output.proxyMode });
+          return output;
+        });
         emit('provider-done', { provider: id, name, count: filtered.length, servers: extractStreamServers(filtered) });
-        results.push({ provider: id, providerName: name, priority: pConfig.priority, count: filtered.length, servers: extractStreamServers(filtered), streams: filtered.slice(0, config.maxResultsPerProvider || 20) });
+        results.push({ provider: id, providerName: name, priority: pConfig.priority, proxyMode: getProviderProxyMode(id), count: filtered.length, servers: extractStreamServers(filtered), streams: sliced });
       } else {
         emit('provider-empty', { provider: id, name });
       }

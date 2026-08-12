@@ -54,7 +54,7 @@
         async function persistRoomPrivacy(nextPrivate) {
             const roomId = activeRoom.id;
 
-            const { error: updateError } = await supabaseClient
+            const { error: updateError } = await syncClient
                 .from('rooms')
                 .update({ is_private: nextPrivate })
                 .eq('id', roomId);
@@ -62,13 +62,13 @@
             if (updateError) {
                 if (isMissingPrivacyColumnError(updateError)) {
                     throw new Error(
-                        'The rooms.is_private column is missing. Run docs/rooms_private_migration.sql in the Supabase SQL Editor.'
+                        'The rooms.is_private field is missing. Contact the site admin.'
                     );
                 }
                 throw updateError;
             }
 
-            const { data, error: fetchError } = await supabaseClient
+            const { data, error: fetchError } = await syncClient
                 .from('rooms')
                 .select('id, is_private')
                 .eq('id', roomId)
@@ -79,7 +79,7 @@
 
             if (Boolean(data.is_private) !== nextPrivate) {
                 throw new Error(
-                    'Room privacy could not be saved. Run docs/rooms_private_migration.sql in Supabase — the rooms table needs an UPDATE policy.'
+                    'Room privacy could not be saved. The rooms table needs an UPDATE policy.'
                 );
             }
 
@@ -230,7 +230,7 @@
 
             // Persist the new host in the database
             try {
-                await supabaseClient
+                await syncClient
                     .from('rooms')
                     .update({ host: targetUser })
                     .eq('id', activeRoom.id);
@@ -397,17 +397,15 @@
             return /^[a-z0-9]{5,6}$/i.test(roomId);
         }
 
-        // Supabase Dynamic configuration
-        const defaultUrl = 'https://jagmmmnxgbinlugxeinc.supabase.co';
+        // Sync client configuration
+        const defaultUrl = 'https://hahaevilcraft.site';
         const PUBLISHABLE_KEY = 'sb_publishable_sEdjXoX50ZSu2mY_gJEq4A_O0WzMf1D';
-        const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZ21tbW54Z2Jpbmx1Z3hlaW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NDExOTcsImV4cCI6MjA5OTAxNzE5N30.9oLJOU-HTk-YnhSckPxe_UnBG2yFIT9quAt_mYnMZH4';
-        
-        let defaultKey = safeLocalStorage.getItem('supabase_anon_key') || safeLocalStorage.getItem('supabase_key') || '';
+
+        let defaultKey = safeLocalStorage.getItem('moovie_sync_key') || '';
         if (!defaultKey || defaultKey === 'undefined' || defaultKey === 'null' || defaultKey.trim() === '' || defaultKey.includes('idwjvciofkvspmumgzmg') || defaultKey.includes('eeyiragtylotiwozbgqp')) {
             defaultKey = PUBLISHABLE_KEY;
-            safeLocalStorage.removeItem('supabase_anon_key');
-            safeLocalStorage.removeItem('supabase_key');
-            safeLocalStorage.removeItem('supabase_url');
+            safeLocalStorage.removeItem('moovie_sync_key');
+            safeLocalStorage.removeItem('moovie_sync_url');
         }
 
         // Parse query params (Direct Join or Stream details transfer)
@@ -425,13 +423,13 @@
 
         async function insertPartyRoom(row) {
             let attemptRow = { ...row };
-            let result = await supabaseClient
+            let result = await syncClient
                 .from('rooms')
                 .insert([attemptRow])
                 .select()
                 .single();
 
-            // Dynamic retry loop: strip any column missing in the Supabase schema cache
+            // Dynamic retry loop: strip any field missing in the backend schema cache
             let maxRetries = 5;
             while (result.error && maxRetries > 0 && (result.error.code === 'PGRST204' || /column/i.test(result.error.message || ''))) {
                 maxRetries--;
@@ -453,7 +451,7 @@
                     else break;
                 }
 
-                result = await supabaseClient
+                result = await syncClient
                     .from('rooms')
                     .insert([attemptRow])
                     .select()
@@ -2097,8 +2095,8 @@
             safeLocalStorage.setItem('movora_username', currentUserName);
         }
 
-        // Initialize Supabase Client
-        const supabaseClient = supabase.createClient(defaultUrl, defaultKey || PUBLISHABLE_KEY);
+        // Initialize Sync Client
+        const syncClient = moovieSync.createClient(defaultUrl, defaultKey || PUBLISHABLE_KEY);
 
         // Application State variables
         let activeRoom = null;
@@ -2198,7 +2196,7 @@
         // show how many people are actually in it right now (0 if empty).
         function observeLobbyRoomPresence(roomId) {
             if (!roomId) return;
-            const ch = supabaseClient.channel(`party_room_${roomId}`, {
+            const ch = syncClient.channel(`party_room_${roomId}`, {
                 config: {
                     presence: {
                         key: `${LOBBY_OBSERVER_PREFIX}${presenceSessionId}`
@@ -2240,14 +2238,14 @@
 
         function teardownLobbyPresence() {
             if (lobbyChannels && lobbyChannels.length) {
-                lobbyChannels.forEach(c => supabaseClient.removeChannel(c));
+                lobbyChannels.forEach(c => syncClient.removeChannel(c));
                 lobbyChannels = [];
             }
         }
 
         function teardownLobbyFeed() {
             if (lobbyRoomsChannel) {
-                supabaseClient.removeChannel(lobbyRoomsChannel);
+                syncClient.removeChannel(lobbyRoomsChannel);
                 lobbyRoomsChannel = null;
             }
             if (lobbyRefreshInterval) {
@@ -2267,7 +2265,7 @@
 
         function setupLobbyFeed() {
             if (!lobbyRoomsChannel) {
-                lobbyRoomsChannel = supabaseClient
+                lobbyRoomsChannel = syncClient
                     .channel('lobby_rooms_feed')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
                         scheduleLoadActiveRooms();
@@ -2287,7 +2285,7 @@
         async function touchRoomActivity(roomId) {
             if (!roomId) return;
             try {
-                await supabaseClient
+                await syncClient
                     .from('rooms')
                     .update({ scheduled_start_time: new Date().toISOString() })
                     .eq('id', roomId);
@@ -2304,7 +2302,7 @@
             lastStaleCleanupRun = now;
             try {
                 const cutoff = new Date(now - PARTY_INACTIVE_HOURS * 60 * 60 * 1000).toISOString();
-                const { data: stale, error } = await supabaseClient
+                const { data: stale, error } = await syncClient
                     .from('rooms')
                     .select('id')
                     .lte('scheduled_start_time', cutoff);
@@ -2320,7 +2318,7 @@
                         console.warn('Room chat cleanup failed:', e);
                     }
                     try {
-                        await supabaseClient.from('rooms').delete().eq('id', roomId);
+                        await syncClient.from('rooms').delete().eq('id', roomId);
                     } catch (e) {
                         console.warn('Room delete failed:', e);
                     }
@@ -2754,7 +2752,7 @@
                 switchStreamProvider(activeProvider);
             }
 
-            // 2. Update Supabase rooms record for late joiners
+            // 2. Update rooms record for late joiners
             if (isHost && activeRoom) {
                 let nextSource;
                 if (isNetflix) {
@@ -2768,7 +2766,7 @@
                 } else {
                     nextSource = String(mediaId);
                 }
-                supabaseClient
+                syncClient
                     .from('rooms')
                     .update({ embed_sources: nextSource })
                     .eq('id', activeRoom.id)
@@ -2927,7 +2925,7 @@
                 // Stale rows are removed server-side (see docs/rooms_cleanup_migration.sql).
                 const inactiveThreshold = partyInactiveThresholdIso();
 
-                const { data: rooms, error } = await supabaseClient
+                const { data: rooms, error } = await syncClient
                     .from('rooms')
                     .select('*')
                     .gte('scheduled_start_time', inactiveThreshold)
@@ -3001,7 +2999,7 @@
 
         async function joinExistingRoom(roomId) {
             try {
-                const { data: room, error } = await supabaseClient
+                const { data: room, error } = await syncClient
                     .from('rooms')
                     .select('*')
                     .eq('id', roomId)
@@ -3032,7 +3030,7 @@
             const uuid = shortCodeToUuid(shortCode);
 
             try {
-                const { data: room, error } = await supabaseClient
+                const { data: room, error } = await syncClient
                     .from('rooms')
                     .insert([{
                         id: uuid,
@@ -3063,7 +3061,7 @@
 
         async function persistPartyChatMessage(roomId, user, message, imageUrl) {
             if (!roomId) return;
-            const { error } = await supabaseClient
+            const { error } = await syncClient
                 .from('party_chat_messages')
                 .insert([{
                     room_id: roomId,
@@ -3077,7 +3075,7 @@
         async function purgePartyChat(roomId) {
             if (!roomId) return;
             try {
-                const { error } = await supabaseClient
+                const { error } = await syncClient
                     .from('party_chat_messages')
                     .delete()
                     .eq('room_id', roomId);
@@ -3106,7 +3104,7 @@
                 }
             }
 
-            supabaseClient.removeChannel(channel);
+            syncClient.removeChannel(channel);
             channel = null;
         }
 
@@ -3120,7 +3118,7 @@
             startRoomActivityHeartbeat(room.id);
 
             // Chat & User presence channels
-            channel = supabaseClient.channel(`party_room_${room.id}`, {
+            channel = syncClient.channel(`party_room_${room.id}`, {
                 config: {
                     presence: {
                         key: getPresenceKey()
@@ -3338,7 +3336,7 @@
                 const blob = await res.blob();
                 
                 const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.jpg`;
-                const { data, error } = await supabaseClient.storage
+                const { data, error } = await syncClient.storage
                     .from('chat-images')
                     .upload(fileName, blob, {
                         contentType: 'image/jpeg',
@@ -3350,7 +3348,7 @@
                     return base64Str;
                 }
 
-                const { data: { publicUrl } } = supabaseClient.storage
+                const { data: { publicUrl } } = syncClient.storage
                     .from('chat-images')
                     .getPublicUrl(fileName);
                 return publicUrl;
@@ -3379,7 +3377,7 @@
             // Render local message instantly
             appendChatMessage(currentUserName, textToSend, 'me', imageToSend);
 
-            // Upload image to Supabase Storage in the background if present
+            // Upload image to storage in the background if present
             let finalImage = null;
             if (imageToSend) {
                 finalImage = await uploadBase64ToStorage(imageToSend);
@@ -3732,7 +3730,7 @@
                         await joinExistingRoom(joinRoomId);
                     } else if (isShortCode) {
                         const codeUuid = shortCodeToUuid(joinRoomId);
-                        const { data: room, error } = await supabaseClient
+                        const { data: room, error } = await syncClient
                             .from('rooms')
                             .select('*')
                             .eq('id', codeUuid)

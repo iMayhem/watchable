@@ -22,7 +22,7 @@
                             <div class="settings-card__icon-box">🌐</div>
                             <div>
                                 <h2 class="settings-card__title">Regional & Localization</h2>
-                                <p class="settings-card__desc">Choose your region and preferred language for localized titles and curation.</p>
+                                <p class="settings-card__desc">Choose your region. Movie, show, and anime titles are shown in English.</p>
                             </div>
                         </div>
 
@@ -41,15 +41,14 @@
                                 </div>
                             </div>
 
-                            <!-- Language Selector -->
+                            <!-- Catalog language is fixed to English so localized titles do not
+                                 appear inconsistently across catalog, search, and player pages. -->
                             <div class="settings-field">
                                 <label for="setting-language" class="settings-field__label eyebrow">Content Language</label>
-                                <p class="settings-field__help">Sets your preferred title metadata and synopsis language where available.</p>
+                                <p class="settings-field__help">English-only catalog metadata.</p>
                                 <div class="settings-select-wrapper">
-                                    <select id="setting-language" v-model="selectedLanguage" class="settings-select" @change="saveRegionalSettings">
-                                        <option v-for="l in LANGUAGES" :key="l.code" :value="l.code">
-                                            {{ l.name }}
-                                        </option>
+                                    <select id="setting-language" v-model="selectedLanguage" class="settings-select" disabled>
+                                        <option value="en-US">English</option>
                                     </select>
                                     <span class="settings-select-arrow">▼</span>
                                 </div>
@@ -86,15 +85,53 @@
                                 <p class="settings-field__help">Server selection is coming soon — currently set to Poseidon (Multi-Audio HD).</p>
                                 <div class="settings-select-wrapper is-disabled">
                                     <select id="setting-server" v-model="defaultServerId" class="settings-select" disabled>
-                                        <option value="sugar">Sugar (vidcodin.net)</option>
-                                        <option value="spoider">Spoider (screenscape.me)</option>
-                                        <option value="poseidon">Poseidon (Multi-Audio HD)</option>
-                                        <option value="athena">Athena (Moovie Scraper Catalog)</option>
-                                        <option value="apollo">Apollo (4K Ultra Stream)</option>
-                                        <option value="hades">Hades (Backup HLS Mirror)</option>
+                                        <option value="moovie">Moovie</option>
                                     </select>
                                     <span class="settings-select-arrow">▼</span>
                                 </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section: Playback Routing (Direct / VPS Proxy) -->
+                    <section class="settings-card">
+                        <div class="settings-card__header">
+                            <div class="settings-card__icon-box">🛰️</div>
+                            <div>
+                                <h2 class="settings-card__title">Playback Routing</h2>
+                                <p class="settings-card__desc">Choose how scraped streams are played: direct from the source or relayed through the VPS proxy.</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-card__body">
+                            <div class="settings-field">
+                                <label for="setting-route" class="settings-field__label eyebrow">Stream Route</label>
+                                <p class="settings-field__help">This applies to every scraper stream. Changes are only applied once you hit Save — playback keeps your current route until then.</p>
+                                <div class="settings-select-wrapper">
+                                    <select id="setting-route" v-model="draftRoute" class="settings-select">
+                                        <option value="auto">Auto (Follow Site Setting)</option>
+                                        <option value="direct">Direct (Play Straight From Source)</option>
+                                        <option value="proxy">VPS Proxy (Route Through Server)</option>
+                                    </select>
+                                    <span class="settings-select-arrow">▼</span>
+                                </div>
+                            </div>
+
+                            <div class="settings-action-box">
+                                <div>
+                                    <span class="settings-action-title">Playback Route: <span style="color: var(--ember);">{{ routeLabel }}</span></span>
+                                    <span class="settings-action-desc">
+                                        {{ routeDirty ? 'You have unsaved changes — click Save to apply.' : 'This is the route currently used by the player.' }}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="settings-btn settings-btn--save"
+                                    :disabled="!routeDirty"
+                                    @click="savePlaybackRoute"
+                                >
+                                    Save Route
+                                </button>
                             </div>
                         </div>
                     </section>
@@ -236,10 +273,11 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
-import { getSettings, LANGUAGES, REGIONS } from '../composables/useSettings';
+import { getSettings, REGIONS } from '../composables/useSettings';
+import { usePlaybackRoute, type PlaybackRoute } from '../composables/usePlaybackRoute';
 import { getCurrentUser, logoutUser } from '../lib/auth';
 import { useSeo } from '../composables/useSeo';
 import { useToast } from '../composables/useToast';
@@ -247,6 +285,23 @@ import { useToast } from '../composables/useToast';
 const { updateSeo } = useSeo();
 const { region, language, updateSettings } = getSettings();
 const { addToast } = useToast();
+const { savedRoute, draftRoute, saveRoute } = usePlaybackRoute();
+
+const routeLabel = computed(() => {
+    const map: Record<PlaybackRoute, string> = {
+        auto: 'Auto (Follow Site Setting)',
+        direct: 'Direct',
+        proxy: 'VPS Proxy'
+    };
+    return map[draftRoute.value] || 'Auto';
+});
+
+const routeDirty = computed(() => draftRoute.value !== savedRoute.value);
+
+function savePlaybackRoute() {
+    saveRoute();
+    addToast('Playback route saved — new streams will use this route.', 'success');
+}
 
 const selectedRegion = ref(region.value || 'global');
 const selectedLanguage = ref(language.value || 'en-US');
@@ -353,8 +408,8 @@ onMounted(() => {
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--ember);
-        background: rgba(255, 90, 31, 0.1);
-        border: 1px solid rgba(255, 90, 31, 0.25);
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.25);
         border-radius: var(--r-pill);
         margin-bottom: var(--s-3);
     }
@@ -384,7 +439,7 @@ onMounted(() => {
 }
 
 .settings-card {
-    background: rgba(24, 22, 18, 0.75);
+    background: #080808;
     backdrop-filter: blur(16px);
     border: 1px solid var(--rule);
     border-radius: var(--r-lg);
@@ -396,7 +451,7 @@ onMounted(() => {
     transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast);
 
     &:hover {
-        border-color: rgba(255, 90, 31, 0.3);
+        border-color: rgba(255, 255, 255, 0.3);
     }
 
     &__header {
@@ -414,7 +469,7 @@ onMounted(() => {
         align-items: center;
         justify-content: center;
         font-size: 1.3rem;
-        background: var(--surface-tint);
+        background: #0d0d0d;
         border: 1px solid var(--rule);
         border-radius: var(--r-md);
         flex-shrink: 0;
@@ -472,7 +527,7 @@ onMounted(() => {
     font-family: var(--font-ui);
     font-size: 0.92rem;
     color: var(--bone-100);
-    background: rgba(14, 13, 11, 0.85);
+    background: #050505;
     border: 1px solid var(--rule);
     border-radius: var(--r-md);
     cursor: pointer;
@@ -481,7 +536,7 @@ onMounted(() => {
 
     &:focus, &:hover {
         border-color: var(--ember);
-        background: rgba(22, 20, 17, 0.95);
+        background: #101010;
     }
 
     &:disabled {
@@ -490,7 +545,7 @@ onMounted(() => {
     }
 
     option {
-        background: #151310;
+        background: #111;
         color: #fff;
     }
 }
@@ -511,14 +566,14 @@ onMounted(() => {
     font-family: var(--font-ui);
     font-size: 0.92rem;
     color: var(--bone-100);
-    background: rgba(14, 13, 11, 0.85);
+    background: #050505;
     border: 1px solid var(--rule);
     border-radius: var(--r-md);
     outline: none;
     transition: border-color var(--dur-fast), background var(--dur-fast);
     &:focus {
         border-color: var(--ember);
-        background: rgba(22, 20, 17, 0.95);
+        background: #101010;
     }
     &::placeholder {
         color: var(--bone-500);
@@ -531,7 +586,7 @@ onMounted(() => {
     justify-content: space-between;
     gap: var(--s-4);
     padding: var(--s-3) var(--s-4);
-    background: rgba(14, 13, 11, 0.6);
+    background: #050505;
     border: 1px solid var(--rule);
     border-radius: var(--r-md);
 }
@@ -602,7 +657,7 @@ onMounted(() => {
     justify-content: space-between;
     gap: var(--s-4);
     padding: var(--s-4);
-    background: rgba(14, 13, 11, 0.6);
+    background: #050505;
     border: 1px solid var(--rule);
     border-radius: var(--r-md);
 
@@ -631,7 +686,7 @@ onMounted(() => {
     align-items: center;
     gap: var(--s-4);
     padding: var(--s-4);
-    background: rgba(14, 13, 11, 0.6);
+    background: #050505;
     border: 1px solid var(--rule);
     border-radius: var(--r-md);
 }
@@ -640,7 +695,7 @@ onMounted(() => {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
+    background: linear-gradient(135deg, var(--ember) 0%, #ffffff 100%);
     color: #fff;
     display: flex;
     align-items: center;
@@ -691,6 +746,23 @@ onMounted(() => {
             background: var(--surface-tint);
             border-color: var(--bone-300);
             color: #fff;
+        }
+    }
+
+    &--save {
+        background: var(--ember);
+        color: #fff;
+        border: 1px solid var(--ember);
+        white-space: nowrap;
+
+        &:hover:not(:disabled) {
+            background: var(--ember-600);
+            box-shadow: 0 4px 20px rgba(255, 90, 31, 0.3);
+        }
+
+        &:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
         }
     }
 

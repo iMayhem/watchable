@@ -29,8 +29,10 @@ html:has(.m-app) {
     background: var(--ink-900);
 
     .watch-stage__chrome {
-        border-bottom: 1px solid var(--rule);
-        background: rgba(11, 10, 8, 0.96);
+        border-bottom: 1px solid var(--glass-border);
+        background: var(--glass);
+        backdrop-filter: var(--blur-pane);
+        -webkit-backdrop-filter: var(--blur-pane);
     }
 
     .watch-stage__main {
@@ -58,6 +60,12 @@ html:has(.m-app) {
     .site-header__nav {
         display: none;
     }
+}
+
+@media (max-width: 768px) {
+    :root { --container-gutter: 1.1rem; }
+
+    .container-lm { padding-inline: var(--container-gutter); }
 }
 
 @media (max-width: 768px), (pointer: coarse) {

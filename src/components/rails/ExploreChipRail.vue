@@ -232,9 +232,9 @@ export default defineComponent({
 
         &:hover {
             transform: translateY(-2px);
-            border-color: rgba(255, 90, 31, 0.45);
+            border-color: rgba(255, 255, 255, 0.45);
             color: var(--bone-50);
-            background: rgba(255, 90, 31, 0.1);
+            background: rgba(255, 255, 255, 0.1);
         }
     }
 

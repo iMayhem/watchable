@@ -1,6 +1,6 @@
 import { useStorage } from '@vueuse/core';
 import { computed, watch } from 'vue';
-import { getCurrentUser, pushUserDataToSupabase, syncUserDataWithSupabase } from '../lib/auth';
+import { getCurrentUser, pushUserDataToSync, syncUserDataWithSync } from '../lib/auth';
 
 export interface WatchlistItem {
   id: number | string;
@@ -240,7 +240,7 @@ if (typeof window !== 'undefined') {
     (newVal) => {
       const user = getCurrentUser();
       if (user) {
-        void pushUserDataToSupabase(user, newVal);
+        void pushUserDataToSync(user, newVal);
       }
     },
     { deep: true }
@@ -260,11 +260,11 @@ if (typeof window !== 'undefined') {
     const user = getCurrentUser();
     if (user) {
       const localCollection = normalizeWatchlistStorage(watchlistCollection.value);
-      await syncUserDataWithSupabase(user);
+      await syncUserDataWithSync(user);
       const cloudCollection = normalizeWatchlistStorage(watchlistCollection.value);
       const merged = mergeCollections(localCollection, cloudCollection);
       watchlistCollection.value = merged;
-      await pushUserDataToSupabase(user, merged);
+      await pushUserDataToSync(user, merged);
 
       window.dispatchEvent(new CustomEvent('watchlist_synced', {
         detail: { message: 'Watchlist synced to cloud successfully!' }
@@ -279,7 +279,7 @@ if (typeof window !== 'undefined') {
 
   const currentUser = getCurrentUser();
   if (currentUser) {
-    void syncUserDataWithSupabase(currentUser);
+    void syncUserDataWithSync(currentUser);
   }
 }
 
@@ -401,10 +401,10 @@ export function clearWatchlist(listId = watchlistCollection.value.activeListId):
   updateList(listId, list => ({ ...list, items: [] }));
 }
 
-export async function syncWatchlistToSupabase(): Promise<boolean> {
+export async function syncWatchlistToSync(): Promise<boolean> {
   const user = getCurrentUser();
   if (!user) return false;
-  return pushUserDataToSupabase(user, watchlistCollection.value);
+  return pushUserDataToSync(user, watchlistCollection.value);
 }
 
 export function useWatchlist() {
@@ -425,6 +425,6 @@ export function useWatchlist() {
     setWatched,
     isWatched,
     clearWatchlist,
-    syncWatchlistToSupabase
+    syncWatchlistToSync
   };
 }

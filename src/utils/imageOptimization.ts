@@ -13,7 +13,7 @@ interface ImageOptions {
   blur?: number;
 }
 
-const TMDB_BASE = 'https://proxy.moovie.fun/tmdb-image/';
+const TMDB_BASE = 'https://hahaevilcraft.site/tmdb-image/';
 
 /**
  * Generate optimized image URL via wsrv.nl (production) or direct TMDB (dev).

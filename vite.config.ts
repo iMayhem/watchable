@@ -86,8 +86,7 @@ export default defineConfig({
       'vue-router',
       '@vueuse/core',
       'axios'
-    ],
-    exclude: ['@supabase/supabase-js'] // Exclude large deps that are lazy-loaded
+    ]
   },
   
   // Server optimization for dev

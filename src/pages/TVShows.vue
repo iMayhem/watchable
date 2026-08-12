@@ -254,7 +254,7 @@ export default defineComponent({
             if (band?.lte !== undefined) params.set('with_runtime.lte', String(band.lte));
             if (f.language) params.set('with_original_language', f.language);
 
-            return `https://proxy.moovie.fun/tmdb-api/3/discover/tv?${params.toString()}`;
+            return `https://hahaevilcraft.site/tmdb-api/3/discover/tv?${params.toString()}`;
         };
 
         const buildSearchUrl = (pageNum: number): string => {
@@ -264,7 +264,7 @@ export default defineComponent({
                 page: String(pageNum),
                 include_adult: 'false'
             });
-            return `https://proxy.moovie.fun/tmdb-api/3/search/tv?${params.toString()}`;
+            return `https://hahaevilcraft.site/tmdb-api/3/search/tv?${params.toString()}`;
         };
 
         const fetchSearchPage = async (pageNum: number): Promise<TvShowResponse | null> => {
@@ -651,13 +651,13 @@ export default defineComponent({
         text-transform: uppercase;
         letter-spacing: 0.1em;
         color: var(--ember);
-        background: rgba(255, 90, 31, 0.1);
-        border: 1px solid rgba(255, 90, 31, 0.3);
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: var(--r-pill);
         transition: background-color var(--dur-fast) var(--ease-out);
 
         &:hover, &:focus-visible {
-            background: rgba(255, 90, 31, 0.2);
+            background: rgba(255, 255, 255, 0.2);
         }
     }
 
@@ -728,16 +728,12 @@ export default defineComponent({
 
     &__grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: var(--s-5) var(--s-4);
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: var(--s-4);
 
         @media (min-width: 720px) {
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: var(--s-6) var(--s-5);
-        }
-
-        @media (min-width: 1200px) {
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--s-5) var(--s-4);
         }
     }
 
@@ -757,7 +753,7 @@ export default defineComponent({
     }
 
     &__load-more-btn {
-        background: rgba(255, 90, 31, 0.1);
+        background: rgba(255, 255, 255, 0.1);
         border: 1.5px solid var(--ember);
         color: #ffffff;
         padding: 0.75rem 2.5rem;
@@ -767,12 +763,12 @@ export default defineComponent({
         font-weight: 600;
         cursor: pointer;
         transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-        box-shadow: 0 4px 15px rgba(255, 90, 31, 0.15);
+        box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15);
 
         &:hover {
             background: var(--ember);
             transform: scale(1.04);
-            box-shadow: 0 6px 20px rgba(255, 90, 31, 0.3);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
         }
 
         &:active {

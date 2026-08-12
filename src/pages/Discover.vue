@@ -3,125 +3,100 @@
         <SiteHeader />
 
         <main id="main" class="discover-page__main" role="main">
-            <div class="discover-page__tabs">
-                <button
-                    v-for="cat in categories"
-                    :key="cat.key"
-                    type="button"
-                    class="discover-page__tab"
-                    :class="{ 'is-active': activeCategory === cat.key, 'has-logo': !!brandLogo(cat.key) }"
-                    @click="selectCategory(cat)"
-                >
-                    <img v-if="brandLogo(cat.key)" :src="brandLogo(cat.key)" alt="" class="discover-page__tab-logo" />
-                    <span class="discover-page__tab-label">{{ cat.label }}</span>
-                    <span v-if="cat.region" class="discover-page__region-badge">{{ cat.region }}</span>
-                </button>
-            </div>
+            <header class="discover-page__header container-lm">
+                <span class="eyebrow discover-page__eyebrow">Browse</span>
+                <h1 class="discover-page__title">Discover</h1>
+                <p class="discover-page__desc">
+                    Explore the biggest movies across every era — sorted the way you like.
+                </p>
+            </header>
 
-            <button
-                type="button"
-                class="discover-page__ai-btn"
-                aria-label="AI assistant"
-                @click="toggleSuggestion"
-            >
-                {{ showSuggestion ? '✕' : 'AI' }}
-                <span class="discover-page__ai-new-badge">NEW</span>
-            </button>
+            <div class="discover-page__toolbar container-lm">
+                <div class="discover-page__controls">
+                    <div class="discover-page__sorts" role="group" aria-label="Sort results">
+                        <button
+                            v-for="sort in sorts"
+                            :key="sort.key"
+                            type="button"
+                            class="discover-page__sort"
+                            :class="{ 'is-active': activeSort === sort.key }"
+                            :aria-pressed="activeSort === sort.key"
+                            @click="selectSort(sort)"
+                        >
+                            {{ sort.label }}
+                        </button>
+                    </div>
 
-            <div v-if="showSuggestion" class="discover-page__ai-backdrop" />
-            <div v-if="showSuggestion" class="discover-page__ai-wrapper">
-                <!-- If loading -->
-                <div v-if="geminiLoading" class="discover-page__ai-loading-pill">
-                    <span class="discover-page__ai-spinner" />
-                    <span>Thinking... 🧠</span>
-                </div>
-                
-                <!-- If suggestions are loaded -->
-                <template v-else-if="geminiSuggestions.length">
-                    <!-- Navigatable recommendation pills -->
-                    <div
-                        v-for="sug in geminiSuggestions"
-                        :key="sug.title"
-                        class="discover-page__ai-recommend-container"
-                    >
-                        <router-link
-                            :to="getDetailRoute(sug)"
-                            class="discover-page__ai-recommend-pill"
+                    <div ref="platformWrap" class="discover-page__platform">
+                        <button
+                            type="button"
+                            class="discover-page__platform-trigger"
+                            :class="{ 'is-active': activeProvider !== null }"
+                            aria-haspopup="listbox"
+                            :aria-expanded="platformOpen"
+                            @click="platformOpen = !platformOpen"
                         >
                             <img
-                                v-if="sug.posterPath"
-                                :src="getPosterUrl(sug.posterPath)"
-                                class="discover-page__ai-pill-poster"
+                                v-if="activeProvider && providerLogo(activeProvider)"
+                                :src="providerLogo(activeProvider)"
                                 alt=""
-                                loading="lazy"
+                                class="discover-page__platform-logo"
                             />
-                            <span v-else class="discover-page__ai-pill-icon">{{ sug.type === 'tv' ? '📺' : '🎬' }}</span>
-                            <span class="discover-page__ai-pill-title">{{ sug.title }}</span>
-                        </router-link>
-                        <div class="discover-page__ai-pill-reason-tooltip">{{ sug.reason }}</div>
+                            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                                <path d="M2 9h20M7 17h4"/>
+                            </svg>
+                            <span class="discover-page__platform-label">{{ activeProviderLabel }}</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" class="discover-page__platform-chevron">
+                                <path d="m6 9 6 6 6-6"/>
+                            </svg>
+                        </button>
+
+                        <div v-if="platformOpen" class="discover-page__platform-menu" role="listbox" aria-label="Browse by streaming platform">
+                            <button
+                                type="button"
+                                role="option"
+                                class="discover-page__platform-option"
+                                :class="{ 'is-active': activeProvider === null }"
+                                :aria-selected="activeProvider === null"
+                                @click="selectProvider(null)"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                                    <path d="M2 9h20M7 17h4"/>
+                                </svg>
+                                <span>All platforms</span>
+                            </button>
+                            <button
+                                v-for="provider in providers"
+                                :key="provider.key"
+                                type="button"
+                                role="option"
+                                class="discover-page__platform-option"
+                                :class="{ 'is-active': activeProvider === provider.key }"
+                                :aria-selected="activeProvider === provider.key"
+                                @click="selectProvider(provider)"
+                            >
+                                <img
+                                    v-if="providerLogo(provider.key)"
+                                    :src="providerLogo(provider.key)"
+                                    alt=""
+                                    class="discover-page__platform-option-logo"
+                                />
+                                <span>{{ provider.label }}</span>
+                                <span v-if="provider.region" class="discover-page__platform-option-region">{{ provider.region }}</span>
+                            </button>
+                        </div>
                     </div>
+                </div>
 
-                    <!-- Utility actions -->
-                    <button type="button" class="discover-page__ai-action-pill is-filter" @click="showAiResultsInGrid">
-                        Filter Grid 🔍
-                    </button>
-                    <button type="button" class="discover-page__ai-action-pill is-retry" @click="retryAiOption">
-                        Try Again ➔
-                    </button>
-                    <button type="button" class="discover-page__ai-action-pill is-close" @click="clearSuggestion">
-                        Reset AI Menu ✕
-                    </button>
-                </template>
-
-                <!-- If error -->
-                <template v-else-if="geminiError">
-                    <div class="discover-page__ai-error-pill">
-                        ⚠️ {{ geminiError }}
-                    </div>
-                    <button type="button" class="discover-page__ai-action-pill is-retry" @click="retryAiOption">
-                        Try Again ➔
-                    </button>
-                    <button type="button" class="discover-page__ai-action-pill is-close" @click="clearSuggestion">
-                        Reset AI Menu ✕
-                    </button>
-                </template>
-
-                <!-- Initial Option Vibe Buttons + Search Input -->
-                <template v-else>
-                    <form @submit.prevent="handleAiSearch" class="discover-page__ai-search-pill">
-                        <input
-                            v-model="searchQuery"
-                            type="text"
-                            placeholder="Ask AI... (e.g. 90s sci-fi)"
-                            class="discover-page__ai-pill-input"
-                        />
-                        <button type="submit" class="discover-page__ai-pill-submit">➔</button>
-                    </form>
-                    <button
-                        v-for="opt in aiOptions"
-                        :key="opt.label"
-                        type="button"
-                        class="discover-page__ai-opt-pill"
-                        @click="selectAiOption(opt)"
-                    >
-                        {{ opt.label }}
-                    </button>
-                </template>
+                <p v-if="totalResults > 0" class="discover-page__count">
+                    {{ totalResults.toLocaleString() }} titles
+                </p>
             </div>
 
-            <button
-                type="button"
-                class="discover-page__scroll-top"
-                aria-label="Back to top"
-                @click="scrollToTop"
-            >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                    <path d="M18 15l-6-6-6 6"/>
-                </svg>
-            </button>
-
-            <section class="discover-page__results">
-                <div v-if="!results.length" class="discover-page__grid">
+            <section class="discover-page__results container-lm">
+                <div v-if="isLoading" class="discover-page__grid">
                     <PosterCard
                         v-for="n in 20"
                         :key="n"
@@ -132,6 +107,13 @@
                         poster-path=""
                         class="discover-page__card"
                     />
+                </div>
+
+                <div v-else-if="!results.length" class="discover-page__empty">
+                    <p>No titles found for this combination.</p>
+                    <p class="discover-page__empty-sub">
+                        Try switching the sort or picking another platform.
+                    </p>
                 </div>
 
                 <div v-else class="discover-page__grid">
@@ -168,6 +150,109 @@
             </section>
         </main>
 
+        <button
+            type="button"
+            class="discover-page__ai-btn"
+            aria-label="AI assistant"
+            @click="toggleSuggestion"
+        >
+            {{ showSuggestion ? '✕' : 'AI' }}
+            <span class="discover-page__ai-new-badge">NEW</span>
+        </button>
+
+        <div v-if="showSuggestion" class="discover-page__ai-backdrop" />
+        <div v-if="showSuggestion" class="discover-page__ai-wrapper">
+            <!-- If loading -->
+            <div v-if="geminiLoading" class="discover-page__ai-loading-pill">
+                <span class="discover-page__ai-spinner" />
+                <span>Thinking... 🧠</span>
+            </div>
+
+            <!-- If suggestions are loaded -->
+            <template v-else-if="geminiSuggestions.length">
+                <!-- Navigatable recommendation pills -->
+                <div
+                    v-for="sug in geminiSuggestions"
+                    :key="sug.title"
+                    class="discover-page__ai-recommend-container"
+                >
+                    <router-link
+                        :to="getDetailRoute(sug)"
+                        class="discover-page__ai-recommend-pill"
+                    >
+                        <img
+                            v-if="sug.posterPath"
+                            :src="getPosterUrl(sug.posterPath)"
+                            class="discover-page__ai-pill-poster"
+                            alt=""
+                            loading="lazy"
+                        />
+                        <span v-else class="discover-page__ai-pill-icon">{{ sug.type === 'tv' ? '📺' : '🎬' }}</span>
+                        <span class="discover-page__ai-pill-title">{{ sug.title }}</span>
+                    </router-link>
+                    <div class="discover-page__ai-pill-reason-tooltip">{{ sug.reason }}</div>
+                </div>
+
+                <!-- Utility actions -->
+                <button type="button" class="discover-page__ai-action-pill is-filter" @click="showAiResultsInGrid">
+                    Filter Grid 🔍
+                </button>
+                <button type="button" class="discover-page__ai-action-pill is-retry" @click="retryAiOption">
+                    Try Again ➔
+                </button>
+                <button type="button" class="discover-page__ai-action-pill is-close" @click="clearSuggestion">
+                    Reset AI Menu ✕
+                </button>
+            </template>
+
+            <!-- If error -->
+            <template v-else-if="geminiError">
+                <div class="discover-page__ai-error-pill">
+                    ⚠️ {{ geminiError }}
+                </div>
+                <button type="button" class="discover-page__ai-action-pill is-retry" @click="retryAiOption">
+                    Try Again ➔
+                </button>
+                <button type="button" class="discover-page__ai-action-pill is-close" @click="clearSuggestion">
+                    Reset AI Menu ✕
+                </button>
+            </template>
+
+            <!-- Initial Option Vibe Buttons + Search Input -->
+            <template v-else>
+                <form @submit.prevent="handleAiSearch" class="discover-page__ai-search-pill">
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Ask AI... (e.g. 90s sci-fi)"
+                        class="discover-page__ai-pill-input"
+                    />
+                    <button type="submit" class="discover-page__ai-pill-submit">➔</button>
+                </form>
+                <button
+                    v-for="opt in aiOptions"
+                    :key="opt.label"
+                    type="button"
+                    class="discover-page__ai-opt-pill"
+                    @click="selectAiOption(opt)"
+                >
+                    {{ opt.label }}
+                </button>
+            </template>
+        </div>
+
+        <button
+            v-if="showScrollTop"
+            type="button"
+            class="discover-page__scroll-top"
+            aria-label="Back to top"
+            @click="scrollToTop"
+        >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <path d="M18 15l-6-6-6 6"/>
+            </svg>
+        </button>
+
         <SiteFooter />
     </div>
 </template>
@@ -178,113 +263,19 @@ import { useRouter } from 'vue-router';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
 import PosterCard from '../components/cards/PosterCard.vue';
-import SuggestionRail from '../components/rails/SuggestionRail.vue';
-import useAxios from '../composables/useAxios';
 import { useGemini } from '../composables/useGemini';
 
-interface Category {
+interface SortOption {
     key: string;
     label: string;
     params: Record<string, string | number>;
-    useWatchmode?: boolean;
-    sourceId?: number;
-    region?: string;
-    isTv?: boolean;
 }
 
-interface WatchmodeTitle {
-    id: number;
-    title: string;
-    year: number;
-    poster: string;
-    rating: number;
-    tmdb_id: number;
-    type: string;
-}
-
-// Watchmode API key is server-side in functions/api/watchmode-cache.ts
-const CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
-
-const DB_NAME = 'discover_cache';
-const DB_VERSION = 1;
-const STORE_NAME = 'watchmode';
-
-function openDB(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = () => {
-            const db = req.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'key' });
-            }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
-}
-
-async function idbGet<T>(key: string): Promise<T | null> {
-    try {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            const store = tx.objectStore(STORE_NAME);
-            const req = store.get(key);
-            req.onsuccess = () => {
-                const entry = req.result;
-                if (!entry) return resolve(null);
-                if (Date.now() - entry.ts > CACHE_TTL) {
-                    store.delete(key);
-                    resolve(null);
-                } else {
-                    resolve(entry.data as T);
-                }
-            };
-            req.onerror = () => reject(req.error);
-            tx.oncomplete = () => db.close();
-        });
-    } catch {
-        return null;
-    }
-}
-
-async function idbSet(key: string, data: any): Promise<void> {
-    try {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            store.put({ key, data, ts: Date.now() });
-            tx.oncomplete = () => { db.close(); resolve(); };
-            tx.onerror = () => reject(tx.error);
-        });
-    } catch {}
-}
-
-async function getWatchmodeFromCache(sourceId: number, page: number, region?: string): Promise<any | null> {
-    const key = `wm_v2_${sourceId}_${page}${region ? `_${region}` : ''}`;
-    const fromIdb = await idbGet<any>(key);
-    if (fromIdb) return fromIdb;
-    try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return null;
-        const entry = JSON.parse(raw);
-        if (Date.now() - entry.ts > CACHE_TTL) {
-            localStorage.removeItem(key);
-            return null;
-        }
-        return entry.data;
-    } catch {
-        return null;
-    }
-}
-
-async function setWatchmodeCache(sourceId: number, page: number, data: any, region?: string): Promise<void> {
-    const key = `wm_v2_${sourceId}_${page}${region ? `_${region}` : ''}`;
-    await idbSet(key, data);
-    try {
-        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
-    } catch {}
+interface Provider {
+    key: string;
+    label: string;
+    tmdbId: number;
+    region: string;
 }
 
 interface MovieResult {
@@ -296,20 +287,80 @@ interface MovieResult {
     type: 'movie' | 'tv' | 'anime';
 }
 
+// TMDB watch provider IDs (verified via /watch/providers) — not to be confused
+// with Watchmode source IDs. flatrate = subscription streaming.
+const PROVIDER_API = 'https://hahaevilcraft.site/tmdb-api/3/';
+
+// Legacy ?category= values from the old tabbed page, mapped to the new sort keys
+const LEGACY_CATEGORY_TO_SORT: Record<string, string> = {
+    'highest-grossing': 'highest-grossing',
+    'most-voted': 'most-voted',
+    'top-rated': 'top-rated'
+};
+
+const SORTS: SortOption[] = [
+    { key: 'popular', label: 'Popular', params: { sort_by: 'popularity.desc' } },
+    { key: 'top-rated', label: 'Top Rated', params: { sort_by: 'vote_average.desc', 'vote_count.gte': 500 } },
+    { key: 'highest-grossing', label: 'Highest Grossing', params: { sort_by: 'revenue.desc' } },
+    { key: 'most-voted', label: 'Most Voted', params: { sort_by: 'vote_count.desc' } }
+];
+
+const PROVIDERS: Provider[] = [
+    { key: 'netflix', label: 'Netflix', tmdbId: 8, region: 'US' },
+    { key: 'prime', label: 'Prime Video', tmdbId: 9, region: 'US' },
+    { key: 'dplus', label: 'Disney+', tmdbId: 337, region: 'US' },
+    { key: 'hbomax', label: 'HBO Max', tmdbId: 1899, region: 'US' },
+    { key: 'hulu', label: 'Hulu', tmdbId: 15, region: 'US' },
+    { key: 'appletv', label: 'Apple TV+', tmdbId: 350, region: 'US' },
+    { key: 'paramount', label: 'Paramount+', tmdbId: 2303, region: 'US' },
+    { key: 'peacock', label: 'Peacock', tmdbId: 386, region: 'US' },
+    { key: 'starz', label: 'Starz', tmdbId: 43, region: 'US' },
+    { key: 'crunchyroll', label: 'Crunchyroll', tmdbId: 283, region: 'US' },
+    { key: 'mubi', label: 'MUBI', tmdbId: 11, region: 'US' },
+    { key: 'shudder', label: 'Shudder', tmdbId: 99, region: 'US' },
+    { key: 'criterion', label: 'Criterion', tmdbId: 258, region: 'US' },
+    { key: 'britbox', label: 'BritBox', tmdbId: 151, region: 'US' },
+    { key: 'acorn', label: 'Acorn TV', tmdbId: 87, region: 'US' },
+    { key: 'viki', label: 'Viki', tmdbId: 344, region: 'US' },
+    { key: 'curiosity', label: 'CuriosityStream', tmdbId: 190, region: 'US' },
+    { key: 'hayu', label: 'Hayu', tmdbId: 296, region: 'GB' },
+    { key: 'lionsgate', label: 'Lionsgate+', tmdbId: 2358, region: 'GB' }
+];
+
 export default defineComponent({
     name: 'Discover',
-    components: { SiteHeader, SiteFooter, PosterCard, SuggestionRail },
+    components: { SiteHeader, SiteFooter, PosterCard },
     setup() {
         const router = useRouter();
-        const activeCategory = ref((router.currentRoute.value.query.category as string) || 'highest-grossing');
+
+        const legacyCategory = (router.currentRoute.value.query.category as string) || '';
+        const sortParam = (router.currentRoute.value.query.sort as string) || '';
+        const providerParam = (router.currentRoute.value.query.provider as string) || '';
+        const initialKey = SORTS.some(s => s.key === sortParam)
+            ? sortParam
+            : (LEGACY_CATEGORY_TO_SORT[legacyCategory] || 'popular');
+        const initialProvider = PROVIDERS.some(p => p.key === providerParam)
+            ? providerParam
+            : null;
+
+        const activeSort = ref(initialKey);
+        const activeProvider = ref<string | null>(initialProvider);
+        const platformOpen = ref(false);
+        const platformWrap = ref<HTMLElement | null>(null);
         const results = ref<MovieResult[]>([]);
+        const totalResults = ref(0);
         const isLoading = ref(true);
         const isLoadingMore = ref(false);
         const page = ref(1);
         const totalPages = ref(1);
-        const currentCat = ref<Category | null>(null);
+        const currentSort = ref<SortOption>(SORTS.find(s => s.key === initialKey) || SORTS[0]);
         const showScrollTop = ref(false);
         const showSuggestion = ref(false);
+
+        const activeProviderLabel = computed(() => {
+            if (!activeProvider.value) return 'All platforms';
+            return PROVIDERS.find(p => p.key === activeProvider.value)?.label ?? 'All platforms';
+        });
 
         const { suggestion: geminiSuggestion, suggestions: geminiSuggestions, loading: geminiLoading, error: geminiError, getSuggestion: getGeminiSuggestion, clearSuggestion } = useGemini();
 
@@ -388,78 +439,50 @@ export default defineComponent({
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
-        onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }));
-        onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
+        const closePlatformOnOutside = (e: MouseEvent) => {
+            if (platformWrap.value && !platformWrap.value.contains(e.target as Node)) {
+                platformOpen.value = false;
+            }
+        };
+
+        const closePlatformOnKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') platformOpen.value = false;
+        };
+
+        onMounted(() => {
+            window.addEventListener('scroll', onScroll, { passive: true });
+            document.addEventListener('click', closePlatformOnOutside);
+            document.addEventListener('keydown', closePlatformOnKey);
+        });
+        onBeforeUnmount(() => {
+            window.removeEventListener('scroll', onScroll);
+            document.removeEventListener('click', closePlatformOnOutside);
+            document.removeEventListener('keydown', closePlatformOnKey);
+        });
 
         const hasMore = computed(() => page.value < totalPages.value);
 
-        const brandLogoModules = import.meta.glob<{ default: string }>('../assets/brands/*.svg', { eager: true });
-        const brandLogo = (key: string): string | undefined => {
-            const mappedKey = key === 'disney' ? 'dplus' : key;
-            return brandLogoModules[`../assets/brands/${mappedKey}.svg`]?.default;
+        const providerLogoModules = import.meta.glob<{ default: string }>('../assets/brands/*.svg', { eager: true });
+        const providerLogo = (key: string): string | undefined => {
+            return providerLogoModules[`../assets/brands/${key}.svg`]?.default;
         };
-
-        const brandColor = (key: string): string => {
-            const colors: Record<string, string> = {
-                'highest-grossing': '#f59e0b', 'most-voted': '#3b82f6', 'top-rated': '#fbbf24',
-                'marvel': '#ed1d24', 'dc': '#0477f2', 'warner': '#00aeef', 'universal': '#000',
-                'disney': '#113cc2', 'sony': '#000', 'paramount': '#006fa6',
-                'a24': '#000', 'focus': '#f5a623', 'dreamworks': '#f8981d',
-                'pixar': '#0071bc', 'lionsgate': '#000',
-                'netflix': '#e50914', 'hulu': '#1ce783', 'hbomax': '#5822b4',
-                'prime': '#ff9900', 'dplus': '#113cc2', 'appletv': '#555',
-                'hayu': '#e31b54', 'shudder': '#ee3a3a', 'crunchyroll': '#f47521',
-                'viki': '#1ab7ea', 'curiosity': '#0d6e4b', 'criterion': '#000',
-                'britbox': '#003b5c', 'acorn': '#6bb24a',
-            };
-            return colors[key] || '#666';
-        };
-        const brandLetter = (key: string): string => {
-            const letters: Record<string, string> = {
-                'highest-grossing': '$$', 'most-voted': '✓', 'top-rated': '★',
-                'a24': 'A24', 'focus': 'Fc', 'hbo': 'HBO', 'hbomax': 'Mx',
-                'dplus': 'D+', 'appletv': 'A+', 'prime': '▶',
-                'curiosity': 'C?', 'criterion': 'CC',
-            };
-            return letters[key] || key.charAt(0).toUpperCase();
-        };
-
-        const categories: Category[] = [
-            { key: 'highest-grossing', label: 'Highest Grossing', params: { sort_by: 'revenue.desc' } },
-            { key: 'most-voted', label: 'Most Voted', params: { sort_by: 'vote_count.desc' } },
-            { key: 'top-rated', label: 'Top Rated', params: { sort_by: 'vote_average.desc', 'vote_count.gte': 500 } },
-            { key: 'marvel', label: 'Marvel', params: { with_companies: '420', sort_by: 'popularity.desc' } },
-            { key: 'dc', label: 'DC', params: { with_companies: '429|9993', sort_by: 'popularity.desc' } },
-            { key: 'warner', label: 'Warner Bros.', params: { with_companies: '174', sort_by: 'popularity.desc' } },
-            { key: 'universal', label: 'Universal', params: { with_companies: '33', sort_by: 'popularity.desc' } },
-            { key: 'disney', label: 'Disney', params: { with_companies: '2', sort_by: 'popularity.desc' } },
-            { key: 'sony', label: 'Sony', params: { with_companies: '559', sort_by: 'popularity.desc' } },
-            { key: 'paramount', label: 'Paramount', params: { with_companies: '4', sort_by: 'popularity.desc' } },
-            { key: 'lionsgate', label: 'Lionsgate', params: {}, useWatchmode: true, sourceId: 533, region: 'GB' },
-            { key: 'a24', label: 'A24', params: { with_companies: '41077', sort_by: 'popularity.desc' } },
-            { key: 'focus', label: 'Focus Features', params: { with_companies: '10163', sort_by: 'popularity.desc' } },
-            { key: 'dreamworks', label: 'DreamWorks', params: { with_companies: '521', sort_by: 'popularity.desc' } },
-            { key: 'pixar', label: 'Pixar', params: { with_companies: '3', sort_by: 'popularity.desc' } },
-            { key: 'netflix', label: 'Netflix', params: {}, useWatchmode: true, sourceId: 203 },
-            { key: 'hulu', label: 'Hulu', params: {}, useWatchmode: true, sourceId: 157 },
-            { key: 'hbomax', label: 'HBO Max', params: {}, useWatchmode: true, sourceId: 387 },
-            { key: 'prime', label: 'Prime Video', params: {}, useWatchmode: true, sourceId: 26 },
-            { key: 'dplus', label: 'Disney+', params: {}, useWatchmode: true, sourceId: 372 },
-            { key: 'appletv', label: 'Apple TV+', params: {}, useWatchmode: true, sourceId: 371 },
-            { key: 'hayu', label: 'Hayu', params: {}, useWatchmode: true, sourceId: 392, region: 'GB' },
-            { key: 'shudder', label: 'Shudder', params: {}, useWatchmode: true, sourceId: 252 },
-            { key: 'crunchyroll', label: 'Crunchyroll', params: {}, useWatchmode: true, sourceId: 80 },
-            { key: 'viki', label: 'Viki', params: {}, useWatchmode: true, sourceId: 471 },
-            { key: 'curiosity', label: 'CuriosityStream', params: {}, useWatchmode: true, sourceId: 421 },
-            { key: 'criterion', label: 'The Criterion Channel', params: {}, useWatchmode: true, sourceId: 366 },
-            { key: 'britbox', label: 'BritBox', params: {}, useWatchmode: true, sourceId: 376 },
-            { key: 'acorn', label: 'Acorn TV', params: {}, useWatchmode: true, sourceId: 17 }
-        ];
 
         let fetchReqId = 0;
 
-        const fetchPage = async (cat: Category, p: number, append: boolean) => {
+        const fetchTmdbDiscover = async (params: Record<string, string>, signal: AbortSignal): Promise<any> => {
+            const apiKey = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672';
+            const qs = new URLSearchParams({ api_key: apiKey, ...params });
+            qs.set('language', 'en-US');
+            const res = await fetch(`${PROVIDER_API}discover/movie?${qs.toString()}`, { signal });
+            if (!res.ok) throw new Error(`TMDB fetch error: ${res.status}`);
+            return res.json();
+        };
+
+        const fetchPage = async (sort: SortOption, p: number, append: boolean) => {
             const reqId = ++fetchReqId;
+            const provider = activeProvider.value
+                ? (PROVIDERS.find(pr => pr.key === activeProvider.value) ?? null)
+                : null;
             if (append) {
                 isLoadingMore.value = true;
             } else {
@@ -467,110 +490,30 @@ export default defineComponent({
                 results.value = [];
             }
             try {
-                let items: MovieResult[] = [];
-                let total = 1;
-
-                if (cat.useWatchmode) {
-                    const sid = cat.sourceId!;
-                    const region = cat.region || '';
-                    const cached = await getWatchmodeFromCache(sid, p, region);
-                    let titles: WatchmodeTitle[] = [];
-                    let totalPages = 1;
-                    if (cached) {
-                        titles = cached.titles || [];
-                        totalPages = cached.total_pages || 1;
-                    } else {
-                        const regionParam = region ? `&regions=${region}` : '';
-                        // Try Cloudflare Pages function first, fallback to VPS
-                        const endpoints = [
-                            `/api/watchmode-cache?sourceId=${sid}&page=${p}${regionParam}`,
-                            `https://providers.peestream.in/api/watchmode-cache?sourceId=${sid}&page=${p}${regionParam}`,
-                        ];
-                        for (const endpoint of endpoints) {
-                            try {
-                                const res = await fetch(endpoint, { signal: AbortSignal.timeout(10000) });
-                                if (res.ok) {
-                                    const data = await res.json().catch(() => null);
-                                    if (data && Array.isArray(data.titles)) {
-                                        titles = data.titles ?? [];
-                                        totalPages = data.total_pages ?? 1;
-                                        if (titles.length > 0) {
-                                            await setWatchmodeCache(sid, p, { titles, total_pages: totalPages, total_results: data?.total_results ?? 0 }, region);
-                                        }
-                                        break; // success — don't try next endpoint
-                                    }
-                                }
-                            } catch {
-                                /* try next endpoint */
-                            }
-                        }
-                    }
-
-                    if (reqId !== fetchReqId) return;
-
-                    const validTitles = titles.filter((t: WatchmodeTitle) => t.type === 'movie' || t.type === 'tv_series' || t.type === 'tv_miniseries');
-                    const isCrunchyroll = cat.key === 'crunchyroll';
-
-                    // Watchmode list-titles API returns NO poster URLs.
-                    // Batch-fetch TMDB to get poster_path for each tmdb_id.
-                    const tmdbIds = validTitles.map((t) => t.tmdb_id).filter(Boolean);
-                    const posterMap: Record<number, string | null> = {};
-
-                    if (tmdbIds.length > 0) {
-                        // Parallel TMDB lookups, capped at 20 concurrent
-                        const chunks: number[][] = [];
-                        for (let i = 0; i < tmdbIds.length; i += 20) {
-                            chunks.push(tmdbIds.slice(i, i + 20) as number[]);
-                        }
-                        for (const chunk of chunks) {
-                            if (reqId !== fetchReqId) break;
-                            await Promise.allSettled(
-                                chunk.map(async (tmdbId) => {
-                                    try {
-                                        // Use TMDB search via our existing proxy — avoids CORS and uses cache
-                                        const mediaType = isCrunchyroll ? 'tv' :
-                                            (validTitles.find(t => t.tmdb_id === tmdbId)?.type === 'movie' ? 'movie' : 'tv');
-                                        const res = await useAxios().get(`${mediaType}/${tmdbId}`, {
-                                            params: { append_to_response: '' }
-                                        });
-                                        posterMap[tmdbId] = res.data?.poster_path ?? null;
-                                    } catch {
-                                        posterMap[tmdbId] = null;
-                                    }
-                                })
-                            );
-                        }
-                    }
-
-                    items = validTitles.map((t: WatchmodeTitle) => ({
-                        id: t.tmdb_id || t.id,
-                        title: t.title,
-                        // Use TMDB poster_path (a /path string that goes through our image proxy)
-                        // Fall back to Watchmode's direct poster URL if TMDB has nothing
-                        poster_path: (t.tmdb_id && posterMap[t.tmdb_id]) ? posterMap[t.tmdb_id] : (t.poster || null),
-                        vote_average: t.rating || 0,
-                        release_date: t.year ? String(t.year) : '',
-                        type: isCrunchyroll ? 'anime' : (t.type === 'movie' ? 'movie' as const : 'tv' as const)
-                    }));
-                    total = totalPages;
-                } else {
-                    const endpoint = cat.isTv ? 'discover/tv' : 'discover/movie';
-                    const res = await useAxios().get(endpoint, {
-                        params: { ...cat.params, page: p }
-                    });
-
-                    if (reqId !== fetchReqId) return;
-
-                    items = ((res.data?.results ?? []) as any[]).map((r: any) => ({
-                        id: r.id,
-                        title: r.title || r.name || '',
-                        poster_path: r.poster_path ?? null,
-                        vote_average: r.vote_average || 0,
-                        release_date: r.release_date || r.first_air_date || '',
-                        type: cat.isTv ? 'tv' : 'movie'
-                    }));
-                    total = res.data?.total_pages ?? 1;
+                const params: Record<string, string> = {
+                    ...Object.fromEntries(
+                        Object.entries(sort.params).map(([k, v]) => [k, String(v)])
+                    ),
+                    page: String(p)
+                };
+                if (provider) {
+                    params.with_watch_providers = String(provider.tmdbId);
+                    params.watch_region = provider.region;
+                    params.with_watch_monetization_types = 'flatrate';
                 }
+
+                const data = await fetchTmdbDiscover(params, AbortSignal.timeout(15000));
+
+                if (reqId !== fetchReqId) return;
+
+                const items: MovieResult[] = ((data?.results ?? []) as any[]).map((r: any) => ({
+                    id: r.id,
+                    title: r.title || r.name || '',
+                    poster_path: r.poster_path ?? null,
+                    vote_average: r.vote_average || 0,
+                    release_date: r.release_date || r.first_air_date || '',
+                    type: 'movie'
+                }));
 
                 if (reqId !== fetchReqId) return;
 
@@ -581,7 +524,8 @@ export default defineComponent({
                 } else {
                     results.value = items;
                 }
-                totalPages.value = Math.min(total, 500);
+                totalResults.value = data?.total_results ?? 0;
+                totalPages.value = Math.min(data?.total_pages ?? 1, 500);
                 page.value = p;
             } catch {
                 if (!append && reqId === fetchReqId) results.value = [];
@@ -598,40 +542,58 @@ export default defineComponent({
         const loadMoreClick = async () => {
             displayedLimit.value += 25;
             if (results.value.length < displayedLimit.value && page.value < totalPages.value) {
-                if (!currentCat.value) return;
-                await fetchPage(currentCat.value, page.value + 1, true);
+                await fetchPage(currentSort.value, page.value + 1, true);
             }
         };
 
-        const selectCategory = (cat: Category) => {
-            activeCategory.value = cat.key;
-            currentCat.value = cat;
+        const selectSort = (sort: SortOption) => {
+            activeSort.value = sort.key;
+            currentSort.value = sort;
             page.value = 1;
             totalPages.value = 1;
             displayedLimit.value = 25;
-            void router.replace({ query: { ...router.currentRoute.value.query, category: cat.key } });
-            void fetchPage(cat, 1, false);
+            void router.replace({ query: { ...router.currentRoute.value.query, sort: sort.key } });
+            void fetchPage(sort, 1, false);
         };
 
-        const initialCat = categories.find(c => c.key === activeCategory.value) || categories[0];
-        currentCat.value = initialCat;
-        void fetchPage(initialCat, 1, false);
+        const selectProvider = (provider: Provider | null) => {
+            activeProvider.value = provider?.key ?? null;
+            platformOpen.value = false;
+            page.value = 1;
+            totalPages.value = 1;
+            displayedLimit.value = 25;
+            const query = { ...router.currentRoute.value.query };
+            if (provider) {
+                query.provider = provider.key;
+            } else {
+                delete query.provider;
+            }
+            void router.replace({ query });
+            void fetchPage(currentSort.value, 1, false);
+        };
+
+        void fetchPage(currentSort.value, 1, false);
 
         return {
-            activeCategory,
-            categories,
+            sorts: SORTS,
+            providers: PROVIDERS,
+            activeSort,
+            activeProvider,
+            activeProviderLabel,
+            platformOpen,
+            platformWrap,
+            selectProvider,
+            providerLogo,
             results,
+            totalResults,
             isLoading,
             isLoadingMore,
             hasMore,
             displayedLimit,
             loadMoreClick,
-            selectCategory,
+            selectSort,
             showScrollTop,
             scrollToTop,
-            brandColor,
-            brandLetter,
-            brandLogo,
             showSuggestion,
             toggleSuggestion,
             geminiSuggestion,
@@ -662,33 +624,122 @@ export default defineComponent({
 
     &__main {
         position: relative;
-        padding-top: var(--s-4);
-    }
-
-    &__tabs {
+        padding-top: var(--s-6);
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        padding: 0 var(--s-4) var(--s-3);
-        max-width: var(--max-content);
-        margin: 0 auto;
+        flex-direction: column;
+        gap: var(--s-6);
     }
 
-    &__tab {
-        display: inline-flex;
+    // ── Page header ───────────────────────────────────────────────────────
+    &__header {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-2);
+    }
+
+    &__eyebrow {
+        color: var(--ember);
+    }
+
+    &__title {
+        font-family: var(--font-display);
+        font-weight: 500;
+        font-size: clamp(var(--fs-3xl), 5vw, var(--fs-4xl));
+        line-height: 1;
+        letter-spacing: -0.02em;
+        margin: 0;
+        font-variation-settings: 'opsz' 72, 'SOFT' 30;
+    }
+
+    &__desc {
+        color: var(--bone-300);
+        font-size: var(--fs-base);
+        line-height: var(--lh-snug);
+        max-width: 56ch;
+        margin: 0;
+    }
+
+    // ── Toolbar (sort chips + platform + count) ───────────────────────────
+    &__toolbar {
+        display: flex;
         align-items: center;
-        position: relative;
-        overflow: hidden;
-        padding: 0.5rem 1rem;
-        border: 1px solid var(--ink-600);
+        justify-content: space-between;
+        gap: var(--s-4);
+        flex-wrap: wrap;
+    }
+
+    &__controls {
+        display: flex;
+        align-items: center;
+        gap: var(--s-3);
+        flex-wrap: wrap;
+    }
+
+    &__sorts {
+        display: inline-flex;
+        gap: var(--s-1);
+        padding: var(--s-1);
+        background: var(--surface-tint);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-pill);
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+
+    &__sort {
+        padding: 0.45rem 1rem;
+        border: none;
         border-radius: var(--r-pill);
         background: transparent;
         color: var(--bone-400);
         font-family: var(--font-ui);
-        font-size: 0.85rem;
+        font-size: var(--fs-sm);
         font-weight: 500;
+        white-space: nowrap;
         cursor: pointer;
-        transition: border-color 0.2s, color 0.2s, background 0.2s;
+        transition:
+            color var(--dur-fast) var(--ease-out),
+            background-color var(--dur-fast) var(--ease-out);
+
+        &:hover {
+            color: var(--bone-100);
+        }
+
+        &.is-active {
+            background: var(--ember);
+            color: var(--ink-950);
+            font-weight: 600;
+        }
+    }
+
+    // ── Platform dropdown ──────────────────────────────────────────────────
+    &__platform {
+        position: relative;
+    }
+
+    &__platform-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.85rem;
+        border: 1px solid var(--rule);
+        border-radius: var(--r-pill);
+        background: var(--surface-tint);
+        color: var(--bone-300);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+            color var(--dur-fast) var(--ease-out),
+            border-color var(--dur-fast) var(--ease-out),
+            background-color var(--dur-fast) var(--ease-out);
 
         &:hover {
             border-color: var(--bone-300);
@@ -697,82 +748,147 @@ export default defineComponent({
 
         &.is-active {
             border-color: var(--ember);
-            background: rgba(255, 90, 31, 0.1);
-            color: var(--ember);
+            color: var(--bone-50);
+            background: rgba(255, 255, 255, 0.08);
         }
 
-        &.has-logo {
-            background: var(--ink-800);
-        }
-
-        &.has-logo:hover {
-            background: var(--ink-700);
-        }
-
-        &.has-logo.is-active {
-            background: rgba(255, 90, 31, 0.1);
-            border-color: var(--ember);
+        svg:not(.discover-page__platform-chevron) {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+            color: var(--bone-400);
         }
     }
 
-    &__tab-logo {
-        width: 20px;
-        height: 20px;
+    &__platform-logo {
+        width: 18px;
+        height: 18px;
         object-fit: contain;
-        margin-right: 0.35rem;
         flex-shrink: 0;
         pointer-events: none;
     }
 
-    &__tab-label {
-        position: relative;
-        z-index: 1;
+    &__platform-label {
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    &__tab-badge {
-        display: inline-flex;
+    &__platform-chevron {
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+        color: var(--bone-500);
+        transition: transform var(--dur-fast) var(--ease-out);
+
+        .is-active &,
+        [aria-expanded='true'] & {
+            transform: rotate(180deg);
+        }
+    }
+
+    &__platform-menu {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        left: 0;
+        z-index: 60;
+        display: flex;
+        flex-direction: column;
+        min-width: 220px;
+        max-height: min(60vh, 420px);
+        overflow-y: auto;
+        padding: var(--s-2);
+        background: var(--ink-850);
+        border: 1px solid var(--rule-strong);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-lg);
+        scrollbar-width: thin;
+        animation: platform-menu-in 0.16s ease-out;
+    }
+
+    &__platform-option {
+        display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 0.6rem;
+        padding: 0.55rem 0.7rem;
+        border: none;
+        border-radius: var(--r-md);
+        background: transparent;
+        color: var(--bone-300);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        font-weight: 500;
+        text-align: left;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+            color var(--dur-fast) var(--ease-out),
+            background-color var(--dur-fast) var(--ease-out);
+
+        svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            color: var(--bone-500);
+        }
+
+        &:hover {
+            background: var(--surface-tint);
+            color: var(--bone-50);
+        }
+
+        &.is-active {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--ember);
+        }
+    }
+
+    &__platform-option-logo {
         width: 20px;
         height: 20px;
-        border-radius: 4px;
-        margin-right: 0.35rem;
-        font-size: 0.6rem;
-        font-weight: 700;
-        color: #fff;
+        object-fit: contain;
         flex-shrink: 0;
-        line-height: 1;
+        pointer-events: none;
     }
 
-    &__region-badge {
-        display: inline-block;
-        margin-left: 0.35rem;
-        padding: 0.05rem 0.35rem;
+    &__platform-option-region {
+        margin-left: auto;
+        padding: 0.05rem 0.4rem;
         border-radius: var(--r-pill);
-        background: var(--ink-600);
+        background: var(--ink-700);
         color: var(--bone-500);
         font-size: 0.65rem;
         font-weight: 600;
         letter-spacing: 0.04em;
-        vertical-align: middle;
         line-height: 1.4;
     }
 
-    .is-active &__region-badge {
-        background: rgba(255, 90, 31, 0.25);
-        color: var(--ember);
+    &__count {
+        margin: 0;
+        color: var(--bone-500);
+        font-family: var(--font-mono);
+        font-size: 0.6875rem;
+        text-transform: uppercase;
+        letter-spacing: var(--ls-wide);
     }
 
+    // ── Results ───────────────────────────────────────────────────────────
     &__results {
-        max-width: var(--max-content);
-        margin: 0 auto;
-        padding: 0 var(--s-4) var(--s-10);
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-5);
+        padding-bottom: var(--s-10);
     }
 
     &__grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: var(--s-5) var(--s-4);
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: var(--s-4);
+
+        @media (min-width: 720px) {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--s-5) var(--s-4);
+        }
     }
 
     &__card {
@@ -782,14 +898,21 @@ export default defineComponent({
     }
 
     &__empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--s-2);
         color: var(--bone-400);
         text-align: center;
-        padding: var(--s-10);
+        padding: var(--s-10) var(--s-4);
+        margin: 0;
+        font-size: var(--fs-base);
     }
 
-    &__sentinel {
-        height: 1px;
-        pointer-events: none;
+    &__empty-sub {
+        margin: 0;
+        color: var(--bone-500);
+        font-size: var(--fs-sm);
     }
 
     &__loading {
@@ -799,6 +922,40 @@ export default defineComponent({
         font-size: var(--fs-sm);
     }
 
+    &__load-more-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: var(--s-6);
+        width: 100%;
+        gap: var(--s-4);
+    }
+
+    &__load-more-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1.5px solid var(--ember);
+        color: #ffffff;
+        padding: 0.75rem 2.5rem;
+        border-radius: var(--r-pill);
+        font-family: var(--font-ui);
+        font-size: var(--fs-base);
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+        box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15);
+
+        &:hover {
+            background: var(--ember);
+            transform: scale(1.04);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+        }
+
+        &:active {
+            transform: scale(0.98);
+        }
+    }
+
+    // ── Floating actions (AI + scroll top) ────────────────────────────────
     &__ai-btn {
         position: fixed;
         bottom: calc(var(--s-6) + 56px);
@@ -863,24 +1020,6 @@ export default defineComponent({
         pointer-events: auto;
     }
 
-    &__ai-options {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.35rem;
-        animation: ai-fade-in 0.2s ease-out;
-
-        &-title {
-            font-family: var(--font-ui);
-            font-size: 0.75rem;
-            color: var(--bone-450);
-            margin-right: 0.5rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-    }
-
     &__ai-search-pill {
         display: flex;
         align-items: center;
@@ -889,7 +1028,7 @@ export default defineComponent({
         border-radius: var(--r-pill);
         padding: 0.25rem 0.5rem 0.25rem 1rem;
         width: 250px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         transition: border-color 0.2s;
 
         &:focus-within {
@@ -938,14 +1077,14 @@ export default defineComponent({
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 
         &:hover {
             transform: translateY(-2px);
             background: var(--ember);
             color: var(--ink-950);
             border-color: var(--ember);
-            box-shadow: 0 6px 16px rgba(255, 90, 31, 0.4);
+            box-shadow: 0 6px 16px rgba(255, 255, 255, 0.4);
         }
     }
 
@@ -961,7 +1100,7 @@ export default defineComponent({
         font-family: var(--font-ui);
         font-size: 0.85rem;
         font-weight: 600;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         animation: ai-fade-in 0.2s ease-out;
     }
 
@@ -974,7 +1113,7 @@ export default defineComponent({
         font-family: var(--font-ui);
         font-size: 0.85rem;
         font-weight: 600;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         animation: ai-fade-in 0.2s ease-out;
     }
 
@@ -999,7 +1138,7 @@ export default defineComponent({
         font-weight: 600;
         text-decoration: none;
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         animation: ai-fade-in 0.2s ease-out;
 
@@ -1007,7 +1146,7 @@ export default defineComponent({
             transform: translateY(-2px);
             background: var(--ink-700);
             border-color: var(--ember);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
         }
     }
 
@@ -1016,7 +1155,7 @@ export default defineComponent({
         height: 50px;
         border-radius: 4px;
         object-fit: cover;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
         flex-shrink: 0;
     }
 
@@ -1056,7 +1195,7 @@ export default defineComponent({
         font-size: 0.75rem;
         font-weight: 700;
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         transition: all 0.2s;
         animation: ai-fade-in 0.2s ease-out;
 
@@ -1070,7 +1209,7 @@ export default defineComponent({
             border-color: var(--ember);
 
             &:hover {
-                box-shadow: 0 4px 12px rgba(255, 90, 31, 0.4);
+                box-shadow: 0 4px 12px rgba(255, 255, 255, 0.4);
             }
         }
 
@@ -1093,15 +1232,6 @@ export default defineComponent({
         border-top-color: var(--ember);
         border-radius: 50%;
         animation: ai-spin 0.7s linear infinite;
-    }
-
-    @keyframes ai-spin {
-        to { transform: rotate(360deg); }
-    }
-
-    @keyframes ai-fade-in {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
     }
 
     &__scroll-top {
@@ -1129,37 +1259,18 @@ export default defineComponent({
         }
     }
 
-    &__load-more-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin-top: var(--s-8);
-        width: 100%;
-        gap: var(--s-4);
+    @keyframes ai-spin {
+        to { transform: rotate(360deg); }
     }
 
-    &__load-more-btn {
-        background: rgba(255, 90, 31, 0.1);
-        border: 1.5px solid var(--ember);
-        color: #ffffff;
-        padding: 0.75rem 2.5rem;
-        border-radius: var(--r-pill);
-        font-family: var(--font-ui);
-        font-size: var(--fs-base);
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-        box-shadow: 0 4px 15px rgba(255, 90, 31, 0.15);
+    @keyframes ai-fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
-        &:hover {
-            background: var(--ember);
-            transform: scale(1.04);
-            box-shadow: 0 6px 20px rgba(255, 90, 31, 0.3);
-        }
-
-        &:active {
-            transform: scale(0.98);
-        }
+    @keyframes platform-menu-in {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 }
 </style>

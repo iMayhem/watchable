@@ -174,7 +174,7 @@
 
 <script lang="ts">
 import { defineComponent, onMounted, ref, watch, computed, nextTick } from 'vue';
-import { getSupabaseClient } from '../../lib/supabase';
+import { getSyncClient } from '../../lib/syncClient';
 import { isToxic } from '../../composables/useToxicityFilter';
 
 interface Comment {
@@ -333,9 +333,9 @@ export default defineComponent({
         const fetchComments = async () => {
             loading.value = true;
             try {
-                const supabase = await getSupabaseClient();
+                const sync = await getSyncClient();
                 const mId = String(props.mediaId);
-                const { data, error } = await supabase
+                const { data, error } = await sync
                     .from('movora_comments')
                     .select('id, media_id, media_type, username, content, created_at, is_hidden')
                     .eq('media_id', mId)
@@ -393,10 +393,10 @@ export default defineComponent({
             processedComments.value = [optimistic, ...processedComments.value]
 
             try {
-                const supabase = await getSupabaseClient();
+                const sync = await getSyncClient();
                 let insertErr: any = null;
                 for (let attempt = 1; attempt <= 3; attempt++) {
-                    const { error } = await supabase
+                    const { error } = await sync
                         .from('movora_comments')
                         .insert([
                             {
@@ -464,10 +464,10 @@ export default defineComponent({
             processedComments.value = [optimistic, ...processedComments.value]
 
             try {
-                const supabase = await getSupabaseClient();
+                const sync = await getSyncClient();
                 let insertErr: any = null;
                 for (let attempt = 1; attempt <= 3; attempt++) {
-                    const { error } = await supabase
+                    const { error } = await sync
                         .from('movora_comments')
                         .insert([
                             {
@@ -1094,7 +1094,7 @@ export default defineComponent({
 
         &:hover {
             color: var(--ember);
-            background: rgba(255, 90, 31, 0.05);
+            background: rgba(255, 255, 255, 0.05);
             
             svg {
                 transform: translateY(-1px);
@@ -1103,7 +1103,7 @@ export default defineComponent({
 
         &--active {
             color: var(--ember) !important;
-            background: rgba(255, 90, 31, 0.08) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
         }
     }
 
@@ -1292,18 +1292,18 @@ export default defineComponent({
     &:hover {
         background: var(--ink-600, #2a251e) !important;
         color: var(--ink-600, #2a251e) !important;
-        border-color: var(--ember, #ff5a1f);
-        box-shadow: 0 0 10px rgba(255, 90, 31, 0.25);
+        border-color: var(--ember, #ffffff);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
     }
 
     &.is-revealed {
-        background: rgba(255, 90, 31, 0.12) !important;
+        background: rgba(255, 255, 255, 0.12) !important;
         color: var(--bone-50, #f5efe4) !important;
         text-shadow: none !important;
         user-select: text !important;
         -webkit-user-select: text !important;
-        border: 1px solid rgba(255, 90, 31, 0.35);
-        box-shadow: 0 0 12px rgba(255, 90, 31, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
     }
 }
 </style>

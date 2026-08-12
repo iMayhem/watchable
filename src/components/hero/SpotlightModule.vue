@@ -66,6 +66,8 @@
                     <LmButton variant="ghost" :to="detailRoute">Read the feature</LmButton>
                     <LmButton
                         variant="outline"
+                        class="spotlight__icon-action"
+                        :icon-only="true"
                         :href="partyHref"
                         rel="nofollow"
                         aria-label="Watch Together"
@@ -78,7 +80,6 @@
                                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                             </svg>
                         </template>
-                        Watch Together
                     </LmButton>
                 </div>
             </div>
@@ -234,7 +235,7 @@ export default defineComponent({
             transform: translateY(-3px);
             box-shadow:
                 var(--shadow-lg),
-                0 0 0 1px rgba(255, 90, 31, 0.32);
+                0 0 0 1px rgba(255, 255, 255, 0.32);
 
             img { transform: scale(1.03); }
             .spotlight__art-frame { border-color: var(--ember); }

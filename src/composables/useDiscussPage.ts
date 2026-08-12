@@ -1,5 +1,5 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { getSupabaseClient } from '../lib/supabase'
+import { getSyncClient } from '../lib/syncClient'
 import { getCurrentUser } from '../lib/auth'
 
 export interface DiscussComment {
@@ -28,7 +28,7 @@ function stableHash(str: string): number {
 const MOVIE_TITLE_CACHE = new Map<string, string>();
 const TV_TITLE_CACHE = new Map<string, string>();
 const ANIME_TITLE_CACHE = new Map<string, string>();
-const TMDB_API = 'https://proxy.moovie.fun/tmdb-api/3/';
+const TMDB_API = 'https://hahaevilcraft.site/tmdb-api/3/';
 const TMDB_KEY = 'dfa4c2c7c1de1005adee824dc5593672';
 
 async function resolveMediaName(mediaType: string, mediaId: string | number | null): Promise<string> {
@@ -112,7 +112,7 @@ export function useDiscussPage() {
 
     async function fetchComments(): Promise<DiscussComment[]> {
         try {
-            const client = await getSupabaseClient();
+            const client = await getSyncClient();
             const { data } = await client
                 .from('movora_comments')
                 .select('*')
@@ -127,7 +127,7 @@ export function useDiscussPage() {
 
     async function fetchMovieComments(): Promise<DiscussComment[]> {
         try {
-            const client = await getSupabaseClient();
+            const client = await getSyncClient();
             const { data } = await client
                 .from('movora_comments')
                 .select('*')
@@ -143,7 +143,7 @@ export function useDiscussPage() {
     async function fetchThreadComments(mediaType: string, mediaId: string | number | null): Promise<DiscussComment[]> {
         if (mediaId === null || mediaId === undefined || mediaId === '') return [];
         try {
-            const client = await getSupabaseClient();
+            const client = await getSyncClient();
             const { data } = await client
                 .from('movora_comments')
                 .select('*')
@@ -178,7 +178,7 @@ export function useDiscussPage() {
         if (!requireLogin()) return;
         submitting.value = true;
         try {
-            const client = await getSupabaseClient();
+            const client = await getSyncClient();
             const { data, error } = await client.from('movora_comments').insert([
                 { username: currentUsername.value, content: text, media_type: 'lounge', media_id: null }
             ]);
@@ -203,7 +203,7 @@ export function useDiscussPage() {
         if (!requireLogin()) return;
         submittingSelected.value = true;
         try {
-            const client = await getSupabaseClient();
+            const client = await getSyncClient();
             const { data, error } = await client.from('movora_comments').insert([
                 { username: currentUsername.value, content: text, media_type: selectedMovieType.value, media_id: selectedMovieId.value }
             ]);

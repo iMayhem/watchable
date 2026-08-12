@@ -23,9 +23,7 @@
                     :adult="false"
                     :play-route="playRoute"
                     :play-label="playLabel"
-                    :show-trailer="hasTrailer"
                     :loading="loading"
-                    @trailer="openTrailer"
                 />
             </section>
 
@@ -70,12 +68,6 @@
 
         <SiteFooter />
 
-        <TrailerDialog
-            v-model="trailerOpen"
-            :videos="trailers"
-            :title="show ? show.name : 'Trailers'"
-            @close="closeTrailer"
-        />
     </div>
 </template>
 
@@ -90,10 +82,8 @@ import DropCapSynopsis from '../components/detail/DropCapSynopsis.vue';
 import StatsBlock, { StatEntry } from '../components/detail/StatsBlock.vue';
 import CastGrid from '../components/detail/CastGrid.vue';
 import SeasonTabs from '../components/detail/SeasonTabs.vue';
-import TrailerDialog from '../components/detail/TrailerDialog.vue';
 import { useTvShows, TVShowDetails } from '../composables/useTvShows';
 import { Cast, Crew } from '../composables/useMovies';
-import { fetchTrailerVideos, type TrailerVideo } from '../composables/useTrailer';
 import { useSeo } from '../composables/useSeo';
 import { addViewedItem } from '../composables/useHistory';
 import { getLastWatchedMetaData } from '../composables/useStream';
@@ -112,7 +102,6 @@ export default defineComponent({
         StatsBlock,
         CastGrid,
         SeasonTabs,
-        TrailerDialog
     },
     setup() {
         const route = useRoute();
@@ -124,8 +113,6 @@ export default defineComponent({
         const crew = ref<Crew[]>([]);
         const loading = ref(true);
 
-        const trailerOpen = ref(false);
-        const trailers = ref<TrailerVideo[]>([]);
 
         const genreNames = computed(() => (show.value?.genres ?? []).map(g => g.name));
         const genreIds = computed(() => (show.value?.genres ?? []).map(g => g.id));
@@ -141,7 +128,6 @@ export default defineComponent({
             return g ? `${g} · Series` : 'Series';
         });
 
-        const hasTrailer = computed(() => trailers.value.length > 0);
 
         const avgRuntime = computed(() => {
             const list = show.value?.episode_run_time ?? [];
@@ -242,23 +228,11 @@ export default defineComponent({
             return 'Play';
         });
 
-        const openTrailer = () => {
-            if (trailers.value.length) {
-                trailerOpen.value = true;
-            } else if (show.value?.name) {
-                window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(show.value.name + ' official trailer')}`, '_blank');
-            }
-        };
-        const closeTrailer = () => {
-            trailerOpen.value = false;
-        };
-
         const loadShow = async (id: string) => {
             loading.value = true;
             show.value = null;
             cast.value = [];
             crew.value = [];
-            trailers.value = [];
 
             try {
                 // Fetch the core show details first to unblock the UI instantly
@@ -306,13 +280,9 @@ export default defineComponent({
                 loading.value = false;
 
                 // Load secondary non-essential metadata in the background
-                Promise.all([
-                    fetchTvShowCredit(id),
-                    fetchTrailerVideos(id, 'tv')
-                ]).then(([credits, videos]) => {
+                fetchTvShowCredit(id).then((credits) => {
                     cast.value = credits.data.value?.cast ?? [];
                     crew.value = credits.data.value?.crew ?? [];
-                    trailers.value = videos ?? [];
                 }).catch(err => {
                     console.error('Failed to load secondary TV show data in background:', err);
                 });
@@ -362,15 +332,10 @@ export default defineComponent({
             genreNames,
             genreIds,
             mastheadEyebrow,
-            hasTrailer,
-            trailerOpen,
-            trailers,
             metaItems,
             statsItems,
             playRoute,
             playLabel,
-            openTrailer,
-            closeTrailer,
             activeSeason,
             activeEpisode,
             mastheadRef,

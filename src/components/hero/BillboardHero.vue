@@ -132,7 +132,8 @@
                     <LmButton
                         variant="outline"
                         size="lg"
-                        class="billboard__together-btn"
+                        class="billboard__together-btn billboard__icon-action"
+                        :icon-only="true"
                         :href="partyHref"
                         rel="nofollow"
                         aria-label="Watch Together"
@@ -145,7 +146,6 @@
                                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                             </svg>
                         </template>
-                        Watch Together
                     </LmButton>
                 </div>
             </div>
@@ -326,7 +326,7 @@ export default defineComponent({
 .billboard {
     position: relative;
     isolation: isolate;
-    min-height: clamp(520px, 78vh, 880px);
+    min-height: clamp(500px, 70vh, 760px);
     display: flex;
     align-items: flex-end;
     color: var(--bone-50);
@@ -345,7 +345,7 @@ export default defineComponent({
         height: 100%;
         object-fit: cover;
         object-position: center 25%;
-        filter: blur(0.5px);
+        filter: saturate(0.9) contrast(1.02);
         transition: opacity var(--dur-slow) var(--ease-out);
 
         &--placeholder {
@@ -388,7 +388,7 @@ export default defineComponent({
         width: calc(100% + 80px);
         height: calc(100% + 80px);
         object-fit: cover;
-        filter: blur(30px) brightness(0.2) saturate(1.2);
+        filter: blur(18px) brightness(0.22) saturate(1.1);
         opacity: 0.9;
         z-index: 1;
     }
@@ -443,8 +443,7 @@ export default defineComponent({
     &__content {
         position: relative;
         z-index: 1;
-        padding-block: clamp(var(--s-6), 8vh, var(--s-10));
-        padding-inline: var(--s-6);
+        padding-block: clamp(var(--s-6), 8vh, var(--s-9));
         max-width: 860px;
     }
 
@@ -457,7 +456,7 @@ export default defineComponent({
     &__title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(3rem, 8vw, 6.5rem);
+        font-size: clamp(2.85rem, 7vw, 5.8rem);
         line-height: 0.96;
         letter-spacing: -0.02em;
         font-variation-settings: 'opsz' 144, 'SOFT' 30;

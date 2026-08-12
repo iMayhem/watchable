@@ -24,18 +24,7 @@
 
         <!-- Full-screen video layer -->
         <div class="watch-stage__video-layer">
-            <StreamFrame
-                v-if="!isMoovieServer"
-                :embed-url="currentEmbedUrl"
-                :title="movie?.title || 'Stream'"
-                :backdrop-path="movie?.backdrop_path || ''"
-                :poster-path="movie?.poster_path || ''"
-                :media-id="movieId"
-                media-type="movie"
-                @switch-to-server="changeServer"
-            />
             <MoovieFrame
-                v-else
                 :media-id="movieId"
                 media-type="movie"
                 :title="movie?.title || 'Stream'"
@@ -46,16 +35,13 @@
 
         <!-- TOP overlay: gradient + back + title + server -->
         <div v-if="!isEmbed" class="watch-stage__top-overlay" :class="{ 'is-hidden': !controlsVisible }" @mouseenter="cancelHide" @mouseleave="onTopMouseLeave">
-            <div class="watch-stage__top-gradient" aria-hidden="true" />
             <div class="watch-stage__top-bar">
                 <div class="watch-stage__top-left">
-                    <button
-                        type="button"
-                        class="watch-stage__back"
-                        aria-label="Back to feature"
-                        @click="goBack"
-                    >
-                        <ArrowLeft />
+                    <button type="button" class="watch-stage__back" aria-label="Back to home" title="Back to home" @click="goBack">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 12H5" />
+                            <path d="m12 19-7-7 7-7" />
+                        </svg>
                     </button>
                     <div class="watch-stage__breadcrumb">
                         <span class="watch-stage__breadcrumb-sep">·</span>
@@ -63,17 +49,12 @@
                     </div>
                 </div>
                 <div class="watch-stage__top-right">
-                    <ServerAccordion
-                        variant="dropdown"
-                        :servers="availableServers"
-                        :active-server-index="activeAccordionIndex"
-                        @server-change="changeServer"
-                    />
                     <button
                         v-if="movie"
                         type="button"
                         class="watch-stage__party-btn watch-stage__watchlist-btn"
                         :class="{ 'is-added': inWatchlist }"
+                        :aria-label="inWatchlist ? 'Remove from watchlist' : 'Add to watchlist'"
                         :title="inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'"
                         @click="toggleWatchlist"
                     >
@@ -83,11 +64,11 @@
                         <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="watch-stage__party-icon">
                             <path d="m5 13 4 4L19 7"/>
                         </svg>
-                        <span class="watch-stage__party-label">{{ inWatchlist ? 'In Watchlist' : 'Watchlist' }}</span>
                     </button>
                     <a
-                        :href="`/party?media=${movieId}&title=${encodeURIComponent(movie?.title || '')}${isMoovieServer ? '&provider=moovie' : ''}`"
+                        :href="`/party?media=${movieId}&title=${encodeURIComponent(movie?.title || '')}&provider=moovie`"
                         class="watch-stage__party-btn"
+                        aria-label="Watch Together"
                         title="Watch Together"
                         rel="nofollow"
                         @click.prevent="handleWatchTogether"
@@ -98,7 +79,6 @@
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                         </svg>
-                        <span class="watch-stage__party-label">Watch Together</span>
                     </a>
                 </div>
             </div>
@@ -118,101 +98,32 @@ import { useMovies, MovieDetails } from '../composables/useMovies';
 import {
     currentStreamData,
     getPreferredStreamData,
-    savePreferredServer,
-    getServers,
-    buildStreamUrl
+    savePreferredServer
 } from '../composables/useStream';
 import { getResumeTimestamp } from '../composables/useProgress';
 import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../composables/useWatchlist';
 
 import { useAppPaths } from '../composables/useAppPaths';
 
-import StreamFrame from '../components/player/StreamFrame.vue';
 import MoovieFrame from '../components/player/MoovieFrame.vue';
-import ServerAccordion from '../components/player/ServerAccordion.vue';
-import ArrowLeft from '../components/svg/outline/arrow-left-long.vue';
 import CommentsSection from '../components/player/CommentsSection.vue';
 
 export default defineComponent({
     name: 'StreamMovie',
-    components: { StreamFrame, MoovieFrame, ServerAccordion, ArrowLeft, CommentsSection },
+    components: { MoovieFrame, CommentsSection },
     setup() {
         const route = useRoute();
         const router = useRouter();
         const paths = useAppPaths();
         const isEmbed = computed(() => Boolean(route.meta.bareLayout));
-        const FORCE_SERVER_MAP: Record<string, string> = {
-            moovie: 'Moovie',
-            icecream: 'Icecream',
-            vidrock: 'Gulab Jamun',
-            vidfast: 'Rasmalai',
-            vidzee: 'Kaju Katli'
-        };
-        const forceServerName = computed(() => {
-            const q = String(route.query.server || route.query.provider || '').toLowerCase();
-            return FORCE_SERVER_MAP[q] || '';
-        });
-        const forceMoovieServer = computed(() => forceServerName.value === 'Moovie');
         const movieId = ref<string>(route.params.id as string);
         const movie = ref<MovieDetails | null>(null);
         const error = ref<string | null>(null);
         const { fetchMovie } = useMovies();
 
-        const availableServers = computed(() => {
-            const allServers = getServers('movie');
-            if (route.query.mode === '4k') {
-                return allServers.filter(s => s.name === 'Kaju Katli');
-            }
-            return allServers;
-        });
-        const activeAccordionIndex = computed(() => {
-            if (route.query.mode === '4k') {
-                return 0;
-            }
-            return currentStreamData.value.currentServer;
-        });
-        const isMoovieServer = computed(() => {
-            if (forceMoovieServer.value) return true;
-            const servers = getServers('movie');
-            const idx = currentStreamData.value.currentServer;
-            return servers[idx]?.name === 'Moovie';
-        });
-        const reloadKey = ref(0);
         const resumeTimestamp = ref(0);
 
         const isNavigatingToParty = ref(false);
-
-        const currentEmbedUrl = computed(() => {
-            if (isNavigatingToParty.value) return '';
-            if (!movieId.value) return '';
-
-            const ts = (resumeTimestamp.value > 0 && reloadKey.value === 0)
-                ? resumeTimestamp.value
-                : undefined;
-            
-            let serverIndex = currentStreamData.value.currentServer;
-            if (route.query.mode === '4k') {
-                const kajuIndex = getServers('movie').findIndex(s => s.name === 'Kaju Katli');
-                if (kajuIndex !== -1) {
-                    serverIndex = kajuIndex;
-                }
-            }
-
-            const base = buildStreamUrl(
-                movieId.value,
-                'movie',
-                serverIndex,
-                1,
-                1,
-                ts
-            );
-            if (reloadKey.value > 0) {
-                return `${base}${base.includes('?') ? '&' : '?'}t=${reloadKey.value}`;
-            }
-            return base;
-        });
-
-
 
         const loadMovie = async () => {
             if (!movieId.value) {
@@ -231,29 +142,14 @@ export default defineComponent({
                     getPreferredStreamData(movieId.value, 'movie');
                 }
 
-                if (forceServerName.value) {
-                    const forcedIndex = getServers('movie').findIndex(s => s.name.toLowerCase() === forceServerName.value.toLowerCase());
-                    if (forcedIndex !== -1 && currentStreamData.value.currentServer !== forcedIndex) {
-                        savePreferredServer(movieId.value, forcedIndex, 'movie');
-                        getPreferredStreamData(movieId.value, 'movie');
-                    }
-                }
             } catch (err) {
                 error.value = err instanceof Error ? err.message : 'Failed to load movie';
                 console.error(err);
             }
         };
 
-        const changeServer = (index: number) => {
-            if (route.query.mode === '4k') return;
-            if (index < 0 || index >= availableServers.value.length) return;
-            savePreferredServer(movieId.value, index, 'movie');
-            getPreferredStreamData(movieId.value, 'movie');
-            reloadKey.value = Date.now();
-        };
-
         const goBack = () => {
-            router.push(paths.movie(movieId.value));
+            router.push(paths.home.value);
         };
 
         const handleWatchTogether = (event: MouseEvent) => {
@@ -343,11 +239,6 @@ export default defineComponent({
             movieId,
             movie,
             currentStreamData,
-            availableServers,
-            activeAccordionIndex,
-            isMoovieServer,
-            currentEmbedUrl,
-            changeServer,
             goBack,
             handleWatchTogether,
             controlsVisible,
@@ -377,6 +268,18 @@ export default defineComponent({
     color: #fff;
     overflow-x: hidden;
     cursor: none;
+
+    &.is-embed {
+        min-height: 100% !important;
+        height: 100% !important;
+        overflow: hidden;
+
+        .watch-stage__video-layer {
+            position: absolute !important;
+            inset: 0;
+            height: 100%;
+        }
+    }
 
     &.controls-visible {
         cursor: default;
@@ -438,9 +341,7 @@ export default defineComponent({
     }
 
     &.is-embed {
-        .watch-stage__video-layer {
-            position: fixed;
-        }
+        .watch-stage__video-layer { position: absolute; }
     }
 
     // ── TOP overlay ─────────────────────────────────────────────────────────
@@ -450,6 +351,8 @@ export default defineComponent({
         left: 0;
         right: 0;
         z-index: 50;
+        background: transparent !important;
+        background-color: transparent !important;
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.15s ease;
@@ -459,12 +362,15 @@ export default defineComponent({
         position: absolute;
         inset: 0;
         height: 180px;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+        background: transparent !important;
+        opacity: 0 !important;
         pointer-events: none;
     }
 
     &__top-bar {
         position: relative;
+        background: transparent !important;
+        background-color: transparent !important;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -499,14 +405,19 @@ export default defineComponent({
         height: 40px;
         flex-shrink: 0;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(8px);
+        background: transparent !important;
+        background-color: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
         cursor: pointer;
         color: #fff;
         transition: background 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            background: rgba(255, 90, 31, 0.85);
+            background: transparent !important;
+            background-color: transparent !important;
             color: #fff;
             transform: translateX(-2px);
         }
@@ -550,12 +461,14 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: rgba(255, 90, 31, 0.12);
-        border: 1px solid rgba(255, 90, 31, 0.3);
+        background: rgba(0, 0, 0, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.34);
         backdrop-filter: blur(8px);
         border-radius: 999px;
-        color: #ff7842;
-        padding: 0.45rem 1rem;
+        color: #fff;
+        padding: 0;
+        width: 36px;
+        justify-content: center;
         min-height: 36px;
         font-family: var(--font-ui, system-ui);
         font-size: 0.8125rem;
@@ -564,25 +477,21 @@ export default defineComponent({
         transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            background: rgba(255, 90, 31, 0.22);
-            border-color: rgba(255, 90, 31, 0.5);
+            background: #fff;
+            color: #000;
+            border-color: #fff;
             transform: translateY(-1px);
         }
 
-        @media (max-width: 640px) {
-            width: 36px;
-            padding: 0;
-            justify-content: center;
-        }
     }
 
     &__party-label {
-        @media (max-width: 640px) { display: none; }
+        display: none;
     }
 
     &__party-icon {
-        width: 15px;
-        height: 15px;
+        width: 17px;
+        height: 17px;
         flex-shrink: 0;
     }
 

@@ -68,6 +68,33 @@
   border: 0;
 }
 
+// Compact action controls: keep the icon visible and the accessible label in the DOM.
+.masthead__icon-action,
+.billboard__icon-action,
+.spotlight__icon-action {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0 !important;
+  justify-content: center;
+  gap: 0;
+  border-radius: 50% !important;
+  background: #050505 !important;
+  border: 0 !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(255, 255, 255, 0.24);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+
+  &:hover,
+  &:focus-visible {
+    background: #111 !important;
+    border: 0 !important;
+    color: #ffffff !important;
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 9px 24px rgba(255, 255, 255, 0.34);
+  }
+}
+
 // ── Reveal on intersection (toggled by v-motion-style directives later) ─────
 [data-reveal] {
   opacity: 0;

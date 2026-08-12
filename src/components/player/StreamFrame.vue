@@ -274,6 +274,15 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .stream-frame {
+    --ember: #ffffff;
+    --gold-leaf: #ffffff;
+    --player-accent: #ffffff;
+
+    button svg,
+    [role='button'] svg {
+        color: #ffffff !important;
+    }
+
     position: relative;
     width: 100%;
     isolation: isolate;
@@ -485,8 +494,8 @@ export default defineComponent({
     &__retry {
         margin-top: var(--s-2);
         padding: 0.65rem 1.4rem;
-        background: var(--ember);
-        color: var(--ink-900);
+        background: #050505;
+        color: var(--ember);
         border: 0;
         border-radius: var(--r-pill);
         font-family: var(--font-ui);
@@ -497,7 +506,7 @@ export default defineComponent({
             transform var(--dur-fast) var(--ease-out);
 
         &:hover {
-            background: var(--ember-600);
+            background: #111;
             transform: translateY(-1px);
         }
     }

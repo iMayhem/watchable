@@ -82,7 +82,7 @@
 import { defineComponent, onMounted, ref } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import SiteFooter from '../components/navigation/SiteFooter.vue';
-import { getSupabaseClient } from '../lib/supabase';
+import { getSyncClient } from '../lib/syncClient';
 import { useSeo } from '../composables/useSeo';
 
 interface KeyStat {
@@ -110,10 +110,10 @@ export default defineComponent({
             loading.value = true;
             error.value = '';
             try {
-                const supabase = await getSupabaseClient();
+                const sync = await getSyncClient();
                 
                 // Fetch the actual keys
-                const { data: keysData } = await supabase
+                const { data: keysData } = await sync
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'groq_keys')
@@ -127,7 +127,7 @@ export default defineComponent({
                 }
 
                 // Fetch their statistics
-                const { data: statusData } = await supabase
+                const { data: statusData } = await sync
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'groq_keys_status')

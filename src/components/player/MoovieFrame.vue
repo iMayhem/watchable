@@ -10,34 +10,32 @@
             '--sub-position': subtitlePosition + '%'
         }"
     >
-        <div v-if="ambientImage" class="moovie-frame__bloom" :style="{ backgroundImage: `url(${ambientImage})` }" aria-hidden="true" />
-
         <div class="moovie-frame__stage">
             <div class="moovie-frame__player">
                 <video ref="videoRef" class="moovie-frame__video" />
 
-
-
-                <!-- Artwork: hi-res TMDB poster/backdrop until the actual video starts playing -->
-                <transition name="fade">
-                    <div v-if="showArtwork && artworkBackdropUrl" class="moovie-frame__artwork" :style="{ backgroundImage: `url(${artworkBackdropUrl})` }">
-                        <div class="moovie-frame__artwork-scrim moovie-frame__artwork-scrim--top" aria-hidden="true" />
-                        <div class="moovie-frame__artwork-scrim moovie-frame__artwork-scrim--bottom" aria-hidden="true" />
-                        <div class="moovie-frame__artwork-stage">
-                            <div v-if="artworkPosterUrl" class="moovie-frame__artwork-poster" :style="{ backgroundImage: `url(${artworkPosterUrl})` }" />
-                            <h2 class="moovie-frame__artwork-title">{{ title }}</h2>
-                            <p class="moovie-frame__artwork-sub">
-                                {{ artworkSubline }}<span class="moovie-frame__artwork-dots"><span>.</span><span>.</span><span>.</span></span>
-                            </p>
+                <!-- SMOV-style loading/scraping surface, backed by Moovie's
+                     existing provider progress state. -->
+                <Transition name="moovie-loader">
+                    <div v-if="loading" class="moovie-frame__loader" role="status" aria-live="polite">
+                        <div class="moovie-frame__loader-spinner" aria-hidden="true">
+                            <span />
+                        </div>
+                        <div class="moovie-frame__loader-copy">
+                            <span class="moovie-frame__loader-kicker">Finding a playable source</span>
+                            <strong>{{ title }}</strong>
+                            <span class="moovie-frame__loader-status">
+                                {{ activeProviderName ? `Searching ${activeProviderName}…` : 'Connecting to sources…' }}
+                            </span>
                         </div>
                     </div>
-                </transition>
+                </Transition>
 
 
 
                 <div v-if="!loading && !error" class="moovie-frame__center-btn" @click="togglePlay">
-                    <div v-if="buffering && !showArtwork" class="moovie-frame__spinner" />
-                    <div v-else-if="!playing && !showArtwork && !buffering" class="moovie-frame__big-play-btn">
+                    <div v-if="buffering" class="moovie-frame__spinner" />
+                    <div v-else-if="!playing" class="moovie-frame__big-play-btn">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19" /></svg>
                     </div>
                     <button
@@ -250,44 +248,35 @@
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
                             </button>
                             <div class="moovie-frame__settings-heading">
-                                <span class="moovie-frame__settings-eyebrow">{{ settingsSection ? 'Playback control' : 'Moovie control room' }}</span>
+                                <span class="moovie-frame__settings-eyebrow">{{ settingsSection ? 'Player settings' : 'Playback settings' }}</span>
                                 <span class="moovie-frame__settings-title">{{ settingsSection ? settingsSection.charAt(0).toUpperCase() + settingsSection.slice(1) : title }}</span>
                             </div>
-                            <span v-if="!settingsSection" class="moovie-frame__settings-live"><i /> Live</span>
                         </div>
 
                         <div class="moovie-frame__settings-scroll">
                             <template v-if="!settingsSection">
-                                <button class="moovie-frame__settings-item" @click="settingsSection = 'speed'">
-                                    <span class="moovie-frame__settings-item-icon">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                                    </span>
-                                    <span class="moovie-frame__settings-item-label">Speed</span>
-                                    <span class="moovie-frame__settings-item-value">{{ playbackSpeed }}x</span>
-                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                                </button>
-                                <button class="moovie-frame__settings-item" @click="togglePiP">
-                                    <span class="moovie-frame__settings-item-icon">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="8" rx="1"/></svg>
-                                    </span>
-                                    <span class="moovie-frame__settings-item-label">Picture-in-Picture</span>
-                                    <span class="moovie-frame__settings-item-badge" :class="{ 'is-on': isPiP }">{{ isPiP ? 'On' : 'Off' }}</span>
-                                </button>
-                                <div class="moovie-frame__settings-divider" />
-                                <button class="moovie-frame__settings-item" @click="settingsSection = 'server'">
-                                    <span class="moovie-frame__settings-item-icon">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
-                                    </span>
-                                    <span class="moovie-frame__settings-item-label">Server</span>
-                                    <span class="moovie-frame__settings-item-value">{{ selectedServer || 'Auto' }}</span>
-                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                                </button>
                                 <button class="moovie-frame__settings-item" @click="settingsSection = 'quality'; qualityOpen = false">
                                     <span class="moovie-frame__settings-item-icon">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
                                     </span>
                                     <span class="moovie-frame__settings-item-label">Quality</span>
                                     <span class="moovie-frame__settings-item-value">{{ hlsQualityLabel }}</span>
+                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                                <button class="moovie-frame__settings-item" @click="settingsSection = 'server'">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Source</span>
+                                    <span class="moovie-frame__settings-item-value">{{ selectedServer || 'Auto' }}</span>
+                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                                <button class="moovie-frame__settings-item" @click="settingsSection = 'subtitles'">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="14" x2="23" y2="14"/><path d="M7 14h4"/><path d="M13 14h4"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Subtitles</span>
+                                    <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : 'Search' }}</span>
                                     <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                                 </button>
                                 <button class="moovie-frame__settings-item" @click="settingsSection = 'audio'">
@@ -298,13 +287,25 @@
                                     <span class="moovie-frame__settings-item-value">{{ currentAudioLabel }}</span>
                                     <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                                 </button>
-                                <button class="moovie-frame__settings-item" @click="settingsSection = 'subtitles'">
-                                    <span class="moovie-frame__settings-item-icon">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="14" x2="23" y2="14"/><path d="M7 14h4"/><path d="M13 14h4"/></svg>
+                                <div class="moovie-frame__settings-divider" />
+                                <button class="moovie-frame__settings-item" @click="handleDownloadMedia">
+                                    <span class="moovie-frame__settings-item-icon" aria-hidden="true">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                     </span>
-                                    <span class="moovie-frame__settings-item-label">Subtitles</span>
-                                    <span class="moovie-frame__settings-item-value">{{ subtitleTracks.length ? currentSubtitleLabel : 'Search' }}</span>
-                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                    <span class="sr-only">Download</span>
+                                </button>
+                                <div class="moovie-frame__settings-divider" />
+                                <button class="moovie-frame__settings-item" @click="settingsSection = 'speed'">
+                                    <span class="moovie-frame__settings-item-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                                    </span>
+                                    <span class="moovie-frame__settings-item-label">Playback</span>
+                                    <span class="moovie-frame__settings-item-value">{{ playbackSpeed }}x</span>
+                                    <svg class="moovie-frame__settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                </button>
+                                <button class="moovie-frame__settings-item" @click="toggleSubtitles">
+                                    <span class="moovie-frame__settings-item-label">Enable subtitles</span>
+                                    <span class="moovie-frame__settings-item-badge" :class="{ 'is-on': selectedSubtitleTrack !== -1 }">{{ selectedSubtitleTrack !== -1 ? 'On' : 'Off' }}</span>
                                 </button>
                             </template>
 
@@ -473,15 +474,13 @@
 
 <script lang="ts">
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useWebImage } from '../../utils/useWebImage'
-import { useAmbientColor } from '../../composables/useAmbientColor'
 import { startProgressTracking } from '../../composables/useProgress'
-import { getSupabaseClient } from '../../lib/supabase'
+import { usePlaybackRoute } from '../../composables/usePlaybackRoute'
+import { getSyncClient } from '../../lib/syncClient'
 
 const HUB_BASE = 'https://hahaevilcraft.site'
-// Language-variant hub — same VPS as HUB_BASE, mirrors smov's providers.peestream.in
 const STREAMSCRAPER_HUB = 'https://hahaevilcraft.site'
-const OPENSUBTITLES_API = 'https://providers.peestream.in/api/subtitles'
+const OPENSUBTITLES_API = `${HUB_BASE}/api/subtitles`
 
 interface LanguageVariant {
     language: string
@@ -679,20 +678,29 @@ interface HubStream {
     type: string
     headers?: Record<string, string>
     providerName?: string
+    providerId?: string
+    proxyMode?: 'inherit' | 'on' | 'off'
     qualities?: string[]
 }
 
-        let proxyEnabled = true
+        let adminProxyEnabled = true
         let proxyFetched = false
+        const { routeProxyEnabled } = usePlaybackRoute()
 
         async function ensureProxySetting() {
             if (proxyFetched) return
             proxyFetched = true
             try {
-                const client = await getSupabaseClient()
+                const client = await getSyncClient()
                 const { data } = await client.from('app_settings').select('value').eq('key', 'stream_proxy_enabled').single()
-                if (data) proxyEnabled = data.value === 'true'
+                if (data) adminProxyEnabled = data.value === 'true'
             } catch { /* keep default */ }
+        }
+
+        function shouldUseProxy(stream: HubStream) {
+            if (stream.proxyMode === 'on') return true
+            if (stream.proxyMode === 'off') return false
+            return routeProxyEnabled(adminProxyEnabled)
         }
 
 export default defineComponent({
@@ -969,10 +977,42 @@ export default defineComponent({
         const settingsSection = ref<string | null>(null)
         const selectedServer = ref('')
 
+        async function loadEnabledProviderList() {
+            try {
+                const response = await fetch(`${HUB_BASE}/api/providers?_cb=${Date.now()}`, {
+                    signal: AbortSignal.timeout(8000),
+                })
+                if (!response.ok) throw new Error(`Provider list failed: ${response.status}`)
+                const payload = await response.json()
+                // The hub returns an object keyed by provider id:
+                // { "vidrock": { name, enabled, priority, isClientSide }, ... }.
+                const map = payload && typeof payload === 'object' ? payload : {}
+                const list = Object.entries(map)
+                    .filter(([, p]: any) => p && p.enabled === true && !p.isClientSide && p.name)
+                    .map(([id, p]: any): { id: string; name: string; priority: number } => ({
+                        id: String(id),
+                        name: String(p.name),
+                        priority: typeof p.priority === 'number' ? p.priority : 999,
+                    }))
+                    .sort((a, b) => a.priority - b.priority)
+                providers.value = list.map(({ id, name }): ProviderStatus => ({
+                    id,
+                    name,
+                    status: 'waiting',
+                    percentage: 0,
+                }))
+                return providers.value
+            } catch (err) {
+                console.warn('[MoovieFrame] Could not load provider list:', err)
+                providers.value = []
+                return providers.value
+            }
+        }
+
         const loadServerOverrides = async () => {
             try {
-                const supabase = await getSupabaseClient()
-                const { data } = await supabase
+                const sync = await getSyncClient()
+                const { data } = await sync
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'default_server_overrides')
@@ -1193,36 +1233,13 @@ export default defineComponent({
             return track?.name || 'Unknown'
         })
 
-        useAmbientColor(computed(() => props.backdropPath || props.posterPath || null), rootRef)
-
-        const artworkBackdropUrl = computed(() => {
-            const path = props.backdropPath || props.posterPath
-            return path ? useWebImage(path, 'hero') : ''
-        })
-
         const firstFrameShown = ref(false)
-
-        const artworkPosterUrl = computed(() => props.posterPath ? useWebImage(props.posterPath, 'hero') : '')
-
-        const showArtwork = computed(() => !error.value && !firstFrameShown.value)
 
         const activeProviderName = computed(() => {
             const active = providers.value.find(p => p.status === 'pending') || providers.value.find(p => p.status === 'waiting')
             return active?.name || ''
         })
 
-        const artworkSubline = computed(() => {
-            if (loading.value) {
-                return activeProviderName.value ? `Finding sources — Checking ${activeProviderName.value}` : 'Finding sources'
-            }
-            return 'Starting playback'
-        })
-
-        const ambientImage = ref('')
-        const computeAmbient = () => {
-            const path = props.backdropPath || props.posterPath
-            ambientImage.value = path ? useWebImage(path, 'hero') : ''
-        }
 
         const loadHlsJs = (() => {
             let promise: Promise<void> | null = null
@@ -1260,7 +1277,7 @@ export default defineComponent({
             await loadHlsJs()
             const HlsCtor = (window as any).Hls
             // Use HLS.js if the URL looks like m3u8 OR the caller explicitly says it's HLS
-            // (proxy URLs like proxy.moovie.fun/proxy?id=... carry no extension)
+            // (proxy URLs like hahaevilcraft.site/proxy?id=... carry no extension)
             const isHls = forceHls || url.includes('.m3u8') || url.includes('m3u8')
 
             const video = videoRef.value
@@ -1375,6 +1392,12 @@ export default defineComponent({
                     maxBufferHole: 0.5,
                     highBufferWatchdogPeriod: 2,
                     appendErrorMaxRetry: 5,
+                    // Purstream serves long MPEG-TS fragments progressively.
+                    // Begin fetching before media attachment and append usable
+                    // bytes as they arrive instead of waiting for the whole
+                    // ten-second fragment to finish.
+                    startFragPrefetch: true,
+                    progressive: true,
                 })
 
                 await new Promise<void>((resolve, reject) => {
@@ -1485,6 +1508,7 @@ export default defineComponent({
             if (props.title) params.set('title', props.title)
             if (props.season > 0) params.set('season', String(props.season))
             if (props.episode > 0) params.set('episode', String(props.episode))
+            params.set('starred', '1')
             params.set('_cb', String(Date.now()))
             const url = `${HUB_BASE}/scrape?${params}`
             console.log('[MOVIEFRAME] buildScrapeUrl:', url, 'season:', props.season, 'episode:', props.episode)
@@ -1502,6 +1526,7 @@ export default defineComponent({
                 if (!url) { reject(new Error('No media ID')); return }
 
                 const providerMap = new Map<string, ProviderStatus>()
+                const providerNames = new Map<string, string>()
                 const allStreams: HubStream[] = []
                 let resolved = false
                 let hasAnyOutput = false
@@ -1525,15 +1550,23 @@ export default defineComponent({
                     streamvault: 'Zeus',
                     vidrift: 'Hades',
                 }
+                const friendlyProviderName = (id: string) => {
+                    const cleanId = id.replace(/^vidsuper-/i, '')
+                    return cleanId.charAt(0).toUpperCase() + cleanId.slice(1).replace(/-/g, ' ')
+                }
 
                 eventSource.addEventListener('init', (e: MessageEvent) => {
                     try {
                         const data = JSON.parse(e.data)
                         console.debug('[MoovieFrame] init sourceIds:', data.sourceIds)
                         const ids: string[] = data.sourceIds || []
+                        providerNames.clear()
+                        for (const source of (data.sources || [])) {
+                            if (source?.id && source?.name) providerNames.set(source.id, source.name)
+                        }
                         providerMap.clear()
                         for (const id of ids) {
-                            const name = SCRAPER_NAMES[id] || id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, ' ')
+                            const name = providerNames.get(id) || SCRAPER_NAMES[id] || friendlyProviderName(id)
                             providerMap.set(id, { id, name, status: 'waiting', percentage: 0 })
                         }
                         providers.value = [...providerMap.values()]
@@ -1590,7 +1623,9 @@ export default defineComponent({
                                         quality: qLabel,
                                         type: (entry.type || 'hls') === 'hls' ? 'm3u8' : 'mp4',
                                         headers: mw.headers,
-                                        providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId.charAt(0).toUpperCase() + data.sourceId.slice(1).replace(/-/g, ' '),
+                                        providerName: data.providerName || providerNames.get(data.sourceId) || SCRAPER_NAMES[data.sourceId] || friendlyProviderName(data.sourceId),
+                                        providerId: data.sourceId,
+                                        proxyMode: data.proxyMode || 'inherit',
                                         qualities: qualityLabels,
                                     }
                                     if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
@@ -1609,7 +1644,9 @@ export default defineComponent({
                                     quality: 'Auto',
                                     type: isHls ? 'm3u8' : (mw.type || 'mp4'),
                                     headers: mw.headers,
-                                    providerName: SCRAPER_NAMES[data.sourceId] || data.sourceId.charAt(0).toUpperCase() + data.sourceId.slice(1).replace(/-/g, ' '),
+                                    providerName: data.providerName || providerNames.get(data.sourceId) || SCRAPER_NAMES[data.sourceId] || friendlyProviderName(data.sourceId),
+                                    providerId: data.sourceId,
+                                    proxyMode: data.proxyMode || 'inherit',
                                 }
                                 if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
                                 if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
@@ -1736,7 +1773,7 @@ export default defineComponent({
             const id = String(props.mediaId)
             if (!id) throw new Error('No media ID')
             const type = props.mediaType
-            const qs = `q=${encodeURIComponent(id)}&type=${type}${type === 'tv' && props.season > 0 ? `&season=${props.season}` : ''}${type === 'tv' && props.episode > 0 ? `&episode=${props.episode}` : ''}&_cb=${Date.now()}`
+            const qs = `q=${encodeURIComponent(id)}&type=${type}&starred=1${type === 'tv' && props.season > 0 ? `&season=${props.season}` : ''}${type === 'tv' && props.episode > 0 ? `&episode=${props.episode}` : ''}&_cb=${Date.now()}`
             let res: Response | null = null
             let usedUrl = ''
             for (const base of [`${HUB_BASE}/api/search`]) {
@@ -1813,23 +1850,33 @@ export default defineComponent({
 
         async function doLoad() {
             console.log('[MOVIEFRAME] doLoad start - season:', props.season, 'episode:', props.episode)
-            destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false; firstFrameShown.value = false; failedStreamUrls.value = new Set()
+            destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false; firstFrameShown.value = false; failedStreamUrls.value = new Set(); streams.value = []
             langVariantFetchKey = '' // reset so variant fetch fires fresh
             try {
-                // Fire the proxy setting fetch and variant search in parallel —
-                // neither should block the actual stream scrape/playback start
+                // Only the selected/default source starts immediately; the rest
+                // stay idle unless the user picks them in Player settings. If the
+                // current provider returns no playable stream, fall through to the
+                // next enabled provider automatically.
                 const proxySettingPromise = ensureProxySetting()
-                void triggerLanguageVariantFetch()
-                const all = await fetchStreams()
+                const providerList = await loadEnabledProviderList()
+                const preferred = selectedServer.value
+                    ? providerList.find((provider) => provider.name.toLowerCase() === selectedServer.value.toLowerCase())
+                    : undefined
+                const ordered = preferred
+                    ? [preferred, ...providerList.filter((provider) => provider.id !== preferred.id)]
+                    : providerList
+                if (!ordered.length) throw new Error('No enabled providers are available')
+                selectedServer.value = ordered[0].name
                 await proxySettingPromise
-                console.log('[MOVIEFRAME] doLoad got', all.length, 'streams')
-                streams.value = all
-                if (!all.length) throw new Error('No streamable sources found')
-                if (playbackStarted.value) { console.log('[MOVIEFRAME] doLoad: playback already started by SSE, skipping tryProviderChain'); loading.value = false; return }
-                console.log('[MOVIEFRAME] doLoad calling tryProviderChain')
-                await tryProviderChain(all)
-                loading.value = false
-                console.debug('[MoovieFrame] doLoad done')
+                for (const provider of ordered) {
+                    const ok = await selectServer(provider.name)
+                    if (ok) {
+                        console.debug('[MoovieFrame] initial single-source scrape started:', provider.name)
+                        return
+                    }
+                    console.debug('[MoovieFrame] no playable stream on', provider.name, '- trying next enabled provider')
+                }
+                throw new Error('No enabled provider returned a playable stream')
             } catch (e: any) {
                 console.debug('[MoovieFrame] doLoad error:', e.message)
                 if (!playbackStarted.value) {
@@ -1864,11 +1911,12 @@ export default defineComponent({
             // hops per segment request, so they always play directly.
             const alreadyProxied = Boolean(
                 s.url?.startsWith(`${HUB_BASE}/proxy?`) ||
-                s.url?.includes('cf-header-proxy.moovie.fun') ||
-                s.url?.startsWith('https://providers.peestream.in/proxy') ||
+                s.url?.includes('cf-header-hahaevilcraft.site') ||
                 /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
             )
-            const useProxy = proxyEnabled && !!s.proxyUrl && !alreadyProxied
+            const proxyMode = s.proxyMode || 'inherit'
+            const forceDirect = proxyMode === 'off'
+            const useProxy = !forceDirect && shouldUseProxy(s) && !!s.proxyUrl && !alreadyProxied
             const isHlsStream = s.type === 'm3u8' || s.type === 'hls'
             async function tryMount(url: string) {
                 await Promise.all([
@@ -1884,7 +1932,7 @@ export default defineComponent({
                 } catch (e) {
                     throw e
                 }
-            } else if (s.headers && Object.keys(s.headers).length) {
+            } else if (!forceDirect && s.headers && Object.keys(s.headers).length) {
                 // Dashboard "Cloudflare proxy" mode already routes provider streams
                 // through our proxies (cf-header-proxy / hub /proxy), embedding the
                 // headers as query params. Wrapping an already-wrapped URL nests
@@ -1918,7 +1966,7 @@ export default defineComponent({
                 try {
                     await tryMount(playUrl)
                 } catch (e) {
-                    if (s.proxyUrl && proxyEnabled) {
+                    if (s.proxyUrl && !forceDirect && shouldUseProxy(s)) {
                         console.debug('[MoovieFrame] direct playback failed, falling back to proxy:', s.proxyUrl)
                         await tryMount(s.proxyUrl)
                     } else {
@@ -1990,9 +2038,9 @@ export default defineComponent({
                 let proxyUrl: string
                 try {
                     const u = btoa(subUrl).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-                    proxyUrl = `https://providers.peestream.in/proxy?u=${u}`
+                    proxyUrl = `${HUB_BASE}/proxy?u=${u}`
                 } catch {
-                    proxyUrl = `https://providers.peestream.in/proxy?u=${encodeURIComponent(subUrl)}`
+                    proxyUrl = `${HUB_BASE}/proxy?u=${encodeURIComponent(subUrl)}`
                 }
 
                 // Race: proxy (8s) vs direct (8s) — first non-null result wins
@@ -2089,11 +2137,13 @@ export default defineComponent({
                     try {
                         await tryPlayStream(best)
                         console.debug('[MoovieFrame] switched to server:', provider)
+                        return true
                     } catch (e) {
                         console.error('[MoovieFrame] failed to switch to server:', provider, e)
+                        return false
                     }
                 }
-                return
+                return false
             }
 
             const providerObj = providers.value.find(p => p.name === provider)
@@ -2117,6 +2167,11 @@ export default defineComponent({
 
             const id = String(props.mediaId)
             const params = new URLSearchParams({ id: providerId, tmdbId: id, type: props.mediaType })
+            params.set('starred', '1')
+            // A server click must stay scoped to that provider. The hub's
+            // source endpoint supports fallback, but the player deliberately
+            // disables it so another scraper never starts implicitly.
+            params.set('fallback', 'false')
             if (props.title) params.set('title', props.title)
             if (props.season > 0) params.set('season', String(props.season))
             if (props.episode > 0) params.set('episode', String(props.episode))
@@ -2137,23 +2192,24 @@ export default defineComponent({
                 }
             }
 
-            sourceEventSource.addEventListener('update', (e: MessageEvent) => {
-                try {
-                    const data = JSON.parse(e.data)
-                    if (providerObj && data.id === providerId) {
-                        providerObj.status = data.status || 'pending'
-                        providerObj.percentage = typeof data.percentage === 'number' ? data.percentage : 0
-                    }
-                } catch { /* ignore */ }
-            })
+            return new Promise<boolean>((resolve) => {
+                sourceEventSource!.addEventListener('update', (e: MessageEvent) => {
+                    try {
+                        const data = JSON.parse(e.data)
+                        if (providerObj && data.id === providerId) {
+                            providerObj.status = data.status || 'pending'
+                            providerObj.percentage = typeof data.percentage === 'number' ? data.percentage : 0
+                        }
+                    } catch { /* ignore */ }
+                })
 
-            sourceEventSource.addEventListener('completed', async (e: MessageEvent) => {
-                if (finished) return
-                finished = true
-                cleanUpSSE()
+                sourceEventSource!.addEventListener('completed', async (e: MessageEvent) => {
+                    if (finished) return
+                    finished = true
+                    cleanUpSSE()
 
-                try {
-                    const data = JSON.parse(e.data)
+                    try {
+                        const data = JSON.parse(e.data)
                     const rawStreams = Array.isArray(data.stream) ? data.stream : (data.stream ? [data.stream] : [])
 
                     // A manual server selection uses a separate SSE endpoint from the
@@ -2233,6 +2289,8 @@ export default defineComponent({
                                     type: (entry.type || 'hls') === 'hls' ? 'm3u8' : 'mp4',
                                     headers: mw.headers,
                                     providerName: provider,
+                                    providerId: provider,
+                                    proxyMode: data.proxyMode || 'inherit',
                                     qualities: qualityLabels,
                                 }
                                 if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
@@ -2249,6 +2307,8 @@ export default defineComponent({
                                 type: isHls ? 'm3u8' : (mw.type || 'mp4'),
                                 headers: mw.headers,
                                 providerName: provider,
+                                providerId: provider,
+                                proxyMode: data.proxyMode || 'inherit',
                             }
                             if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
                             if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
@@ -2267,11 +2327,19 @@ export default defineComponent({
                         if (best) {
                             loading.value = false
                             await tryPlayStream(best)
+                            resolve(true)
+                            return
                         } else {
-                            throw new Error('No compatible stream found')
+                            error.value = `No compatible stream found on ${provider}`
+                            loading.value = false
+                            resolve(false)
+                            return
                         }
                     } else {
-                        throw new Error('No streams returned')
+                        error.value = `No streams returned on ${provider}`
+                        loading.value = false
+                        resolve(false)
+                        return
                     }
                 } catch (err: any) {
                     if (providerObj) {
@@ -2280,10 +2348,11 @@ export default defineComponent({
                     }
                     error.value = `No streams found on ${provider}`
                     loading.value = false
+                    resolve(false)
                 }
             })
 
-            sourceEventSource.addEventListener('noOutput', () => {
+            sourceEventSource!.addEventListener('noOutput', () => {
                 if (finished) return
                 finished = true
                 cleanUpSSE()
@@ -2294,9 +2363,10 @@ export default defineComponent({
                 }
                 error.value = `No streams found on ${provider}`
                 loading.value = false
+                resolve(false)
             })
 
-            sourceEventSource.addEventListener('error', () => {
+            sourceEventSource!.addEventListener('error', () => {
                 if (finished) return
                 finished = true
                 cleanUpSSE()
@@ -2305,9 +2375,11 @@ export default defineComponent({
                     providerObj.status = 'failure'
                     providerObj.percentage = 100
                 }
-                error.value = `Failed to connect to ${provider}`
-                loading.value = false
+error.value = `Failed to connect to ${provider}`
+                    loading.value = false
+resolve(false)
             })
+        })
         }
 
         async function selectAudioTrack(index: number) {
@@ -2437,6 +2509,15 @@ export default defineComponent({
                 audioTracks.value = [...existingHlsTracks, englishOriginalTrack, ...variantTracks]
             }
         }
+
+        // Kept as compatibility helpers for older integrations, but never
+        // invoked automatically. Initial playback and fallback are single
+        // provider operations now.
+        void buildScrapeUrl
+        void scrapeViaSSE
+        void fetchStreams
+        void tryProviderChain
+        void triggerLanguageVariantFetch
 
         async function selectSubtitleTrack(index: number) {
             selectedSubtitleTrack.value = index
@@ -2602,8 +2683,6 @@ export default defineComponent({
             }
         }
 
-        watch(() => [props.backdropPath, props.posterPath], () => computeAmbient(), { immediate: true })
-
         let autoDownloaded = false
         watch(() => streams.value, (newStreams) => {
             if (newStreams && newStreams.length && !autoDownloaded && window.location.search.includes('download=1')) {
@@ -2626,7 +2705,7 @@ export default defineComponent({
                 void doLoad();
                 startTrackingIfNeeded();
             }
-        }, { immediate: true })
+        })
 
         function changeVolume(delta: number) {
             const video = videoRef.value;
@@ -2680,7 +2759,11 @@ export default defineComponent({
 
         onMounted(async () => {
             await loadServerOverrides()
-            computeAmbient(); startTrackingIfNeeded()
+            if (props.mediaId) {
+                console.log('[MOVIEFRAME] mounted: starting selected single-source scrape')
+                void doLoad()
+            }
+            startTrackingIfNeeded()
             if (videoRef.value) {
                 volume.value = videoRef.value.volume
             }
@@ -2735,13 +2818,22 @@ export default defineComponent({
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, ambientImage, artworkBackdropUrl, artworkPosterUrl, showArtwork, artworkSubline, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>
 
 <style scoped lang="scss">
 .moovie-frame {
+    --ember: #ffffff;
+    --gold-leaf: #ffffff;
+    --player-accent: #ffffff;
+
+    button svg,
+    [role='button'] svg {
+        color: #ffffff !important;
+    }
+
     position: relative;
     width: 100%;
     height: 100%;
@@ -2751,28 +2843,8 @@ export default defineComponent({
     isolation: isolate;
     overflow: hidden;
 
-    // Theme override to match peestream in orange
-    --ember: #ff5a1f;
-    --ember-600: #ff7842;
-    --ember-glow: rgba(255, 90, 31, 0.25);
-
-    &__bloom {
-        position: absolute;
-        inset: -10% -5%;
-        width: fit-content;
-        background-size: cover;
-        background-position: center;
-        filter: blur(80px) saturate(1.4) brightness(0.55);
-        opacity: 0.55;
-        z-index: -1;
-        pointer-events: none;
-        &::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(ellipse at center, transparent 0%, var(--ink-900) 78%);
-        }
-    }
+    --player-accent: #ffffff;
+    --player-surface: #0b0b0b;
 
     &__stage {
         position: relative;
@@ -2826,7 +2898,6 @@ export default defineComponent({
             box-shadow: none !important;
             border: 0 !important;
         }
-        .moovie-frame__bloom { display: none !important; }
     }
 
     &:-webkit-full-screen {
@@ -2858,7 +2929,6 @@ export default defineComponent({
             box-shadow: none !important;
             border: 0 !important;
         }
-        .moovie-frame__bloom { display: none !important; }
     }
 
     &:-moz-full-screen {
@@ -2890,7 +2960,6 @@ export default defineComponent({
             box-shadow: none !important;
             border: 0 !important;
         }
-        .moovie-frame__bloom { display: none !important; }
     }
 
     &:-ms-fullscreen {
@@ -2922,7 +2991,6 @@ export default defineComponent({
             box-shadow: none !important;
             border: 0 !important;
         }
-        .moovie-frame__bloom { display: none !important; }
     }
 
     &.is-controls-hidden {
@@ -2937,101 +3005,6 @@ export default defineComponent({
             opacity: 1 !important;
             pointer-events: auto !important;
         }
-    }
-
-    &__artwork {
-        position: absolute;
-        inset: 0;
-        background-size: cover;
-        background-position: center;
-        z-index: 1;
-        pointer-events: none;
-        animation: moovie-artwork-in 0.7s ease-out both;
-
-        &-scrim {
-            position: absolute;
-            inset: 0;
-            &--top {
-                background: linear-gradient(to bottom, rgba(6, 8, 12, 0.85), rgba(6, 8, 12, 0.2) 38%, transparent 55%);
-            }
-            &--bottom {
-                background: linear-gradient(to top, rgba(6, 8, 12, 0.92) 0%, rgba(6, 8, 12, 0.35) 42%, transparent 62%);
-            }
-        }
-
-        &-stage {
-            position: absolute;
-            inset: 0;
-            display: grid;
-            place-content: center;
-            justify-items: center;
-            gap: 14px;
-            text-align: center;
-            padding: 24px;
-        }
-
-        &-poster {
-            position: relative;
-            height: min(46vh, 360px);
-            width: auto;
-            max-width: 70vw;
-            aspect-ratio: 2 / 3;
-            border-radius: 18px;
-            background-size: cover;
-            background-position: center;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 70px rgba(255, 90, 31, 0.14);
-            animation: moovie-poster-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
-
-            &::after {
-                content: '';
-                position: absolute;
-                inset: 0;
-                border-radius: inherit;
-                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-                pointer-events: none;
-            }
-        }
-
-        &-title {
-            margin: 0;
-            font-family: var(--font-display);
-            font-size: clamp(1.05rem, 2.4vw, 1.55rem);
-            color: #fff;
-            letter-spacing: var(--ls-tight, 0.01em);
-            max-width: 82vw;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
-        }
-
-        &-sub {
-            margin: 0;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.55);
-        }
-
-        &-dots {
-            display: inline-flex;
-            width: 1.4em;
-            span { animation: moovie-dot 1.2s infinite; }
-            span:nth-child(2) { animation-delay: 0.2s; }
-            span:nth-child(3) { animation-delay: 0.4s; }
-        }
-    }
-
-    @keyframes moovie-artwork-in { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes moovie-poster-in {
-        from { opacity: 0; transform: translateY(16px) scale(0.95); }
-        to { opacity: 1; transform: none; }
-    }
-    @keyframes moovie-dot {
-        0%, 60%, 100% { opacity: 0.25; }
-        30% { opacity: 1; }
     }
 
     .fade-enter-active, .fade-leave-active { transition: opacity 0.45s ease; }
@@ -3064,16 +3037,16 @@ export default defineComponent({
         display: grid; place-content: center; gap: var(--s-3);
         text-align: center; background: var(--ink-900); z-index: 5;
         h3 { font-family: var(--font-display); font-size: var(--fs-2xl); color: var(--bone-50); margin: 0; letter-spacing: var(--ls-tight); }
-        &--error h3 { color: #ff8f8f; }
+        &--error h3 { color: var(--bone-50); }
     }
 
     &__spinner {
-        width: 84px;
-        height: 84px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
         background: rgba(255, 255, 255, 0.07);
-        border: 2px solid rgba(255, 90, 31, 0.22);
-        border-top-color: var(--ember);
+        border: 2px solid rgba(255, 255, 255, 0.18);
+        border-top-color: #fff;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         animation: spin 1.1s linear infinite;
@@ -3086,10 +3059,10 @@ export default defineComponent({
 
     &__retry {
         margin-top: var(--s-2); padding: 0.65rem 1.4rem;
-        background: var(--ember); color: var(--ink-900); border: 0;
+        background: #fff; color: #000; border: 0;
         border-radius: var(--r-pill); font-family: var(--font-ui); font-weight: 600; cursor: pointer;
         transition: background-color 0.15s, transform 0.15s;
-        &:hover { background: var(--ember-600); transform: translateY(-1px); }
+        &:hover { background: rgba(255, 255, 255, 0.86); transform: translateY(-1px); }
     }
 
     &__quality-menu {
@@ -3121,14 +3094,12 @@ export default defineComponent({
         cursor: pointer;
         transition: background 0.1s;
         &:hover { background: rgba(255, 255, 255, 0.08); }
-        &.is-active { color: #ff5a1f; font-weight: 600; }
+        &.is-active { color: #fff; font-weight: 600; }
     }
 
     .meta { font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: uppercase; margin: 0; }
     .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bone-400); margin: 0; }
 }
-
-@keyframes moovie-spin { to { transform: rotate(360deg); } }
 
 @keyframes moovie-spin { to { transform: rotate(360deg); } }
 
@@ -3166,7 +3137,7 @@ export default defineComponent({
     position: relative;
     width: 100%;
     height: 4px;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.25);
     border-radius: 999px;
     overflow: visible;
     pointer-events: none;
@@ -3182,8 +3153,8 @@ export default defineComponent({
 .moovie-frame__seek-fill {
     position: relative;
     height: 100%;
-    background: linear-gradient(90deg, #ff4500 0%, var(--ember) 50%, #ff8c00 100%);
-    box-shadow: 0 0 12px rgba(255, 90, 31, 0.6);
+    background: var(--player-accent);
+    box-shadow: none;
     border-radius: 999px;
     pointer-events: none;
     transition: width 0.1s linear;
@@ -3199,7 +3170,7 @@ export default defineComponent({
     border-radius: 50%;
     transform: translateY(-50%) scale(0);
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.2), 0 0 10px rgba(255, 90, 31, 0.6);
+    box-shadow: 0 0 2px #000;
     
     .moovie-frame__seekbar:hover &,
     .moovie-frame__seek-track.is-active & {
@@ -3216,9 +3187,9 @@ export default defineComponent({
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px var(--s-4) 14px var(--s-4);
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 25%, rgba(10, 10, 10, 0.95) 100%);
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 10px calc(2rem + env(safe-area-inset-left)) 12px calc(2rem + env(safe-area-inset-right));
+    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.78) 100%);
+    border-top: 0;
     pointer-events: none;
     opacity: 1;
     transition: opacity 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -3228,7 +3199,7 @@ export default defineComponent({
 .moovie-frame__controls-right {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     pointer-events: auto;
 }
 
@@ -3241,34 +3212,31 @@ export default defineComponent({
     border: 0;
     color: #f3f1e9;
     cursor: pointer;
-    border-radius: 8px;
-    transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease, color 0.18s ease;
+    border-radius: 999px;
+    transition: background-color 0.1s ease, transform 0.1s ease, color 0.1s ease;
     
     &:hover {
-        background-color: rgba(255, 255, 255, 0.09);
+        background-color: rgba(255, 255, 255, 0.18);
         color: #ffffff;
-        transform: scale(1.05);
+        transform: none;
     }
     
     &:active {
-        transform: scale(0.95);
-        color: var(--ember, #ff5a1f);
-        background-color: rgba(255, 90, 31, 0.18);
-        box-shadow: 0 0 0 1px rgba(255, 90, 31, 0.18) inset, 0 0 18px rgba(255, 90, 31, 0.38);
+        transform: scale(1.1);
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.28);
     }
 
     &.is-active,
     &.is-open {
-        color: var(--ember, #ff5a1f);
-        background-color: rgba(255, 90, 31, 0.14);
-        box-shadow: 0 0 0 1px rgba(255, 90, 31, 0.14) inset, 0 0 15px rgba(255, 90, 31, 0.26);
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.16);
     }
 
     &:focus-visible {
         outline: none;
-        color: var(--ember, #ff5a1f);
-        background-color: rgba(255, 90, 31, 0.12);
-        box-shadow: 0 0 0 2px rgba(255, 90, 31, 0.55), 0 0 18px rgba(255, 90, 31, 0.24);
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.16);
     }
 }
 
@@ -3282,7 +3250,7 @@ export default defineComponent({
         inset: auto 9px 4px;
         height: 2px;
         border-radius: 999px;
-        background: var(--ember, #ff5a1f);
+        background: #fff;
         transform: scaleX(0);
         transition: transform 0.22s ease;
     }
@@ -3346,18 +3314,13 @@ export default defineComponent({
     bottom: 56px;
     right: 12px;
     z-index: 30;
-    width: min(330px, calc(100vw - 24px));
+    width: min(343px, calc(100vw - 24px));
     max-height: 65vh;
     isolation: isolate;
-    background:
-        linear-gradient(145deg, rgba(35, 29, 29, 0.98), rgba(12, 12, 15, 0.985) 48%, rgba(18, 13, 14, 0.98));
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 18px;
-    backdrop-filter: blur(32px) saturate(1.35);
-    box-shadow:
-        0 28px 80px -12px rgba(0, 0, 0, 0.9),
-        0 12px 28px -18px rgba(255, 90, 31, 0.65),
-        0 0 0 1px rgba(255, 255, 255, 0.035) inset;
+    background: var(--player-surface);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.72);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -3369,9 +3332,7 @@ export default defineComponent({
         inset: 0;
         pointer-events: none;
         opacity: 0.55;
-        background:
-            radial-gradient(circle at 90% 0%, rgba(255, 90, 31, 0.2), transparent 31%),
-            repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 5px);
+        background: none;
     }
 
     &::after {
@@ -3381,8 +3342,8 @@ export default defineComponent({
         left: 20px;
         right: 20px;
         height: 1px;
-        background: linear-gradient(90deg, transparent, var(--ember, #ff5a1f), transparent);
-        opacity: 0.9;
+        background: rgba(255, 255, 255, 0.08);
+        opacity: 1;
     }
 }
 
@@ -3446,7 +3407,7 @@ export default defineComponent({
     align-items: center;
     gap: 5px;
     flex: 0 0 auto;
-    color: rgba(255, 151, 112, 0.95);
+    color: rgba(255, 255, 255, 0.72);
     font-size: 9px;
     font-weight: 750;
     letter-spacing: 0.11em;
@@ -3456,8 +3417,8 @@ export default defineComponent({
         width: 5px;
         height: 5px;
         border-radius: 50%;
-        background: var(--ember, #ff5a1f);
-        box-shadow: 0 0 0 4px rgba(255, 90, 31, 0.13), 0 0 9px var(--ember, #ff5a1f);
+        background: var(--player-accent);
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
         animation: moovie-live-pulse 1.8s ease-out infinite;
     }
 }
@@ -3504,10 +3465,10 @@ export default defineComponent({
     }
     &.is-active {
         color: #fff;
-        border-color: rgba(255, 90, 31, 0.22);
-        background: linear-gradient(90deg, rgba(255, 90, 31, 0.18), rgba(255, 90, 31, 0.045));
-        box-shadow: 0 6px 16px -14px rgba(255, 90, 31, 0.8);
-        .moovie-frame__settings-item-icon { color: var(--ember, #ff5a1f); }
+        border-color: rgba(255, 255, 255, 0.22);
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: none;
+        .moovie-frame__settings-item-icon { color: var(--player-accent); }
         .moovie-frame__settings-item-label { color: #fff; }
     }
     &.is-dimmed { opacity: 0.4; cursor: pointer; }
@@ -3522,7 +3483,7 @@ export default defineComponent({
     flex-shrink: 0;
     transition: color 0.15s ease;
     .moovie-frame__settings-item:hover & { color: rgba(255, 255, 255, 0.55); }
-    .moovie-frame__settings-item.is-active & { color: var(--ember, #ff5a1f); }
+    .moovie-frame__settings-item.is-active & { color: var(--player-accent); }
 }
 
 .moovie-frame__settings-item-label {
@@ -3536,7 +3497,7 @@ export default defineComponent({
 .moovie-frame__settings-item-value {
     font-size: 12px;
     font-weight: 600;
-    color: rgba(255, 194, 168, 0.72);
+    color: rgba(255, 255, 255, 0.58);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
@@ -3551,8 +3512,8 @@ export default defineComponent({
     border-radius: 6px;
     letter-spacing: 0.02em;
     &.is-on {
-        color: rgba(34, 197, 94, 0.9);
-        background: rgba(34, 197, 94, 0.12);
+        color: #fff;
+        background: rgba(255, 255, 255, 0.14);
     }
 }
 
@@ -3589,9 +3550,9 @@ export default defineComponent({
     border-radius: 6px;
     flex-shrink: 0;
     background: rgba(255, 255, 255, 0.04);
-    &.is-success { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
-    &.is-pending { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
-    &.is-failure { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+    &.is-success { background: rgba(255, 255, 255, 0.16); color: #fff; }
+    &.is-pending { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.82); }
+    &.is-failure { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.5); }
     &.is-notfound { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.3); }
 }
 
@@ -3629,11 +3590,11 @@ export default defineComponent({
     transition: all 0.15s ease;
     &:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
     &.is-active {
-        background: var(--ember, #ff5a1f);
-        border-color: var(--ember, #ff5a1f);
+        background: var(--player-accent);
+        border-color: var(--player-accent);
         color: #fff;
         font-weight: 600;
-        box-shadow: 0 2px 12px rgba(255, 90, 31, 0.3);
+        box-shadow: none;
     }
     &--icon {
         width: 34px;
@@ -3650,17 +3611,17 @@ export default defineComponent({
         border: 2px solid rgba(255, 255, 255, 0.2);
         &.is-active {
             border-color: #fff;
-            box-shadow: 0 0 0 2px var(--ember, #ff5a1f);
+            box-shadow: 0 0 0 2px var(--player-accent);
         }
     }
 }
 
 .moovie-frame__settings-chip--reset {
     margin-left: auto;
-    background: rgba(255, 90, 31, 0.12);
-    border-color: rgba(255, 90, 31, 0.1);
-    color: var(--ember, #ff5a1f);
-    &:hover { background: rgba(255, 90, 31, 0.18); }
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--player-accent);
+    &:hover { background: rgba(255, 255, 255, 0.14); }
 }
 
 @media (max-width: 640px), (pointer: coarse) {
@@ -3673,16 +3634,26 @@ export default defineComponent({
     }
 
     .moovie-frame__settings-panel {
-        bottom: 50px;
-        right: 8px;
-        left: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
         top: auto;
-        min-width: 240px;
-        max-width: 290px;
-        max-height: calc(100% - 60px);
-        border-radius: 14px;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        max-height: calc(100% - 1.5rem);
+        border-radius: 12px 12px 0 0;
         padding: 0;
         z-index: 40;
+        box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.72);
+    }
+    .moovie-frame__settings-mobile-handle {
+        display: block;
+        width: 2.5rem;
+        height: 0.25rem;
+        margin: 0.55rem auto 0.15rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.24);
     }
     .moovie-frame__settings-scroll { padding: 4px; }
     .moovie-frame__settings-item { padding: 12px 12px; font-size: 14px; min-height: 46px; }
@@ -3733,10 +3704,10 @@ export default defineComponent({
     &:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
     &:active { transform: scale(0.96); }
     &.is-reset {
-        background: rgba(255, 90, 31, 0.1);
-        border-color: rgba(255, 90, 31, 0.12);
-        color: var(--ember, #ff5a1f);
-        &:hover { background: rgba(255, 90, 31, 0.18); }
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.12);
+        color: var(--player-accent);
+        &:hover { background: rgba(255, 255, 255, 0.14); }
     }
 }
 
@@ -3787,7 +3758,7 @@ export default defineComponent({
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
 }
 
-/* Custom Loading Overlay (Peestream style in Orange) */
+/* Legacy loading overlay fallback */
 .moovie-frame__loader-overlay {
     position: absolute;
     inset: 0;
@@ -3800,6 +3771,111 @@ export default defineComponent({
     gap: 15px;
 }
 
+// P-Stream-style loader: minimal spinner, clean source rows, no color accents.
+.moovie-frame__loader {
+    position: absolute;
+    inset: 0;
+    z-index: 12;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: rgba(0, 0, 0, 0.82);
+    color: #fff;
+    text-align: center;
+}
+
+.moovie-frame__loader-spinner {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    border-top-color: var(--player-accent);
+    border-radius: 50%;
+    animation: moovie-loader-spin 0.85s linear infinite;
+    span {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: inherit;
+        background: rgba(255, 255, 255, 0.06);
+    }
+}
+
+.moovie-frame__loader-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    max-width: min(30rem, 90vw);
+    strong { font-size: 1rem; font-weight: 600; }
+}
+
+.moovie-frame__loader-kicker,
+.moovie-frame__loader-status {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+}
+
+.moovie-frame__loader-kicker {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.moovie-frame__provider-list {
+    display: grid;
+    width: min(22rem, 100%);
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+    padding: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    background: rgba(10, 10, 10, 0.9);
+}
+
+.moovie-frame__provider-row {
+    display: grid;
+    grid-template-columns: 1.2rem 1fr auto;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 1.9rem;
+    padding: 0.2rem 0.4rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.75rem;
+    text-align: left;
+}
+
+.moovie-frame__provider-dot {
+    display: grid;
+    width: 1rem;
+    height: 1rem;
+    place-items: center;
+    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 0.7rem;
+    &.is-pending { color: rgba(255, 255, 255, 0.86); background: rgba(255, 255, 255, 0.12); animation: moovie-provider-pulse 1.2s infinite; }
+    &.is-success { color: #fff; background: rgba(255, 255, 255, 0.18); }
+    &.is-failure { color: rgba(255, 255, 255, 0.5); background: rgba(255, 255, 255, 0.06); }
+}
+
+.moovie-frame__provider-percent {
+    color: rgba(255, 255, 255, 0.38);
+    font-variant-numeric: tabular-nums;
+}
+
+.moovie-loader-enter-active,
+.moovie-loader-leave-active { transition: opacity 0.18s ease; }
+.moovie-loader-enter-from,
+.moovie-loader-leave-to { opacity: 0; }
+
+@keyframes moovie-loader-spin { to { transform: rotate(360deg); } }
+@keyframes moovie-provider-pulse { 50% { opacity: 0.45; } }
+
 
 
 /* Big play button */
@@ -3807,23 +3883,23 @@ export default defineComponent({
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 92px;
-    height: 92px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.09);
-    border: 1.5px solid rgba(255, 255, 255, 0.28);
+    background: #000;
+    border: 0;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), inset 0 0 24px rgba(255, 255, 255, 0.05);
-    color: #ffffff;
+    color: var(--ember);
     opacity: 0.9;
     cursor: pointer;
     transition: opacity 0.2s, transform 0.2s, background-color 0.2s, border-color 0.2s;
     animation: moovie-play-pulse 2.6s ease-in-out infinite;
 
     svg {
-        width: 40px;
-        height: 40px;
+        width: 28px;
+        height: 28px;
         margin-left: 5px;
         filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
     }
@@ -3831,13 +3907,13 @@ export default defineComponent({
     &:hover {
         opacity: 1;
         transform: scale(1.07);
-        background: rgba(255, 90, 31, 0.35);
-        border-color: rgba(255, 160, 120, 0.5);
+        background: #111;
+        border-color: transparent;
     }
 
     @media (max-width: 640px) {
-        width: 64px;
-        height: 64px;
+        width: 52px;
+        height: 52px;
         svg {
             width: 28px;
             height: 28px;
@@ -3846,8 +3922,8 @@ export default defineComponent({
 }
 
 @keyframes moovie-play-pulse {
-    0%, 100% { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(255, 90, 31, 0.25); }
-    50% { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 14px rgba(255, 90, 31, 0); }
+    0%, 100% { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(255, 255, 255, 0.16); }
+    50% { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 0 0 14px rgba(255, 255, 255, 0); }
 }
 
 
@@ -3873,10 +3949,10 @@ export default defineComponent({
     font-variant-numeric: tabular-nums;
     &:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
     &.is-active {
-        background: var(--ember, #ff5a1f);
-        border-color: var(--ember, #ff5a1f);
+        background: var(--player-accent);
+        border-color: var(--player-accent);
         color: #fff;
-        box-shadow: 0 2px 12px rgba(255, 90, 31, 0.35);
+        box-shadow: none;
     }
 }
 
@@ -3890,7 +3966,7 @@ export default defineComponent({
 .moovie-frame__settings-slider-value {
     font-size: 12px;
     font-weight: 600;
-    color: var(--ember, #ff5a1f);
+    color: var(--player-accent);
     font-variant-numeric: tabular-nums;
 }
 
@@ -4008,14 +4084,14 @@ export default defineComponent({
         height: 10px;
         border-radius: 50%;
         background: #ffffff;
-        box-shadow: 0 0 6px var(--ember-glow), 0 0 0 1px rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
         cursor: pointer;
         margin-top: -3px;
         transition: transform 0.1s ease, background-color 0.2s;
         
         &:hover {
             transform: scale(1.2);
-            background-color: var(--ember);
+            background-color: rgba(255, 255, 255, 0.86);
         }
     }
 
@@ -4025,13 +4101,13 @@ export default defineComponent({
         border-radius: 50%;
         background: #ffffff;
         border: 0;
-        box-shadow: 0 0 6px var(--ember-glow), 0 0 0 1px rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
         cursor: pointer;
         transition: transform 0.1s ease, background-color 0.2s;
         
         &:hover {
             transform: scale(1.2);
-            background-color: var(--ember);
+            background-color: rgba(255, 255, 255, 0.86);
         }
     }
 }
@@ -4045,7 +4121,7 @@ export default defineComponent({
 
 @keyframes pulse {
     0%, 100% { transform: scale(1); opacity: 0.6; }
-    50% { transform: scale(1.15); opacity: 1; border-color: #ff7842; }
+    50% { transform: scale(1.15); opacity: 1; border-color: rgba(255, 255, 255, 0.5); }
 }
 
 @media (max-width: 768px), (pointer: coarse) {

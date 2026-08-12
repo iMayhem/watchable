@@ -8,17 +8,17 @@ import {
 import { getSettings } from './useSettings'
 
 // Always call TMDB directly — skip the /api/tmdb Cloudflare proxy.
-const BASE_URL = 'https://proxy.moovie.fun/tmdb-api/3/'
+const BASE_URL = 'https://hahaevilcraft.site/tmdb-api/3/'
 const API_KEY = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672'
 
-const CACHE_NAME = 'tmdb-api-cache-v2'; // v2: bumped to invalidate stale week-long entries
+const CACHE_NAME = 'tmdb-api-cache-v3'; // v3: English-only catalog metadata
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000; // Cache for 7 days — Cloudflare edge caching
 
 async function getCachedResponse(config: any): Promise<any | null> {
     if (config.method !== 'get' && config.method !== 'GET') return null;
     try {
         const cache = await caches.open(CACHE_NAME);
-        const url = new URL(config.url || '', config.baseURL || 'https://proxy.moovie.fun/tmdb-api/3/');
+        const url = new URL(config.url || '', config.baseURL || 'https://hahaevilcraft.site/tmdb-api/3/');
         if (config.params) {
             Object.entries(config.params).forEach(([k, v]) => {
                 url.searchParams.set(k, String(v));
@@ -54,7 +54,7 @@ async function setCachedResponse(config: any, data: any): Promise<void> {
     if (config.method !== 'get' && config.method !== 'GET') return;
     try {
         const cache = await caches.open(CACHE_NAME);
-        const url = new URL(config.url || '', config.baseURL || 'https://proxy.moovie.fun/tmdb-api/3/');
+        const url = new URL(config.url || '', config.baseURL || 'https://hahaevilcraft.site/tmdb-api/3/');
         if (config.params) {
             Object.entries(config.params).forEach(([k, v]) => {
                 url.searchParams.set(k, String(v));
@@ -76,13 +76,10 @@ async function setCachedResponse(config: any, data: any): Promise<void> {
 }
 
 const useAxios = () => {
-    const { region, language } = getSettings()
+    const { region } = getSettings()
     const params: Record<string, string> = {
-        api_key: API_KEY
-    }
-
-    if (language.value) {
-        params.language = language.value
+        api_key: API_KEY,
+        language: 'en-US'
     }
 
     const axiosInstance = axios.create({
@@ -98,7 +95,7 @@ const useAxios = () => {
                 return cached;
             }
             
-            const url = new URL(config.url || '', config.baseURL || 'https://proxy.moovie.fun/tmdb-api/3/');
+            const url = new URL(config.url || '', config.baseURL || 'https://hahaevilcraft.site/tmdb-api/3/');
             if (config.params) {
                 Object.entries(config.params).forEach(([k, v]) => {
                     url.searchParams.set(k, String(v));

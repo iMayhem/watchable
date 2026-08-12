@@ -67,7 +67,7 @@
 
                 <!-- Reset Password Field (Shown for users whose password needs to be set/updated) -->
                 <div v-if="mode === 'reset'" class="form-group animate-fade-in">
-                    <label class="form-label" style="color: var(--ember, #ff5a1f); font-weight: 600;">Set New Password</label>
+                    <label class="form-label" style="color: var(--ember, #ffffff); font-weight: 600;">Set New Password</label>
                     <p class="meta" style="font-size: 0.8rem; margin-bottom: 8px; color: var(--bone-300, #b0b0b0);">
                         Your account requires a password update. Please enter your desired password below.
                     </p>
@@ -284,9 +284,9 @@ export default defineComponent({
                         : Math.random() * 25 + 10;
 
                 const colors = {
-                    spark: ['#ff5a1f', '#ff3300', '#ffaa00'],
-                    smoke: ['rgba(255,255,255,0.06)', 'rgba(0,240,255,0.05)', 'rgba(255,90,31,0.04)'],
-                    explosion: ['#ff5a1f', '#00f0ff', '#e02424', '#ff007f', '#ffff00', '#00ffcc']
+                    spark: ['#ffffff', '#ff3300', '#ffaa00'],
+                    smoke: ['rgba(255,255,255,0.06)', 'rgba(0,240,255,0.05)', 'rgba(255, 255, 255,0.04)'],
+                    explosion: ['#ffffff', '#00f0ff', '#e02424', '#ff007f', '#ffff00', '#00ffcc']
                 };
 
                 const chosenColors = colors[type];
@@ -315,16 +315,16 @@ export default defineComponent({
             // Glowing light trails if traveling at high velocity
             if (speed > 10) {
                 const trailGlow = ctx.createLinearGradient(-75, 0, 0, 0);
-                trailGlow.addColorStop(0, 'rgba(255, 90, 31, 0)');
-                trailGlow.addColorStop(1, 'rgba(255, 90, 31, 0.3)');
+                trailGlow.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                trailGlow.addColorStop(1, 'rgba(255, 255, 255, 0.3)');
                 ctx.fillStyle = trailGlow;
                 ctx.fillRect(-90, -10, 90, 20);
             }
 
             // Draw Neon Body Contour
             ctx.shadowBlur = 15;
-            ctx.shadowColor = '#ff5a1f';
-            ctx.strokeStyle = '#ff5a1f';
+            ctx.shadowColor = '#ffffff';
+            ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 3.5;
 
             ctx.beginPath();
@@ -425,8 +425,8 @@ export default defineComponent({
 
             // Afterburner jet fire trail (Orange)
             const afterburner = ctx.createLinearGradient(-55, 0, -25, 0);
-            afterburner.addColorStop(0, 'rgba(255, 90, 31, 0)');
-            afterburner.addColorStop(1, 'rgba(255, 90, 31, 0.85)');
+            afterburner.addColorStop(0, 'rgba(255, 255, 255, 0)');
+            afterburner.addColorStop(1, 'rgba(255, 255, 255, 0.85)');
             ctx.fillStyle = afterburner;
             ctx.beginPath();
             ctx.moveTo(-25, -3);
@@ -524,8 +524,8 @@ export default defineComponent({
             ctx.stroke();
 
             // Cape billowing (Orange/Red)
-            ctx.strokeStyle = '#ff5a1f';
-            ctx.shadowColor = '#ff5a1f';
+            ctx.strokeStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
             ctx.lineWidth = 1.8;
             ctx.beginPath();
             ctx.moveTo(5, -2); // Cape shoulder attach
@@ -677,7 +677,7 @@ export default defineComponent({
                     // 2. Blast 130 glowing shockwave particles
                     spawnParticles(collisionPoint + 20, carY.value, 130, 'explosion');
 
-                    // 3. Dispatch Supabase actions
+                    // 3. Dispatch Sync actions
                     executeAuthRequest();
                 }
             }
@@ -998,8 +998,8 @@ export default defineComponent({
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: rgba(255, 90, 31, 0.1);
-        border: 1px solid rgba(255, 90, 31, 0.3);
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         color: var(--ember);
         display: flex;
         align-items: center;
@@ -1081,8 +1081,8 @@ export default defineComponent({
 
     &:focus {
         outline: none;
-        border-color: rgba(255, 90, 31, 0.5);
-        box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.15);
+        border-color: rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
     }
 
     &:disabled {
@@ -1115,7 +1115,7 @@ export default defineComponent({
 
 .btn-submit {
     width: 100%;
-    background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
+    background: linear-gradient(135deg, var(--ember) 0%, #ffffff 100%);
     color: var(--ink-900);
     font-weight: 700;
     font-family: var(--font-ui);
@@ -1128,12 +1128,12 @@ export default defineComponent({
     align-items: center;
     justify-content: center;
     gap: var(--s-2);
-    box-shadow: 0 4px 15px rgba(255, 90, 31, 0.25);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.25);
     transition: transform var(--dur-fast), box-shadow var(--dur-fast);
 
     &:hover:not(:disabled) {
         transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 6px 20px rgba(255, 90, 31, 0.4);
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
     }
 
     &:disabled {

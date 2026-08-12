@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { getSupabaseClient } from '../lib/supabase'
+import { getSyncClient } from '../lib/syncClient'
 import { getCurrentUser } from '../lib/auth'
 
 export interface Suggestion {
@@ -23,8 +23,8 @@ export function useSuggestions() {
     async function fetchActiveSuggestion() {
         loading.value = true
         try {
-            const supabase = await getSupabaseClient()
-            const { data } = await supabase
+            const sync = await getSyncClient()
+            const { data } = await sync
                 .from('suggestions')
                 .select('*')
                 .eq('is_active', true)
@@ -46,9 +46,9 @@ export function useSuggestions() {
 
         submitting.value = true
         try {
-            const supabase = await getSupabaseClient()
+            const sync = await getSyncClient()
             const username = getCurrentUser()
-            await supabase.from('suggestion_responses').insert({
+            await sync.from('suggestion_responses').insert({
                 suggestion_id: suggestionId,
                 response_text: text.trim(),
                 user_fingerprint: username || null,

@@ -1,0 +1,93 @@
+// ============================================================================
+// LUMIÈRE — Glass layer.
+// One blended ground for the whole site:
+//   • ambient aurora (driven by the per-page --ambient accent) behind content
+//   • translucent inks + blur panes => real glass everywhere
+//   • global scrollbar / selection / focus polish
+// ============================================================================
+
+html {
+  background: #000;
+}
+
+// ── Ambient aurora ──────────────────────────────────────────────────────────
+// Fixed gradient field behind all content. Every translucent surface above it
+// picks up the page accent (set via useAmbientColor), so nothing feels flat
+// or "off" — panels, rails and cards all share the same ground.
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: #000;
+}
+
+// ── Glass pane utility ──────────────────────────────────────────────────────
+// One recipe for menus, dialogs, drawers, sticky bars — real glass.
+.glass-pane {
+  position: relative;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-lg);
+  backdrop-filter: var(--blur-pane);
+  -webkit-backdrop-filter: var(--blur-pane);
+  box-shadow: var(--shadow-pane);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--glass-sheen);
+    pointer-events: none;
+  }
+
+  &.glass-pane--strong {
+    background: var(--glass-strong);
+    border-color: var(--glass-border-strong);
+
+    &::before {
+      background: var(--glass-sheen-strong);
+    }
+  }
+}
+
+// ── Scrollbars ──────────────────────────────────────────────────────────────
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.28);
+  }
+}
+
+// ── Selection ───────────────────────────────────────────────────────────────
+::selection {
+  background: rgba(var(--ambient), 0.3);
+  color: var(--bone-50);
+}
+
+// ── Focus rings ─────────────────────────────────────────────────────────────
+:focus-visible {
+  outline: 2px solid rgba(var(--ambient), 0.65);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}

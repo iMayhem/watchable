@@ -1,6 +1,6 @@
 import { useStorage } from "@vueuse/core";
 import { ref } from "vue";
-import { getSupabaseClient } from "../lib/supabase";
+import { getSyncClient } from "../lib/syncClient";
 
 export const serverOrder = ref<string[] | null>(null);
 
@@ -28,104 +28,22 @@ const defaultStreamData: StreamData = {
 
 export const streamData = useStorage<StreamData>('streamData', defaultStreamData);
 
-// Force Icecream (Videasy embed) as hardcoded default and flush stale browser caches
+// Keep the single first-party Moovie player as the only playback server.
 if (typeof window !== 'undefined') {
-  const currentVer = localStorage.getItem('watchable_server_v');
-  if (currentVer !== '16') {
-    localStorage.setItem('watchable_server_v', '16');
-    localStorage.setItem('default_server_id', 'icecream');
-    localStorage.removeItem('streamData');
-      if (streamData.value) {
-        streamData.value = {
-          movieServerMap: {},
-          version: 16
-        };
-      }
-  }
+  localStorage.setItem('watchable_server_v', '17');
+  localStorage.setItem('default_server_id', 'moovie');
 }
 
 export const movieServers = ref<Server[]>([
-  { name: 'Moovie X', urlTemplate: 'https://peestream.in/embed/?tmdbId={tmdbId}&type=movie' },
-  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/movie/{tmdbId}' },
-  { name: 'Icecream', urlTemplate: 'https://player.videasy.to/movie/{tmdbId}' },
-  { name: 'Gulab Jamun', urlTemplate: 'https://vidrock.ru/embed/movie/{tmdbId}' },
-  { name: 'Rasmalai', urlTemplate: 'https://vidfast.vc/movie/{tmdbId}?autoPlay=true' },
-  { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/movie/{tmdbId}?autoplay=true' },
-  { name: 'Kaju Katli', urlTemplate: 'https://player.vidzee.wtf/embed/movie/{tmdbId}' },
-  { name: 'Motichoor Ladoo', urlTemplate: 'https://vidsuper.net/movie/{tmdbId}' },
-  { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/movie/{tmdbId}?autoPlay=true' },
-  { name: 'Barfi', urlTemplate: 'https://player.videasy.net/movie/{tmdbId}?color=#4eb5ff' },
-  { name: 'Laddu', urlTemplate: 'https://vidsrc-embed.ru/embed/movie/{tmdbId}' },
-  { name: 'Peda', urlTemplate: 'https://vidsrc-embed.su/embed/movie/{tmdbId}' },
-  { name: 'Gajar Ka Halwa', urlTemplate: 'https://vidsrcme.su/embed/movie/{tmdbId}' },
-  { name: 'Soan Papdi', urlTemplate: 'https://multiembed.mov/?video_id={tmdbId}&tmdb=1' },
-  { name: 'Sandesh', urlTemplate: 'https://vsrc.su/embed/movie/{tmdbId}' },
-  { name: 'Cham Cham', urlTemplate: 'https://vidlink.pro/movie/{tmdbId}' },
-  { name: 'Kulfi', urlTemplate: 'https://player.autoembed.app/embed/movie/{tmdbId}' },
-  { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/movie/{tmdbId}' },
-  { name: 'Imarti', urlTemplate: 'https://111movies.com/movie/{tmdbId}' },
-  { name: 'Ghevar', urlTemplate: 'https://vidora.su/movie/{tmdbId}?parameters' },
-  { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/movie/{tmdbId}?autoplay=true' },
-  { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/movie/{tmdbId}' },
-  { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/movie/{tmdbId}?autoplay=true' },
-  { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={tmdbId}&type=movie' },
   { name: 'Moovie', urlTemplate: '', isApiProvider: true }
 ]);
 
 export const tvServers = ref<Server[]>([
-  { name: 'Moovie X', urlTemplate: 'https://peestream.in/embed/?tmdbId={externalId}&type=show&season={season}&episode={episode}' },
-  { name: 'Sugar', urlTemplate: 'https://vidcodin.net/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Icecream', urlTemplate: 'https://player.videasy.to/tv/{externalId}/{season}/{episode}' },
-  { name: 'Gulab Jamun', urlTemplate: 'https://vidrock.ru/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Rasmalai', urlTemplate: 'https://vidfast.vc/tv/{externalId}/{season}/{episode}?nextButton=true&autoNext=true' },
-  { name: 'Jalebi', urlTemplate: 'https://player.smashystream.com/tv/{externalId}?s={season}&e={episode}' },
-  { name: 'Kaju Katli', urlTemplate: 'https://player.vidzee.wtf/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Motichoor Ladoo', urlTemplate: 'https://vidsuper.net/tv/{externalId}/{season}/{episode}' },
-  { name: 'Kheer', urlTemplate: 'https://www.vidking.net/embed/tv/{externalId}/{season}/{episode}?autoPlay=true&nextEpisode=true&episodeSelector=true' },
-  { name: 'Barfi', urlTemplate: 'https://player.videasy.net/tv/{externalId}/{season}/{episode}?color=#4eb5ff&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true' },
-  { name: 'Laddu', urlTemplate: 'https://vidsrc-embed.ru/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Peda', urlTemplate: 'https://vidsrc-embed.su/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Gajar Ka Halwa', urlTemplate: 'https://vidsrcme.su/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Soan Papdi', urlTemplate: 'https://multiembed.mov/?video_id={externalId}&tmdb=1&s={season}&e={episode}' },
-  { name: 'Sandesh', urlTemplate: 'https://vsrc.su/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Cham Cham', urlTemplate: 'https://vidlink.pro/tv/{externalId}/{season}/{episode}' },
-  { name: 'Kulfi', urlTemplate: 'https://player.autoembed.app/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Mysore Pak', urlTemplate: 'https://vidfast.pro/tv/{externalId}/{season}/{episode}' },
-  { name: 'Imarti', urlTemplate: 'https://111movies.com/tv/{externalId}/{season}/{episode}' },
-  { name: 'Ghevar', urlTemplate: 'https://vidora.su/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Cheesecake', urlTemplate: 'https://player.cinezo.live/embed/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Nankhatai', urlTemplate: 'https://www.NontonGo.win/embed/tv/{externalId}/{season}/{episode}' },
-  { name: 'Petha', urlTemplate: 'https://www.NontonGo.win/player/tv/{externalId}/{season}/{episode}?autoplay=true' },
-  { name: 'Spoider', urlTemplate: 'https://screenscape.me/embed?tmdb={externalId}&type=tv&s={season}&e={episode}' },
   { name: 'Moovie', urlTemplate: '', isApiProvider: true }
 ]);
 
 const idToNameMap: Record<string, string> = {
-  moovie: 'Moovie',
-  moovie_x: 'Moovie X',
-  sugar: 'Sugar',
-  rasmalai: 'Rasmalai',
-  vidrock: 'Gulab Jamun',
-  smashy: 'Jalebi',
-  mappletv: 'Kaju Katli',
-  vidking: 'Kheer',
-  videasy: 'Barfi',
-  vidsrc_ru: 'Laddu',
-  vidsrc_su: 'Peda',
-  vidsrcme: 'Gajar Ka Halwa',
-  multiembed: 'Soan Papdi',
-  vsrc: 'Sandesh',
-  vidlink: 'Cham Cham',
-  autoembed: 'Kulfi',
-  vidfast: 'Mysore Pak',
-  movies111: 'Imarti',
-  vidora: 'Ghevar',
-  vidsuper: 'Motichoor Ladoo',
-  icecream: 'Icecream',
-  cinezo: 'Cheesecake',
-  nankhatai: 'Nankhatai',
-  petha: 'Petha',
-  spoider: 'Spoider'
+  moovie: 'Moovie'
 };
 
 export const isDefaultServerLoaded = ref(false);
@@ -157,9 +75,9 @@ function isMobileClient(): boolean {
 
 async function fetchDefaultServerId() {
   try {
-    const supabase = await getSupabaseClient();
+    const sync = await getSyncClient();
     const settingsKey = isMobileClient() ? 'default_provider_mobile' : 'default_provider';
-    const { data } = await supabase
+    const { data } = await sync
       .from('app_settings')
       .select('value')
       .eq('key', settingsKey)
@@ -168,9 +86,9 @@ async function fetchDefaultServerId() {
       return data.value;
     }
   } catch (e) {
-    console.warn('Failed to fetch default provider from Supabase, using local default:', e);
+    console.warn('Failed to fetch default provider from Sync, using local default:', e);
   }
-  return 'icecream';
+  return 'moovie';
 }
 
 export async function loadDefaultServer() {
@@ -304,13 +222,13 @@ export function getLastWatchedMetaData(mediaId: string | number): MovieServer | 
 
 export function getServers(type: 'movie' | 'tv' = 'movie'): Server[] {
   const servers = type === 'movie' ? movieServers.value : tvServers.value;
-  return servers.filter(s => s.isApiProvider || ['icecream', 'gulab jamun', 'rasmalai', 'kaju katli'].includes(s.name.toLowerCase()));
+  return servers.filter(s => s.isApiProvider);
 }
 
 export async function fetchServerOrder() {
   try {
-    const supabase = await getSupabaseClient();
-    const { data } = await supabase
+    const sync = await getSyncClient();
+    const { data } = await sync
       .from('app_settings')
       .select('value')
       .eq('key', 'server_order')
@@ -372,7 +290,7 @@ export function buildStreamUrl(
       url += `${separator}progress=${timestampSeconds}`;
     } else if (serverName.includes('111movies')) {
       url += `?progress=${timestampSeconds}`;
-    } else if (serverName.includes('vidlink') || serverName.includes('vidfast') || serverName.includes('rasmalai') || serverName.includes('icecream')) {
+    } else if (serverName.includes('vidlink')) {
       const separator = url.includes('?') ? '&' : '?';
       url += `${separator}startAt=${timestampSeconds}`;
     }

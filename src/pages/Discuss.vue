@@ -356,7 +356,7 @@
 import { defineComponent, onMounted, onBeforeUnmount, ref, computed, nextTick } from 'vue';
 import SiteHeader from '../components/navigation/SiteHeader.vue';
 import AuthModal from '../components/navigation/AuthModal.vue';
-import { getSupabaseClient } from '../lib/supabase';
+import { getSyncClient } from '../lib/syncClient';
 import { useSeo } from '../composables/useSeo';
 import { useMovies } from '../composables/useMovies';
 import { useTvShows } from '../composables/useTvShows';
@@ -559,8 +559,8 @@ export default defineComponent({
             
             // Clean up previous movie realtime sub
             if (selectedMovieRealtimeChannel) {
-                const supabase = await getSupabaseClient();
-                supabase.removeChannel(selectedMovieRealtimeChannel);
+                const sync = await getSyncClient();
+                sync.removeChannel(selectedMovieRealtimeChannel);
                 selectedMovieRealtimeChannel = null;
             }
 
@@ -573,8 +573,8 @@ export default defineComponent({
         const closeMovieDiscussion = async () => {
             selectedMovieId.value = null;
             if (selectedMovieRealtimeChannel) {
-                const supabase = await getSupabaseClient();
-                supabase.removeChannel(selectedMovieRealtimeChannel);
+                const sync = await getSyncClient();
+                sync.removeChannel(selectedMovieRealtimeChannel);
                 selectedMovieRealtimeChannel = null;
             }
         };
@@ -583,8 +583,8 @@ export default defineComponent({
             if (!selectedMovieId.value) return;
             loadingSelectedMovie.value = true;
             try {
-                const supabase = await getSupabaseClient();
-                const { data, error } = await supabase
+                const sync = await getSyncClient();
+                const { data, error } = await sync
                     .from('movora_comments')
                     .select('id, media_id, media_type, username, content, parent_id, likes, dislikes, created_at, is_pinned, is_hidden')
                     .eq('media_type', selectedMovieType.value)
@@ -604,8 +604,8 @@ export default defineComponent({
         const setupSelectedMovieRealtime = async () => {
             if (!selectedMovieId.value) return;
             try {
-                const supabase = await getSupabaseClient();
-                selectedMovieRealtimeChannel = supabase
+                const sync = await getSyncClient();
+                selectedMovieRealtimeChannel = sync
                     .channel(`public:movora_selected_movie:${selectedMovieType.value}:${selectedMovieId.value}`)
                     .on(
                         'postgres_changes',
@@ -642,8 +642,8 @@ export default defineComponent({
                 : 'Anonymous';
 
             try {
-                const supabase = await getSupabaseClient();
-                const { data, error } = await supabase
+                const sync = await getSyncClient();
+                const { data, error } = await sync
                     .from('movora_comments')
                     .insert([
                         {
@@ -801,14 +801,14 @@ export default defineComponent({
 
         const setupRealtimeChannel = async () => {
             if (realtimeChannel) {
-                const supabase = await getSupabaseClient();
-                supabase.removeChannel(realtimeChannel);
+                const sync = await getSyncClient();
+                sync.removeChannel(realtimeChannel);
                 realtimeChannel = null;
             }
 
             try {
-                const supabase = await getSupabaseClient();
-                realtimeChannel = supabase
+                const sync = await getSyncClient();
+                realtimeChannel = sync
                     .channel('public:movora_chat')
                     .on(
                         'postgres_changes',
@@ -834,14 +834,14 @@ export default defineComponent({
 
         const setupMovieRealtimeChannel = async () => {
             if (movieRealtimeChannel) {
-                const supabase = await getSupabaseClient();
-                supabase.removeChannel(movieRealtimeChannel);
+                const sync = await getSyncClient();
+                sync.removeChannel(movieRealtimeChannel);
                 movieRealtimeChannel = null;
             }
 
             try {
-                const supabase = await getSupabaseClient();
-                movieRealtimeChannel = supabase
+                const sync = await getSyncClient();
+                movieRealtimeChannel = sync
                     .channel('public:movora_movie_comments')
                     .on(
                         'postgres_changes',
@@ -878,8 +878,8 @@ export default defineComponent({
                 : 'Anonymous';
 
             try {
-                const supabase = await getSupabaseClient();
-                const { data, error } = await supabase
+                const sync = await getSyncClient();
+                const { data, error } = await sync
                     .from('movora_chat')
                     .insert([
                         {
@@ -983,16 +983,16 @@ export default defineComponent({
             window.removeEventListener('movora_auth_change', checkAuth);
             window.removeEventListener('click', handleOutsideClick);
             if (realtimeChannel) {
-                const supabase = await getSupabaseClient();
-                supabase.removeChannel(realtimeChannel);
+                const sync = await getSyncClient();
+                sync.removeChannel(realtimeChannel);
             }
             if (movieRealtimeChannel) {
-                const supabase = await getSupabaseClient();
-                supabase.removeChannel(movieRealtimeChannel);
+                const sync = await getSyncClient();
+                sync.removeChannel(movieRealtimeChannel);
             }
             if (selectedMovieRealtimeChannel) {
-                const supabase = await getSupabaseClient();
-                supabase.removeChannel(selectedMovieRealtimeChannel);
+                const sync = await getSyncClient();
+                sync.removeChannel(selectedMovieRealtimeChannel);
             }
         });
 
@@ -1412,8 +1412,8 @@ export default defineComponent({
         }
 
         .discuss-msg__bubble {
-            background: rgba(255, 90, 31, 0.15); /* Ember tinted dark bubble */
-            border: 1px solid rgba(255, 90, 31, 0.3);
+            background: rgba(255, 255, 255, 0.15); /* Ember tinted dark bubble */
+            border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px 0 8px 8px;
             color: #e9edef;
             box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
@@ -1484,8 +1484,8 @@ export default defineComponent({
     }
 
     &__bubble {
-        background: rgba(255, 90, 31, 0.15); /* Ember tinted dark bubble */
-        border: 1px solid rgba(255, 90, 31, 0.3);
+        background: rgba(255, 255, 255, 0.15); /* Ember tinted dark bubble */
+        border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 0 8px 8px 8px;
         padding: 6px 8px 6px 10px;
         word-break: break-word;
@@ -1520,11 +1520,11 @@ export default defineComponent({
         font-family: var(--font-ui);
         font-size: 0.65rem;
         font-weight: 500;
-        background: rgba(255, 90, 31, 0.12);
+        background: rgba(255, 255, 255, 0.12);
         color: var(--ember);
         padding: 0px 5px;
         border-radius: 4px;
-        border: 1px solid rgba(255, 90, 31, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.25);
     }
 
     &__topic-badge {
@@ -1537,8 +1537,8 @@ export default defineComponent({
         transition: all 0.2s ease;
 
         &--link:hover {
-            background: rgba(255, 90, 31, 0.1);
-            border-color: rgba(255, 90, 31, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
             color: var(--ember) !important;
             text-decoration: none;
         }
@@ -1899,18 +1899,18 @@ export default defineComponent({
     &:hover {
         background: var(--ink-600, #2a251e) !important;
         color: var(--ink-600, #2a251e) !important;
-        border-color: var(--ember, #ff5a1f);
-        box-shadow: 0 0 10px rgba(255, 90, 31, 0.25);
+        border-color: var(--ember, #ffffff);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
     }
 
     &.is-revealed {
-        background: rgba(255, 90, 31, 0.12) !important;
+        background: rgba(255, 255, 255, 0.12) !important;
         color: var(--bone-50, #f5efe4) !important;
         text-shadow: none !important;
         user-select: text !important;
         -webkit-user-select: text !important;
-        border: 1px solid rgba(255, 90, 31, 0.35);
-        box-shadow: 0 0 12px rgba(255, 90, 31, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
     }
 }
 </style>

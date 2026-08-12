@@ -6,7 +6,7 @@ export interface UserAccount {
     createdAt: string;
 }
 
-const API_ORIGIN = 'https://proxy.moovie.fun';
+const API_ORIGIN = 'https://hahaevilcraft.site';
 
 interface ApiResult {
     data: any;
@@ -135,7 +135,7 @@ export function getCurrentUser(): string | null {
 }
 
 // Helper to push user lists to the VPS sync server
-export async function pushUserDataToSupabase(
+export async function pushUserDataToSync(
     username: string,
     watchlist?: unknown,
     watchHistory?: any[],
@@ -165,7 +165,7 @@ export async function pushUserDataToSupabase(
 }
 
 // Helper to fetch user lists from the VPS sync server
-export async function syncUserDataWithSupabase(username: string) {
+export async function syncUserDataWithSync(username: string) {
     if (typeof window === 'undefined' || !username) return;
     const res = await apiCall('GET', `/api/user/${encodeURIComponent(username.toLowerCase())}`);
     if (res.data) {

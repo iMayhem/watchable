@@ -361,6 +361,173 @@
             background: rgba(245, 239, 228, 0.06); border: 1px solid rgba(245, 239, 228, 0.1);
             color: #f5efe4; width: 26px; height: 26px; border-radius: 4px; cursor: pointer;
         }
+        .provider-manager {
+            margin-top: 1.5rem;
+            display: grid;
+            gap: 0.45rem;
+        }
+        .provider-manager-row {
+            display: grid;
+            grid-template-columns: auto auto 1fr auto auto auto;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.75rem;
+            background: rgba(19, 17, 14, 0.7);
+            border: 1px solid rgba(245, 239, 228, 0.08);
+            border-radius: 6px;
+        }
+        .provider-manager-row.is-starred {
+            border-color: rgba(244, 201, 93, 0.2);
+            background: rgba(244, 201, 93, 0.04);
+        }
+        .provider-star-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            border: 1px solid rgba(245, 239, 228, 0.1);
+            background: rgba(245, 239, 228, 0.06);
+            color: var(--bone-400);
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .provider-star-btn.is-starred {
+            color: #f4c95d;
+            background: rgba(244, 201, 93, 0.12);
+            border-color: rgba(244, 201, 93, 0.25);
+        }
+        .provider-manager-id {
+            color: var(--bone-400);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+        }
+        .provider-manager-meta {
+            color: var(--bone-300);
+            font-size: 0.75rem;
+        }
+        .provider-action-btn {
+            padding: 0.42rem 0.6rem;
+            border-radius: 6px;
+            border: 1px solid rgba(245, 239, 228, 0.1);
+            background: rgba(245, 239, 228, 0.06);
+            color: var(--bone-100);
+            cursor: pointer;
+            font-size: 0.74rem;
+        }
+        .provider-action-btn:hover {
+            background: rgba(245, 239, 228, 0.12);
+        }
+        .provider-action-btn--danger {
+            color: #ff8d8d;
+            border-color: rgba(239, 68, 68, 0.25);
+        }
+        .provider-mode-select {
+            min-width: 112px;
+            font-size: 0.78rem;
+            padding: 0.45rem 0.55rem;
+        }
+        .provider-panels {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .provider-panel {
+            padding: 1rem;
+            border: 1px solid rgba(245, 239, 228, 0.08);
+            border-radius: 8px;
+            background: rgba(19, 17, 14, 0.46);
+        }
+        .provider-panel__head {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 0.85rem;
+        }
+        .provider-panel__title {
+            margin: 0;
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--bone-50);
+        }
+        .provider-panel__sub {
+            margin: 0.2rem 0 0;
+            color: var(--bone-300);
+            font-size: 0.78rem;
+        }
+        .provider-editor-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 3, 2, 0.78);
+            backdrop-filter: blur(16px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .provider-editor-modal.is-open {
+            display: flex;
+        }
+        .provider-editor-card {
+            width: min(1100px, 100%);
+            max-height: 90vh;
+            overflow: hidden;
+            border-radius: 16px;
+            border: 1px solid rgba(245, 239, 228, 0.1);
+            background: #0f0d0b;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+        }
+        .provider-editor-head {
+            padding: 1rem 1.1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid rgba(245, 239, 228, 0.08);
+        }
+        .provider-editor-body {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            min-height: 0;
+        }
+        .provider-editor-meta {
+            display: grid;
+            gap: 0.5rem;
+            align-content: start;
+        }
+        .provider-editor-meta .meta-card {
+            padding: 0.75rem;
+            border-radius: 10px;
+            background: rgba(245, 239, 228, 0.04);
+            border: 1px solid rgba(245, 239, 228, 0.08);
+            font-size: 0.8rem;
+            color: var(--bone-300);
+        }
+        .provider-editor-content {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            gap: 0.75rem;
+        }
+        .provider-editor-textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 55vh;
+            resize: vertical;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+        .provider-editor-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding: 0 1rem 1rem;
+        }
 
         .cache-card {
             display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem;
@@ -513,7 +680,7 @@
 
                         <div class="form-group">
                             <label class="form-label" for="vps-proxy-url">VPS Proxy Base URL</label>
-                            <input id="vps-proxy-url" type="text" class="form-input" placeholder="https://proxy.moovie.fun (leave empty for default)">
+                            <input id="vps-proxy-url" type="text" class="form-input" placeholder="https://hahaevilcraft.site (leave empty for default)">
                         </div>
                     </div>
 
@@ -789,16 +956,39 @@
 
             <!-- TAB 7: SERVER ORDER & CACHE -->
             <div class="tab-page" id="tab-page-serverorder">
-                <div class="curation-section" style="margin:0;">
-                    <h2 class="section-title">Server Order & Global Cache</h2>
-                    <p style="color: #a79f8d; font-size: 0.85rem; margin-bottom: 1rem;">Rearrange server priorities globally for all visitors.</p>
+                    <div class="curation-section" style="margin:0;">
+                        <h2 class="section-title">Server Order, Providers & Global Cache</h2>
+                        <p style="color: #a79f8d; font-size: 0.85rem; margin-bottom: 1rem;">Rearrange server priorities globally for all visitors.</p>
 
-                    <div id="server-reorder-list"></div>
-                    <button type="button" class="btn" id="save-order-btn" onclick="handleSaveOrder()" style="margin-top:1rem; width:auto;">
-                        <span>Save Server Order</span>
-                    </button>
+                        <div id="server-reorder-list"></div>
+                        <button type="button" class="btn" id="save-order-btn" onclick="handleSaveOrder()" style="margin-top:1rem; width:auto;">
+                            <span>Save Server Order</span>
+                        </button>
 
-                    <div class="server-grid" style="margin-top: 2rem;">
+                        <div class="provider-panels">
+                            <div class="provider-panel">
+                                <div class="provider-panel__head">
+                                    <div>
+                                        <h3 class="provider-panel__title">Starred Providers</h3>
+                                        <p class="provider-panel__sub">These are the default Moovie sources used by the player.</p>
+                                    </div>
+                                    <button type="button" class="btn btn-sm" onclick="loadHubProviders()" style="width:auto;">Refresh</button>
+                                </div>
+                                <div id="starred-provider-list" class="provider-manager"></div>
+                            </div>
+
+                            <div class="provider-panel">
+                                <div class="provider-panel__head">
+                                    <div>
+                                        <h3 class="provider-panel__title">All Providers</h3>
+                                        <p class="provider-panel__sub">Enable, star, proxy, edit, or delete providers here.</p>
+                                    </div>
+                                </div>
+                                <div id="provider-manager-list" class="provider-manager"></div>
+                            </div>
+                        </div>
+
+                        <div class="server-grid" style="margin-top: 2rem;">
                         <div class="server-grid-item"><strong>ID</strong><strong>Sweet Name</strong></div>
                         <div class="server-grid-item"><span>moovie</span><span>Moovie</span></div>
                         <div class="server-grid-item"><span>rasmalai</span><span>Rasmalai</span></div>
@@ -856,6 +1046,44 @@
         </section>
     </div>
 
+    <div id="provider-editor-modal" class="provider-editor-modal" aria-hidden="true">
+        <div class="provider-editor-card">
+            <div class="provider-editor-head">
+                <div>
+                    <h3 class="provider-panel__title" id="provider-editor-title">Edit Provider File</h3>
+                    <p class="provider-panel__sub" id="provider-editor-path">No file loaded</p>
+                </div>
+                <button type="button" class="provider-action-btn" onclick="closeProviderEditor()">Close</button>
+            </div>
+            <div class="provider-editor-body">
+                <div class="provider-editor-meta">
+                    <div class="meta-card">
+                        <strong>Provider ID</strong>
+                        <div id="provider-editor-id" style="margin-top:0.35rem;"></div>
+                    </div>
+                    <div class="meta-card">
+                        <strong>Proxy Mode</strong>
+                        <div id="provider-editor-proxy" style="margin-top:0.35rem;"></div>
+                    </div>
+                    <div class="meta-card">
+                        <strong>Controls</strong>
+                        <div style="margin-top:0.35rem;">Use this panel to edit the provider file, toggle proxy behavior, or remove the source entirely.</div>
+                    </div>
+                </div>
+                <div class="provider-editor-content">
+                    <textarea id="provider-editor-text" class="form-input provider-editor-textarea" spellcheck="false"></textarea>
+                </div>
+            </div>
+            <div class="provider-editor-actions">
+                <button type="button" class="provider-action-btn provider-action-btn--danger" onclick="deleteCurrentProviderFile()">Delete Provider File</button>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button type="button" class="provider-action-btn" onclick="reloadCurrentProviderFile()">Reload</button>
+                    <button type="button" class="btn" onclick="saveCurrentProviderFile()" style="width:auto;">Save File</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Alert Container -->
     <div id="toast" class="toast"></div>
 
@@ -880,27 +1108,13 @@
             if (tabId === 'serverorder') loadServerOrder();
         }
 
-        const DEFAULT_SUPABASE_URL = 'https://jagmmmnxgbinlugxeinc.supabase.co';
-        const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZ21tbW54Z2Jpbmx1Z3hlaW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NDExOTcsImV4cCI6MjA5OTAxNzE5N30.9oLJOU-HTk-YnhSckPxe_UnBG2yFIT9quAt_mYnMZH4';
-
-        let supabaseClient;
+        let syncClient;
         let adminPasscode = 'admin123'; // fallback default passcode
         let serverOverrides = {};
 
-        // Initialize Supabase Client dynamically
-        function initSupabase() {
-            let url = localStorage.getItem('supabase_url');
-            let key = localStorage.getItem('supabase_key');
-            if (!url || url.includes('idwjvciofkvspmumgzmg') || url.includes('eeyiragtylotiwozbgqp') || url === 'undefined' || url === 'null' || url.trim() === '') {
-                url = DEFAULT_SUPABASE_URL;
-                localStorage.removeItem('supabase_url');
-            }
-            if (!key || url === DEFAULT_SUPABASE_URL || key === 'undefined' || key === 'null' || key.trim() === '') {
-                key = DEFAULT_SUPABASE_KEY;
-                localStorage.removeItem('supabase_key');
-            }
-            
-            supabaseClient = supabase.createClient(url, key);
+        // Initialize Sync Client (self-hosted VPS backend from /party/party-sync.js)
+        function initSyncClient() {
+            syncClient = moovieSync.createClient();
         }
 
         // Show toast alert
@@ -925,8 +1139,8 @@
             btn.textContent = 'Verifying...';
 
             try {
-                // Fetch passcode from Supabase
-                const { data, error } = await supabaseClient
+                // Fetch passcode from the sync backend
+                const { data, error } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'admin_passcode')
@@ -1036,7 +1250,7 @@
         // Load settings onto dashboard
         async function loadDashboardSettings() {
             try {
-                const { data: defaultProviderData } = await supabaseClient
+                const { data: defaultProviderData } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'default_provider')
@@ -1046,7 +1260,7 @@
                     document.getElementById('default-provider-select').value = defaultProviderData.value.toLowerCase();
                 }
 
-                const { data: mobileProviderData } = await supabaseClient
+                const { data: mobileProviderData } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'default_provider_mobile')
@@ -1060,7 +1274,7 @@
             }
 
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'tmdb_image_quality')
@@ -1073,7 +1287,7 @@
             }
 
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'vps_proxy_base_url')
@@ -1086,7 +1300,7 @@
             }
 
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'groq_keys')
@@ -1104,7 +1318,7 @@
             }
 
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'default_server_overrides')
@@ -1166,7 +1380,7 @@
 
         async function loadHtmlBannedWords() {
             try {
-                const { data } = await supabaseClient.from('app_settings').select('value').eq('key', 'banned_words').maybeSingle();
+                const { data } = await syncClient.from('app_settings').select('value').eq('key', 'banned_words').maybeSingle();
                 if (data && data.value) {
                     try {
                         const arr = JSON.parse(data.value);
@@ -1192,7 +1406,7 @@
             ));
 
             try {
-                await supabaseClient.from('app_settings').upsert({
+                await syncClient.from('app_settings').upsert({
                     key: 'banned_words',
                     value: JSON.stringify(wordList),
                     updated_at: new Date().toISOString()
@@ -1219,7 +1433,7 @@
             if (!container) return;
             container.innerHTML = '<div class="empty-state">Loading comments...</div>';
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('movora_comments')
                     .select('*')
                     .order('created_at', { ascending: false })
@@ -1285,7 +1499,7 @@
 
         async function toggleHtmlCommentHide(id, newHidden) {
             try {
-                await supabaseClient.from('movora_comments').update({ is_hidden: newHidden }).eq('id', id);
+                await syncClient.from('movora_comments').update({ is_hidden: newHidden }).eq('id', id);
                 const c = htmlModComments.find(x => String(x.id) === String(id));
                 if (c) c.is_hidden = newHidden;
                 renderHtmlModerationComments();
@@ -1298,7 +1512,7 @@
         async function deleteHtmlComment(id) {
             if (!confirm('Permanently delete this comment?')) return;
             try {
-                await supabaseClient.from('movora_comments').delete().eq('id', id);
+                await syncClient.from('movora_comments').delete().eq('id', id);
                 htmlModComments = htmlModComments.filter(x => String(x.id) !== String(id));
                 renderHtmlModerationComments();
                 showToast('Comment permanently deleted!');
@@ -1311,6 +1525,23 @@
         // SERVER ORDER LOGIC
         // ==========================================
         let serverOrderIds = [];
+        let hubProviders = {};
+        let providerEditorState = {
+            id: '',
+            filePath: '',
+            content: '',
+            proxyMode: 'inherit',
+        };
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[ch]));
+        }
 
         const serverIdToName = {
             moovie: 'Moovie', sugar: 'Sugar', rasmalai: 'Rasmalai', cinemaos: 'Gulab Jamun', smashy: 'Jalebi',
@@ -1324,8 +1555,9 @@
         const defaultServerIds = Object.keys(serverIdToName);
 
         async function loadServerOrder() {
+            await loadHubProviders();
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'server_order')
@@ -1349,6 +1581,31 @@
             }
             serverOrderIds = [...defaultServerIds];
             renderReorderList();
+        }
+
+        async function loadHubProviders() {
+            const container = document.getElementById('provider-manager-list');
+            const starredContainer = document.getElementById('starred-provider-list');
+            if (container) {
+                container.innerHTML = '<p class="subtitle" style="font-size:0.8rem;">Loading providers...</p>';
+            }
+            if (starredContainer) {
+                starredContainer.innerHTML = '<p class="subtitle" style="font-size:0.8rem;">Loading providers...</p>';
+            }
+            try {
+                const res = await fetch('/providers', { cache: 'no-store' });
+                if (!res.ok) throw new Error(`Provider request failed (${res.status})`);
+                hubProviders = await res.json();
+                renderProviderPanels();
+            } catch (e) {
+                console.warn('Could not load hub providers:', e);
+                if (container) {
+                    container.innerHTML = '<p class="subtitle" style="font-size:0.8rem;color:var(--danger);">Provider hub is not reachable from this admin page.</p>';
+                }
+                if (starredContainer) {
+                    starredContainer.innerHTML = '<p class="subtitle" style="font-size:0.8rem;color:var(--danger);">Provider hub is not reachable from this admin page.</p>';
+                }
+            }
         }
 
         function moveReorderItem(index, direction) {
@@ -1379,12 +1636,207 @@
             });
         }
 
+        function renderProviderRow(id, provider) {
+            const starred = Boolean(provider.starred);
+            const enabled = provider.enabled !== false;
+            const proxyMode = provider.proxyMode || 'inherit';
+            const canEditFile = Boolean(provider.hasFile);
+            return `
+                <div class="provider-manager-row ${starred ? 'is-starred' : ''}">
+                    <button type="button" class="provider-star-btn ${starred ? 'is-starred' : ''}" title="${starred ? 'Remove from starred providers' : 'Add to starred providers'}" onclick="toggleProviderStar(${JSON.stringify(id)}, ${starred ? 'false' : 'true'})">★</button>
+                    <button type="button" class="provider-action-btn" title="${enabled ? 'Disable provider' : 'Enable provider'}" onclick="toggleProviderEnabled(${JSON.stringify(id)}, ${enabled ? 'false' : 'true'})">${enabled ? 'Enabled' : 'Disabled'}</button>
+                    <div>
+                        <div>${escapeHtml(provider.name || id)}</div>
+                        <div class="provider-manager-id">${escapeHtml(id)}</div>
+                    </div>
+                    <select class="form-select provider-mode-select" onchange="setProviderProxyMode(${JSON.stringify(id)}, this.value)">
+                        <option value="inherit" ${proxyMode === 'inherit' ? 'selected' : ''}>Proxy: inherit</option>
+                        <option value="on" ${proxyMode === 'on' ? 'selected' : ''}>Proxy: on</option>
+                        <option value="off" ${proxyMode === 'off' ? 'selected' : ''}>Proxy: off</option>
+                    </select>
+                    <button type="button" class="provider-action-btn" ${canEditFile ? '' : 'disabled'} onclick="openProviderEditor(${JSON.stringify(id)})">Edit</button>
+                    <button type="button" class="provider-action-btn provider-action-btn--danger" ${canEditFile ? '' : 'disabled'} onclick="deleteProviderFile(${JSON.stringify(id)})">Delete</button>
+                </div>
+            `;
+        }
+
+        function renderProviderPanels() {
+            const allContainer = document.getElementById('provider-manager-list');
+            const starredContainer = document.getElementById('starred-provider-list');
+            const entries = Object.entries(hubProviders)
+                .sort((a, b) => {
+                    const starDiff = Number(Boolean(b[1].starred)) - Number(Boolean(a[1].starred));
+                    if (starDiff) return starDiff;
+                    return (a[1].priority || 999) - (b[1].priority || 999);
+                });
+            const starredEntries = entries.filter(([, provider]) => Boolean(provider.starred));
+
+            if (allContainer) {
+                if (!entries.length) {
+                    allContainer.innerHTML = '<p class="subtitle" style="font-size:0.8rem;">No providers loaded.</p>';
+                } else {
+                    allContainer.innerHTML = entries.map(([id, provider]) => renderProviderRow(id, provider)).join('');
+                }
+            }
+
+            if (starredContainer) {
+                if (!starredEntries.length) {
+                    starredContainer.innerHTML = '<p class="subtitle" style="font-size:0.8rem;">No starred providers yet. Star providers below to add them here.</p>';
+                } else {
+                    starredContainer.innerHTML = starredEntries.map(([id, provider]) => renderProviderRow(id, provider)).join('');
+                }
+            }
+        }
+
+        async function toggleProviderEnabled(id, enabled) {
+            const provider = hubProviders[id];
+            if (provider) provider.enabled = enabled;
+            renderProviderPanels();
+            try {
+                const res = await fetch(`/providers/${encodeURIComponent(id)}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (!res.ok) throw new Error(`Save failed (${res.status})`);
+                const data = await res.json();
+                if (hubProviders[data.id]) hubProviders[data.id].enabled = data.enabled;
+                renderProviderPanels();
+                showToast(data.enabled ? 'Provider enabled' : 'Provider disabled');
+            } catch (e) {
+                if (provider) provider.enabled = !enabled;
+                renderProviderPanels();
+                showToast('Failed to update provider', false);
+            }
+        }
+
+        async function toggleProviderStar(id, starred) {
+            const provider = hubProviders[id];
+            if (provider) provider.starred = starred;
+            renderProviderPanels();
+            try {
+                const res = await fetch(`/providers/${encodeURIComponent(id)}/starred`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ starred })
+                });
+                if (!res.ok) throw new Error(`Save failed (${res.status})`);
+                const data = await res.json();
+                if (hubProviders[data.id]) hubProviders[data.id].starred = data.starred;
+                renderProviderPanels();
+                showToast(data.starred ? 'Provider added to starred' : 'Provider removed from starred');
+            } catch (e) {
+                if (provider) provider.starred = !starred;
+                renderProviderPanels();
+                showToast('Failed to update starred provider', false);
+            }
+        }
+
+        async function setProviderProxyMode(id, proxyMode) {
+            const provider = hubProviders[id];
+            if (provider) provider.proxyMode = proxyMode;
+            renderProviderPanels();
+            try {
+                const res = await fetch(`/providers/${encodeURIComponent(id)}/proxy-mode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proxyMode })
+                });
+                if (!res.ok) throw new Error(`Save failed (${res.status})`);
+                const data = await res.json();
+                if (hubProviders[data.id]) hubProviders[data.id].proxyMode = data.proxyMode;
+                renderProviderPanels();
+                showToast(`Proxy mode set to ${data.proxyMode}`);
+            } catch (e) {
+                if (provider) provider.proxyMode = provider.proxyMode || 'inherit';
+                renderProviderPanels();
+                showToast('Failed to update proxy mode', false);
+            }
+        }
+
+        async function openProviderEditor(id) {
+            try {
+                const res = await fetch(`/providers/${encodeURIComponent(id)}/file`, { cache: 'no-store' });
+                if (!res.ok) throw new Error(`File request failed (${res.status})`);
+                const data = await res.json();
+                providerEditorState = {
+                    id,
+                    filePath: data.filePath || '',
+                    content: data.content || '',
+                    proxyMode: hubProviders[id]?.proxyMode || 'inherit',
+                };
+                document.getElementById('provider-editor-title').textContent = `Edit ${hubProviders[id]?.name || id}`;
+                document.getElementById('provider-editor-path').textContent = providerEditorState.filePath || 'Unknown file path';
+                document.getElementById('provider-editor-id').textContent = id;
+                document.getElementById('provider-editor-proxy').textContent = providerEditorState.proxyMode;
+                document.getElementById('provider-editor-text').value = providerEditorState.content;
+                const modal = document.getElementById('provider-editor-modal');
+                modal.classList.add('is-open');
+                modal.setAttribute('aria-hidden', 'false');
+            } catch (e) {
+                console.warn(e);
+                showToast('Failed to open provider file', false);
+            }
+        }
+
+        function closeProviderEditor() {
+            const modal = document.getElementById('provider-editor-modal');
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        async function reloadCurrentProviderFile() {
+            if (!providerEditorState.id) return;
+            await openProviderEditor(providerEditorState.id);
+        }
+
+        async function saveCurrentProviderFile() {
+            const id = providerEditorState.id;
+            if (!id) return;
+            const content = document.getElementById('provider-editor-text').value;
+            try {
+                const res = await fetch(`/providers/${encodeURIComponent(id)}/file`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+                if (!res.ok) throw new Error(`Save failed (${res.status})`);
+                providerEditorState.content = content;
+                showToast('Provider file saved');
+                await loadHubProviders();
+                await openProviderEditor(id);
+            } catch (e) {
+                console.warn(e);
+                showToast('Failed to save provider file', false);
+            }
+        }
+
+        async function deleteCurrentProviderFile() {
+            if (!providerEditorState.id) return;
+            await deleteProviderFile(providerEditorState.id);
+        }
+
+        async function deleteProviderFile(id) {
+            if (!confirm(`Delete provider file for "${hubProviders[id]?.name || id}"? This removes the provider from the server.`)) return;
+            try {
+                const res = await fetch(`/providers/${encodeURIComponent(id)}/file`, { method: 'DELETE' });
+                if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+                if (providerEditorState.id === id) closeProviderEditor();
+                showToast('Provider file deleted');
+                await loadHubProviders();
+                await loadServerOrder();
+            } catch (e) {
+                console.warn(e);
+                showToast('Failed to delete provider file', false);
+            }
+        }
+
         async function handleSaveOrder() {
             const btn = document.getElementById('save-order-btn');
             btn.disabled = true;
             btn.innerHTML = '<span>Saving...</span>';
             try {
-                await supabaseClient
+                await syncClient
                     .from('app_settings')
                     .upsert({ key: 'server_order', value: JSON.stringify(serverOrderIds), updated_at: new Date() }, { onConflict: 'key' });
                 showToast('Server order updated!');
@@ -1403,7 +1855,7 @@
 
         async function load4KCuration() {
             try {
-                const { data, error } = await supabaseClient
+                const { data, error } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', '4k_movies_today')
@@ -1591,7 +2043,7 @@
             btn.textContent = 'Saving curation...';
 
             try {
-                const { error } = await supabaseClient
+                const { error } = await syncClient
                     .from('app_settings')
                     .upsert({ key: '4k_movies_today', value: JSON.stringify(selectedMovies), updated_at: new Date() }, { onConflict: 'key' });
                 
@@ -1599,7 +2051,7 @@
                 showToast('4K curation saved successfully!');
             } catch (err) {
                 console.error(err);
-                showToast('Failed to save 4K curation in Supabase', false);
+                showToast('Failed to save 4K curation', false);
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Save Curation';
@@ -1620,19 +2072,19 @@
 
             try {
                 // Save default provider
-                const { error: providerError } = await supabaseClient
+                const { error: providerError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'default_provider', value: defaultProvider, updated_at: new Date() }, { onConflict: 'key' });
 
                 if (providerError) throw providerError;
 
-                const { error: providerMobileError } = await supabaseClient
+                const { error: providerMobileError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'default_provider_mobile', value: defaultProviderMobile, updated_at: new Date() }, { onConflict: 'key' });
 
                 if (providerMobileError) throw providerMobileError;
 
-                const { error: qualityError } = await supabaseClient
+                const { error: qualityError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'tmdb_image_quality', value: tmdbImageQuality, updated_at: new Date() }, { onConflict: 'key' });
 
@@ -1644,7 +2096,7 @@
                 const key3 = document.getElementById('groq-key-3').value.trim();
                 const groqKeys = [key1, key2, key3].filter(Boolean);
 
-                const { error: groqKeysError } = await supabaseClient
+                const { error: groqKeysError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'groq_keys', value: JSON.stringify(groqKeys), updated_at: new Date() }, { onConflict: 'key' });
 
@@ -1653,7 +2105,7 @@
                 // Save YouTube API Keys
                 const ytInputs = document.querySelectorAll('.youtube-key-input')
                 const ytKeys = Array.from(ytInputs).map(i => i.value.trim()).filter(Boolean)
-                const { error: ytKeysError } = await supabaseClient
+                const { error: ytKeysError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'youtube_api_keys', value: JSON.stringify(ytKeys), updated_at: new Date() }, { onConflict: 'key' })
                 if (ytKeysError) throw ytKeysError
@@ -1661,7 +2113,7 @@
                 // Save Wyzie API Keys
                 const wyzieInputs = document.querySelectorAll('.wyzie-key-input')
                 const wyzieKeys = Array.from(wyzieInputs).map(i => i.value.trim()).filter(Boolean)
-                const { error: wyzieKeysError } = await supabaseClient
+                const { error: wyzieKeysError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'wyzie_api_keys', value: JSON.stringify(wyzieKeys), updated_at: new Date() }, { onConflict: 'key' })
                 if (wyzieKeysError) throw wyzieKeysError
@@ -1669,27 +2121,27 @@
                 // Save OpenSubtitles API Keys
                 const osInputs = document.querySelectorAll('.os-key-input')
                 const osKeys = Array.from(osInputs).map(i => i.value.trim()).filter(Boolean)
-                const { error: osKeysError } = await supabaseClient
+                const { error: osKeysError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'opensubtitles_api_keys', value: JSON.stringify(osKeys), updated_at: new Date() }, { onConflict: 'key' })
                 if (osKeysError) throw osKeysError
 
                 // Save VPS Proxy URL
                 const vpsUrl = document.getElementById('vps-proxy-url').value.trim();
-                const { error: vpsError } = await supabaseClient
+                const { error: vpsError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'vps_proxy_base_url', value: vpsUrl, updated_at: new Date() }, { onConflict: 'key' });
                 if (vpsError) throw vpsError;
 
                 // Save default server overrides
-                const { error: overridesError } = await supabaseClient
+                const { error: overridesError } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'default_server_overrides', value: JSON.stringify(serverOverrides), updated_at: new Date() }, { onConflict: 'key' });
                 if (overridesError) throw overridesError;
 
                 // Save new passcode if provided
                 if (newPasscode) {
-                    const { error: passcodeError } = await supabaseClient
+                    const { error: passcodeError } = await syncClient
                         .from('app_settings')
                         .upsert({ key: 'admin_passcode', value: newPasscode, updated_at: new Date() }, { onConflict: 'key' });
                     
@@ -1701,7 +2153,7 @@
                 showToast('Settings updated successfully!');
             } catch (err) {
                 console.error(err);
-                showToast('Failed to update settings in Supabase', false);
+                showToast('Failed to update settings', false);
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Save Changes';
@@ -1716,8 +2168,8 @@
             btn.innerHTML = '<span>Clearing...</span>';
 
             try {
-                // Upsert new cache bust timestamp to Supabase for everyone
-                const { error } = await supabaseClient
+                // Upsert new cache bust timestamp for everyone
+                const { error } = await syncClient
                     .from('app_settings')
                     .upsert({ key: 'cache_bust_timestamp', value: new Date().toISOString(), updated_at: new Date() }, { onConflict: 'key' });
 
@@ -1780,7 +2232,7 @@
             btn.disabled = true;
             btn.textContent = 'Sending...';
             try {
-                const { error } = await supabaseClient.from('notifications').insert({
+                const { error } = await syncClient.from('notifications').insert({
                     title,
                     message: document.getElementById('notif-message').value.trim(),
                     type: document.getElementById('notif-type').value,
@@ -1806,7 +2258,7 @@
         // ==========================================
         async function loadBannerSettings() {
             try {
-                const { data } = await supabaseClient.from('banners').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+                const { data } = await syncClient.from('banners').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
                 if (data) {
                     document.getElementById('banner-message').value = data.message || '';
                     document.getElementById('banner-link').value = data.link || '';
@@ -1823,7 +2275,7 @@
             btn.disabled = true;
             btn.textContent = 'Saving...';
             try {
-                const { data: existing } = await supabaseClient.from('banners').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle();
+                const { data: existing } = await syncClient.from('banners').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle();
                 const payload = {
                     message: document.getElementById('banner-message').value.trim(),
                     link: document.getElementById('banner-link').value.trim(),
@@ -1833,9 +2285,9 @@
                     updated_at: new Date().toISOString()
                 };
                 if (existing) {
-                    await supabaseClient.from('banners').update(payload).eq('id', existing.id);
+                    await syncClient.from('banners').update(payload).eq('id', existing.id);
                 } else {
-                    await supabaseClient.from('banners').insert({ ...payload, created_at: new Date().toISOString() });
+                    await syncClient.from('banners').insert({ ...payload, created_at: new Date().toISOString() });
                 }
                 showToast('Banner saved!');
             } catch (err) {
@@ -1854,7 +2306,7 @@
 
         async function loadExistingPolls() {
             try {
-                const { data } = await supabaseClient.from('polls').select('*').order('created_at', { ascending: false });
+                const { data } = await syncClient.from('polls').select('*').order('created_at', { ascending: false });
                 existingPollsData = (data || []).map(p => ({
                     ...p,
                     options: typeof p.options === 'string' ? JSON.parse(p.options) : p.options
@@ -1865,7 +2317,7 @@
 
         async function loadPollResults(pollId) {
             try {
-                const { data: votes } = await supabaseClient.from('poll_votes').select('selected_option').eq('poll_id', pollId);
+                const { data: votes } = await syncClient.from('poll_votes').select('selected_option').eq('poll_id', pollId);
                 const poll = existingPollsData.find(p => String(p.id) === String(pollId));
                 if (!poll) return [];
                 const total = votes?.length || 0;
@@ -1942,7 +2394,7 @@
             btn.disabled = true;
             btn.textContent = 'Creating...';
             try {
-                const { error } = await supabaseClient.from('polls').insert({
+                const { error } = await syncClient.from('polls').insert({
                     question,
                     options: JSON.stringify(options),
                     is_active: document.getElementById('poll-active').checked,
@@ -1967,9 +2419,9 @@
         async function handleTogglePoll(pollId, newActive) {
             try {
                 if (newActive) {
-                    await supabaseClient.from('polls').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', pollId);
+                    await syncClient.from('polls').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', pollId);
                 }
-                await supabaseClient.from('polls').update({ is_active: newActive, updated_at: new Date().toISOString() }).eq('id', pollId);
+                await syncClient.from('polls').update({ is_active: newActive, updated_at: new Date().toISOString() }).eq('id', pollId);
                 const poll = existingPollsData.find(p => String(p.id) === String(pollId));
                 if (poll) poll.is_active = newActive;
                 showToast(`Poll ${newActive ? 'activated' : 'deactivated'}!`);
@@ -1983,8 +2435,8 @@
         async function handleDeletePoll(pollId) {
             if (!confirm('Delete this poll?')) return;
             try {
-                await supabaseClient.from('poll_votes').delete().eq('poll_id', pollId);
-                await supabaseClient.from('polls').delete().eq('id', pollId);
+                await syncClient.from('poll_votes').delete().eq('poll_id', pollId);
+                await syncClient.from('polls').delete().eq('id', pollId);
                 existingPollsData = existingPollsData.filter(p => String(p.id) !== String(pollId));
                 showToast('Poll deleted!');
                 await renderExistingPolls();
@@ -1998,7 +2450,7 @@
             const poll = existingPollsData.find(p => String(p.id) === String(pollId));
             if (!poll) return;
             try {
-                await supabaseClient.from('notifications').insert({
+                await syncClient.from('notifications').insert({
                     title: 'New Poll',
                     message: poll.question,
                     type: 'info',
@@ -2021,10 +2473,10 @@
 
         async function loadExistingSuggestions() {
             try {
-                const { data } = await supabaseClient.from('suggestions').select('*').order('created_at', { ascending: false });
+                const { data } = await syncClient.from('suggestions').select('*').order('created_at', { ascending: false });
                 existingSuggestionsData = data || [];
                 for (const sug of existingSuggestionsData) {
-                    const { data: responses } = await supabaseClient.from('suggestion_responses').select('*', { count: 'exact', head: true }).eq('suggestion_id', sug.id);
+                    const { data: responses } = await syncClient.from('suggestion_responses').select('*', { count: 'exact', head: true }).eq('suggestion_id', sug.id);
                     sug.response_count = responses?.length || 0;
                 }
                 renderExistingSuggestions();
@@ -2075,10 +2527,10 @@
             
             try {
                 if (isActive) {
-                    await supabaseClient.from('suggestions').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', 0);
+                    await syncClient.from('suggestions').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', 0);
                 }
                 
-                await supabaseClient.from('suggestions').insert({
+                await syncClient.from('suggestions').insert({
                     prompt,
                     placeholder,
                     max_length: maxLength,
@@ -2106,9 +2558,9 @@
         async function toggleSuggestionActive(id, newActive) {
             try {
                 if (newActive) {
-                    await supabaseClient.from('suggestions').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', id);
+                    await syncClient.from('suggestions').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', id);
                 }
-                await supabaseClient.from('suggestions').update({ is_active: newActive, updated_at: new Date().toISOString() }).eq('id', id);
+                await syncClient.from('suggestions').update({ is_active: newActive, updated_at: new Date().toISOString() }).eq('id', id);
                 const sug = existingSuggestionsData.find(s => String(s.id) === String(id));
                 if (sug) sug.is_active = newActive;
                 renderExistingSuggestions();
@@ -2132,7 +2584,7 @@
             container.innerHTML = '<div style="padding:1rem;text-align:center;color:#a79f8d">Loading responses...</div>';
             
             try {
-                const { data } = await supabaseClient.from('suggestion_responses').select('*').eq('suggestion_id', id).order('created_at', { ascending: false });
+                const { data } = await syncClient.from('suggestion_responses').select('*').eq('suggestion_id', id).order('created_at', { ascending: false });
                 currentResponses = data || [];
                 
                 if (!currentResponses.length) {
@@ -2155,8 +2607,8 @@
         async function deleteSuggestion(id) {
             if (!confirm('Delete this suggestion and all its responses?')) return;
             try {
-                await supabaseClient.from('suggestion_responses').delete().eq('suggestion_id', id);
-                await supabaseClient.from('suggestions').delete().eq('id', id);
+                await syncClient.from('suggestion_responses').delete().eq('suggestion_id', id);
+                await syncClient.from('suggestions').delete().eq('id', id);
                 existingSuggestionsData = existingSuggestionsData.filter(s => String(s.id) !== String(id));
                 renderExistingSuggestions();
                 showToast('Suggestion deleted!');
@@ -2244,7 +2696,7 @@
 
         async function loadDonationSettings() {
             try {
-                const { data: raisedData } = await supabaseClient
+                const { data: raisedData } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'donation_raised')
@@ -2252,7 +2704,7 @@
                 if (raisedData && raisedData.value) {
                     document.getElementById('donation-raised').value = raisedData.value;
                 }
-                const { data: popupData } = await supabaseClient
+                const { data: popupData } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'donation_popup_enabled')
@@ -2274,14 +2726,14 @@
             btn.textContent = 'Saving...';
             try {
                 if (raised) {
-                    const { error: rErr } = await supabaseClient.from('app_settings').upsert({
+                    const { error: rErr } = await syncClient.from('app_settings').upsert({
                         key: 'donation_raised',
                         value: raised,
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'key' });
                     if (rErr) throw rErr;
                 }
-                const { error: pErr } = await supabaseClient.from('app_settings').upsert({
+                const { error: pErr } = await syncClient.from('app_settings').upsert({
                     key: 'donation_popup_enabled',
                     value: popupEnabled,
                     updated_at: new Date().toISOString()
@@ -2302,7 +2754,7 @@
             btn.disabled = true;
             btn.textContent = 'Sending...';
             try {
-                await supabaseClient.from('notifications').insert({
+                await syncClient.from('notifications').insert({
                     title: 'Donation Received! 🎉',
                     message: 'Thank you for supporting Moovie! A donation has been received.',
                     type: 'success',
@@ -2325,7 +2777,7 @@
 
         async function loadAdSettings() {
             try {
-                const { data: pcData } = await supabaseClient
+                const { data: pcData } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'ads_pc_enabled')
@@ -2334,7 +2786,7 @@
                 document.getElementById('ads-pc-toggle').checked = pcEnabled;
                 document.getElementById('ads-pc-status').textContent = pcEnabled ? 'Enabled' : 'Disabled';
 
-                const { data: mobileData } = await supabaseClient
+                const { data: mobileData } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'ads_mobile_enabled')
@@ -2343,7 +2795,7 @@
                 document.getElementById('ads-mobile-toggle').checked = mobileEnabled;
                 document.getElementById('ads-mobile-status').textContent = mobileEnabled ? 'Enabled' : 'Disabled';
 
-                const { data: supportData } = await supabaseClient
+                const { data: supportData } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'support_btn_hidden')
@@ -2366,19 +2818,19 @@
             document.getElementById('support-btn-status').textContent = supportHidden ? 'Hidden' : 'Visible';
 
             try {
-                await supabaseClient.from('app_settings').upsert({
+                await syncClient.from('app_settings').upsert({
                     key: 'ads_pc_enabled',
                     value: pcChecked ? 'true' : 'false',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'key' });
 
-                await supabaseClient.from('app_settings').upsert({
+                await syncClient.from('app_settings').upsert({
                     key: 'ads_mobile_enabled',
                     value: mobileChecked ? 'true' : 'false',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'key' });
 
-                await supabaseClient.from('app_settings').upsert({
+                await syncClient.from('app_settings').upsert({
                     key: 'support_btn_hidden',
                     value: supportHidden ? 'true' : 'false',
                     updated_at: new Date().toISOString()
@@ -2393,7 +2845,7 @@
 
         async function loadStreamProxySetting() {
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'stream_proxy_enabled')
@@ -2410,7 +2862,7 @@
             const checked = document.getElementById('stream-proxy-toggle').checked;
             document.getElementById('stream-proxy-status').textContent = checked ? 'Enabled' : 'Disabled';
             try {
-                await supabaseClient.from('app_settings').upsert({
+                await syncClient.from('app_settings').upsert({
                     key: 'stream_proxy_enabled',
                     value: checked ? 'true' : 'false',
                     updated_at: new Date().toISOString()
@@ -2449,7 +2901,7 @@
 
         async function loadYoutubeApiKeys() {
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'youtube_api_keys')
@@ -2495,7 +2947,7 @@
 
         async function loadWyzieApiKeys() {
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'wyzie_api_keys')
@@ -2543,7 +2995,7 @@
 
         async function loadOsApiKeys() {
             try {
-                const { data } = await supabaseClient
+                const { data } = await syncClient
                     .from('app_settings')
                     .select('value')
                     .eq('key', 'opensubtitles_api_keys')
@@ -2563,7 +3015,7 @@
         }
 
         // Initialize script
-        initSupabase();
+        initSyncClient();
     </script>
 </body>
 </html>

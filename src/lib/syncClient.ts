@@ -1,11 +1,9 @@
-// Self-hosted sync client — drop-in replacement for @supabase/supabase-js.
-// Talks to the VPS sync server via proxy.moovie.fun (/api REST + /sync-ws realtime).
-// The fluent API surface (from().select().eq(), channel().on().subscribe(),
-// storage) mirrors the subset of supabase-js that this app uses, so consumer
-// code does not change.
+// Self-hosted sync client — talks to the VPS sync server via hahaevilcraft.site
+// (/api REST + /sync-ws realtime). Fluent API surface (from().select().eq(),
+// channel().on().subscribe(), storage) so consumer code is concise.
 
-const API_ORIGIN = 'https://proxy.moovie.fun';
-const WS_URL = 'wss://proxy.moovie.fun/sync-ws';
+const API_ORIGIN = 'https://hahaevilcraft.site';
+const WS_URL = 'wss://hahaevilcraft.site/sync-ws';
 
 export interface SyncResponse<T = any> {
     data: T | null;
@@ -345,7 +343,7 @@ interface SyncClient {
 
 let _clientPromise: Promise<SyncClient> | null = null;
 
-export function getSupabaseClient(): Promise<SyncClient> {
+export function getSyncClient(): Promise<SyncClient> {
     if (!_clientPromise) {
         _clientPromise = Promise.resolve({
             from: (table: string) => new QueryBuilder(table),

@@ -101,7 +101,7 @@ export default defineComponent({
                     y,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed - 0.1, // float up slightly
-                    color: ['#ff5a1f', '#ff3300', '#00f0ff', '#ffaa00'][Math.floor(Math.random() * 4)],
+                    color: ['#ffffff', '#ff3300', '#00f0ff', '#ffaa00'][Math.floor(Math.random() * 4)],
                     size: Math.random() * 2.2 + 1.0,
                     alpha: 1,
                     life: maxLife,
@@ -122,8 +122,8 @@ export default defineComponent({
 
             // Draw Neon Body Contour
             ctx.shadowBlur = 10;
-            ctx.shadowColor = '#ff5a1f';
-            ctx.strokeStyle = '#ff5a1f';
+            ctx.shadowColor = '#ffffff';
+            ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2.2;
 
             ctx.beginPath();
@@ -227,8 +227,8 @@ export default defineComponent({
 
             // Afterburner jet fire trail (Orange)
             const afterburner = ctx.createLinearGradient(-55, 0, -25, 0);
-            afterburner.addColorStop(0, 'rgba(255, 90, 31, 0)');
-            afterburner.addColorStop(1, 'rgba(255, 90, 31, 0.85)');
+            afterburner.addColorStop(0, 'rgba(255, 255, 255, 0)');
+            afterburner.addColorStop(1, 'rgba(255, 255, 255, 0.85)');
             ctx.fillStyle = afterburner;
             ctx.beginPath();
             ctx.moveTo(-25, -3);
@@ -332,8 +332,8 @@ export default defineComponent({
             ctx.stroke();
 
             // Cape billowing (Orange/Red)
-            ctx.strokeStyle = '#ff5a1f';
-            ctx.shadowColor = '#ff5a1f';
+            ctx.strokeStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
             ctx.lineWidth = 1.8;
             ctx.beginPath();
             ctx.moveTo(5, -2); // Cape shoulder attach
@@ -440,8 +440,8 @@ export default defineComponent({
             // 1. Draw glowing orange/neon laser road
             ctx.save();
             ctx.shadowBlur = 10;
-            ctx.shadowColor = 'rgba(255, 90, 31, 0.8)';
-            ctx.strokeStyle = '#ff5a1f';
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+            ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2.0;
             ctx.beginPath();
             ctx.moveTo(0, roadY);

@@ -53,13 +53,6 @@
                             <label class="admin-page__label" for="default-provider">Default Stream Player (PC)</label>
                             <select id="default-provider" v-model="settings.defaultProvider" class="admin-page__select">
                                 <option value="moovie">Moovie (moovie server)</option>
-                                <option value="moovie_x">Moovie X (peestream.in)</option>
-                                <option value="sugar">Sugar (vidcodin.net)</option>
-                                <option value="rasmalai">Rasmalai (sweet server)</option>
-                                <option value="vidrock">Gulab Jamun (VidRock)</option>
-                                <option value="smashy">Jalebi (SmashyStream)</option>
-                                <option value="mappletv">Kaju Katli (MappleTV)</option>
-                                <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
                                 <option value="vidking">Kheer (VidKing)</option>
                                 <option value="videasy">Barfi (VidEasy)</option>
                                 <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
@@ -72,7 +65,6 @@
                                 <option value="vidfast">Mysore Pak (VidFast)</option>
                                 <option value="movies111">Imarti (111Movies)</option>
                                 <option value="vidora">Ghevar (Vidora)</option>
-                                <option value="icecream">Icecream (Videasy)</option>
                                 <option value="cinezo">Cheesecake (Cinezo)</option>
                                 <option value="nankhatai">Nankhatai (NontonGo)</option>
                                 <option value="petha">Petha (NontonGo)</option>
@@ -84,13 +76,6 @@
                             <label class="admin-page__label" for="default-provider-mobile">Default Stream Player (Mobile)</label>
                             <select id="default-provider-mobile" v-model="settings.defaultProviderMobile" class="admin-page__select">
                                 <option value="moovie">Moovie (moovie server)</option>
-                                <option value="moovie_x">Moovie X (peestream.in)</option>
-                                <option value="sugar">Sugar (vidcodin.net)</option>
-                                <option value="rasmalai">Rasmalai (sweet server)</option>
-                                <option value="vidrock">Gulab Jamun (VidRock)</option>
-                                <option value="smashy">Jalebi (SmashyStream)</option>
-                                <option value="mappletv">Kaju Katli (MappleTV)</option>
-                                <option value="vidsuper">Motichoor Ladoo (Vidsuper)</option>
                                 <option value="vidking">Kheer (VidKing)</option>
                                 <option value="videasy">Barfi (VidEasy)</option>
                                 <option value="vidsrc_ru">Laddu (VidSrc.ru)</option>
@@ -103,7 +88,6 @@
                                 <option value="vidfast">Mysore Pak (VidFast)</option>
                                 <option value="movies111">Imarti (111Movies)</option>
                                 <option value="vidora">Ghevar (Vidora)</option>
-                                <option value="icecream">Icecream (Videasy)</option>
                                 <option value="cinezo">Cheesecake (Cinezo)</option>
                                 <option value="nankhatai">Nankhatai (NontonGo)</option>
                                 <option value="petha">Petha (NontonGo)</option>
@@ -162,7 +146,6 @@
                                     placeholder="TMDB ID (e.g. 503)"
                                 />
                                 <select v-model="newOverride.server" class="admin-page__select" style="flex: 2; margin: 0; min-height: 38px;">
-                                    <option value="Sugar">Sugar</option>
                                     <option value="Poseidon">Poseidon</option>
                                     <option value="Thor">Thor</option>
                                     <option value="Athena">Athena</option>
@@ -222,11 +205,6 @@
                     <div class="admin-page__server-grid" style="margin-top: 2rem;">
                         <div class="admin-page__server-row"><strong>ID</strong><strong>Sweet Name</strong></div>
                         <div class="admin-page__server-row"><span>moovie</span><span>Moovie</span></div>
-                        <div class="admin-page__server-row"><span>rasmalai</span><span>Rasmalai</span></div>
-                        <div class="admin-page__server-row"><span>vidrock</span><span>Gulab Jamun</span></div>
-                        <div class="admin-page__server-row"><span>smashy</span><span>Jalebi</span></div>
-                        <div class="admin-page__server-row"><span>mappletv</span><span>Kaju Katli</span></div>
-                        <div class="admin-page__server-row"><span>vidsuper</span><span>Motichoor Ladoo</span></div>
                         <div class="admin-page__server-row"><span>vidking</span><span>Kheer</span></div>
                         <div class="admin-page__server-row"><span>videasy</span><span>Barfi</span></div>
                         <div class="admin-page__server-row"><span>vidsrc_ru</span><span>Laddu</span></div>
@@ -239,7 +217,6 @@
                         <div class="admin-page__server-row"><span>vidfast</span><span>Mysore Pak</span></div>
                         <div class="admin-page__server-row"><span>movies111</span><span>Imarti</span></div>
                         <div class="admin-page__server-row"><span>vidora</span><span>Ghevar</span></div>
-                        <div class="admin-page__server-row"><span>icecream</span><span>Icecream</span></div>
                         <div class="admin-page__server-row"><span>cinezo</span><span>Cheesecake</span></div>
                         <div class="admin-page__server-row"><span>nankhatai</span><span>Nankhatai</span></div>
                         <div class="admin-page__server-row"><span>petha</span><span>Petha</span></div>
@@ -374,7 +351,7 @@
                         </div>
                         <div class="admin-page__field">
                             <label class="admin-page__label" for="banner-bg">Background Color</label>
-                            <input id="banner-bg" v-model="bannerBgColor" type="text" class="admin-page__input" placeholder="#ff5a1f">
+                            <input id="banner-bg" v-model="bannerBgColor" type="text" class="admin-page__input" placeholder="#ffffff">
                         </div>
                         <div class="admin-page__field">
                             <label class="admin-page__label" for="banner-text-color">Text Color</label>
@@ -848,10 +825,10 @@
 
 <script lang="ts" setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { getSupabaseClient } from '../lib/supabase'
-import { serverOrder, setServerOrder, fetchServerOrder, getServers } from '../composables/useStream'
+import { getSyncClient } from '../lib/syncClient'
+import { setServerOrder, fetchServerOrder } from '../composables/useStream'
 
-let supabase: any = null
+let sync: any = null
 const DEFAULT_PASSCODE = 'admin123'
 
 const authenticated = ref(false)
@@ -883,8 +860,8 @@ const selectedMovies = ref<any[]>([])
 let adminPasscode = DEFAULT_PASSCODE
 
 const settings = reactive({
-    defaultProvider: 'icecream',
-    defaultProviderMobile: 'icecream',
+    defaultProvider: 'moovie',
+    defaultProviderMobile: 'moovie',
     tmdbQuality: 'medium',
     groqKeys: ['', '', '']
 })
@@ -907,7 +884,7 @@ const notifLoading = ref(false)
 // ── Banner ─────────────────────────────────────────────────────────────────────
 const bannerMessage = ref('')
 const bannerLink = ref('')
-const bannerBgColor = ref('#ff5a1f')
+const bannerBgColor = ref('#ffffff')
 const bannerTextColor = ref('#ffffff')
 const bannerActive = ref(false)
 const bannerLoading = ref(false)
@@ -1006,8 +983,8 @@ function showToast(message: string, isSuccess = true) {
 async function handleAuthenticate() {
     authLoading.value = true
     try {
-        const client = await getSupabaseClient()
-        supabase = client
+        const client = await getSyncClient()
+        sync = client
         const { data } = await client.from('app_settings').select('value').eq('key', 'admin_passcode').single()
         if (data?.value) adminPasscode = data.value
 
@@ -1032,7 +1009,7 @@ async function handleAuthenticate() {
 }
 
 async function loadDashboardSettings() {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const { data } = await client.from('app_settings').select('value').eq('key', 'default_provider').single()
         if (data?.value) settings.defaultProvider = data.value.toLowerCase()
@@ -1125,34 +1102,7 @@ async function loadDashboardSettings() {
 
 async function loadServerOrder() {
     await fetchServerOrder()
-    const servers = getServers('movie')
-    const idMap: Record<string, string> = {
-        moovie: 'Moovie',
-        sugar: 'Sugar',
-        rasmalai: 'Rasmalai', vidrock: 'Gulab Jamun', smashy: 'Jalebi',
-        mappletv: 'Kaju Katli', vidking: 'Kheer', videasy: 'Barfi',
-        vidsrc_ru: 'Laddu', vidsrc_su: 'Peda', vidsrcme: 'Gajar Ka Halwa',
-        multiembed: 'Soan Papdi', vsrc: 'Sandesh', vidlink: 'Cham Cham',
-        autoembed: 'Kulfi', vidfast: 'Mysore Pak', movies111: 'Imarti',
-        vidora: 'Ghevar', vidsuper: 'Motichoor Ladoo', icecream: 'Icecream',
-        cinezo: 'Cheesecake', nankhatai: 'Nankhatai', petha: 'Petha', spoider: 'Spoider'
-    }
-    const reverseMap: Record<string, string> = {}
-    for (const [id, name] of Object.entries(idMap)) reverseMap[name.toLowerCase()] = id
-
-    if (serverOrder.value && serverOrder.value.length > 0) {
-        const savedList = serverOrder.value.map(id => ({ id, name: idMap[id.toLowerCase()] || id }))
-        const savedIds = new Set(serverOrder.value.map(id => id.toLowerCase()))
-        for (const s of servers) {
-            const id = reverseMap[s.name.toLowerCase()] || s.name.toLowerCase()
-            if (!savedIds.has(id.toLowerCase())) {
-                savedList.push({ id, name: s.name })
-            }
-        }
-        serverOrderList.value = savedList
-    } else {
-        serverOrderList.value = servers.map(s => ({ id: reverseMap[s.name.toLowerCase()] || s.name.toLowerCase(), name: s.name }))
-    }
+    serverOrderList.value = [{ id: 'moovie', name: 'Moovie' }]
 }
 
 function moveServer(index: number, direction: number) {
@@ -1164,7 +1114,7 @@ function moveServer(index: number, direction: number) {
 
 async function handleSaveOrder() {
     orderSaving.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const ids = serverOrderList.value.map(s => s.id)
         await client.from('app_settings').upsert({ key: 'server_order', value: JSON.stringify(ids), updated_at: new Date() }, { onConflict: 'key' })
@@ -1179,7 +1129,7 @@ async function handleSaveOrder() {
 
 async function handleSaveSettings() {
     saveLoading.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         await client.from('app_settings').upsert({ key: 'default_provider', value: settings.defaultProvider, updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'default_provider_mobile', value: settings.defaultProviderMobile, updated_at: new Date() }, { onConflict: 'key' })
@@ -1208,7 +1158,7 @@ async function handleSaveSettings() {
 
         showToast('Settings updated successfully!')
     } catch {
-        showToast('Failed to update settings in Supabase', false)
+        showToast('Failed to update settings in Sync', false)
     } finally {
         saveLoading.value = false
     }
@@ -1254,8 +1204,8 @@ function removeOsKey(index: number) {
 async function handleClearTmdbCache() {
     clearCacheLoading.value = true
     try {
-        // Upsert new cache bust timestamp to Supabase for everyone
-        const client = supabase || await getSupabaseClient()
+        // Upsert new cache bust timestamp to Sync for everyone
+        const client = sync || await getSyncClient()
         await client.from('app_settings').upsert({ key: 'cache_bust_timestamp', value: new Date().toISOString(), updated_at: new Date() }, { onConflict: 'key' })
 
         // Delete both old v1 and current v2 Cache Storage entries locally too
@@ -1273,7 +1223,7 @@ async function handleClearTmdbCache() {
 }
 
 async function load4KCuration() {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const { data } = await client.from('app_settings').select('value').eq('key', '4k_movies_today').single()
         if (data?.value) selectedMovies.value = JSON.parse(data.value)
@@ -1286,7 +1236,7 @@ async function load4KCuration() {
 async function handleSearch4K() {
     if (!searchQuery.value.trim()) return
     try {
-        const res = await fetch(`https://proxy.moovie.fun/tmdb-api/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(searchQuery.value)}&language=en-US&page=1`)
+        const res = await fetch(`https://hahaevilcraft.site/tmdb-api/3/search/movie?api_key=dfa4c2c7c1de1005adee824dc5593672&query=${encodeURIComponent(searchQuery.value)}&language=en-US&page=1`)
         const data = await res.json()
         searchResults.value = data.results || []
     } catch {
@@ -1329,12 +1279,12 @@ function moveItem(index: number, direction: number) {
 
 async function handleSave4K() {
     save4kLoading.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         await client.from('app_settings').upsert({ key: '4k_movies_today', value: JSON.stringify(selectedMovies.value), updated_at: new Date() }, { onConflict: 'key' })
         showToast('4K curation saved successfully!')
     } catch {
-        showToast('Failed to save 4K curation in Supabase', false)
+        showToast('Failed to save 4K curation in Sync', false)
     } finally {
         save4kLoading.value = false
     }
@@ -1343,7 +1293,7 @@ async function handleSave4K() {
 // ── Donation Functions ──────────────────────────────────────────────────────────
 async function handleSaveDonations() {
     donationLoading.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         await client.from('app_settings').upsert({ key: 'donation_raised', value: String(donationRaised.value), updated_at: new Date() }, { onConflict: 'key' })
         await client.from('app_settings').upsert({ key: 'donation_popup_enabled', value: String(donationPopupEnabled.value), updated_at: new Date() }, { onConflict: 'key' })
@@ -1357,7 +1307,7 @@ async function handleSaveDonations() {
 
 async function handleDonationNotif() {
     donationNotifLoading.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const amount = cryptoTotal.value > 0 ? `$${cryptoTotal.value.toFixed(2)}` : 'a donation'
         await client.from('notifications').insert({
@@ -1379,7 +1329,7 @@ async function handleDonationNotif() {
 async function handleSendNotification() {
     if (!notifTitle.value.trim()) return
     notifLoading.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         await client.from('notifications').insert({
             title: notifTitle.value.trim(),
@@ -1401,13 +1351,13 @@ async function handleSendNotification() {
 
 // ── Banner Functions ───────────────────────────────────────────────────────────
 async function loadBannerSettings() {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const { data } = await client.from('banners').select('id, message, link, bg_color, text_color, is_active, created_at').order('created_at', { ascending: false }).limit(1).maybeSingle()
         if (data) {
             bannerMessage.value = data.message || ''
             bannerLink.value = data.link || ''
-            bannerBgColor.value = data.bg_color || '#ff5a1f'
+            bannerBgColor.value = data.bg_color || '#ffffff'
             bannerTextColor.value = data.text_color || '#ffffff'
             bannerActive.value = data.is_active || false
         }
@@ -1416,13 +1366,13 @@ async function loadBannerSettings() {
 
 async function handleSaveBanner() {
     bannerLoading.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const { data: existing } = await client.from('banners').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
         const payload = {
             message: bannerMessage.value.trim(),
             link: bannerLink.value.trim(),
-            bg_color: bannerBgColor.value || '#ff5a1f',
+            bg_color: bannerBgColor.value || '#ffffff',
             text_color: bannerTextColor.value || '#ffffff',
             is_active: bannerActive.value,
             updated_at: new Date().toISOString()
@@ -1445,7 +1395,7 @@ async function handleSaveBanner() {
 
 // ── Poll Functions ─────────────────────────────────────────────────────────────
 async function loadExistingPolls() {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const { data } = await client.from('polls').select('id, question, options, is_active, created_at').order('created_at', { ascending: false })
         existingPolls.value = (data || []).map((p: any) => ({
@@ -1493,7 +1443,7 @@ async function handleCreatePoll() {
         return
     }
     pollLoading.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         if (pollActive.value) {
             await client.from('polls').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', 0)
@@ -1518,7 +1468,7 @@ async function handleCreatePoll() {
 }
 
 async function handleTogglePoll(poll: any) {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const newActive = !poll.is_active
         if (newActive) {
@@ -1534,7 +1484,7 @@ async function handleTogglePoll(poll: any) {
 
 async function handleDeletePoll(poll: any) {
     if (!confirm(`Delete poll "${poll.question}"?`)) return
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         await client.from('poll_votes').delete().eq('poll_id', poll.id)
         await client.from('polls').delete().eq('id', poll.id)
@@ -1546,7 +1496,7 @@ async function handleDeletePoll(poll: any) {
 }
 
 async function handleNotifyPoll(poll: any) {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         await client.from('notifications').insert({
             title: 'New Poll',
@@ -1563,7 +1513,7 @@ async function handleNotifyPoll(poll: any) {
 
 // ── Suggestions Functions ──────────────────────────────────────────────────────
 async function loadExistingSuggestions() {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     suggestionsLoading.value = true
     try {
         const { data, error } = await client
@@ -1598,7 +1548,7 @@ async function handleCreateSuggestion() {
     }
     
     suggestionCreating.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     
     try {
         // If activating, deactivate all others first
@@ -1639,7 +1589,7 @@ async function handleCreateSuggestion() {
 }
 
 async function toggleSuggestionActive(id: number, newActive: boolean) {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         // If activating, deactivate all others first
         if (newActive) {
@@ -1669,7 +1619,7 @@ async function viewSuggestionResponses(id: number) {
     loadingResponses.value = true
     suggestionResponses.value = []
     
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const { data, error } = await client
             .from('suggestion_responses')
@@ -1690,7 +1640,7 @@ async function viewSuggestionResponses(id: number) {
 async function deleteSuggestion(id: number) {
     if (!confirm('Delete this suggestion and all its responses?')) return
     
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         // Delete responses first
         await client.from('suggestion_responses').delete().eq('suggestion_id', id)
@@ -1708,7 +1658,7 @@ async function deleteSuggestion(id: number) {
 
 // ── Moderation Functions ───────────────────────────────────────────────────────
 async function loadModerationData() {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     modLoading.value = true
     try {
         const { data: settingRow } = await client
@@ -1740,7 +1690,7 @@ async function loadModerationData() {
 
 async function handleSaveBannedWords() {
     bannedWordsLoading.value = true
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         const wordList = bannedWordsText.value
             .split('\n')
@@ -1773,7 +1723,7 @@ function handleLoadPresetBannedWords() {
 }
 
 async function handleToggleHideComment(comment: any) {
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     const newHidden = comment.is_hidden ? 0 : 1
     try {
         await client
@@ -1789,7 +1739,7 @@ async function handleToggleHideComment(comment: any) {
 
 async function handleDeleteComment(comment: any) {
     if (!confirm('Permanently delete this comment?')) return
-    const client = supabase || await getSupabaseClient()
+    const client = sync || await getSyncClient()
     try {
         await client.from('movora_comments').delete().eq('id', comment.id)
         modComments.value = modComments.value.filter(c => c.id !== comment.id)
@@ -1817,8 +1767,8 @@ const filteredModComments = computed(() => {
 })
 
 onMounted(() => {
-    getSupabaseClient().then(client => {
-        supabase = client
+    getSyncClient().then(client => {
+        sync = client
         loadBannerSettings()
         loadExistingPolls()
         loadExistingSuggestions()
@@ -1839,7 +1789,7 @@ watch(activeTab, (tab) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0b0a08;
+    background: var(--ink-900);
     color: #e8e1d3;
     font-family: 'General Sans', system-ui, sans-serif;
     position: relative;
@@ -1851,7 +1801,7 @@ watch(activeTab, (tab) => {
     width: 500px;
     height: 500px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 90, 31, 0.3) 0%, rgba(11, 10, 8, 0) 70%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(11, 10, 8, 0) 70%);
     pointer-events: none;
     filter: blur(60px);
 }
@@ -1867,7 +1817,7 @@ watch(activeTab, (tab) => {
     backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(245, 239, 228, 0.08);
     border-radius: 14px;
-    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255, 90, 31, 0.08);
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255, 255, 255, 0.08);
     z-index: 10;
 }
 
@@ -1912,14 +1862,14 @@ watch(activeTab, (tab) => {
 
 .admin-page__tab:hover {
     background: rgba(245, 239, 228, 0.06);
-    border-color: rgba(255, 90, 31, 0.3);
+    border-color: rgba(255, 255, 255, 0.3);
     color: #e8e1d3;
 }
 
 .admin-page__tab.is-active {
-    background: rgba(255, 90, 31, 0.12);
-    border-color: #ff5a1f;
-    color: #ff5a1f;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: #ffffff;
+    color: #ffffff;
 }
 
 .admin-page__tab-icon {
@@ -1970,15 +1920,15 @@ watch(activeTab, (tab) => {
 
 .admin-page__input:focus,
 .admin-page__select:focus {
-    border-color: #ff5a1f;
-    box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.15);
+    border-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
     background: rgba(245, 239, 228, 0.05);
 }
 
 .admin-page__btn {
     width: 100%;
     padding: 0.875rem;
-    background: #ff5a1f;
+    background: #ffffff;
     color: #0b0a08;
     border: none;
     border-radius: 8px;
@@ -1990,11 +1940,11 @@ watch(activeTab, (tab) => {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    box-shadow: 0 4px 12px rgba(255, 90, 31, 0.25);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.25);
     font-family: inherit;
 }
 
-.admin-page__btn:hover { background: #e84817; box-shadow: 0 6px 16px rgba(255, 90, 31, 0.4); transform: translateY(-1px); }
+.admin-page__btn:hover { background: #ffffff; box-shadow: 0 6px 16px rgba(255, 255, 255, 0.4); transform: translateY(-1px); }
 .admin-page__btn:active { transform: translateY(0); }
 .admin-page__btn:disabled { background: #8a8270; color: #0b0a08; cursor: not-allowed; box-shadow: none; }
 .admin-page__btn--sm { width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; box-shadow: none; }
@@ -2130,7 +2080,7 @@ watch(activeTab, (tab) => {
 
 .admin-page__server-row:last-child { border-bottom: none; }
 .admin-page__server-row strong { color: #e8e1d3; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; }
-.admin-page__server-row span:first-child { color: #ff5a1f; }
+.admin-page__server-row span:first-child { color: #ffffff; }
 
 .admin-page__section-divider {
     height: 1px;
@@ -2143,8 +2093,8 @@ watch(activeTab, (tab) => {
     align-items: flex-start;
     justify-content: space-between;
     gap: 1.5rem;
-    background: rgba(255, 90, 31, 0.06);
-    border: 1px solid rgba(255, 90, 31, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 10px;
     padding: 1.25rem 1.5rem;
 }
@@ -2373,7 +2323,7 @@ watch(activeTab, (tab) => {
 
 .admin-page__poll-bar-fill {
     height: 100%;
-    background: #ff5a1f;
+    background: #ffffff;
     border-radius: 3px;
     transition: width 0.3s ease;
 }
@@ -2435,14 +2385,14 @@ watch(activeTab, (tab) => {
     margin-top: 0.4rem;
     padding-top: 0.6rem;
     font-weight: 700;
-    color: #ff5a1f;
+    color: #ffffff;
     font-size: 1rem;
 }
 
 .admin-page__btn--donation {
     margin-top: 1rem;
     width: 100%;
-    background: #ff5a1f;
+    background: #ffffff;
     color: #fff;
     border: none;
 }
@@ -2502,7 +2452,7 @@ watch(activeTab, (tab) => {
 }
 
 .admin-page__toggle-input:checked + .admin-page__toggle-track {
-    background: #ff5a1f;
+    background: #ffffff;
 }
 
 .admin-page__toggle-knob {
@@ -2560,8 +2510,8 @@ watch(activeTab, (tab) => {
     cursor: not-allowed;
 }
 .admin-page__reorder-btn:hover:not(:disabled) {
-    background: rgba(255, 90, 31, 0.2);
-    color: #ff5a1f;
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
 }
 .admin-page__reorder-idx {
     font-family: 'JetBrains Mono', monospace;

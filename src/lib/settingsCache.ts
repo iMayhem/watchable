@@ -1,10 +1,10 @@
-import { getSupabaseClient } from './supabase';
+import { getSyncClient } from './syncClient';
 
 const cache = new Map<string, { value: string | null; timestamp: number }>();
 const TTL_MS = 5 * 60 * 1000; // 5 minute cache TTL
 
 /**
- * Cached getter for app_settings table in Supabase to eliminate repeated DB round-trips.
+ * Cached getter for app_settings table in Sync to eliminate repeated DB round-trips.
  */
 export async function getCachedAppSetting(key: string): Promise<string | null> {
     const cached = cache.get(key);
@@ -14,7 +14,7 @@ export async function getCachedAppSetting(key: string): Promise<string | null> {
     }
 
     try {
-        const client = await getSupabaseClient();
+        const client = await getSyncClient();
         const { data, error } = await client
             .from('app_settings')
             .select('value')

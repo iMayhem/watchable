@@ -48,12 +48,6 @@
 
             <div class="poster-card__caption">
                 <h4 class="poster-card__title">{{ title }}</h4>
-                <p
-                    v-if="originalTitle && originalTitle !== title"
-                    class="poster-card__original-title"
-                >
-                    {{ originalTitle }}
-                </p>
                 <div class="poster-card__meta meta">
                     <span v-if="year">{{ year }}</span>
                     <span v-if="year && genreLabel" class="poster-card__dot">·</span>
@@ -150,16 +144,12 @@ export default defineComponent({
         const imageUrl = computed(() => {
             const path = effectivePosterPath.value;
             if (!path) return '';
-            const isAnilist = /anilist\.co/i.test(path);
-            const isAnime = props.type === 'anime' || isAnilist;
             const size =
-                props.size === 'lg'
-                    ? 'large'
+                    props.size === 'lg'
+                    ? 'medium'
                     : props.size === 'sm'
                       ? 'small'
-                      : isAnime
-                        ? 'medium'
-                        : 'medium';
+                      : 'small';
             const resolved = useWebImage(path, size);
             if (posterFallback.value) {
                 return path.split('?')[0];
@@ -351,6 +341,7 @@ export default defineComponent({
     position: relative;
     display: flex;
     flex-direction: column;
+    container-type: inline-size;
     --peek-lift: 0;
     transition: transform var(--dur-base) var(--ease-out);
     @include gpu-accelerate;
@@ -382,7 +373,7 @@ export default defineComponent({
         .is-peeking & {
             box-shadow:
                 0 20px 46px rgba(0, 0, 0, 0.55),
-                0 0 0 1px rgba(255, 90, 31, 0.25);
+                0 0 0 1px rgba(255, 255, 255, 0.25);
         }
     }
 
@@ -419,15 +410,9 @@ export default defineComponent({
         position: absolute;
         inset: 0;
         pointer-events: none;
-        background: linear-gradient(
-            180deg,
-            transparent 55%,
-            rgba(11, 10, 8, 0.85) 100%
-        );
+        background: transparent;
         opacity: 0;
-        transition: opacity var(--dur-base) var(--ease-out);
-
-        .is-peeking & { opacity: 1; }
+        transition: none;
     }
 
     // ── Badges ────────────────────────────────────────────────────────────
@@ -446,14 +431,14 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
-        padding: 0.2rem 0.5rem;
-        background: rgba(11, 10, 8, 0.7);
-        backdrop-filter: blur(6px);
+        padding: 0;
+        background: transparent;
+        backdrop-filter: none;
         color: var(--gold-leaf);
         font-family: var(--font-mono);
         font-size: 0.6875rem;
         font-weight: 600;
-        border-radius: var(--r-sm);
+        text-shadow: 0 1px 4px #000;
 
         svg {
             width: 12px;
@@ -526,8 +511,8 @@ export default defineComponent({
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--bone-200);
-        background: rgba(255, 90, 31, 0.1);
-        border: 1px solid rgba(255, 90, 31, 0.22);
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.22);
         border-radius: var(--r-pill);
         padding: 0.12rem 0.45rem;
         line-height: 1.35;
@@ -595,8 +580,8 @@ export default defineComponent({
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
+        width: clamp(24px, 16cqi, 38px);
+        height: clamp(24px, 16cqi, 38px);
         background: rgba(11, 10, 8, 0.72);
         backdrop-filter: blur(10px);
         border: 1px solid var(--rule-strong);
@@ -611,14 +596,14 @@ export default defineComponent({
             transform var(--dur-fast) var(--ease-spring),
             box-shadow var(--dur-fast) var(--ease-out);
 
-        svg { width: 16px; height: 16px; }
+        svg { width: clamp(12px, 7cqi, 16px); height: clamp(12px, 7cqi, 16px); }
 
         &:hover {
             background: var(--ember);
             color: var(--ink-900);
             border-color: var(--ember);
             transform: translateY(-2px) scale(1.1);
-            box-shadow: 0 8px 18px rgba(255, 90, 31, 0.4);
+            box-shadow: 0 8px 18px rgba(255, 255, 255, 0.4);
         }
 
         &:active {
@@ -629,14 +614,14 @@ export default defineComponent({
             background: var(--ember);
             color: var(--ink-900);
             border-color: var(--ember);
-            box-shadow: 0 8px 18px rgba(255, 90, 31, 0.35);
+            box-shadow: 0 8px 18px rgba(255, 255, 255, 0.35);
             animation: glow-pulse 2s ease-in-out infinite;
 
             &:hover {
                 background: var(--ember-600);
                 border-color: var(--ember-600);
                 animation: none;
-                box-shadow: 0 12px 24px rgba(255, 90, 31, 0.5);
+                box-shadow: 0 12px 24px rgba(255, 255, 255, 0.5);
             }
         }
 
@@ -649,10 +634,9 @@ export default defineComponent({
 
     // ── Size variants ─────────────────────────────────────────────────────
     &--sm &__title   { font-size: var(--fs-xs); }
-    &--sm &__peek-btn { width: 30px; height: 30px; svg { width: 14px; height: 14px; } }
 
     &--lg &__title   { font-size: var(--fs-base); }
-    &--lg &__peek-btn { width: 42px; height: 42px; svg { width: 18px; height: 18px; } }
+    &--lg &__peek-btn { width: clamp(38px, 16cqi, 44px); height: clamp(38px, 16cqi, 44px); svg { width: clamp(16px, 7cqi, 19px); height: clamp(16px, 7cqi, 19px); } }
 }
 
 // Reduced motion — no scale, snap to end-states

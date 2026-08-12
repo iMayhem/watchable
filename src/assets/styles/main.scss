@@ -8,4 +8,135 @@
 @use 'typography';
 @use 'utilities';
 @use 'animations';
+@use 'glass';
 @use 'mobile';
+
+// One interaction language across every page.
+a, button, [role='button'], input, select, textarea { touch-action: manipulation; }
+button, a { -webkit-tap-highlight-color: transparent; }
+
+// Dark interaction language: buttons stay black; orange is reserved for icons,
+// active indicators, and small status accents.
+button,
+input[type='button'],
+input[type='submit'],
+input[type='reset'],
+[role='button'] {
+  background: #050505 !important;
+  border-color: transparent !important;
+  color: var(--bone-50) !important;
+
+  &:hover:not(:disabled),
+  &:focus-visible:not(:disabled) {
+    background: #111 !important;
+  }
+
+  svg { color: var(--ember) !important; }
+}
+
+// Neutralize legacy warm translucent surfaces in dropdowns, panels, drawers,
+// dialogs, menus, and cards. Artwork/background images remain untouched.
+.app-stage {
+  [class*='dropdown'],
+  [class*='panel'],
+  [class*='drawer'],
+  [class*='dialog'],
+  [class*='modal'],
+  [class*='menu'],
+  [class*='popover'],
+  .glass-pane {
+    background-color: #090909 !important;
+  }
+}
+
+// Ratings on poster artwork are text badges, never a rectangular strip.
+.poster-card__rating,
+.wl-card__rating,
+.poster-card__badges,
+.wl-card__badges {
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+// Keep the artwork badges above the generic dark-surface rules completely
+// transparent, including when they are nested in the app stage.
+.app-stage .poster-card__badges,
+.app-stage .poster-card__rating,
+.app-stage .wl-card__badges,
+.app-stage .wl-card__rating {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+// Navigation back controls sit on the page chrome; they must not render as a
+// full rectangular button behind the arrow.
+.watch-stage__back {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--bone-50) !important;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(255, 255, 255, 0.08) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+  }
+}
+
+// Back arrows are chrome, not filled controls. Keep every state transparent.
+.watch-stage__back,
+.watch-stage__back:hover,
+.watch-stage__back:active,
+.watch-stage__back:focus,
+.watch-stage__back:focus-visible {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+// Some routes expose the same navigation control with only an accessible
+// label. Keep that fallback transparent too, so the generic button theme can
+// never paint a dark square behind a back arrow.
+button[aria-label^='Back'],
+a[aria-label^='Back'],
+.back-btn {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+// The player chrome must not create a dark horizontal band behind the back
+// control. The video itself already supplies the black canvas.
+.watch-stage__top-gradient {
+  background: transparent !important;
+  opacity: 0 !important;
+}
+
+.watch-stage__chrome,
+.watch-stage__chrome-inner {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.watch-stage__top-overlay,
+.watch-stage__top-bar {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

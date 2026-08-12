@@ -93,7 +93,7 @@ export default defineComponent({
     }
 
     &:not(:disabled):active {
-        transform: translateY(1px) scale(0.98);
+        transform: translateY(1px) scale(0.985);
     }
 
     // ── Sizes ────────────────────────────────────────────────────────────
@@ -129,50 +129,50 @@ export default defineComponent({
 
     // ── Variants ─────────────────────────────────────────────────────────
     &--primary {
-        background: var(--ember);
-        color: var(--ink-900);
-        box-shadow: 0 8px 24px rgba(255, 90, 31, 0.28);
+        background: #000;
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
 
         &:not(:disabled):hover {
-            background: var(--ember-600);
-            box-shadow: 0 12px 32px rgba(255, 90, 31, 0.38);
+            background: #111;
+            box-shadow: 0 9px 24px rgba(0, 0, 0, 0.38);
             transform: translateY(-1px);
         }
     }
 
     &--secondary {
-        background: var(--bone-50);
-        color: var(--ink-900);
+        background: #000;
+        color: #fff;
 
         &:not(:disabled):hover {
-            background: var(--bone-100);
+            background: #111;
             transform: translateY(-1px);
         }
     }
 
     &--ghost {
-        background: transparent;
-        color: var(--bone-50);
+        background: #000;
+        color: #fff;
 
         &:not(:disabled):hover {
-            background: var(--surface-tint);
+            background: #111;
         }
     }
 
     &--outline {
-        background: transparent;
-        color: var(--bone-50);
-        box-shadow: inset 0 0 0 1px var(--rule-strong);
+        background: #000;
+        color: #fff;
+        box-shadow: none;
 
         &:not(:disabled):hover {
-            background: var(--surface-tint);
-            box-shadow: inset 0 0 0 1px var(--bone-400);
+            background: #111;
+            box-shadow: none;
         }
     }
 
     &--danger {
-        background: var(--danger);
-        color: var(--bone-50);
+        background: #000;
+        color: #fff;
 
         &:not(:disabled):hover {
             filter: brightness(1.08);
@@ -190,6 +190,8 @@ export default defineComponent({
         &.is-hidden {
             opacity: 0;
         }
+
+        :deep(svg) { color: var(--ember); }
     }
 
     &__spinner {

@@ -78,7 +78,7 @@
                         <div v-if="!activeStreamUrl && !loading && !error" class="player-frame__overlay">
                             <p class="eyebrow">Search a title</p>
                             <h3>Scraper Proxy</h3>
-                            <p class="meta">proxy.moovie.fun/api/scrape</p>
+                            <p class="meta">hahaevilcraft.site/api/scrape</p>
                         </div>
 
                         <div v-if="error && !loading" class="player-frame__overlay player-frame__overlay--error">
@@ -170,7 +170,7 @@ import { useRouter } from 'vue-router';
 import Plyr from 'plyr';
 import 'plyr/dist/plyr.css';
 
-const API_BASE = 'https://proxy.moovie.fun';
+const API_BASE = 'https://hahaevilcraft.site';
 
 const LOG = '[ScraperTest]';
 
@@ -533,13 +533,25 @@ export default defineComponent({
                 loadingLabel.value = LOADING_MESSAGES[i];
             }, 1800);
 
-            const params: Record<string, string> = { title: q };
+            const requestedProviders = Array.from(selectedProviders.value);
+            if (!requestedProviders.length) {
+                error.value = 'Select at least one provider to test';
+                loading.value = false;
+                if (msgInterval) clearInterval(msgInterval);
+                msgInterval = null;
+                return;
+            }
+
+            const params: Record<string, string> = {
+                title: q,
+                providers: requestedProviders.join(','),
+            };
             if (season.value > 0) params.season = String(season.value);
             if (episode.value > 0) params.episode = String(episode.value);
             if (fast.value) params.fast = '1';
 
             const qs = new URLSearchParams(params).toString();
-            const url = `${API_BASE}/api/scrape?${qs}`;
+            const url = `${API_BASE}/api/search?${qs}`;
 
             log('scrape:request', {
                 url,
@@ -575,7 +587,22 @@ export default defineComponent({
                     throw new Error(`HTTP ${resp.status}: ${body.slice(0, 200)}`);
                 }
 
-                const rawData = await resp.json();
+                const payload = await resp.json();
+                const rawData: Record<string, string[]> = {};
+                for (const item of payload.results || []) {
+                    const displayName = item.providerName || item.provider || 'Unknown';
+                    const requestedName = requestedProviders.find((name) => {
+                        const left = name.trim().toLowerCase();
+                        const right = displayName.trim().toLowerCase();
+                        return left === right || left.replace(/\s+/g, '') === right.replace(/\s+/g, '');
+                    });
+                    const resultName = requestedName || displayName;
+                    const urls = (item.streams || [])
+                        .map((stream: any) => stream.proxyUrl || stream.url || stream.playlist)
+                        .filter(Boolean)
+                        .map((streamUrl: string) => streamUrl.startsWith('/') ? `${API_BASE}${streamUrl}` : streamUrl);
+                    if (urls.length) rawData[resultName] = urls;
+                }
                 log('scrape:response-parsed', {
                     elapsed,
                     providerCount: Object.keys(rawData).length,
@@ -584,6 +611,7 @@ export default defineComponent({
                         name,
                         count: (urls as any[]).length,
                     })),
+                    backendErrors: payload.errors || [],
                 });
 
                 // Deep inspect each stream URL
@@ -716,8 +744,9 @@ export default defineComponent({
         position: sticky;
         top: 0;
         z-index: var(--z-header);
-        background: linear-gradient(180deg, rgba(11,10,8,0.95), rgba(11,10,8,0.6) 70%, rgba(11,10,8,0));
-        backdrop-filter: blur(14px);
+        background: transparent;
+        background-color: transparent;
+        backdrop-filter: none;
 
         @media (min-width: 1024px) {
             position: fixed;
@@ -762,7 +791,9 @@ export default defineComponent({
         height: 40px;
         flex-shrink: 0;
         border-radius: 50%;
-        background: var(--surface-tint);
+        background: transparent;
+        background-color: transparent;
+        box-shadow: none;
         cursor: pointer;
         color: var(--bone-100);
         transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
@@ -820,8 +851,8 @@ export default defineComponent({
     gap: 0.4rem;
     padding: 0.35rem 0.75rem;
     border-radius: var(--r-pill);
-    background: rgba(255, 90, 31, 0.1);
-    border: 1px solid rgba(255, 90, 31, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     font-size: var(--fs-xs);
     font-family: var(--font-mono);
     &__time { color: var(--ember); }
@@ -967,7 +998,7 @@ export default defineComponent({
     &__bloom {
         position: absolute;
         inset: -10% -5%;
-        background: radial-gradient(ellipse at center, rgba(255,90,31,0.08) 0%, transparent 70%);
+        background: radial-gradient(ellipse at center, rgba(255, 255, 255,0.08) 0%, transparent 70%);
         filter: blur(60px);
         opacity: 0.5;
         z-index: -1;
@@ -1147,7 +1178,7 @@ export default defineComponent({
 
     &.is-selected {
         border-color: var(--ember);
-        background: rgba(255, 90, 31, 0.06);
+        background: rgba(255, 255, 255, 0.06);
     }
 
     &.has-result {
@@ -1173,7 +1204,7 @@ export default defineComponent({
 
     &.is-selected &__dot {
         border-color: var(--ember);
-        background: rgba(255, 90, 31, 0.15);
+        background: rgba(255, 255, 255, 0.15);
         color: var(--ember);
     }
 
@@ -1264,8 +1295,8 @@ export default defineComponent({
         transition: all var(--dur-fast);
         flex-shrink: 0;
 
-        &:hover { background: rgba(255,90,31,0.1); border-color: var(--ember); color: var(--ember); }
-        &.is-active { background: rgba(255,90,31,0.15); border-color: var(--ember); color: var(--ember); }
+        &:hover { background: rgba(255, 255, 255,0.1); border-color: var(--ember); color: var(--ember); }
+        &.is-active { background: rgba(255, 255, 255,0.15); border-color: var(--ember); color: var(--ember); }
     }
 
     &__url {
@@ -1319,7 +1350,7 @@ pre {
 
 /* ── Plyr Custom Styling & Sleek Overrides ── */
 .player-frame__art {
-    --plyr-color-main: var(--ember, #ff5a1f);
+    --plyr-color-main: var(--ember, #ffffff);
     --plyr-video-background: #000;
     --plyr-menu-background: rgba(21, 20, 26, 0.95);
     --plyr-menu-color: rgba(245, 242, 235, 0.8);
@@ -1373,13 +1404,13 @@ pre {
 
     /* Style Plyr buttons to be warm/orange desaturated */
     :deep(.plyr__control) {
-        color: rgba(255, 90, 31, 0.8) !important;
+        color: rgba(255, 255, 255, 0.8) !important;
         transition: color 0.2s ease, transform 0.15s ease !important;
 
         &:hover, &[aria-expanded="true"] {
-            background: rgba(255, 90, 31, 0.1) !important;
+            background: rgba(255, 255, 255, 0.1) !important;
             color: #ff723f !important;
-            filter: drop-shadow(0 0 4px rgba(255, 90, 31, 0.6)) !important;
+            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6)) !important;
         }
     }
 

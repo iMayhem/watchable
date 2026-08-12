@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '../lib/supabase';
+import { getSyncClient } from '../lib/syncClient';
 
 export async function logDownload(
     tmdbId: string | number,
@@ -7,8 +7,8 @@ export async function logDownload(
     title: string
 ) {
     try {
-        const supabase = await getSupabaseClient();
-        await supabase.from('download_logs').insert([{
+        const sync = await getSyncClient();
+        await sync.from('download_logs').insert([{
             tmdb_id: String(tmdbId),
             type,
             quality,
@@ -16,6 +16,6 @@ export async function logDownload(
             created_at: new Date().toISOString()
         }]);
     } catch (e) {
-        console.error('Failed to log download to Supabase:', e);
+        console.error('Failed to log download to Sync:', e);
     }
 }

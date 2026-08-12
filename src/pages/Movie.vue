@@ -19,9 +19,7 @@
                     :adult="movie ? movie.adult : false"
                     :play-route="playRoute"
                     :play-label="playLabel"
-                    :show-trailer="hasTrailer"
                     :loading="loading"
-                    @trailer="openTrailer"
                 />
             </section>
 
@@ -55,12 +53,6 @@
 
         <SiteFooter />
 
-        <TrailerDialog
-            v-model="trailerOpen"
-            :videos="trailers"
-            :title="movie ? movie.title : 'Trailers'"
-            @close="closeTrailer"
-        />
     </div>
 </template>
 
@@ -74,9 +66,7 @@ import MetaBar, { MetaEntry } from '../components/detail/MetaBar.vue';
 import DropCapSynopsis from '../components/detail/DropCapSynopsis.vue';
 import StatsBlock, { StatEntry } from '../components/detail/StatsBlock.vue';
 import CastGrid from '../components/detail/CastGrid.vue';
-import TrailerDialog from '../components/detail/TrailerDialog.vue';
 import { useMovies, MovieDetails, Cast, Crew } from '../composables/useMovies';
-import { fetchTrailerVideos, type TrailerVideo } from '../composables/useTrailer';
 import { useSeo } from '../composables/useSeo';
 import { addViewedItem } from '../composables/useHistory';
 import { getLastWatchedMetaData } from '../composables/useStream';
@@ -94,7 +84,6 @@ export default defineComponent({
         DropCapSynopsis,
         StatsBlock,
         CastGrid,
-        TrailerDialog
     },
     setup() {
         const route = useRoute();
@@ -106,8 +95,6 @@ export default defineComponent({
         const crew = ref<Crew[]>([]);
         const loading = ref(true);
 
-        const trailerOpen = ref(false);
-        const trailers = ref<TrailerVideo[]>([]);
 
         const genreNames = computed(() => (movie.value?.genres ?? []).map(g => g.name));
         const genreIds = computed(() => (movie.value?.genres ?? []).map(g => g.id));
@@ -127,7 +114,6 @@ export default defineComponent({
             return g ? `${g} · Feature` : 'Feature';
         });
 
-        const hasTrailer = computed(() => trailers.value.length > 0);
 
         const runtimeLabel = computed(() => {
             const m = movie.value?.runtime ?? 0;
@@ -220,23 +206,11 @@ export default defineComponent({
             return getLastWatchedMetaData(id) ? 'Resume' : 'Play';
         });
 
-        const openTrailer = () => {
-            if (trailers.value.length) {
-                trailerOpen.value = true;
-            } else if (movie.value?.title) {
-                window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(movie.value.title + ' official trailer')}`, '_blank');
-            }
-        };
-        const closeTrailer = () => {
-            trailerOpen.value = false;
-        };
-
         const loadMovie = async (id: string) => {
             loading.value = true;
             movie.value = null;
             cast.value = [];
             crew.value = [];
-            trailers.value = [];
 
             try {
                 // Fetch the core movie details first to unblock the UI instantly
@@ -284,13 +258,9 @@ export default defineComponent({
                 loading.value = false;
 
                 // Load secondary non-essential metadata in the background
-                Promise.all([
-                    fetchMovieCredits(id),
-                    fetchTrailerVideos(id, 'movie')
-                ]).then(([credits, videos]) => {
+                fetchMovieCredits(id).then((credits) => {
                     cast.value = credits.data.value?.cast ?? [];
                     crew.value = credits.data.value?.crew ?? [];
-                    trailers.value = videos ?? [];
                 }).catch(err => {
                     console.error('Failed to load secondary movie data in background:', err);
                 });
@@ -332,15 +302,10 @@ export default defineComponent({
             genreNames,
             genreIds,
             mastheadEyebrow,
-            hasTrailer,
-            trailerOpen,
-            trailers,
             metaItems,
             statsItems,
             playRoute,
             playLabel,
-            openTrailer,
-            closeTrailer
         };
     }
 });

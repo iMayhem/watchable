@@ -180,6 +180,25 @@
                         <div v-if="s.is_active" style="display:inline-block;font-size:0.55rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6ba368;background:rgba(107,163,104,0.12);padding:1px 6px;border-radius:999px;margin-bottom:6px">active</div>
                         <div v-else class="notification-bell__poll-inactive-badge">closed</div>
                         <div style="font-size:0.65rem;color:var(--bone-500)">{{ new Date(s.created_at).toLocaleDateString() }}</div>
+                        <button
+                            type="button"
+                            class="notification-bell__responses-toggle"
+                            @click="toggleResponses(s.id)"
+                        >
+                            {{ expandedSuggestionId === s.id ? 'Hide responses' : `Show responses (${(suggestionResponsesMap[s.id] || []).length})` }}
+                        </button>
+                        <div v-if="expandedSuggestionId === s.id" class="notification-bell__responses">
+                            <div v-if="(suggestionResponsesMap[s.id] || []).length === 0" class="notification-bell__responses-empty">
+                                No responses yet — be the first!
+                            </div>
+                            <div v-for="r in suggestionResponsesMap[s.id] || []" :key="r.id" class="notification-bell__response">
+                                <div class="notification-bell__response-head">
+                                    <span class="notification-bell__response-user">{{ r.user_fingerprint || 'Anonymous' }}</span>
+                                    <span class="notification-bell__response-time">{{ timeAgo(r.created_at) }}</span>
+                                </div>
+                                <div class="notification-bell__response-text">{{ r.response_text }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -210,6 +229,8 @@ const suggestionText = ref('')
 const suggestionSubmitted = ref(false)
 const showOldSuggestions = ref(false)
 const oldSuggestions = ref<any[]>([])
+const expandedSuggestionId = ref<number | null>(null)
+const suggestionResponsesMap = ref<Record<number, any[]>>({})
 
 const pollData = computed(() => {
     if (!activePoll.value) return null
@@ -279,14 +300,29 @@ async function openOldSuggestions() {
     try {
         const { getSupabaseClient } = await import('../../lib/supabase')
         const supabase = await getSupabaseClient()
-        const { data } = await supabase
-            .from('suggestions')
-            .select('*')
-            .order('created_at', { ascending: false })
-        oldSuggestions.value = data || []
+        const [sugRes, respRes] = await Promise.all([
+            supabase
+                .from('suggestions')
+                .select('*')
+                .order('created_at', { ascending: false }),
+            supabase
+                .from('suggestion_responses')
+                .select('*')
+        ])
+        oldSuggestions.value = sugRes.data || []
+        const map: Record<number, any[]> = {}
+        for (const r of (respRes.data || [])) {
+            if (!map[r.suggestion_id]) map[r.suggestion_id] = []
+            map[r.suggestion_id].push(r)
+        }
+        suggestionResponsesMap.value = map
     } catch (e) {
         oldSuggestions.value = []
     }
+}
+
+function toggleResponses(id: number) {
+    expandedSuggestionId.value = expandedSuggestionId.value === id ? null : id
 }
 
 async function openOldPolls() {
@@ -850,5 +886,83 @@ onBeforeUnmount(() => {
     color: #6ba368;
     font-weight: 600;
     padding: var(--s-1) 0;
+}
+
+/* Public responses */
+.notification-bell__responses-toggle {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 4px 0;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-sm);
+    color: var(--bone-400);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+
+.notification-bell__responses-toggle:hover {
+    color: var(--bone-50);
+    border-color: var(--rule-strong);
+}
+
+.notification-bell__responses {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.notification-bell__responses-empty {
+    font-size: var(--fs-xs);
+    color: var(--bone-500);
+    text-align: center;
+    padding: 6px 0;
+}
+
+.notification-bell__response {
+    background: var(--ink-700);
+    border-radius: var(--r-sm);
+    padding: 6px 8px;
+}
+
+.notification-bell__response-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.notification-bell__response-user {
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: #6ba368;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.notification-bell__response-time {
+    font-size: 0.55rem;
+    color: var(--bone-500);
+    flex-shrink: 0;
+}
+
+.notification-bell__response-text {
+    font-size: var(--fs-xs);
+    color: var(--bone-100);
+    line-height: 1.4;
+    word-break: break-word;
 }
 </style>

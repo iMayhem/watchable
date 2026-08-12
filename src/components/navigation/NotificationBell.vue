@@ -237,11 +237,6 @@ const pollData = computed(() => {
     }
 })
 
-const hasOldPolls = computed(() => {
-    const old = allPolls.value.filter(p => !p.is_active || p.id !== activePoll.value?.id)
-    return old.length > 0
-})
-
 const allPollsData = computed(() => {
     return allPolls.value.map(p => ({
         id: p.id,

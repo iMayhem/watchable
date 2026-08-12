@@ -7,6 +7,21 @@
         @touchstart.passive="showControls"
         @click="showControls"
     >
+        <!--
+            Mouse-capture layer: when controls are hidden the iframe swallows
+            all pointer events and @mousemove on the stage never fires.
+            This transparent div sits above the iframe only while controls are
+            hidden, catches the first pointermove, shows controls, then gets
+            pointer-events: none again so the iframe is usable.
+        -->
+        <div
+            v-if="!controlsVisible"
+            class="watch-stage__capture"
+            @pointermove.passive="showControls"
+            @touchstart.passive="showControls"
+            @click="showControls"
+        />
+
         <!-- Full-screen video layer -->
         <div class="watch-stage__video-layer">
             <StreamFrame
@@ -1293,6 +1308,15 @@ export default defineComponent({
         }
     }
 
+    // ── Mouse-capture layer (re-shows controls when iframe has focus) ────────
+    &__capture {
+        position: fixed;
+        inset: 0;
+        z-index: 10; // above iframe, below top-overlay (z-index: 50)
+        cursor: none;
+        background: transparent;
+    }
+
     // ── Video layer
     &__video-layer {
         position: absolute;
@@ -1334,7 +1358,7 @@ export default defineComponent({
         z-index: 50;
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.25s ease;
+        transition: opacity 0.15s ease;
     }
 
     &__top-gradient {

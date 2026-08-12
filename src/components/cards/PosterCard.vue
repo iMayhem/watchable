@@ -345,12 +345,15 @@ export default defineComponent({
 </script>
 
 <style lang="scss" scoped>
+@use '../../assets/styles/animations' as *;
+
 .poster-card {
     position: relative;
     display: flex;
     flex-direction: column;
     --peek-lift: 0;
     transition: transform var(--dur-base) var(--ease-out);
+    @include gpu-accelerate;
 
     &.is-peeking {
         z-index: 2;
@@ -600,11 +603,13 @@ export default defineComponent({
         border-radius: 50%;
         color: var(--bone-50);
         cursor: pointer;
+        @include button-press;
         transition:
             background-color var(--dur-fast) var(--ease-out),
             color var(--dur-fast) var(--ease-out),
             border-color var(--dur-fast) var(--ease-out),
-            transform var(--dur-fast) var(--ease-out);
+            transform var(--dur-fast) var(--ease-spring),
+            box-shadow var(--dur-fast) var(--ease-out);
 
         svg { width: 16px; height: 16px; }
 
@@ -612,7 +617,12 @@ export default defineComponent({
             background: var(--ember);
             color: var(--ink-900);
             border-color: var(--ember);
-            transform: scale(1.08);
+            transform: translateY(-2px) scale(1.1);
+            box-shadow: 0 8px 18px rgba(255, 90, 31, 0.4);
+        }
+
+        &:active {
+            transform: translateY(0) scale(0.95);
         }
 
         &--primary {
@@ -620,10 +630,13 @@ export default defineComponent({
             color: var(--ink-900);
             border-color: var(--ember);
             box-shadow: 0 8px 18px rgba(255, 90, 31, 0.35);
+            animation: glow-pulse 2s ease-in-out infinite;
 
             &:hover {
                 background: var(--ember-600);
                 border-color: var(--ember-600);
+                animation: none;
+                box-shadow: 0 12px 24px rgba(255, 90, 31, 0.5);
             }
         }
 
@@ -666,23 +679,7 @@ export default defineComponent({
 }
 
 .poster-card__skeleton-shimmer {
-    position: relative;
-    overflow: hidden;
-    background: var(--ink-750);
-
-    &::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.04),
-            transparent
-        );
-        transform: translateX(-100%);
-        animation: poster-skeleton-shimmer 1.6s infinite ease-in-out;
-    }
+    @include skeleton-shimmer;
 }
 
 @keyframes poster-skeleton-shimmer {

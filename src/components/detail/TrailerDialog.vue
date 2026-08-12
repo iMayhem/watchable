@@ -254,6 +254,8 @@ export default defineComponent({
 </script>
 
 <style lang="scss" scoped>
+@use '../../assets/styles/animations' as *;
+
 .trailer-shell {
     padding: var(--s-2) var(--s-2) var(--s-4);
 
@@ -264,6 +266,8 @@ export default defineComponent({
         max-height: calc(100dvh - var(--s-3));
         display: flex;
         flex-direction: column;
+        @include modal-content;
+        @include gpu-accelerate;
     }
 
     :deep(.lm-dialog__body) {
@@ -321,9 +325,8 @@ export default defineComponent({
         background: rgba(11, 10, 8, 0.72);
         backdrop-filter: blur(8px);
         cursor: pointer;
-        transition:
-            color var(--dur-fast) var(--ease-out),
-            background-color var(--dur-fast) var(--ease-out);
+        @include button-press;
+        animation: fade-in-down var(--dur-base) var(--ease-out) 0.2s both;
 
         svg {
             width: 18px;
@@ -333,6 +336,11 @@ export default defineComponent({
         &:hover {
             color: var(--bone-50);
             background: rgba(255, 90, 31, 0.85);
+            transform: translateY(-2px) scale(1.1);
+        }
+
+        &:active {
+            transform: translateY(0) scale(0.95);
         }
 
         &:focus-visible {
@@ -479,15 +487,17 @@ export default defineComponent({
         color: var(--bone-200);
         background: rgba(245, 239, 228, 0.04);
         border: 1px solid var(--rule);
-        transition:
-            color var(--dur-fast) var(--ease-out),
-            border-color var(--dur-fast) var(--ease-out),
-            background-color var(--dur-fast) var(--ease-out);
+        @include button-press;
 
         &:hover:not(:disabled) {
             color: var(--ember);
             border-color: var(--ember);
             background: rgba(255, 90, 31, 0.08);
+            transform: translateY(-2px) scale(1.08);
+        }
+
+        &:active:not(:disabled) {
+            transform: translateY(0) scale(0.95);
         }
 
         &:disabled {
@@ -530,15 +540,23 @@ export default defineComponent({
         display: grid;
         grid-template-rows: 113px 36px;
         gap: 8px;
-        transition: transform var(--dur-base) var(--ease-out);
+        transition: transform var(--dur-base) var(--ease-spring);
+        @include gpu-accelerate;
 
         &:hover {
-            transform: translateY(-2px);
+            transform: translateY(-4px) scale(1.02);
 
             .trailer-dialog__chip-thumb {
                 box-shadow: 0 0 0 1px var(--bone-300), 0 12px 30px -12px rgba(0,0,0,0.6);
             }
-            img { opacity: 1; transform: scale(1.04); }
+            img { 
+                opacity: 1; 
+                transform: scale(1.06); 
+            }
+        }
+
+        &:active {
+            transform: translateY(-2px) scale(1.01);
         }
 
         &:focus-visible .trailer-dialog__chip-thumb {

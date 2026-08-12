@@ -86,8 +86,11 @@ export default defineComponent({
 </script>
 
 <style lang="scss" scoped>
+@use '../../assets/styles/animations' as *;
+
 .keyart-tile {
     display: block;
+    @include gpu-accelerate;
 
     &__link {
         display: block;
@@ -102,19 +105,17 @@ export default defineComponent({
         overflow: hidden;
         background: var(--ink-700);
         box-shadow: var(--shadow-md);
-        transition:
-            transform var(--dur-base) var(--ease-out),
-            box-shadow var(--dur-base) var(--ease-out);
+        @include card-hover-lift;
     }
 
     &__link:hover &__frame,
     &__link:focus-visible &__frame {
-        transform: translateY(-4px);
-        box-shadow:
-            var(--shadow-lg),
-            0 0 0 1px rgba(255, 90, 31, 0.22);
-
-        .keyart-tile__img { transform: scale(1.04); }
+        .keyart-tile__img { 
+            transform: scale(1.06);
+        }
+        .keyart-tile__scrim {
+            opacity: 0.7;
+        }
     }
 
     &__img {
@@ -126,23 +127,7 @@ export default defineComponent({
     }
 
     &__skeleton-shimmer {
-        position: relative;
-        overflow: hidden;
-        background: var(--ink-750);
-
-        &::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.04),
-                transparent
-            );
-            transform: translateX(-100%);
-            animation: keyart-skeleton-shimmer 1.6s infinite ease-in-out;
-        }
+        @include skeleton-shimmer;
     }
 
     &__placeholder {
@@ -166,6 +151,8 @@ export default defineComponent({
             rgba(11, 10, 8, 0.35) 60%,
             rgba(11, 10, 8, 0.9) 100%
         );
+        opacity: 1;
+        transition: opacity var(--dur-base) var(--ease-out);
     }
 
     &__overlay {
@@ -221,12 +208,6 @@ export default defineComponent({
         .keyart-tile__overlay {
             padding: var(--s-5) var(--s-6);
         }
-    }
-}
-
-@keyframes keyart-skeleton-shimmer {
-    100% {
-        transform: translateX(100%);
     }
 }
 

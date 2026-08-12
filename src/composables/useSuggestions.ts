@@ -50,9 +50,9 @@ export function useSuggestions() {
             const username = getCurrentUser()
             await supabase.from('suggestion_responses').insert({
                 suggestion_id: suggestionId,
-                text: text.trim(),
-                username: username || null,
-                submitted_at: new Date().toISOString()
+                response_text: text.trim(),
+                user_fingerprint: username || null,
+                created_at: new Date().toISOString()
             })
             localStorage.setItem(storageKey, 'true')
             return true

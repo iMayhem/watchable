@@ -349,6 +349,9 @@ const router = createRouter({
 
 const { updateSeo } = useSeo();
 
+// View Transitions API disabled for instant navigation
+const supportsViewTransitions = false;
+
 router.beforeEach((to, from, next) => {
     recordDetailReturnPath(from, to);
     next();

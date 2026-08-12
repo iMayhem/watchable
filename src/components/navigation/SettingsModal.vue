@@ -274,10 +274,16 @@ export default defineComponent({
             background: linear-gradient(135deg, var(--ember) 0%, #ff8a00 100%);
             border: none;
             color: var(--ink-900);
+            box-shadow: 0 4px 14px rgba(255, 90, 31, 0.35);
 
             &:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(255, 90, 31, 0.2);
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(255, 90, 31, 0.5);
+            }
+
+            &:active {
+                transform: translateY(0) scale(0.97);
+                box-shadow: 0 2px 8px rgba(255, 90, 31, 0.3);
             }
         }
     }
@@ -291,11 +297,11 @@ export default defineComponent({
 @keyframes scale-up {
     from {
         opacity: 0;
-        transform: scale(0.96);
+        transform: translateY(16px) scale(0.94);
     }
     to {
         opacity: 1;
-        transform: scale(1);
+        transform: translateY(0) scale(1);
     }
 }
 

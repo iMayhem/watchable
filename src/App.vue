@@ -12,13 +12,19 @@
         <SuggestionPopup v-if="!isPartyEmbed" />
 
         <router-view v-slot="{ Component, route }">
-            <KeepAlive
-                :include="[
-                    'HomeShell'
-                ]"
+            <Transition
+                :name="getTransitionName(route)"
+                mode="out-in"
+                appear
             >
-                <component :is="Component" :key="getRouteKey(route)" />
-            </KeepAlive>
+                <KeepAlive
+                    :include="[
+                        'HomeShell'
+                    ]"
+                >
+                    <component :is="Component" :key="getRouteKey(route)" />
+                </KeepAlive>
+            </Transition>
         </router-view>
 
         <CommandPalette v-if="!isPartyEmbed" />
@@ -64,6 +70,11 @@ const getRouteKey = (route: any) => {
     // position, and (b) triggers loadData() twice (once from watcher, once
     // from onMounted) creating a race that leaves all carousels in skeleton state.
     return route.path;
+};
+
+const getTransitionName = (route: any) => {
+    // All transitions disabled for instant navigation
+    return '';
 };
 
 const Toast = defineAsyncComponent(() => import('./components/feedback/Toast.vue'));
@@ -188,30 +199,34 @@ onBeforeUnmount(() => {
 }
 
 // ── Global page transition ───────────────────────────────────────────────────
+// No transition - instant page switches
 .page-enter-active,
 .page-leave-active {
-    transition:
-        opacity var(--dur-base) var(--ease-out),
-        transform var(--dur-base) var(--ease-out);
+    transition: none;
 }
 
-.page-enter-from {
-    opacity: 0;
-    transform: translateY(8px);
+// ── Fade transition (for modals) ─────────────────────────────────────────────
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity var(--dur-fast) var(--ease-out);
 }
 
-.page-leave-to {
+.fade-enter-from,
+.fade-leave-to {
     opacity: 0;
-    transform: translateY(-4px);
 }
 
 @media (prefers-reduced-motion: reduce) {
     .page-enter-active,
-    .page-leave-active {
-        transition: opacity var(--dur-fast) linear;
+    .page-leave-active,
+    .fade-enter-active,
+    .fade-leave-active {
+        transition: opacity calc(var(--dur-fast) * 0.5) linear;
     }
     .page-enter-from,
-    .page-leave-to {
+    .page-leave-to,
+    .fade-enter-from,
+    .fade-leave-to {
         transform: none;
     }
 }

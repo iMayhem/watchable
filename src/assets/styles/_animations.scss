@@ -1,0 +1,446 @@
+// ============================================================================
+// LUMIÈRE — Animations & Micro-interactions
+// Beautiful, snappy animations for cards, buttons, modals, and page transitions.
+// Uses hardware-accelerated properties (transform, opacity) for 60fps performance.
+// ============================================================================
+
+// ── Keyframe Definitions ────────────────────────────────────────────────────
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scale-up {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(var(--ambient), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(var(--ambient), 0.5);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-4px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ── Utility Animation Classes ───────────────────────────────────────────────
+
+.animate-fade-in {
+  animation: fade-in var(--dur-base) var(--ease-out) both;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up var(--dur-base) var(--ease-out) both;
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down var(--dur-base) var(--ease-out) both;
+}
+
+.animate-scale-in {
+  animation: scale-in var(--dur-base) var(--ease-out) both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right var(--dur-base) var(--ease-out) both;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left var(--dur-base) var(--ease-out) both;
+}
+
+.animate-bounce-in {
+  animation: bounce-in var(--dur-slow) var(--ease-spring) both;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+// Stagger delays for sequential animations
+.animate-delay-1 {
+  animation-delay: 50ms;
+}
+.animate-delay-2 {
+  animation-delay: 100ms;
+}
+.animate-delay-3 {
+  animation-delay: 150ms;
+}
+.animate-delay-4 {
+  animation-delay: 200ms;
+}
+.animate-delay-5 {
+  animation-delay: 250ms;
+}
+.animate-delay-6 {
+  animation-delay: 300ms;
+}
+
+// ── Micro-interaction Mixins ────────────────────────────────────────────────
+
+// Smooth card lift on hover
+@mixin card-hover-lift {
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-lg), var(--shadow-bloom);
+  }
+
+  &:active {
+    transform: translateY(-2px) scale(1.01);
+    transition-duration: var(--dur-fast);
+  }
+}
+
+// Button press effect
+@mixin button-press {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+// Glow effect on hover
+@mixin glow-hover {
+  transition:
+    box-shadow var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out);
+
+  &:hover,
+  &:focus-visible {
+    box-shadow: 0 0 30px rgba(var(--ambient), 0.4);
+    filter: brightness(1.1);
+  }
+}
+
+// Scale on hover
+@mixin scale-hover {
+  transition: transform var(--dur-base) var(--ease-out);
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+// Image fade-in on load
+@mixin image-fade-in {
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+
+  &.loaded {
+    opacity: 1;
+  }
+}
+
+// Modal backdrop fade
+@mixin modal-backdrop {
+  background: var(--overlay-scrim);
+  animation: fade-in var(--dur-base) var(--ease-out);
+}
+
+// Modal content scale-in
+@mixin modal-content {
+  animation: scale-in var(--dur-base) var(--ease-out);
+  transform-origin: center center;
+}
+
+// Skeleton shimmer loading
+@mixin skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--ink-800) 0%,
+    var(--ink-700) 20%,
+    var(--ink-800) 40%,
+    var(--ink-800) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite linear;
+  border-radius: var(--r-md);
+}
+
+// Smooth underline on hover (for links)
+@mixin underline-hover {
+  position: relative;
+  text-decoration: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: 2px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform var(--dur-base) var(--ease-out);
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+}
+
+// Ripple effect on click
+@mixin ripple-effect {
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width var(--dur-base) var(--ease-out),
+                height var(--dur-base) var(--ease-out);
+  }
+
+  &:active::before {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+// ── Performance Optimizations ───────────────────────────────────────────────
+
+// Enable hardware acceleration for smoother animations
+@mixin will-animate {
+  will-change: transform, opacity;
+}
+
+.will-animate {
+  @include will-animate;
+}
+
+// GPU-accelerated transform
+@mixin gpu-accelerate {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.gpu-accelerate {
+  @include gpu-accelerate;
+}
+
+// ── Progressive Image Loading ───────────────────────────────────────────────
+
+.progressive-image {
+  transition: 
+    opacity var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out);
+
+  &--loading {
+    filter: blur(10px);
+    transform: scale(1.05);
+  }
+
+  &--loaded {
+    filter: blur(0);
+    transform: scale(1);
+    animation: progressive-fade-in var(--dur-base) var(--ease-out);
+  }
+
+  &--error {
+    opacity: 0.5;
+  }
+}
+
+@keyframes progressive-fade-in {
+  from {
+    opacity: 0.7;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+// ── Reduced Motion Respect ──────────────────────────────────────────────────
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-shimmer,
+  .animate-pulse,
+  .animate-spin {
+    animation: none;
+  }
+}
+
+// ── View Transition API Support ─────────────────────────────────────────────
+
+@supports (view-transition-name: none) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: var(--dur-base);
+    animation-timing-function: var(--ease-out);
+  }
+
+  ::view-transition-old(root) {
+    animation-name: fade-in-down;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: fade-in-up;
+  }
+}

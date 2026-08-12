@@ -69,12 +69,13 @@ onMounted(() => {
     position: fixed;
     inset: 0;
     z-index: 10000;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: var(--s-4);
-    animation: poll-fade-in 0.2s ease-out;
+    animation: poll-fade-in 0.22s var(--ease-out);
 }
 
 @keyframes poll-fade-in {
@@ -90,12 +91,13 @@ onMounted(() => {
     max-width: 420px;
     width: 100%;
     position: relative;
-    animation: poll-slide-up 0.25s ease-out;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    animation: poll-spring-up 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes poll-slide-up {
-    from { opacity: 0; transform: translateY(16px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes poll-spring-up {
+    from { opacity: 0; transform: translateY(24px) scale(0.94); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
 
 .poll-modal__close {
@@ -106,14 +108,23 @@ onMounted(() => {
     border: none;
     color: var(--bone-400);
     cursor: pointer;
-    padding: 4px;
-    border-radius: var(--r-xs);
+    padding: 6px;
+    border-radius: 50%;
     display: flex;
-    transition: color var(--dur-fast);
+    transition:
+        color var(--dur-fast) var(--ease-out),
+        background-color var(--dur-fast) var(--ease-out),
+        transform var(--dur-fast) var(--ease-spring);
 }
 
 .poll-modal__close:hover {
     color: var(--bone-50);
+    background: var(--surface-tint-hover);
+    transform: scale(1.1);
+}
+
+.poll-modal__close:active {
+    transform: scale(0.92);
 }
 
 .poll-modal__question {
@@ -142,14 +153,25 @@ onMounted(() => {
     font-size: var(--fs-sm);
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--dur-fast);
+    transition:
+        background-color var(--dur-fast) var(--ease-out),
+        border-color var(--dur-fast) var(--ease-out),
+        color var(--dur-fast) var(--ease-out),
+        transform var(--dur-fast) var(--ease-spring),
+        box-shadow var(--dur-fast) var(--ease-out);
     text-align: center;
 }
 
 .poll-modal__option:hover:not(:disabled) {
-    background: var(--surface-tint-hover);
+    background: rgba(255, 90, 31, 0.1);
     border-color: var(--ember);
     color: var(--bone-50);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(255, 90, 31, 0.2);
+}
+
+.poll-modal__option:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
 }
 
 .poll-modal__option:disabled {
@@ -168,10 +190,13 @@ onMounted(() => {
     cursor: pointer;
     text-decoration: underline;
     text-underline-offset: 2px;
-    transition: color var(--dur-fast);
+    transition:
+        color var(--dur-fast) var(--ease-out),
+        transform var(--dur-fast) var(--ease-out);
 }
 
 .poll-modal__later:hover {
     color: var(--bone-50);
+    transform: translateY(-1px);
 }
 </style>

@@ -422,6 +422,9 @@
                 <button type="button" class="tab-btn" id="tab-btn-polls" onclick="switchHtmlTab('polls')">
                     📊 Polls
                 </button>
+                <button type="button" class="tab-btn" id="tab-btn-suggestions" onclick="switchHtmlTab('suggestions')">
+                    💡 Suggestions
+                </button>
                 <button type="button" class="tab-btn" id="tab-btn-donations" onclick="switchHtmlTab('donations')">
                     💰 Donations
                 </button>
@@ -650,7 +653,44 @@
                 </div>
             </div>
 
-            <!-- TAB 5: DONATIONS TRACKER -->
+            <!-- TAB 5: SUGGESTIONS & ENGAGEMENT -->
+            <div class="tab-page" id="tab-page-suggestions">
+                <div class="curation-section" style="margin:0;">
+                    <h2 class="section-title">Suggestions & Engagement</h2>
+                    <p style="color:#a79f8d;font-size:0.85rem;margin-bottom:1rem">Create prompts to collect feedback from users. Only one suggestion can be active at a time.</p>
+
+                    <form onsubmit="handleCreateSuggestion(event)">
+                        <div class="form-group">
+                            <label class="form-label" for="suggestion-prompt">Prompt Question</label>
+                            <input id="suggestion-prompt" type="text" class="form-input" placeholder="What feature would you like to see next?" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="suggestion-placeholder">Placeholder Text</label>
+                            <input id="suggestion-placeholder" type="text" class="form-input" placeholder="e.g., Describe the feature you'd like...">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="suggestion-maxlength">Max Length (characters)</label>
+                            <input id="suggestion-maxlength" type="number" class="form-input" min="50" max="1000" value="500">
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.9rem;text-transform:none;font-weight:400">
+                                <input id="suggestion-active" type="checkbox" style="margin:0;width:auto">
+                                Activate immediately (auto-deactivates other active suggestions)
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn" id="create-suggestion-btn" style="width:auto;"><span>Create Suggestion</span></button>
+                    </form>
+
+                    <h3 style="font-family: var(--font-display); font-size: 1.15rem; color: #c7bfb0; margin-top: 2rem; margin-bottom: 1rem;">Existing Suggestions & Responses</h3>
+                    <div id="existing-suggestions"></div>
+                </div>
+            </div>
+
+            <!-- TAB 6: DONATIONS TRACKER -->
             <div class="tab-page" id="tab-page-donations">
                 <div class="curation-section" style="margin:0;">
                     <h2 class="section-title">Donations Tracker</h2>
@@ -836,6 +876,7 @@
             if (tabId === 'moderation') loadHtmlModerationComments();
             if (tabId === 'donations') refreshCryptoBalance();
             if (tabId === 'polls') loadExistingPolls();
+            if (tabId === 'suggestions') loadExistingSuggestions();
             if (tabId === 'serverorder') loadServerOrder();
         }
 
@@ -1968,6 +2009,160 @@
             } catch (err) {
                 console.error(err);
                 showToast('Failed to send notification', false);
+            }
+        }
+
+        // ==========================================
+        // SUGGESTIONS FUNCTIONS
+        // ==========================================
+        let existingSuggestionsData = [];
+        let viewingResponsesForId = null;
+        let currentResponses = [];
+
+        async function loadExistingSuggestions() {
+            try {
+                const { data } = await supabaseClient.from('suggestions').select('*').order('created_at', { ascending: false });
+                existingSuggestionsData = data || [];
+                for (const sug of existingSuggestionsData) {
+                    const { data: responses } = await supabaseClient.from('suggestion_responses').select('*', { count: 'exact', head: true }).eq('suggestion_id', sug.id);
+                    sug.response_count = responses?.length || 0;
+                }
+                renderExistingSuggestions();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderExistingSuggestions() {
+            const container = document.getElementById('existing-suggestions');
+            if (!existingSuggestionsData.length) {
+                container.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#a79f8d;font-size:0.9rem">No suggestions created yet</div>';
+                return;
+            }
+            container.innerHTML = existingSuggestionsData.map(sug => `
+                <div style="background:rgba(245,239,228,0.03);border:1px solid rgba(245,239,228,0.08);border-radius:8px;padding:1rem;margin-bottom:1rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+                        <span style="font-weight:600;font-size:0.95rem;color:#e8e1d3">${escapeHtml(sug.prompt)}</span>
+                        <span style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:0.2rem 0.5rem;border-radius:4px;background:${sug.is_active ? 'rgba(107,163,104,0.15)' : 'rgba(167,159,141,0.15)'};color:${sug.is_active ? '#6ba368' : '#a79f8d'}">${sug.is_active ? 'Active' : 'Inactive'}</span>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;font-size:0.75rem;color:#a79f8d;margin-bottom:0.75rem">
+                        <span>${sug.response_count || 0} responses</span>
+                        <span>•</span>
+                        <span>Max ${sug.max_length} chars</span>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                        <button type="button" class="btn btn--sm" onclick="toggleSuggestionActive('${sug.id}', ${!sug.is_active})">${sug.is_active ? 'Deactivate' : 'Activate'}</button>
+                        <button type="button" class="btn btn--sm" onclick="viewSuggestionResponses('${sug.id}')">View Responses (${sug.response_count})</button>
+                        <button type="button" class="btn btn--sm" style="background:#8a2a1e" onclick="deleteSuggestion('${sug.id}')">Delete</button>
+                    </div>
+                    <div id="responses-${sug.id}" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(245,239,228,0.08)"></div>
+                </div>
+            `).join('');
+        }
+
+        async function handleCreateSuggestion(e) {
+            e.preventDefault();
+            const btn = document.getElementById('create-suggestion-btn');
+            const prompt = document.getElementById('suggestion-prompt').value.trim();
+            const placeholder = document.getElementById('suggestion-placeholder').value.trim() || 'Write your feedback here…';
+            const maxLength = parseInt(document.getElementById('suggestion-maxlength').value) || 500;
+            const isActive = document.getElementById('suggestion-active').checked;
+            
+            if (!prompt) return;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span>Creating...</span>';
+            
+            try {
+                if (isActive) {
+                    await supabaseClient.from('suggestions').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', 0);
+                }
+                
+                await supabaseClient.from('suggestions').insert({
+                    prompt,
+                    placeholder,
+                    max_length: maxLength,
+                    is_active: isActive,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                });
+                
+                showToast('Suggestion created!');
+                document.getElementById('suggestion-prompt').value = '';
+                document.getElementById('suggestion-placeholder').value = '';
+                document.getElementById('suggestion-maxlength').value = '500';
+                document.getElementById('suggestion-active').checked = false;
+                
+                await loadExistingSuggestions();
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to create suggestion', false);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>Create Suggestion</span>';
+            }
+        }
+
+        async function toggleSuggestionActive(id, newActive) {
+            try {
+                if (newActive) {
+                    await supabaseClient.from('suggestions').update({ is_active: false, updated_at: new Date().toISOString() }).neq('id', id);
+                }
+                await supabaseClient.from('suggestions').update({ is_active: newActive, updated_at: new Date().toISOString() }).eq('id', id);
+                const sug = existingSuggestionsData.find(s => String(s.id) === String(id));
+                if (sug) sug.is_active = newActive;
+                renderExistingSuggestions();
+                showToast(`Suggestion ${newActive ? 'activated' : 'deactivated'}!`);
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to update suggestion', false);
+            }
+        }
+
+        async function viewSuggestionResponses(id) {
+            const container = document.getElementById(`responses-${id}`);
+            if (viewingResponsesForId === id) {
+                container.style.display = 'none';
+                viewingResponsesForId = null;
+                return;
+            }
+            
+            viewingResponsesForId = id;
+            container.style.display = 'block';
+            container.innerHTML = '<div style="padding:1rem;text-align:center;color:#a79f8d">Loading responses...</div>';
+            
+            try {
+                const { data } = await supabaseClient.from('suggestion_responses').select('*').eq('suggestion_id', id).order('created_at', { ascending: false });
+                currentResponses = data || [];
+                
+                if (!currentResponses.length) {
+                    container.innerHTML = '<div style="padding:1rem;text-align:center;color:#a79f8d">No responses yet</div>';
+                    return;
+                }
+                
+                container.innerHTML = currentResponses.map(resp => `
+                    <div style="background:rgba(245,239,228,0.02);border:1px solid rgba(245,239,228,0.06);border-radius:6px;padding:0.75rem;margin-bottom:0.5rem">
+                        <div style="font-size:0.875rem;color:#c7bfb0;margin-bottom:0.5rem;line-height:1.5">${escapeHtml(resp.response_text)}</div>
+                        <div style="font-size:0.7rem;color:#a79f8d">${new Date(resp.created_at).toLocaleString()}</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<div style="padding:1rem;text-align:center;color:#c94e3d">Failed to load responses</div>';
+            }
+        }
+
+        async function deleteSuggestion(id) {
+            if (!confirm('Delete this suggestion and all its responses?')) return;
+            try {
+                await supabaseClient.from('suggestion_responses').delete().eq('suggestion_id', id);
+                await supabaseClient.from('suggestions').delete().eq('id', id);
+                existingSuggestionsData = existingSuggestionsData.filter(s => String(s.id) !== String(id));
+                renderExistingSuggestions();
+                showToast('Suggestion deleted!');
+            } catch (err) {
+                console.error(err);
+                showToast('Failed to delete suggestion', false);
             }
         }
 

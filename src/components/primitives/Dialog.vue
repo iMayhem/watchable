@@ -198,14 +198,23 @@ export default defineComponent({
 }
 
 // Transitions
-.lm-dialog-enter-active,
-.lm-dialog-leave-active {
+.lm-dialog-enter-active {
     transition: opacity var(--dur-base) var(--ease-out);
 
     .lm-dialog__panel {
         transition:
-            transform var(--dur-base) var(--ease-out),
+            transform var(--dur-base) var(--ease-spring),
             opacity var(--dur-base) var(--ease-out);
+    }
+}
+
+.lm-dialog-leave-active {
+    transition: opacity calc(var(--dur-base) * 0.7) var(--ease-out);
+
+    .lm-dialog__panel {
+        transition:
+            transform calc(var(--dur-base) * 0.7) var(--ease-in-out),
+            opacity calc(var(--dur-base) * 0.7) var(--ease-out);
     }
 }
 
@@ -215,7 +224,35 @@ export default defineComponent({
 
     .lm-dialog__panel {
         opacity: 0;
-        transform: translateY(16px) scale(0.98);
+        transform: translateY(20px) scale(0.96);
+    }
+}
+
+.lm-dialog-enter-to,
+.lm-dialog-leave-from {
+    opacity: 1;
+
+    .lm-dialog__panel {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lm-dialog-enter-active,
+    .lm-dialog-leave-active {
+        transition: opacity var(--dur-fast) linear;
+
+        .lm-dialog__panel {
+            transition: opacity var(--dur-fast) linear;
+        }
+    }
+
+    .lm-dialog-enter-from,
+    .lm-dialog-leave-to {
+        .lm-dialog__panel {
+            transform: none;
+        }
     }
 }
 </style>

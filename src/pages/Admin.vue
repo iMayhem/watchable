@@ -591,6 +591,129 @@
                     </div>
                 </div>
 
+                <!-- ── Suggestions & Engagement Tab ────────────────────────────────────── -->
+                <div v-if="activeTab === 'suggestions'" class="admin-page__tab-content">
+                    <h2 class="admin-page__section-title">Suggestions & Engagement</h2>
+
+                    <h3 class="admin-page__subsection-title">Create New Suggestion Prompt</h3>
+                    <form @submit.prevent="handleCreateSuggestion">
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">Prompt Question</label>
+                            <input
+                                v-model="newSuggestion.prompt"
+                                type="text"
+                                class="admin-page__input"
+                                placeholder="What feature would you like to see next?"
+                                required
+                            />
+                        </div>
+
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">Placeholder Text</label>
+                            <input
+                                v-model="newSuggestion.placeholder"
+                                type="text"
+                                class="admin-page__input"
+                                placeholder="e.g., Describe the feature you'd like..."
+                            />
+                        </div>
+
+                        <div class="admin-page__field">
+                            <label class="admin-page__label">Max Length (characters)</label>
+                            <input
+                                v-model.number="newSuggestion.max_length"
+                                type="number"
+                                class="admin-page__input"
+                                min="50"
+                                max="1000"
+                                placeholder="500"
+                            />
+                        </div>
+
+                        <div class="admin-page__field">
+                            <label class="admin-page__checkbox-label">
+                                <input v-model="newSuggestion.is_active" type="checkbox" />
+                                Activate immediately (auto-deactivates other active suggestions)
+                            </label>
+                        </div>
+
+                        <button type="submit" class="admin-page__btn" :disabled="suggestionCreating">
+                            {{ suggestionCreating ? 'Creating...' : 'Create Suggestion' }}
+                        </button>
+                    </form>
+
+                    <h3 class="admin-page__subsection-title" style="margin-top: 2rem;">Existing Suggestions & Responses</h3>
+                    <div v-if="suggestionsLoading" class="admin-page__empty">Loading...</div>
+                    <div v-else-if="!existingSuggestions.length" class="admin-page__empty">No suggestions created yet</div>
+                    <div v-else class="admin-page__suggestions-list">
+                        <div v-for="sug in existingSuggestions" :key="sug.id" class="admin-page__suggestion-card">
+                            <div class="admin-page__suggestion-header">
+                                <span class="admin-page__suggestion-title">{{ sug.prompt }}</span>
+                                <span
+                                    class="admin-page__badge"
+                                    :class="sug.is_active ? 'admin-page__badge--success' : 'admin-page__badge--inactive'"
+                                >
+                                    {{ sug.is_active ? 'Active' : 'Inactive' }}
+                                </span>
+                            </div>
+                            <div class="admin-page__suggestion-meta">
+                                <span>{{ sug.response_count || 0 }} responses</span>
+                                <span>•</span>
+                                <span>Max {{ sug.max_length }} chars</span>
+                            </div>
+                            <div class="admin-page__suggestion-actions">
+                                <button
+                                    type="button"
+                                    class="admin-page__btn admin-page__btn--sm"
+                                    @click="toggleSuggestionActive(sug.id, !sug.is_active)"
+                                >
+                                    {{ sug.is_active ? 'Deactivate' : 'Activate' }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="admin-page__btn admin-page__btn--sm"
+                                    @click="viewSuggestionResponses(sug.id)"
+                                >
+                                    View Responses
+                                </button>
+                                <button
+                                    type="button"
+                                    class="admin-page__btn admin-page__btn--sm admin-page__btn--danger"
+                                    @click="deleteSuggestion(sug.id)"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+
+                            <!-- Responses list (shown when viewing) -->
+                            <div v-if="viewingResponsesFor === sug.id" class="admin-page__responses-list">
+                                <div v-if="loadingResponses" class="admin-page__empty">Loading responses...</div>
+                                <div v-else-if="!suggestionResponses.length" class="admin-page__empty">No responses yet</div>
+                                <div v-else>
+                                    <div
+                                        v-for="resp in suggestionResponses"
+                                        :key="resp.id"
+                                        class="admin-page__response-item"
+                                    >
+                                        <div class="admin-page__response-text">{{ resp.response_text }}</div>
+                                        <div class="admin-page__response-meta">
+                                            {{ new Date(resp.created_at).toLocaleString() }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="admin-page__btn admin-page__btn--sm"
+                                    style="margin-top: 1rem;"
+                                    @click="viewingResponsesFor = null"
+                                >
+                                    Close Responses
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ── Donations Tab ────────────────────────────────────── -->
                 <div v-if="activeTab === 'donations'" class="admin-page__tab-content">
                     <h2 class="admin-page__section-title">Donations Tracker</h2>
@@ -748,6 +871,7 @@ const tabs = [
     { key: 'notifications', icon: '🔔', label: 'Notifications' },
     { key: 'banner', icon: '🏴', label: 'Banner' },
     { key: 'polls', icon: '📊', label: 'Polls' },
+    { key: 'suggestions', icon: '💡', label: 'Suggestions & Engagement' },
     { key: 'donations', icon: '💰', label: 'Donations' },
     { key: 'ads', icon: '📢', label: 'Ads & Support' }
 ]
@@ -809,6 +933,20 @@ const pollLoading = ref(false)
 const existingPolls = ref<any[]>([])
 const pollResultsMap = ref<Record<number, any[]>>({})
 const pollVoteCounts = ref<Record<number, number>>({})
+
+// ── Suggestions ────────────────────────────────────────────────────────────────
+const newSuggestion = reactive({
+    prompt: '',
+    placeholder: 'Write your feedback here…',
+    max_length: 500,
+    is_active: false
+})
+const suggestionCreating = ref(false)
+const suggestionsLoading = ref(false)
+const existingSuggestions = ref<any[]>([])
+const viewingResponsesFor = ref<number | null>(null)
+const suggestionResponses = ref<any[]>([])
+const loadingResponses = ref(false)
 
 // ── Ads ──────────────────────────────────────────────────────────────────────────
 const adsPcEnabled = ref(false)
@@ -1423,6 +1561,151 @@ async function handleNotifyPoll(poll: any) {
     }
 }
 
+// ── Suggestions Functions ──────────────────────────────────────────────────────
+async function loadExistingSuggestions() {
+    const client = supabase || await getSupabaseClient()
+    suggestionsLoading.value = true
+    try {
+        const { data, error } = await client
+            .from('suggestions')
+            .select('*')
+            .order('created_at', { ascending: false })
+        
+        if (error) throw error
+        
+        // Count responses for each suggestion
+        for (const sug of (data || [])) {
+            const { count } = await client
+                .from('suggestion_responses')
+                .select('*', { count: 'exact', head: true })
+                .eq('suggestion_id', sug.id)
+            sug.response_count = count || 0
+        }
+        
+        existingSuggestions.value = data || []
+    } catch (e) {
+        console.error('Failed to load suggestions:', e)
+        showToast('Failed to load suggestions', false)
+    } finally {
+        suggestionsLoading.value = false
+    }
+}
+
+async function handleCreateSuggestion() {
+    if (!newSuggestion.prompt.trim()) {
+        showToast('Please enter a prompt', false)
+        return
+    }
+    
+    suggestionCreating.value = true
+    const client = supabase || await getSupabaseClient()
+    
+    try {
+        // If activating, deactivate all others first
+        if (newSuggestion.is_active) {
+            await client
+                .from('suggestions')
+                .update({ is_active: false, updated_at: new Date().toISOString() })
+                .neq('id', 0)
+        }
+        
+        const { error } = await client.from('suggestions').insert({
+            prompt: newSuggestion.prompt,
+            placeholder: newSuggestion.placeholder || 'Write your feedback here…',
+            max_length: newSuggestion.max_length || 500,
+            is_active: newSuggestion.is_active,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        })
+        
+        if (error) throw error
+        
+        showToast('Suggestion created successfully!')
+        
+        // Reset form
+        newSuggestion.prompt = ''
+        newSuggestion.placeholder = 'Write your feedback here…'
+        newSuggestion.max_length = 500
+        newSuggestion.is_active = false
+        
+        // Reload list
+        await loadExistingSuggestions()
+    } catch (e) {
+        console.error('Failed to create suggestion:', e)
+        showToast('Failed to create suggestion', false)
+    } finally {
+        suggestionCreating.value = false
+    }
+}
+
+async function toggleSuggestionActive(id: number, newActive: boolean) {
+    const client = supabase || await getSupabaseClient()
+    try {
+        // If activating, deactivate all others first
+        if (newActive) {
+            await client
+                .from('suggestions')
+                .update({ is_active: false, updated_at: new Date().toISOString() })
+                .neq('id', id)
+        }
+        
+        await client
+            .from('suggestions')
+            .update({ is_active: newActive, updated_at: new Date().toISOString() })
+            .eq('id', id)
+        
+        const sug = existingSuggestions.value.find(s => s.id === id)
+        if (sug) sug.is_active = newActive
+        
+        showToast(`Suggestion ${newActive ? 'activated' : 'deactivated'}!`)
+    } catch (e) {
+        console.error('Failed to toggle suggestion:', e)
+        showToast('Failed to update suggestion', false)
+    }
+}
+
+async function viewSuggestionResponses(id: number) {
+    viewingResponsesFor.value = id
+    loadingResponses.value = true
+    suggestionResponses.value = []
+    
+    const client = supabase || await getSupabaseClient()
+    try {
+        const { data, error } = await client
+            .from('suggestion_responses')
+            .select('*')
+            .eq('suggestion_id', id)
+            .order('created_at', { ascending: false })
+        
+        if (error) throw error
+        suggestionResponses.value = data || []
+    } catch (e) {
+        console.error('Failed to load responses:', e)
+        showToast('Failed to load responses', false)
+    } finally {
+        loadingResponses.value = false
+    }
+}
+
+async function deleteSuggestion(id: number) {
+    if (!confirm('Delete this suggestion and all its responses?')) return
+    
+    const client = supabase || await getSupabaseClient()
+    try {
+        // Delete responses first
+        await client.from('suggestion_responses').delete().eq('suggestion_id', id)
+        
+        // Delete suggestion
+        await client.from('suggestions').delete().eq('id', id)
+        
+        existingSuggestions.value = existingSuggestions.value.filter(s => s.id !== id)
+        showToast('Suggestion deleted!')
+    } catch (e) {
+        console.error('Failed to delete suggestion:', e)
+        showToast('Failed to delete suggestion', false)
+    }
+}
+
 // ── Moderation Functions ───────────────────────────────────────────────────────
 async function loadModerationData() {
     const client = supabase || await getSupabaseClient()
@@ -1538,6 +1821,7 @@ onMounted(() => {
         supabase = client
         loadBannerSettings()
         loadExistingPolls()
+        loadExistingSuggestions()
         loadModerationData()
     })
 })
@@ -1545,6 +1829,7 @@ onMounted(() => {
 watch(activeTab, (tab) => {
     if (tab === 'donations') void refreshCryptoBalance()
     if (tab === 'moderation') void loadModerationData()
+    if (tab === 'suggestions') void loadExistingSuggestions()
 })
 </script>
 
@@ -1915,6 +2200,115 @@ watch(activeTab, (tab) => {
 
 .admin-page__btn--danger:hover {
     background: #a63a2e;
+}
+
+.admin-page__poll-card {
+    background: rgba(245, 239, 228, 0.03);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* ── Suggestions Styles ───────────────────────────────────────────────────── */
+.admin-page__suggestions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.admin-page__suggestion-card {
+    background: rgba(245, 239, 228, 0.03);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.admin-page__suggestion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.admin-page__suggestion-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--bone-100);
+}
+
+.admin-page__suggestion-meta {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--bone-400);
+    margin-bottom: 0.75rem;
+}
+
+.admin-page__suggestion-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.admin-page__responses-list {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(245, 239, 228, 0.08);
+}
+
+.admin-page__response-item {
+    background: rgba(245, 239, 228, 0.02);
+    border: 1px solid rgba(245, 239, 228, 0.06);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.admin-page__response-text {
+    font-size: 0.875rem;
+    color: var(--bone-200);
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+}
+
+.admin-page__response-meta {
+    font-size: 0.7rem;
+    color: var(--bone-400);
+}
+
+.admin-page__badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+.admin-page__badge--success {
+    background: rgba(107, 163, 104, 0.15);
+    color: var(--success);
+}
+
+.admin-page__badge--inactive {
+    background: rgba(167, 159, 141, 0.15);
+    color: var(--bone-400);
+}
+
+.admin-page__checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--bone-200);
+    cursor: pointer;
+    
+    input[type="checkbox"] {
+        margin: 0;
+        width: auto;
+        cursor: pointer;
+    }
 }
 
 .admin-page__poll-card {

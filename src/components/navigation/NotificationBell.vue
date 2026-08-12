@@ -133,8 +133,9 @@
                 </div>
             </div>
 
-            <!-- Old polls panel (to the left of main dropdown) -->
-            <div v-if="isOpen && showOldPolls" class="notification-bell__old-panel" :style="oldPanelStyle" @click.stop>
+            <!-- Old polls panel (to the left of main dropdown) — stays open after the bell closes -->
+            <div v-if="showOldPolls" class="notification-bell__panel-backdrop" @click="showOldPolls = false" />
+            <div v-if="showOldPolls" class="notification-bell__old-panel" :style="oldPanelStyle" @click.stop>
                 <div class="notification-bell__old-header">
                     <span class="notification-bell__title">All Polls</span>
                     <button type="button" class="notification-bell__poll-back" @click="showOldPolls = false">
@@ -167,8 +168,9 @@
                     </div>
                 </div>
             </div>
-            <!-- Old suggestions panel -->
-            <div v-if="isOpen && showOldSuggestions" class="notification-bell__old-panel" :style="{ top: dropdownStyle.top, right: `calc(${dropdownStyle.right} + 368px)` }" @click.stop>
+            <!-- Old suggestions panel — stays open after the bell closes -->
+            <div v-if="showOldSuggestions" class="notification-bell__panel-backdrop" @click="showOldSuggestions = false" />
+            <div v-if="showOldSuggestions" class="notification-bell__old-panel" :style="{ top: dropdownStyle.top, right: `calc(${dropdownStyle.right} + 368px)` }" @click.stop>
                 <div class="notification-bell__old-header">
                     <span class="notification-bell__title">Active Suggestions</span>
                     <button type="button" class="notification-bell__poll-back" @click="showOldSuggestions = false">Close</button>
@@ -295,6 +297,7 @@ function handleSuggestionDismiss() {
 
 async function openOldSuggestions() {
     if (showOldSuggestions.value) { showOldSuggestions.value = false; return }
+    showOldPolls.value = false
     showOldSuggestions.value = true
     nextTick(positionDropdown)
     try {
@@ -330,6 +333,7 @@ async function openOldPolls() {
         showOldPolls.value = false
         return
     }
+    showOldSuggestions.value = false
     showOldPolls.value = true
     oldPollsLoading.value = true
     nextTick(positionDropdown)
@@ -355,8 +359,6 @@ function positionDropdown() {
 function toggleDropdown() {
     isOpen.value = !isOpen.value
     if (isOpen.value) {
-        showOldPolls.value = false
-        showOldSuggestions.value = false
         suggestionSubmitted.value = false
         fetchNotifications()
         loadPollData()
@@ -462,6 +464,13 @@ onBeforeUnmount(() => {
 }
 
 .notification-bell__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: transparent;
+}
+
+.notification-bell__panel-backdrop {
     position: fixed;
     inset: 0;
     z-index: 998;

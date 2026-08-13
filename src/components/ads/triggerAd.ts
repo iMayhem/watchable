@@ -1,4 +1,4 @@
-const AD_DOMAIN = '//fa.forsungxylols.com/rn57m0jviM5eK/147918';
+const AD_DOMAIN = '//dc9xwpjprguup.cloudfront.net/?pwxcd=1436467';
 
 export function triggerAd() {
     const s = document.createElement('script');

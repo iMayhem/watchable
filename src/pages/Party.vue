@@ -21,7 +21,7 @@
             :src="frameSrc"
             title="Watch Together"
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            @load="frameReady = true; syncPartyFooterState(); syncNativePlayerBounds()"
+            @load="frameReady = true; syncPartyFooterState(); syncNativePlayerBounds(); watchNativePlayerBounds()"
         />
     </div>
 </template>
@@ -47,6 +47,8 @@ let nativeSyncTimer: ReturnType<typeof setInterval> | null = null;
 let nativeRespondingToSync = false;
 let nativeBoundsTimer: number | null = null;
 let nativeHoverTimer: number | null = null;
+let nativeBoundsObserver: ResizeObserver | null = null;
+let nativeBoundsRetry: number | null = null;
 
 const preservedMediaKey = ref(String(route.query.media || ''));
 const mediaKey = computed(() => preservedMediaKey.value);
@@ -116,9 +118,12 @@ function syncNativePlayerBounds() {
     const frame = document.querySelector('.party-shell__frame') as HTMLIFrameElement | null;
     const stage = frame?.contentDocument?.querySelector('#player-stage') as HTMLElement | null;
     if (!player || !frame || !stage) {
-        console.info('[Party NativePlayer] player-stage not ready for bounds sync', {
-            player: Boolean(player), frame: Boolean(frame), stage: Boolean(stage)
-        });
+        if (nativeBoundsRetry == null) {
+            nativeBoundsRetry = window.setTimeout(() => {
+                nativeBoundsRetry = null;
+                syncNativePlayerBounds();
+            }, 100);
+        }
         return;
     }
     const frameRect = frame.getBoundingClientRect();
@@ -135,6 +140,23 @@ function syncNativePlayerBounds() {
         left: Math.round(left), top: Math.round(top),
         width: Math.round(stageRect.width), height: Math.round(stageRect.height)
     });
+}
+
+function watchNativePlayerBounds() {
+    nativeBoundsObserver?.disconnect();
+    nativeBoundsObserver = null;
+
+    const frame = document.querySelector('.party-shell__frame') as HTMLIFrameElement | null;
+    const stage = frame?.contentDocument?.querySelector('#player-stage') as HTMLElement | null;
+    if (!frame || !stage || !('ResizeObserver' in window)) {
+        syncNativePlayerBounds();
+        return;
+    }
+
+    nativeBoundsObserver = new ResizeObserver(() => syncNativePlayerBounds());
+    nativeBoundsObserver.observe(frame);
+    nativeBoundsObserver.observe(stage);
+    syncNativePlayerBounds();
 }
 
 function setClassicPlayerHover(active: boolean) {
@@ -352,6 +374,8 @@ watch(
         if (nextSrc === frameSrc.value) return;
         frameReady.value = false;
         frameSrc.value = nextSrc;
+        nativeBoundsObserver?.disconnect();
+        nativeBoundsObserver = null;
     },
     { deep: true }
 );
@@ -383,6 +407,9 @@ onBeforeUnmount(() => {
     if (partyFooterSyncTimer) clearInterval(partyFooterSyncTimer);
     if (nativeBoundsTimer) clearInterval(nativeBoundsTimer);
     if (nativeHoverTimer) clearTimeout(nativeHoverTimer);
+    if (nativeBoundsRetry) clearTimeout(nativeBoundsRetry);
+    nativeBoundsObserver?.disconnect();
+    nativeBoundsObserver = null;
 });
 </script>
 
@@ -408,7 +435,11 @@ onBeforeUnmount(() => {
     bottom: 58px;
     left: 0;
     display: flex;
-    z-index: 3;
+    /* Keep the native video in its own stacking layer above the room iframe.
+       Chromium can otherwise composite the iframe above the video on the
+       first SPA navigation, even though the iframe appears laterally outside
+       the player slot. */
+    z-index: 10;
     min-width: 0;
     min-height: 320px;
     height: 100%;
@@ -454,6 +485,7 @@ onBeforeUnmount(() => {
     border: 0;
     height: 100%;
     min-height: 0;
+    z-index: 1;
     background: #0b0a08;
     opacity: 0;
     transition: opacity 180ms ease;

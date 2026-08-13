@@ -1194,7 +1194,10 @@
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('room-view').classList.add('active');
             
-            parseMediaParams(room.embed_sources);
+            // An explicit media key in the join URL represents the title/episode
+            // the user chose. Prefer it over stale room metadata.
+            const effectiveMediaKey = catalogMediaId || room.media_id || room.embed_sources;
+            parseMediaParams(effectiveMediaKey);
 
             document.body.classList.remove('cinema-mode');
             updateCinemaModeButton();
@@ -1209,7 +1212,7 @@
             }
             const parentRoomParams = new URLSearchParams({ room: displayId });
             if (prefillTitle) parentRoomParams.set('title', prefillTitle);
-            const nativeMediaKey = room.media_id || catalogMediaId;
+            const nativeMediaKey = effectiveMediaKey;
             if (nativeMediaKey) {
                 parentRoomParams.set('media', String(nativeMediaKey));
             }

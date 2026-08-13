@@ -1539,7 +1539,18 @@ export default defineComponent({
             video.addEventListener('canplay', onBufferEnd)
             video.addEventListener('loadeddata', onBufferEnd)
             video.addEventListener('seeked', onSeeked)
-            video.addEventListener('error', onBufferEnd)
+            video.addEventListener('error', () => {
+                console.error('[MoovieFrame][seek-trace] video error', {
+                    currentTime: video.currentTime,
+                    duration: video.duration,
+                    seeking: video.seeking,
+                    readyState: video.readyState,
+                    networkState: video.networkState,
+                    src: video.currentSrc || video.src || '',
+                    mediaError: video.error ? { code: video.error.code, message: video.error.message } : null,
+                })
+                onBufferEnd()
+            })
             video.addEventListener('error', invalidateCachedPoseidonLink, { once: true })
             video.addEventListener('abort', onBufferEnd)
             video.addEventListener('timeupdate', onTimeUpdate)
@@ -2145,7 +2156,15 @@ export default defineComponent({
         }
 
         async function doLoad() {
-            console.log('[MOVIEFRAME] doLoad start - season:', props.season, 'episode:', props.episode)
+            console.warn('[MoovieFrame][load-trace] doLoad called', {
+                mediaId: props.mediaId,
+                mediaType: props.mediaType,
+                season: props.season,
+                episode: props.episode,
+                currentTime: videoRef.value?.currentTime,
+                currentSrc: videoRef.value?.currentSrc || videoRef.value?.src || '',
+                stack: new Error().stack,
+            })
             destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false; firstFrameShown.value = false; failedStreamUrls.value = new Set(); streams.value = []
             langVariantFetchKey = '' // reset so variant fetch fires fresh
             try {
@@ -2949,6 +2968,11 @@ resolve(false)
             if (!video) return
             const val = parseFloat((e.target as HTMLInputElement).value)
             if (!isFinite(val)) return
+            console.debug('[MoovieFrame][seek-trace] seekbar input', {
+                from: video.currentTime,
+                to: val,
+                src: video.currentSrc || video.src || '',
+            })
             currentTime.value = val
             video.currentTime = val
         }
@@ -2957,6 +2981,12 @@ resolve(false)
             const video = videoRef.value
             if (!video || !isFinite(video.duration)) return
             const target = Math.max(0, Math.min(video.duration, video.currentTime + seconds))
+            console.debug('[MoovieFrame][seek-trace] relative seek', {
+                seconds,
+                from: video.currentTime,
+                to: target,
+                src: video.currentSrc || video.src || '',
+            })
             currentTime.value = target
             video.currentTime = target
         }
@@ -2997,7 +3027,15 @@ resolve(false)
         watch(() => [props.season, props.episode], (newVals, oldVals) => {
             const newS = newVals[0], newE = newVals[1]
             const oldS = oldVals?.[0], oldE = oldVals?.[1]
-            console.log('[MOVIEFRAME] watcher: season', oldS, '->', newS, 'episode', oldE, '->', newE, 'mediaId:', props.mediaId)
+            console.warn('[MoovieFrame][load-trace] season/episode watcher fired', {
+                oldSeason: oldS,
+                newSeason: newS,
+                oldEpisode: oldE,
+                newEpisode: newE,
+                mediaId: props.mediaId,
+                currentTime: videoRef.value?.currentTime,
+                stack: new Error().stack,
+            })
             if (newS !== oldS || newE !== oldE) {
                 subtitleTracks.value = []
                 selectedSubtitleTrack.value = -1

@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
     width: 100%;
     height: 100dvh;
     height: 100svh;
-    background: #0b0a08;
+    background: var(--ink-900, #100c09);
     overflow: hidden;
     z-index: 1;
 }
@@ -128,7 +128,7 @@ onBeforeUnmount(() => {
     border: 0;
     height: 100%;
     min-height: 0;
-    background: #0b0a08;
+    background: var(--ink-900, #100c09);
     opacity: 1;
 }
 </style>

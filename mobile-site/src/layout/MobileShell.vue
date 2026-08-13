@@ -302,7 +302,7 @@ onBeforeUnmount(() => {
         justify-content: space-between;
         gap: var(--s-3);
         padding: max(env(safe-area-inset-top, 0px), var(--s-2)) var(--s-3) var(--s-2);
-        background: rgba(11, 10, 8, 0.94);
+        background: rgba(20, 14, 10, 0.95);
         backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--rule);
     }

@@ -477,7 +477,7 @@ onBeforeUnmount(() => {
     position: fixed;
     width: 360px;
     max-height: 480px;
-    background: var(--glass);
+    background: var(--ink-700);
     border: 1px solid var(--glass-border);
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-pane);
@@ -501,7 +501,7 @@ onBeforeUnmount(() => {
     font-family: var(--font-ui);
     font-size: var(--fs-sm);
     font-weight: 600;
-    color: var(--bone-50);
+    color: var(--bone-100);
 }
 
 .notification-bell__mark-read {
@@ -557,7 +557,7 @@ onBeforeUnmount(() => {
     font-family: var(--font-display);
     font-size: var(--fs-sm);
     font-weight: 700;
-    color: var(--bone-50);
+    color: var(--bone-100);
     margin-bottom: var(--s-2);
 }
 
@@ -673,7 +673,7 @@ onBeforeUnmount(() => {
 .notification-bell__item-title {
     font-size: var(--fs-sm);
     font-weight: 600;
-    color: var(--bone-50);
+    color: var(--bone-100);
     line-height: 1.3;
 }
 

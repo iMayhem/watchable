@@ -197,6 +197,30 @@
             overflow: visible !important;
         }
 
+        /* The Vue player sits above the legacy player stage in native mode, so
+           relay its hover state from the parent page to the classic controls. */
+        body.cinema-mode.party-native-player-hover .workspace-header,
+        body.cinema-mode.party-native-player-hover .workspace-banner,
+        body.cinema-mode.party-native-player-hover .player-controls-bar{
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            height: auto !important;
+            overflow: visible !important;
+            z-index: 50 !important;
+        }
+
+        body.cinema-mode.party-native-player-hover .workspace-banner{
+            padding: 0.6rem 1rem !important;
+            border-width: 1px !important;
+            overflow: hidden !important;
+        }
+
+        body.cinema-mode.party-native-player-hover .player-controls-bar{
+            margin-top: 1rem !important;
+            padding: 0.75rem 1rem !important;
+            border-width: 1px !important;
+        }
+
 
         body.cinema-mode::before, body.cinema-mode .grain{
             opacity: 0;
@@ -1644,22 +1668,10 @@
 
         /* The Vue shell owns the native MoovieFrame in native mode. Keep this
            document responsible for the original room/chat UI only. */
-        html.party-native-mode body.room-view-active .player-container{
-            display: none !important;
+        html.party-native-mode body.room-view-active .player-iframe{
+            visibility: hidden !important;
+            pointer-events: none !important;
         }
-
-
-        html.party-native-mode body.room-view-active .room-workspace{
-            display: block !important;
-            height: 100% !important;
-        }
-
-
-        html.party-native-mode body.room-view-active .sidebar{
-            width: 100% !important;
-            height: 100% !important;
-        }
-
 
         
 
@@ -4466,9 +4478,6 @@
     flex-direction: column;
     gap: 4px;
 }
-
-
-
 
 
 

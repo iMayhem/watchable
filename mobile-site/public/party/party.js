@@ -698,10 +698,6 @@
         // Available Stream Servers
         const serversList = [
             { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}?provider=moovie', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
-            { id: 'icecream', name: 'Icecream', movie: '/embed/movie/{tmdbId}?server=icecream', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?server=icecream' },
-            { id: 'vidrock', name: 'Gulab Jamun', movie: '/embed/movie/{tmdbId}?server=vidrock', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?server=vidrock' },
-            { id: 'vidfast', name: 'Rasmalai', movie: '/embed/movie/{tmdbId}?server=vidfast', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?server=vidfast' },
-            { id: 'vidzee', name: 'Kaju Katli', movie: '/embed/movie/{tmdbId}?server=vidzee', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?server=vidzee' },
         ];
         
         let activeProvider = 'moovie';
@@ -1182,7 +1178,6 @@
 
             try {
                 resolveDefaultStreamProvider();
-                populateServerDropdown();
                 switchStreamProvider(activeProvider);
             } catch (err) {
                 console.error('Failed to load room embed:', err);
@@ -1227,26 +1222,6 @@
             scheduleRoomEmbedLoad();
         }
 
-        // Dropdown toggle logic
-        function toggleServerDropdown(e) {
-            e.stopPropagation();
-            document.getElementById('server-dropdown-menu').classList.toggle('active');
-        }
-
-        window.addEventListener('click', () => {
-            const menu = document.getElementById('server-dropdown-menu');
-            if (menu) menu.classList.remove('active');
-        });
-
-        function populateServerDropdown() {
-            const menu = document.getElementById('server-dropdown-menu');
-            menu.innerHTML = serversList.map(srv => `
-                <button class="server-dropdown-item ${srv.id === activeProvider ? 'active' : ''}" onclick="switchStreamProvider('${srv.id}')">
-                    ${srv.name}
-                </button>
-            `).join('');
-        }
-
         function showEmbedPlayer(embedUrl) {
             setPlayerStagePending(false);
             const oldIframe = document.getElementById('video-player-iframe');
@@ -1281,8 +1256,6 @@
             if (matched) {
                 document.getElementById('active-server-name').textContent = matched.name;
             }
-
-            populateServerDropdown();
 
             if (matched) {
                 const embedUrl = getEmbedUrlForServer(matched, mediaId, isTv, season, episode);
@@ -1424,11 +1397,6 @@
             if (!controlsBar) return;
 
             controlsBar.style.display = 'flex';
-
-            const serverDropdown = document.getElementById('party-server-dropdown');
-            if (serverDropdown) {
-                serverDropdown.style.display = '';
-            }
 
             const autoNextBtn = document.getElementById('party-auto-next-btn');
             if (autoNextBtn) autoNextBtn.style.display = 'none';
@@ -2523,4 +2491,3 @@
                 showLobbyView();
             }
         });
-    

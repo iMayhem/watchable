@@ -151,11 +151,14 @@ export default defineComponent({
     }
 
     &--ghost {
-        background: #000;
-        color: #fff;
+        background: var(--ink-800);
+        color: var(--bone-50);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
 
         &:not(:disabled):hover {
-            background: #111;
+            background: var(--ink-600);
+            color: var(--bone-50);
+            box-shadow: 0 8px 22px var(--ember-glow);
         }
     }
 

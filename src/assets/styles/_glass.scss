@@ -7,7 +7,7 @@
 // ============================================================================
 
 html {
-  background: #000;
+  background: var(--ink-900);
 }
 
 // ── Ambient aurora ──────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: #000;
+  background: var(--ink-900);
 }
 
 // ── Glass pane utility ──────────────────────────────────────────────────────

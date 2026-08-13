@@ -1,16 +1,16 @@
 
         :root{
-            --ink-900: #000000;
-            --ink-850: #080808;
-            --ink-800: #0f0f0f;
-            --ink-700: #171717;
-            --ink-600: #262626;
+            --ink-900: #100c09;
+            --ink-850: #17100c;
+            --ink-800: #211610;
+            --ink-700: #2d1d14;
+            --ink-600: #3b271b;
             --surface: var(--ink-800);
             --surface-tint: rgba(245, 239, 228, 0.04);
             --surface-hover: rgba(245, 239, 228, 0.08);
-            --ember: #ff5a1f;
-            --ember-600: #e84817;
-            --ember-glow: rgba(255, 90, 31, 0.35);
+            --ember: #e88952;
+            --ember-600: #c86f3e;
+            --ember-glow: rgba(232, 137, 82, 0.28);
             --gold-leaf: #c9a76a;
             --bone-50: #f5efe4;
             --bone-100: #e8e1d3;
@@ -20,7 +20,7 @@
             --bone-500: #6b6454;
             --rule: rgba(245, 239, 228, 0.08);
             --rule-strong: rgba(245, 239, 228, 0.16);
-            --overlay-scrim: rgba(11, 10, 8, 0.72);
+            --overlay-scrim: rgba(16, 12, 9, 0.78);
             --ambient: 255, 90, 31;
             --r-sm: 4px;
             --r-md: 8px;
@@ -4467,7 +4467,170 @@
     gap: 4px;
 }
 
+/* Mobile Watch Together polish: preserve the warm site palette while keeping
+   the player and chat readable on narrow touch screens. */
+@media (max-width: 768px){
+    html, body,
+    body.room-view-active,
+    body.cinema-mode{
+        background: var(--ink-900) !important;
+        color: var(--bone-100);
+    }
 
+    body.room-view-active main{
+        padding: 0 !important;
+    }
+
+    body.room-view-active .room-workspace{
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        width: 100% !important;
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+        overflow: hidden !important;
+    }
+
+    body.room-view-active .player-container{
+        flex: 0 0 auto !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        min-height: 0 !important;
+        padding: 0.5rem 0.5rem 0 !important;
+        gap: 0.45rem !important;
+        background: var(--ink-900) !important;
+    }
+
+    body.room-view-active .workspace-banner{
+        display: flex !important;
+        min-height: 42px !important;
+        padding: 0.55rem 0.65rem !important;
+        border: 1px solid var(--rule-strong) !important;
+        border-radius: var(--r-md) !important;
+        background: var(--ink-800) !important;
+        color: var(--bone-200) !important;
+        font-size: 0.72rem !important;
+    }
+
+    body.room-view-active .player-stage{
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 16 / 9 !important;
+        max-height: none !important;
+        border: 1px solid var(--rule-strong) !important;
+        border-radius: var(--r-md) !important;
+        background: #080605 !important;
+        box-shadow: 0 12px 30px rgba(0,0,0,.32) !important;
+    }
+
+    body.room-view-active .player-controls-bar{
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 0.4rem !important;
+        margin: 0 !important;
+        padding: 0.45rem !important;
+        border: 1px solid var(--rule) !important;
+        border-radius: var(--r-md) !important;
+        background: var(--ink-800) !important;
+        overflow-x: auto !important;
+        scrollbar-width: none;
+    }
+
+    body.room-view-active .player-controls-bar::-webkit-scrollbar{ display:none; }
+    body.room-view-active .controls-left,
+    body.room-view-active .controls-right{
+        flex: 0 0 auto !important;
+        flex-wrap: nowrap !important;
+        gap: 0.35rem !important;
+    }
+
+    body.room-view-active .cinema-mode-btn,
+    body.room-view-active .banner-sync-btn,
+    body.room-view-active .back-btn{
+        min-height: 36px !important;
+        padding: 0.45rem 0.7rem !important;
+        border-radius: var(--r-sm) !important;
+        background: var(--ink-700) !important;
+        border: 1px solid var(--rule-strong) !important;
+        color: var(--bone-200) !important;
+        white-space: nowrap !important;
+        font-size: 0.7rem !important;
+    }
+
+    body.room-view-active .cinema-mode-btn:active,
+    body.room-view-active .banner-sync-btn:active,
+    body.room-view-active .back-btn:active{
+        background: var(--ember) !important;
+        color: var(--ink-900) !important;
+    }
+
+    body.room-view-active .sidebar{
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        border: 0 !important;
+        border-top: 1px solid var(--rule-strong) !important;
+        border-radius: 0 !important;
+        background: var(--ink-850) !important;
+    }
+
+    body.room-view-active .sidebar-header{
+        min-height: 46px !important;
+        padding: 0.6rem 0.75rem !important;
+        background: var(--ink-800) !important;
+        border-bottom: 1px solid var(--rule) !important;
+    }
+
+    body.room-view-active .sidebar-content{
+        background: var(--ink-850) !important;
+    }
+
+    body.room-view-active .chat-messages{
+        padding: 0.65rem !important;
+        gap: 0.5rem !important;
+    }
+
+    body.room-view-active .chat-bubble{
+        max-width: 88% !important;
+        padding: 0.55rem 0.7rem !important;
+        border: 1px solid var(--rule) !important;
+        border-radius: 12px !important;
+        background: var(--ink-700) !important;
+        color: var(--bone-200) !important;
+        font-size: 0.82rem !important;
+        line-height: 1.35 !important;
+    }
+
+    body.room-view-active .chat-bubble.me{
+        background: rgba(167, 91, 48, 0.32) !important;
+        border-color: rgba(232, 137, 82, 0.28) !important;
+    }
+
+    body.room-view-active .chat-input-container{
+        padding: 0.55rem !important;
+        background: var(--ink-800) !important;
+        border-top: 1px solid var(--rule) !important;
+    }
+
+    body.room-view-active .chat-text-input{
+        min-height: 40px !important;
+        background: var(--ink-700) !important;
+        border: 1px solid var(--rule-strong) !important;
+        color: var(--bone-100) !important;
+        border-radius: 10px !important;
+    }
+
+    body.room-view-active .chat-send-btn{
+        min-width: 40px !important;
+        min-height: 40px !important;
+        background: var(--ember) !important;
+        color: var(--ink-900) !important;
+        border-radius: 10px !important;
+    }
+}
 
 
 

@@ -198,7 +198,8 @@
                                 class="moovie-frame__ctrl-btn"
                                 :class="{ 'is-active': muted }"
                                 @click.stop="handleVolumeButtonClick"
-                                aria-label="Mute"
+                                :aria-label="muted ? 'Unmute' : 'Mute'"
+                                :title="muted ? 'Unmute' : 'Volume'"
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" /><path v-if="!muted" d="M15.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" /><path v-if="!muted" d="M19 12c0 2.97-1.65 5.54-4 6.71v2.06c3.45-1.28 6-4.56 6-8.77s-2.55-7.49-6-8.77v2.06c2.35 1.17 4 3.74 4 6.71z" /><line v-if="muted" x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
                             </button>
@@ -4254,66 +4255,66 @@ resolve(false)
     bottom: 45px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(8, 8, 12, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
-    width: 32px;
-    height: 120px;
+    background: rgba(28, 18, 13, 0.98);
+    border: 1px solid var(--rule-strong);
+    border-radius: 14px;
+    width: 164px;
+    height: 48px;
+    padding: 0 14px;
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 120;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(232, 137, 82, 0.08);
+    backdrop-filter: blur(14px);
 }
 
 .moovie-frame__volume-vertical-slider {
-    position: absolute;
-    width: 80px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 2px;
+    width: 100%;
+    height: 5px;
+    background: rgba(232, 137, 82, 0.18);
+    border-radius: 999px;
     outline: none;
     appearance: none;
     cursor: pointer;
-    transform: rotate(-90deg);
     
     &::-webkit-slider-runnable-track {
         width: 100%;
-        height: 4px;
-        background: transparent;
+        height: 5px;
+        background: rgba(232, 137, 82, 0.22);
+        border-radius: 999px;
     }
 
     &::-webkit-slider-thumb {
         appearance: none;
-        width: 10px;
-        height: 10px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
-        background: #ffffff;
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+        background: var(--ember);
+        box-shadow: 0 0 0 3px rgba(232, 137, 82, 0.16);
         cursor: pointer;
-        margin-top: -3px;
+        margin-top: -4.5px;
         transition: transform 0.1s ease, background-color 0.2s;
         
         &:hover {
             transform: scale(1.2);
-            background-color: rgba(255, 255, 255, 0.86);
+            background-color: var(--gold-leaf);
         }
     }
 
     &::-moz-range-thumb {
-        width: 10px;
-        height: 10px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
-        background: #ffffff;
+        background: var(--ember);
         border: 0;
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+        box-shadow: 0 0 0 3px rgba(232, 137, 82, 0.16);
         cursor: pointer;
         transition: transform 0.1s ease, background-color 0.2s;
         
         &:hover {
             transform: scale(1.2);
-            background-color: rgba(255, 255, 255, 0.86);
+            background-color: var(--gold-leaf);
         }
     }
 }

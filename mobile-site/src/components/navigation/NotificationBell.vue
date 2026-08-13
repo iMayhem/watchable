@@ -303,7 +303,7 @@ onMounted(() => {
     right: 0;
     width: min(400px, 100vw);
     height: 100dvh;
-    background: rgba(26, 24, 21, 0.98);
+    background: var(--ink-700);
     backdrop-filter: blur(16px) saturate(180%);
     border-left: 1px solid var(--rule);
     box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
@@ -331,7 +331,7 @@ onMounted(() => {
     font-family: var(--font-ui);
     font-size: var(--fs-sm);
     font-weight: 600;
-    color: var(--bone-50);
+    color: var(--bone-100);
     margin-right: auto;
 }
 
@@ -375,7 +375,7 @@ onMounted(() => {
     font-family: var(--font-display);
     font-size: var(--fs-sm);
     font-weight: 700;
-    color: var(--bone-50);
+    color: var(--bone-100);
     margin-bottom: var(--s-2);
 }
 
@@ -491,7 +491,7 @@ onMounted(() => {
 .m-notif-bell__item-title {
     font-size: var(--fs-sm);
     font-weight: 600;
-    color: var(--bone-50);
+    color: var(--bone-100);
     line-height: 1.3;
 }
 

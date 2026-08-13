@@ -527,7 +527,7 @@ export default defineComponent({
     position: sticky;
     top: 0;
     z-index: var(--z-header);
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.98), rgba(0, 0, 0, 0.78));
+    background: linear-gradient(180deg, rgba(28, 18, 13, 0.98), rgba(17, 12, 9, 0.86));
     transition:
         background-color var(--dur-base) var(--ease-out),
         border-color var(--dur-base) var(--ease-out),
@@ -539,8 +539,8 @@ export default defineComponent({
         inset: 0;
         background: linear-gradient(
             180deg,
-            rgba(0, 0, 0, 0.92) 0%,
-            rgba(0, 0, 0, 0) 100%
+            rgba(28, 18, 13, 0.88) 0%,
+            rgba(17, 12, 9, 0) 100%
         );
         pointer-events: none;
         opacity: 1;
@@ -548,7 +548,7 @@ export default defineComponent({
     }
 
     &.is-scrolled {
-        background: rgba(0, 0, 0, 0.97);
+        background: rgba(20, 14, 10, 0.97);
         backdrop-filter: var(--blur-strong);
         -webkit-backdrop-filter: var(--blur-strong);
         border-bottom: 1px solid var(--glass-border-strong);

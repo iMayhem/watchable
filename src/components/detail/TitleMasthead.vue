@@ -974,6 +974,10 @@ export default defineComponent({
         object-fit: contain;
         object-position: center;
         border-radius: var(--r-md, 8px);
+        // Keep poster key art under the same quiet, readable tint as the
+        // billboard hero, especially when a vertical poster is used as the
+        // detail-page backdrop fallback.
+        filter: brightness(0.68) saturate(0.9);
         box-shadow: 0 12px 60px rgba(0, 0, 0, 0.95);
     }
 

@@ -15,20 +15,20 @@
 a, button, [role='button'], input, select, textarea { touch-action: manipulation; }
 button, a { -webkit-tap-highlight-color: transparent; }
 
-// Dark interaction language: buttons stay black; orange is reserved for icons,
-// active indicators, and small status accents.
+// Dark interaction language: warm surfaces stay restrained; orange carries
+// icons, active indicators, focus states, and small status accents.
 button,
 input[type='button'],
 input[type='submit'],
 input[type='reset'],
 [role='button'] {
-  background: #050505 !important;
+  background: var(--ink-800) !important;
   border-color: transparent !important;
   color: var(--bone-50) !important;
 
   &:hover:not(:disabled),
   &:focus-visible:not(:disabled) {
-    background: #111 !important;
+    background: var(--ink-600) !important;
   }
 
   svg { color: var(--ember) !important; }

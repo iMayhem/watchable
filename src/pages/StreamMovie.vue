@@ -277,7 +277,33 @@ export default defineComponent({
         .watch-stage__video-layer {
             position: absolute !important;
             inset: 0;
-            height: 100%;
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        :deep(.moovie-frame),
+        :deep(.moovie-frame__stage),
+        :deep(.moovie-frame__player),
+        :deep(.moovie-frame__video) {
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 0 !important;
+            min-height: 1px !important;
+        }
+
+        // The classic Watch Together page nests this route two levels deep.
+        // Keep the actual media surface above its black player shell so a
+        // playable stream cannot be reduced to an audio-only-looking screen.
+        :deep(.moovie-frame__video) {
+            position: absolute !important;
+            inset: 0 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            object-fit: contain !important;
+            z-index: 1 !important;
         }
     }
 

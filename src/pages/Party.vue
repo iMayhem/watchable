@@ -1,6 +1,12 @@
 <template>
     <div class="party-shell" :class="{ 'has-native-player': Boolean(nativeMediaId) }">
-        <section v-if="nativeMediaId" class="party-shell__player" aria-label="Watch Together player">
+        <section
+            v-if="nativeMediaId"
+            class="party-shell__player"
+            aria-label="Watch Together player"
+            @mouseenter="setClassicPlayerHover(true)"
+            @mouseleave="setClassicPlayerHover(false)"
+        >
             <MoovieFrame
                 :media-id="nativeMediaId"
                 :media-type="nativeMediaType"
@@ -15,38 +21,8 @@
             :src="frameSrc"
             title="Watch Together"
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            @load="frameReady = true; syncPartyFooterState()"
+            @load="frameReady = true; syncPartyFooterState(); syncNativePlayerBounds()"
         />
-        <footer v-if="nativeMediaId" class="party-shell__footer" aria-label="Watch Together room controls">
-            <div class="party-shell__footer-title">
-                <button type="button" class="party-shell__back" aria-label="Back to home" title="Back to home" @click="goHome">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M19 12H5" />
-                        <path d="m12 19-7-7 7-7" />
-                    </svg>
-                </button>
-                <span class="party-shell__footer-dot" aria-hidden="true" />
-                <span>Watch Together</span>
-            </div>
-            <div class="party-shell__footer-actions">
-                <button type="button" class="party-shell__footer-btn" @click="runPartyAction('toggleRoomPrivacy')">
-                    <span aria-hidden="true">🔒</span>
-                    <span>{{ privacyLabel }}</span>
-                </button>
-                <button type="button" class="party-shell__footer-btn" @click="runPartyAction('toggleCinemaMode')">
-                    <span aria-hidden="true">▣</span>
-                    <span>{{ cinemaLabel }}</span>
-                </button>
-                <button type="button" class="party-shell__footer-btn" @click="runPartyAction('copyShareLink')">
-                    <span aria-hidden="true">↗</span>
-                    <span>Invite</span>
-                </button>
-                <button type="button" class="party-shell__footer-btn" @click="runPartyAction('showLobbyView')">
-                    <span aria-hidden="true">⌂</span>
-                    <span>Lobby</span>
-                </button>
-            </div>
-        </footer>
     </div>
 </template>
 
@@ -69,6 +45,8 @@ let nativeDiagnosticsTimer: ReturnType<typeof setTimeout> | null = null;
 let partyFooterSyncTimer: number | null = null;
 let nativeSyncTimer: ReturnType<typeof setInterval> | null = null;
 let nativeRespondingToSync = false;
+let nativeBoundsTimer: number | null = null;
+let nativeHoverTimer: number | null = null;
 
 const preservedMediaKey = ref(String(route.query.media || ''));
 const mediaKey = computed(() => preservedMediaKey.value);
@@ -83,9 +61,9 @@ const nativeTitle = computed(() => String(route.query.title || 'Watch Together')
 function buildFrameSrc(query: LocationQuery): string {
     const params = new URLSearchParams();
     params.set('embedded', '1');
-    // Bust the separately cached legacy party document while iterating locally.
-    params.set('_v', '10');
     if (query.media) params.set('native', '1');
+    // Bust the separately cached classic party workspace while iterating locally.
+    params.set('_v', '10');
 
     Object.entries(query).forEach(([key, value]) => {
         if (value == null || key === 'embedded') return;
@@ -121,27 +99,53 @@ function syncPartyFooterState() {
     }
 }
 
-function goHome() {
-    void router.push('/');
+function exitCinemaMode(event: KeyboardEvent) {
+    if (event.key !== 'Escape') return;
+    const partyWindow = getPartyWindow() as (Window & {
+        toggleCinemaMode?: () => void;
+        document?: Document;
+    }) | null;
+    const partyDocument = partyWindow?.document;
+    if (!partyDocument?.body.classList.contains('cinema-mode')) return;
+    console.info('[Party] Escape pressed: disabling cinema mode');
+    partyWindow?.toggleCinemaMode?.();
 }
 
-function runPartyAction(action: 'toggleRoomPrivacy' | 'toggleCinemaMode' | 'copyShareLink' | 'showLobbyView') {
-    if (action === 'showLobbyView') {
-        void router.push('/party');
+function syncNativePlayerBounds() {
+    const player = document.querySelector('.party-shell__player') as HTMLElement | null;
+    const frame = document.querySelector('.party-shell__frame') as HTMLIFrameElement | null;
+    const stage = frame?.contentDocument?.querySelector('#player-stage') as HTMLElement | null;
+    if (!player || !frame || !stage) {
+        console.info('[Party NativePlayer] player-stage not ready for bounds sync', {
+            player: Boolean(player), frame: Boolean(frame), stage: Boolean(stage)
+        });
         return;
     }
-    const partyWindow = getPartyWindow() as (Window & Record<string, ((...args: any[]) => any) | undefined>) | null;
-    const handler = partyWindow?.[action];
-    if (typeof handler !== 'function') {
-        console.warn('[Party] Native footer action is not ready:', action);
-        return;
-    }
-    const result = action === 'toggleRoomPrivacy'
-        ? handler.call(partyWindow, new Event('click'))
-        : handler.call(partyWindow);
-    Promise.resolve(result).finally(() => {
-        window.setTimeout(syncPartyFooterState, 100);
+    const frameRect = frame.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    const left = frameRect.left + stageRect.left;
+    const top = frameRect.top + stageRect.top;
+    player.style.left = `${Math.max(0, left)}px`;
+    player.style.top = `${Math.max(0, top)}px`;
+    player.style.width = `${Math.max(1, stageRect.width)}px`;
+    player.style.height = `${Math.max(1, stageRect.height)}px`;
+    player.style.right = 'auto';
+    player.style.bottom = 'auto';
+    console.info('[Party NativePlayer] bounds synced to classic player slot', {
+        left: Math.round(left), top: Math.round(top),
+        width: Math.round(stageRect.width), height: Math.round(stageRect.height)
     });
+}
+
+function setClassicPlayerHover(active: boolean) {
+    if (nativeHoverTimer) window.clearTimeout(nativeHoverTimer);
+    const send = () => {
+        const frame = document.querySelector('.party-shell__frame') as HTMLIFrameElement | null;
+        frame?.contentWindow?.postMessage({ type: 'watchable-player-hover', active }, window.location.origin);
+    };
+    // Keep the footer clickable while moving from the player to its controls.
+    if (active) send();
+    else nativeHoverTimer = window.setTimeout(send, 900);
 }
 
 function describeElement(element: Element | null) {
@@ -173,11 +177,19 @@ function attachNativeDiagnostics() {
     stopNativeDiagnostics = null;
     if (nativeSyncTimer) clearInterval(nativeSyncTimer);
     nativeSyncTimer = null;
-    if (!nativeMediaId.value) return;
+    if (!nativeMediaId.value) {
+        console.info('[Party NativePlayer] no media query; native player is intentionally idle');
+        return;
+    }
 
     const player = document.querySelector('.party-shell__player');
     const video = player?.querySelector('video') as HTMLVideoElement | null;
     if (!player || !video) {
+        console.info('[Party NativePlayer] waiting for MoovieFrame video element', {
+            mediaId: nativeMediaId.value,
+            playerFound: Boolean(player),
+            videoFound: Boolean(video)
+        });
         // MoovieFrame creates its media surface during the first render/load cycle.
         nativeDiagnosticsTimer = setTimeout(attachNativeDiagnostics, 500);
         return;
@@ -214,6 +226,7 @@ function attachNativeDiagnostics() {
 
     const sendNativeSync = (event: 'play' | 'pause' | 'seek' | 'heartbeat' | 'ready' | 'complete') => {
         const partyFrame = document.querySelector('.party-shell__frame') as HTMLIFrameElement | null;
+        console.info('[Party NativePlayer] sending sync to room iframe', { event, time: video.currentTime, playing: !video.paused });
         partyFrame?.contentWindow?.postMessage({
             type: 'watchable-player-sync',
             event,
@@ -265,8 +278,12 @@ function onPartyMessage(event: MessageEvent) {
     if (!data || typeof data !== 'object') return;
 
     if (data.type === 'moovie-command-sync') {
+        console.info('[Party NativePlayer] received sync command', data);
         const video = document.querySelector('.party-shell__player video') as HTMLVideoElement | null;
-        if (!video) return;
+        if (!video) {
+            console.warn('[Party NativePlayer] cannot apply sync: video element is missing');
+            return;
+        }
         // Suppress echo reporting while we apply a remote command, otherwise the
         // native player's seeked/playing/pause events re-broadcast the command
         // straight back and create an infinite sync loop (the MoovieFrame iframe
@@ -293,6 +310,7 @@ function onPartyMessage(event: MessageEvent) {
     // Forward native-player playback events into the room iframe, where the
     // existing realtime channel broadcasts them to everyone else.
     if (data.type === 'watchable-player-sync' && event.source === window) {
+        console.info('[Party NativePlayer] forwarding player event to room iframe', data);
         const partyFrame = document.querySelector('.party-shell__frame') as HTMLIFrameElement | null;
         partyFrame?.contentWindow?.postMessage(data, window.location.origin);
         return;
@@ -349,22 +367,29 @@ onMounted(() => {
         canonical: `https://moovie.fun/party`
     });
     window.addEventListener('message', onPartyMessage);
+    window.addEventListener('keydown', exitCinemaMode);
+    window.addEventListener('resize', syncNativePlayerBounds);
     partyFooterSyncTimer = window.setInterval(syncPartyFooterState, 700);
+    nativeBoundsTimer = window.setInterval(syncNativePlayerBounds, 1000);
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener('message', onPartyMessage);
+    window.removeEventListener('keydown', exitCinemaMode);
+    window.removeEventListener('resize', syncNativePlayerBounds);
     if (nativeDiagnosticsTimer) clearTimeout(nativeDiagnosticsTimer);
     stopNativeDiagnostics?.();
     if (nativeSyncTimer) clearInterval(nativeSyncTimer);
     if (partyFooterSyncTimer) clearInterval(partyFooterSyncTimer);
+    if (nativeBoundsTimer) clearInterval(nativeBoundsTimer);
+    if (nativeHoverTimer) clearTimeout(nativeHoverTimer);
 });
 </script>
 
 <style lang="scss" scoped>
 .party-shell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    position: relative;
+    display: block;
     width: 100%;
     height: 100dvh;
     min-height: 100dvh;
@@ -373,15 +398,17 @@ onBeforeUnmount(() => {
 }
 
 .party-shell.has-native-player {
-    grid-template-columns: minmax(0, 1fr) 420px;
-    grid-template-rows: minmax(0, 1fr) auto;
+    display: block;
 }
 
 .party-shell__player {
-    position: relative;
+    position: absolute;
+    top: 52px;
+    right: clamp(320px, 27.8vw, 420px);
+    bottom: 58px;
+    left: 0;
     display: flex;
-    flex: 1 1 auto;
-    z-index: 1;
+    z-index: 3;
     min-width: 0;
     min-height: 320px;
     height: 100%;
@@ -420,6 +447,8 @@ onBeforeUnmount(() => {
 }
 
 .party-shell__frame {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     border: 0;
@@ -432,15 +461,10 @@ onBeforeUnmount(() => {
 
 .party-shell__frame.is-loaded { opacity: 1; }
 
-.party-shell:not(.has-native-player) .party-shell__frame {
-    grid-column: 1 / -1;
-}
-
 .party-shell.has-native-player .party-shell__frame {
-    grid-column: 2;
+    position: absolute;
+    inset: 0;
     opacity: 1;
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: -1px 0 0 rgba(255, 255, 255, 0.05);
 }
 
 .party-shell__footer {
@@ -563,27 +587,20 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1024px) {
-    .party-shell,
-    .party-shell.has-native-player {
-        grid-template-columns: 1fr;
-        grid-template-rows: minmax(240px, 56.25vw) minmax(520px, 1fr);
-        height: auto;
-        overflow-y: auto;
+    .party-shell {
+        height: 100dvh;
+        overflow: hidden;
     }
 
     .party-shell.has-native-player .party-shell__player {
-        grid-row: 1;
+        top: 52px;
+        right: 0;
+        bottom: 58dvh;
         min-height: 240px;
-        max-height: 70dvh;
     }
 
     .party-shell.has-native-player .party-shell__frame {
-        grid-column: 1;
-        grid-row: 2;
-        height: 70dvh;
-        min-height: 520px;
-        border-left: 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        top: 42dvh;
     }
 
     .party-shell__footer {

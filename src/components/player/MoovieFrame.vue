@@ -34,7 +34,7 @@
                             <span class="moovie-frame__loader-kicker">Finding a playable source</span>
                             <strong>{{ title }}</strong>
                             <span class="moovie-frame__loader-status">
-                                {{ activeProviderName ? `Searching ${activeProviderName}…` : 'Connecting to sources…' }}
+                                {{ activeProviderStatus || (activeProviderName ? `Searching ${activeProviderName}…` : 'Connecting to sources…') }}
                             </span>
                         </div>
                     </div>
@@ -729,6 +729,7 @@ interface ProviderStatus {
     status: 'waiting' | 'pending' | 'success' | 'failure' | 'notfound'
     percentage: number
     error?: string
+    cacheStatus?: string
 }
 
 interface HubStream {
@@ -1076,6 +1077,7 @@ export default defineComponent({
         const settingsOpen = ref(false)
         const settingsSection = ref<string | null>(null)
         const selectedServer = ref('')
+        const activeProviderStatus = ref('')
 
         async function loadEnabledProviderList() {
             try {
@@ -1452,6 +1454,33 @@ export default defineComponent({
             video.playbackRate = playbackSpeed.value
 
             const onBufferEnd = () => { buffering.value = false; playing.value = !video.paused }
+            const invalidateCachedPoseidonLink = () => {
+                const source = originalStream.value as (HubStream & { providerId?: string }) | null
+                const providerId = String(source?.providerId || '').toLowerCase()
+                const providerName = String(source?.providerName || '').toLowerCase()
+                const isPoseidon = providerId === 'vaplayer' || providerId === 'poseidon' || providerName === 'poseidon'
+                if (!isPoseidon) return
+                void fetch(`${HUB_BASE}/api/scrape/cache/invalidate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: 'vaplayer',
+                        tmdbId: String(props.mediaId),
+                        type: props.mediaType,
+                        season: props.season || undefined,
+                        episode: props.episode || undefined,
+                    })
+                }).then(() => {
+                    console.info('[MoovieFrame] invalidated cached Poseidon link after media error', {
+                        mediaId: props.mediaId,
+                        mediaType: props.mediaType,
+                        providerId,
+                        providerName,
+                    })
+                }).catch((err) => {
+                    console.warn('[MoovieFrame] failed to invalidate cached Poseidon link:', err)
+                })
+            }
             const onTimeUpdate = () => { currentTime.value = video.currentTime; duration.value = video.duration || 0; updateActiveCueText() }
             const onPlayPause = () => { 
                 playing.value = !video.paused;
@@ -1505,6 +1534,7 @@ export default defineComponent({
             video.addEventListener('loadeddata', onBufferEnd)
             video.addEventListener('seeked', onSeeked)
             video.addEventListener('error', onBufferEnd)
+            video.addEventListener('error', invalidateCachedPoseidonLink, { once: true })
             video.addEventListener('abort', onBufferEnd)
             video.addEventListener('timeupdate', onTimeUpdate)
 
@@ -1726,8 +1756,10 @@ export default defineComponent({
         function scrapeViaSSE(): Promise<HubStream[]> {
             return new Promise((resolve, reject) => {
                 providers.value = []
+                activeProviderStatus.value = ''
                 const url = buildScrapeUrl()
                 if (!url) { reject(new Error('No media ID')); return }
+                console.debug('[MoovieFrame][SSE] opening scrape stream', { url, mediaId: props.mediaId, mediaType: props.mediaType })
 
                 const providerMap = new Map<string, ProviderStatus>()
                 const providerNames = new Map<string, string>()
@@ -1747,6 +1779,11 @@ export default defineComponent({
                 }
 
                 eventSource = new EventSource(url)
+                eventSource.onopen = () => console.debug('[MoovieFrame][SSE] connection opened')
+                eventSource.onerror = (error) => console.warn('[MoovieFrame][SSE] connection error', {
+                    readyState: eventSource?.readyState,
+                    error,
+                })
 
                 const SCRAPER_NAMES: Record<string, string> = {
                     vaplayer: 'Poseidon',
@@ -1764,6 +1801,7 @@ export default defineComponent({
                         const data = JSON.parse(e.data)
                         console.debug('[MoovieFrame] init sourceIds:', data.sourceIds)
                         const ids: string[] = data.sourceIds || []
+                        console.debug('[MoovieFrame][SSE] init received', { sourceIds: ids, sources: data.sources })
                         providerNames.clear()
                         for (const source of (data.sources || [])) {
                             if (source?.id && source?.name) providerNames.set(source.id, source.name)
@@ -1773,26 +1811,74 @@ export default defineComponent({
                             const name = providerNames.get(id) || SCRAPER_NAMES[id] || friendlyProviderName(id)
                             providerMap.set(id, { id, name, status: 'waiting', percentage: 0 })
                         }
+                        if (ids.includes('vaplayer')) {
+                            activeProviderStatus.value = 'Checking Poseidon cache…'
+                            console.debug('[MoovieFrame][loader] initial Poseidon cache status set', activeProviderStatus.value)
+                        }
                         providers.value = [...providerMap.values()]
                     } catch { /* ignore */ }
                 })
 
                 eventSource.addEventListener('start', (e: MessageEvent) => {
                     const id = JSON.parse(e.data)
-                    console.debug('[MoovieFrame] start:', id)
+                    console.debug('[MoovieFrame][SSE] start received', {
+                        id,
+                        providerKnown: providerMap.has(id),
+                        currentLoaderStatus: activeProviderStatus.value,
+                    })
                     const ps = providerMap.get(id)
-                    if (ps) { ps.status = 'pending'; ps.percentage = 0; providers.value = [...providerMap.values()] }
+                    if (ps) {
+                        ps.status = 'pending'
+                        ps.percentage = 0
+                        ps.cacheStatus = undefined
+                        // Keep the cache status visible while the remaining providers
+                        // start. Otherwise a later provider's start event immediately
+                        // replaces the useful Poseidon cache message.
+                        if (id !== 'vaplayer' && !activeProviderStatus.value.includes('Poseidon')) {
+                            activeProviderStatus.value = `Searching ${ps.name}…`
+                        } else if (id === 'vaplayer' && !activeProviderStatus.value.includes('Poseidon')) {
+                            activeProviderStatus.value = `Searching ${ps.name}…`
+                        }
+                        console.debug('[MoovieFrame][loader] after start', {
+                            id,
+                            provider: ps.name,
+                            loaderStatus: activeProviderStatus.value,
+                        })
+                        providers.value = [...providerMap.values()]
+                    }
                 })
 
                 eventSource.addEventListener('update', (e: MessageEvent) => {
                     try {
                         const data = JSON.parse(e.data)
                         const ps = providerMap.get(data.id)
+                        console.debug('[MoovieFrame][SSE] update received', {
+                            id: data.id,
+                            status: data.status,
+                            percentage: data.percentage,
+                            cacheStatus: data.cacheStatus,
+                            providerKnown: Boolean(ps),
+                            loaderStatusBefore: activeProviderStatus.value,
+                        })
+                        // Cache updates can arrive before the provider list has
+                        // finished initializing. The player-level status must not
+                        // depend on finding a matching provider row.
+                        if (data.cacheStatus) {
+                            activeProviderStatus.value = data.cacheStatus
+                            console.debug('[MoovieFrame][loader] cache status applied', activeProviderStatus.value)
+                        }
                         if (ps) {
                             ps.percentage = data.percentage || 0
                             if (data.status) ps.status = data.status
+                            if (data.cacheStatus) {
+                                ps.cacheStatus = data.cacheStatus
+                            }
                             if (data.error) ps.error = data.error
-                            providers.value = [...providerMap.values()]
+                        providers.value = [...providerMap.values()]
+                        console.debug('[MoovieFrame][loader] update complete', {
+                            loaderStatusAfter: activeProviderStatus.value,
+                            providers: providers.value.map((provider) => ({ id: provider.id, status: provider.status, cacheStatus: provider.cacheStatus })),
+                        })
                         }
                     } catch { /* ignore */ }
                 })
@@ -2360,6 +2446,14 @@ export default defineComponent({
             loading.value = true
             error.value = ''
             firstFrameShown.value = false
+            activeProviderStatus.value = providerId === 'vaplayer'
+                ? 'Checking Poseidon cache…'
+                : `Searching ${provider}…`
+            console.debug('[MoovieFrame][single-source] loader status initialized', {
+                provider,
+                providerId,
+                status: activeProviderStatus.value,
+            })
 
             if (providerObj) {
                 providerObj.status = 'pending'
@@ -2383,6 +2477,12 @@ export default defineComponent({
             cancelScrape()
 
             let sourceEventSource: EventSource | null = new EventSource(scrapeUrl)
+            sourceEventSource.onopen = () => console.debug('[MoovieFrame][single-source] connection opened', { providerId })
+            sourceEventSource.onerror = (event) => console.warn('[MoovieFrame][single-source] connection error', {
+                providerId,
+                readyState: sourceEventSource?.readyState,
+                event,
+            })
             const scraperStreams: HubStream[] = []
             let finished = false
 
@@ -2397,6 +2497,18 @@ export default defineComponent({
                 sourceEventSource!.addEventListener('update', (e: MessageEvent) => {
                     try {
                         const data = JSON.parse(e.data)
+                        console.debug('[MoovieFrame][single-source] update received', {
+                            providerId,
+                            id: data.id,
+                            status: data.status,
+                            percentage: data.percentage,
+                            cacheStatus: data.cacheStatus,
+                            loaderStatusBefore: activeProviderStatus.value,
+                        })
+                        if (data.cacheStatus) {
+                            activeProviderStatus.value = data.cacheStatus
+                            console.debug('[MoovieFrame][single-source] cache status applied', activeProviderStatus.value)
+                        }
                         if (providerObj && data.id === providerId) {
                             providerObj.status = data.status || 'pending'
                             providerObj.percentage = typeof data.percentage === 'number' ? data.percentage : 0
@@ -3003,7 +3115,7 @@ resolve(false)
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>

@@ -114,9 +114,8 @@ export function useDiscussPage() {
         try {
             const client = await getSyncClient();
             const { data } = await client
-                .from('movora_comments')
-                .select('*')
-                .eq('media_type', 'lounge')
+                .from('movora_chat')
+                .select('id, username, content, created_at')
                 .order('created_at', { ascending: false })
                 .limit(200);
             return data || [];
@@ -131,10 +130,11 @@ export function useDiscussPage() {
             const { data } = await client
                 .from('movora_comments')
                 .select('*')
-                .neq('media_type', 'lounge')
                 .order('created_at', { ascending: false })
                 .limit(200);
-            return data || [];
+            return (data || []).filter((comment: DiscussComment) =>
+                ['movie', 'tv', 'anime'].includes(String(comment.media_type)) && comment.media_id !== 'lounge'
+            );
         } catch {
             return [];
         }

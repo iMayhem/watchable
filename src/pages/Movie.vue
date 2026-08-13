@@ -49,6 +49,10 @@
             <section class="movie-detail__section movie-detail__snap-slide container-lm">
                 <CastGrid :casts="cast" title="The Players" eyebrow="The Cast" :limit="12" :loading="loading" />
             </section>
+
+            <section v-if="movie" class="movie-detail__section movie-detail__snap-slide container-lm">
+                <CommentsSection :media-id="movie.id" media-type="movie" />
+            </section>
         </main>
 
         <SiteFooter />
@@ -66,6 +70,7 @@ import MetaBar, { MetaEntry } from '../components/detail/MetaBar.vue';
 import DropCapSynopsis from '../components/detail/DropCapSynopsis.vue';
 import StatsBlock, { StatEntry } from '../components/detail/StatsBlock.vue';
 import CastGrid from '../components/detail/CastGrid.vue';
+import CommentsSection from '../components/player/CommentsSection.vue';
 import { useMovies, MovieDetails, Cast, Crew } from '../composables/useMovies';
 import { useSeo } from '../composables/useSeo';
 import { addViewedItem } from '../composables/useHistory';
@@ -84,6 +89,7 @@ export default defineComponent({
         DropCapSynopsis,
         StatsBlock,
         CastGrid,
+        CommentsSection,
     },
     setup() {
         const route = useRoute();

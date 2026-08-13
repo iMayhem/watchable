@@ -90,7 +90,7 @@ export default {
     let target = url.searchParams.get('url')
     if (!target && id) {
       try {
-        const hub = new URL('/api/stream', 'https://proxy.moovie.fun')
+        const hub = new URL('/api/stream', 'https://hahaevilcraft.site')
         hub.searchParams.set('id', id)
         const resp = await fetch(hub)
         if (resp.ok) {

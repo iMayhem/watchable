@@ -960,9 +960,12 @@ export default defineComponent({
         };
 
         checkAuth();
-        void bootstrapDiscuss();
 
         onMounted(() => {
+            // A nav hover can prefetch an older cached feed. Always refresh the
+            // reviews feed when the page itself is opened.
+            resetDiscussFeedCache();
+            void bootstrapDiscuss();
             updateSeo({
                 title: 'Discuss — Moovie',
                 description: 'Open chat and title-specific reviews on Moovie.',

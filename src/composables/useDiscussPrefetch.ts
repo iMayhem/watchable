@@ -39,12 +39,16 @@ async function loadReviewsFeed(): Promise<DiscussFeedComment[]> {
     const { data, error } = await sync
         .from('movora_comments')
         .select('id, media_id, media_type, username, content, created_at, is_hidden')
-        .in('media_type', ['movie', 'tv', 'anime'])
         .order('created_at', { ascending: false })
         .limit(500);
 
     if (error) throw error;
-    return (data || []).filter((comment: DiscussFeedComment) => comment.media_id !== 'lounge');
+    // Keep filtering client-side. The self-hosted REST adapter has not always
+    // implemented PostgREST's `in` operator consistently, which made the
+    // Discuss reviews panel silently return an empty feed.
+    return (data || []).filter((comment: DiscussFeedComment) =>
+        ['movie', 'tv', 'anime'].includes(String(comment.media_type)) && comment.media_id !== 'lounge'
+    );
 }
 
 function ensureLoungeFeedPrefetch() {

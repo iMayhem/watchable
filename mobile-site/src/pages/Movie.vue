@@ -29,6 +29,10 @@
                 <CastGrid :casts="cast" title="Cast" :limit="8" :loading="loading" />
             </section>
 
+            <section v-if="movie" class="m-detail__section container-lm">
+                <CommentsSection :media-id="movie.id" media-type="movie" />
+            </section>
+
             <section v-if="similarItems.length" class="m-detail__section">
                 <MobileSection title="Similar" eyebrow="You may also like">
                     <MobileMediaRail :items="similarItems" />
@@ -53,6 +57,7 @@ import MobileMediaRail from '../components/MobileMediaRail.vue';
 import TitleMasthead from '@/components/detail/TitleMasthead.vue';
 import DropCapSynopsis from '@/components/detail/DropCapSynopsis.vue';
 import CastGrid from '@/components/detail/CastGrid.vue';
+import CommentsSection from '@/components/player/CommentsSection.vue';
 import TrailerDialog from '@/components/detail/TrailerDialog.vue';
 import { useMovies, MovieDetails, Cast } from '@/composables/useMovies';
 import { fetchTrailerVideos, type TrailerVideo } from '@/composables/useTrailer';

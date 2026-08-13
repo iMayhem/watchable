@@ -180,7 +180,7 @@ export default defineComponent({
                 /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
             )
             if (!alreadyProxied && shouldUseProxy(s) && s.proxyUrl) return s.proxyUrl
-            if (!alreadyProxied && s.headers && Object.keys(s.headers).length) {
+            if (!alreadyProxied && shouldUseProxy(s) && s.headers && Object.keys(s.headers).length) {
                 const u = btoa(s.url).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
                 const h = btoa(JSON.stringify(s.headers)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
                 return `${HUB_PROXY}?u=${u}&h=${h}`

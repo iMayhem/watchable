@@ -406,9 +406,8 @@
             align-items: center;
             gap: 0.4rem;
             padding: 0.5rem 1rem;
-            background: transparent !important;
-            background-color: transparent !important;
-            border: 1px solid transparent !important;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--rule);
             border-radius: var(--r-sm);
             color: var(--bone-200);
             text-decoration: none;
@@ -418,9 +417,8 @@
         }
 
         .back-btn:hover {
-            background: transparent !important;
-            background-color: transparent !important;
-            border-color: transparent !important;
+            background: var(--surface-hover);
+            border-color: var(--rule-strong);
             color: var(--bone-50);
             transform: translateX(-2px);
         }
@@ -1428,6 +1426,15 @@
             background: #000;
         }
 
+        #party-native-stage {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            overflow: hidden;
+        }
+
         /* The Vue shell owns the native MoovieFrame in native mode. Keep this
            document responsible for the original room/chat UI only. */
         html.party-native-mode body.room-view-active .player-container {
@@ -1442,15 +1449,6 @@
         html.party-native-mode body.room-view-active .sidebar {
             width: 100% !important;
             height: 100% !important;
-        }
-
-        #party-native-stage {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            overflow: hidden;
         }
 
         .party-nf-watch {
@@ -4073,9 +4071,8 @@
         .workspace-banner .back-btn {
             padding: 0.3rem 0.65rem;
             font-size: 0.75rem;
-            background: transparent !important;
-            background-color: transparent !important;
-            border-color: transparent !important;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.08);
             border-radius: var(--r-sm);
             margin-right: 0.5rem;
             flex-shrink: 0;
@@ -4084,9 +4081,8 @@
         }
 
         .workspace-banner .back-btn:hover {
-            background: transparent !important;
-            background-color: transparent !important;
-            border-color: transparent !important;
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #fff;
             transform: none !important;
         }
@@ -4601,188 +4597,4 @@
     padding: 2rem 1rem;
     color: var(--bone-500);
     font-size: 0.85rem;
-}
-
-/* Watch Together chat: pure black surface, matching the native player. */
-body.room-view-active .sidebar,
-body.room-view-active .sidebar-header,
-body.room-view-active .sidebar-content,
-body.room-view-active .chat-messages,
-body.room-view-active .chat-input-container,
-body.room-view-active .participants-panel,
-body.room-view-active .chat-emoji-picker {
-    background: #111 !important;
-    background-color: #111 !important;
-}
-
-body.room-view-active .participants-panel {
-    background: #1a1a1a !important;
-}
-
-body.room-view-active .sidebar-header {
-    background: #171717 !important;
-}
-
-body.room-view-active .chat-input-container {
-    background: #181818 !important;
-}
-
-body.room-view-active .sidebar,
-body.room-view-active .sidebar-header,
-body.room-view-active .chat-input-container,
-body.room-view-active .participants-panel {
-    border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-body.room-view-active .chat-sync-notice {
-    background: #191919 !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-body.room-view-active .chat-bubble.other {
-    background: #1b1b1b !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-body.room-view-active .chat-bubble.me {
-    background: #232323 !important;
-    border-color: rgba(255, 255, 255, 0.18) !important;
-}
-
-body.room-view-active .chat-sender,
-body.room-view-active .chat-bubble.other .chat-sender,
-body.room-view-active .chat-emoji-picker span,
-body.room-view-active .chat-emoji-btn:hover,
-body.room-view-active .online-count-btn:hover,
-body.room-view-active .online-count-btn.active {
-    color: #fff !important;
-}
-
-body.room-view-active .chat-status-dot {
-    background: #fff !important;
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.35) !important;
-}
-
-body.room-view-active .chat-send-btn {
-    background: #000 !important;
-    color: #fff !important;
-    border: 1px solid rgba(255, 255, 255, 0.35) !important;
-}
-
-body.room-view-active .chat-send-btn:hover {
-    background: #fff !important;
-    color: #000 !important;
-    border-color: #fff !important;
-    transform: none !important;
-}
-
-body.room-view-active .give-host-btn {
-    background: #000 !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-    color: #fff !important;
-}
-
-body.room-view-active .give-host-btn:hover {
-    background: #fff !important;
-    border-color: #fff !important;
-    color: #000 !important;
-}
-
-/* Final Watch Together palette: black block UI with warm brown accents. */
-body.room-view-active .sidebar,
-body.room-view-active .sidebar-header,
-body.room-view-active .sidebar-content,
-body.room-view-active .chat-messages,
-body.room-view-active .chat-input-container,
-body.room-view-active .participants-panel,
-body.room-view-active .chat-emoji-picker,
-body.room-view-active .chat-sync-notice {
-    background: #000 !important;
-    background-color: #000 !important;
-}
-
-body.room-view-active .chat-sender,
-body.room-view-active .chat-bubble.other .chat-sender,
-body.room-view-active .chat-sync-notice strong,
-body.room-view-active .chat-panel-title,
-body.room-view-active .chat-status-dot,
-body.room-view-active .online-count-btn:hover,
-body.room-view-active .online-count-btn.active {
-    color: var(--ember) !important;
-}
-
-body.room-view-active .chat-status-dot {
-    background: var(--ember) !important;
-    box-shadow: 0 0 8px var(--ember-glow) !important;
-}
-
-body.room-view-active .chat-bubble.other {
-    background: #0b0b0b !important;
-}
-
-body.room-view-active .chat-bubble.me {
-    background: #151515 !important;
-}
-
-/* Chat typography uses a warm brown accent independent of the global white
-   player accent. Keep normal body copy readable, but remove the white cast. */
-body.room-view-active .sidebar {
-    --party-chat-brown: #b9784d;
-    color: var(--party-chat-brown) !important;
-}
-
-body.room-view-active .sidebar .chat-title-group,
-body.room-view-active .sidebar .chat-panel-title,
-body.room-view-active .sidebar .chat-user-status,
-body.room-view-active .sidebar .chat-user-status strong,
-body.room-view-active .sidebar .chat-sync-notice,
-body.room-view-active .sidebar .chat-sync-notice strong,
-body.room-view-active .sidebar .chat-bubble,
-body.room-view-active .sidebar .chat-bubble .chat-message,
-body.room-view-active .sidebar .participants-panel__name,
-body.room-view-active .sidebar .emoji-picker-header span,
-body.room-view-active .sidebar .emoji-category,
-body.room-view-active .sidebar .chat-emoji-btn,
-body.room-view-active .sidebar .chat-image-btn,
-body.room-view-active .sidebar .chat-text-input,
-body.room-view-active .sidebar .chat-text-input::placeholder,
-body.room-view-active .sidebar .online-count-btn {
-    color: var(--party-chat-brown) !important;
-}
-
-/* System/status messages stay neutral white for readability. */
-body.room-view-active .sidebar .chat-sync-notice,
-body.room-view-active .sidebar .chat-sync-notice *,
-body.room-view-active .sidebar .chat-bubble.system,
-body.room-view-active .sidebar .chat-bubble.system * {
-    color: #fff !important;
-}
-
-body.room-view-active .sidebar .chat-bubble.other,
-body.room-view-active .sidebar .chat-bubble.other .chat-message,
-body.room-view-active .sidebar .chat-bubble.me,
-body.room-view-active .sidebar .chat-bubble.me .chat-message {
-    color: #fff !important;
-}
-
-body.room-view-active .sidebar .chat-bubble.system {
-    color: rgba(185, 120, 77, 0.7) !important;
-}
-
-body.room-view-active .sidebar .chat-input-container,
-body.room-view-active .sidebar .participants-panel,
-body.room-view-active .sidebar .chat-emoji-picker {
-    border-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-body.room-view-active .sidebar .chat-send-btn {
-    color: var(--party-chat-brown) !important;
-    border-color: rgba(255, 255, 255, 0.45) !important;
-}
-
-body.room-view-active .sidebar .chat-bubble,
-body.room-view-active .sidebar .chat-bubble.other,
-body.room-view-active .sidebar .chat-bubble.me,
-body.room-view-active .sidebar .chat-sync-notice {
-    border-color: rgba(255, 255, 255, 0.2) !important;
 }

@@ -398,11 +398,8 @@
         }
 
         // Sync client configuration
-        // Watch Together data and realtime are served by the self-hosted VPS
-        // client loaded from party-sync.js.
         const defaultUrl = 'https://hahaevilcraft.site';
         const PUBLISHABLE_KEY = 'sb_publishable_sEdjXoX50ZSu2mY_gJEq4A_O0WzMf1D';
-
         let defaultKey = safeLocalStorage.getItem('moovie_sync_key') || '';
         if (!defaultKey || defaultKey === 'undefined' || defaultKey === 'null' || defaultKey.trim() === '' || defaultKey.includes('idwjvciofkvspmumgzmg') || defaultKey.includes('eeyiragtylotiwozbgqp')) {
             defaultKey = PUBLISHABLE_KEY;
@@ -2762,7 +2759,7 @@
                 switchStreamProvider(activeProvider);
             }
 
-            // 2. Update rooms record for late joiners
+            // 2. Update Supabase rooms record for late joiners
             if (isHost && activeRoom) {
                 let nextSource;
                 if (isNetflix) {
@@ -3108,7 +3105,7 @@
             stopPresenceHeartbeat();
 
             if (purgeChatIfLast && roomId) {
-                const state = channel ? channel.presenceState() : {};
+                const state = channel.presenceState();
                 if (countPresenceMembers(state) <= 1) {
                     await purgePartyChat(roomId);
                 }
@@ -3265,7 +3262,8 @@
                     const state = channel.presenceState();
                     updateUsersCount(state);
                 })
-                .on('presence', { event: 'join' }, ({ key, newPresences }) => {                    if (isLobbyObserverKey(key)) return;
+                .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+                    if (isLobbyObserverKey(key)) return;
                     if (!channel) return;
                     const state = channel.presenceState();
                     updateUsersCount(state);
@@ -3324,7 +3322,6 @@
 
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    if (!channel) return;
                     await syncPresenceTrack();
                     startPresenceHeartbeat();
                     const state = channel.presenceState();
@@ -3399,7 +3396,7 @@
             // Render local message instantly
             appendChatMessage(currentUserName, textToSend, 'me', imageToSend);
 
-            // Upload image to storage in the background if present
+            // Upload image to Supabase Storage in the background if present
             let finalImage = null;
             if (imageToSend) {
                 finalImage = await uploadBase64ToStorage(imageToSend);
@@ -3794,3 +3791,4 @@
                 showLobbyView();
             }
         });
+    

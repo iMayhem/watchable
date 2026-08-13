@@ -178,11 +178,11 @@
             if (embedded) {
                 document.documentElement.classList.add('party-embedded');
             }
-            if (params.get('native') === '1') {
-                document.documentElement.classList.add('party-native-mode');
-            }
             if (params.get('room')) {
                 document.documentElement.classList.add('party-joining');
+            }
+            if (params.get('native') === '1') {
+                document.documentElement.classList.add('party-native-mode');
             }
         })();
     </script>
@@ -318,7 +318,7 @@
 
                     <!-- Video: Artplayer (CineStream) or iframe embed -->
                     <div id="player-stage" class="player-stage">
-                        <iframe id="video-player-iframe" class="player-iframe" allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
+                        <iframe id="video-player-iframe" class="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
                         <div id="party-native-stage">
                             <div id="party-nf-watch" class="party-nf-watch">
                                 <div class="party-nf-watch__video">
@@ -633,7 +633,7 @@
     </main>
 
     <!-- REAL-TIME SYNC & SOCIAL ENGINE -->
-    <script src="/party/party.js?v=10" defer></script>
+    <script src="/party/party.js?v=11" defer></script>
     
     <!-- Beautiful Image View Modal -->
     <div id="image-view-modal" class="image-modal" onclick="closeImageModal()">

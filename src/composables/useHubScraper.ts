@@ -56,12 +56,18 @@ export function useHubScraper() {
 
       const data: HubSearchResponse = await res.json()
 
+      const normalizeProxyMode = (raw?: string | null): 'inherit' | 'on' | 'off' => {
+        if (raw === '0' || raw === 'off') return 'off'
+        if (raw === '1' || raw === 'vps' || raw === 'cf' || raw === 'on') return 'on'
+        return 'inherit'
+      }
+
       for (const group of data.results) {
-        group.proxyMode = group.proxyMode || 'inherit'
+        group.proxyMode = normalizeProxyMode(group.proxyMode)
         for (const stream of group.streams) {
           stream._providerName = group.providerName
           stream.providerId = group.provider
-          stream.proxyMode = group.proxyMode || 'inherit'
+          stream.proxyMode = normalizeProxyMode(group.proxyMode)
           if (stream.proxyUrl && stream.proxyUrl.startsWith('/')) {
             stream.proxyUrl = HUB_BASE + stream.proxyUrl
           }

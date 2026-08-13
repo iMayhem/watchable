@@ -400,7 +400,6 @@
         // Sync client configuration
         const defaultUrl = 'https://hahaevilcraft.site';
         const PUBLISHABLE_KEY = 'sb_publishable_sEdjXoX50ZSu2mY_gJEq4A_O0WzMf1D';
-
         let defaultKey = safeLocalStorage.getItem('moovie_sync_key') || '';
         if (!defaultKey || defaultKey === 'undefined' || defaultKey === 'null' || defaultKey.trim() === '' || defaultKey.includes('idwjvciofkvspmumgzmg') || defaultKey.includes('eeyiragtylotiwozbgqp')) {
             defaultKey = PUBLISHABLE_KEY;
@@ -1113,7 +1112,7 @@
             btn.hidden = !(isHost && partyHasEpisodeRail());
         }
 
-        const PARTY_TMDB_API_BASE = 'https://proxy.moovie.fun/tmdb-api/3/';
+        const PARTY_TMDB_API_BASE = 'https://hahaevilcraft.site/tmdb-api/3/';
         const PARTY_CATALOG_META_API = 'https://api2.imdb4.shop/api';
         const PARTY_CATALOG_BROWSE_API = 'https://api2.imdb4.shop/api';
 
@@ -2536,6 +2535,10 @@
         }
 
         async function loadRoomEmbed() {
+            if (document.documentElement.classList.contains('party-native-mode')) {
+                setPlayerStagePending(false);
+                return;
+            }
             setPlayerStagePending(true);
 
             try {
@@ -2576,6 +2579,10 @@
             }
             const parentRoomParams = new URLSearchParams({ room: displayId });
             if (prefillTitle) parentRoomParams.set('title', prefillTitle);
+            const nativeMediaKey = room.media_id || catalogMediaId;
+            if (nativeMediaKey) {
+                parentRoomParams.set('media', String(nativeMediaKey));
+            }
             syncParentPartyUrl(`/party?${parentRoomParams.toString()}`);
             
             connectToRealtimeRoom(room);
@@ -2752,7 +2759,7 @@
                 switchStreamProvider(activeProvider);
             }
 
-            // 2. Update rooms record for late joiners
+            // 2. Update Supabase rooms record for late joiners
             if (isHost && activeRoom) {
                 let nextSource;
                 if (isNetflix) {
@@ -3165,7 +3172,15 @@
                     }
 
                     const iframe = document.getElementById('video-player-iframe');
-                    if (iframe && iframe.contentWindow) {
+                    if (document.documentElement.classList.contains('party-native-mode')) {
+                        window.parent.postMessage({
+                            type: 'moovie-command-sync',
+                            time: data.time,
+                            playing: data.playing,
+                            event: data.event,
+                            force: data.event === 'seek' || data.event === 'play' || data.event === 'pause'
+                        }, window.location.origin);
+                    } else if (iframe && iframe.contentWindow) {
                         console.warn('[Party] Forwarding to iframe: moovie-command-sync', data);
                         iframe.contentWindow.postMessage({
                             type: 'moovie-command-sync',
@@ -3237,16 +3252,19 @@
                     }
                 })
                 .on('presence', { event: 'sync' }, () => {
+                    if (!channel) return;
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
                 })
                 .on('presence', { event: 'update' }, () => {
+                    if (!channel) return;
                     const state = channel.presenceState();
                     updateUsersCount(state);
                 })
                 .on('presence', { event: 'join' }, ({ key, newPresences }) => {
                     if (isLobbyObserverKey(key)) return;
+                    if (!channel) return;
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
@@ -3291,6 +3309,7 @@
                 })
                 .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
                     if (isLobbyObserverKey(key)) return;
+                    if (!channel) return;
                     const state = channel.presenceState();
                     updateUsersCount(state);
                     broadcastLobbyParticipantCount(channel, state);
@@ -3377,7 +3396,7 @@
             // Render local message instantly
             appendChatMessage(currentUserName, textToSend, 'me', imageToSend);
 
-            // Upload image to storage in the background if present
+            // Upload image to Supabase Storage in the background if present
             let finalImage = null;
             if (imageToSend) {
                 finalImage = await uploadBase64ToStorage(imageToSend);
@@ -3646,6 +3665,13 @@
         }
 
         window.toggleParticipantsPanel = toggleParticipantsPanel;
+        // Native Watch Together shell controls call the same room actions from
+        // outside this legacy chat iframe.
+        window.toggleCinemaMode = toggleCinemaMode;
+        window.togglePartyAutoNext = togglePartyAutoNext;
+        window.copyShareLink = copyShareLink;
+        window.showLobbyView = showLobbyView;
+        window.toggleMakeHostMenu = toggleMakeHostMenu;
 
 
         // Listen for events from iframe players

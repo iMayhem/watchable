@@ -697,6 +697,12 @@ interface HubStream {
             } catch { /* keep default */ }
         }
 
+        function normalizeProxyMode(raw?: string | null): 'inherit' | 'on' | 'off' {
+            if (raw === '0' || raw === 'off') return 'off'
+            if (raw === '1' || raw === 'vps' || raw === 'cf' || raw === 'on') return 'on'
+            return 'inherit'
+        }
+
         function shouldUseProxy(stream: HubStream) {
             if (stream.proxyMode === 'on') return true
             if (stream.proxyMode === 'off') return false
@@ -1630,7 +1636,7 @@ export default defineComponent({
                                         headers: mw.headers,
                                         providerName: data.providerName || providerNames.get(data.sourceId) || SCRAPER_NAMES[data.sourceId] || friendlyProviderName(data.sourceId),
                                         providerId: data.sourceId,
-                                        proxyMode: data.proxyMode || 'inherit',
+                                        proxyMode: normalizeProxyMode(data.proxyMode),
                                         qualities: qualityLabels,
                                     }
                                     if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
@@ -1651,7 +1657,7 @@ export default defineComponent({
                                     headers: mw.headers,
                                     providerName: data.providerName || providerNames.get(data.sourceId) || SCRAPER_NAMES[data.sourceId] || friendlyProviderName(data.sourceId),
                                     providerId: data.sourceId,
-                                    proxyMode: data.proxyMode || 'inherit',
+                                    proxyMode: normalizeProxyMode(data.proxyMode),
                                 }
                                 if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
                                 if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl
@@ -1919,7 +1925,7 @@ export default defineComponent({
                 s.url?.includes('cf-header-hahaevilcraft.site') ||
                 /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
             )
-            const proxyMode = s.proxyMode || 'inherit'
+            const proxyMode = normalizeProxyMode(s.proxyMode)
             const forceDirect = proxyMode === 'off'
             const useProxy = !forceDirect && shouldUseProxy(s) && !!s.proxyUrl && !alreadyProxied
             const isHlsStream = s.type === 'm3u8' || s.type === 'hls'
@@ -1937,7 +1943,7 @@ export default defineComponent({
                 } catch (e) {
                     throw e
                 }
-            } else if (!forceDirect && s.headers && Object.keys(s.headers).length) {
+            } else if (!forceDirect && shouldUseProxy(s) && s.headers && Object.keys(s.headers).length) {
                 // Dashboard "Cloudflare proxy" mode already routes provider streams
                 // through our proxies (cf-header-proxy / hub /proxy), embedding the
                 // headers as query params. Wrapping an already-wrapped URL nests
@@ -2295,7 +2301,7 @@ export default defineComponent({
                                     headers: mw.headers,
                                     providerName: provider,
                                     providerId: provider,
-                                    proxyMode: data.proxyMode || 'inherit',
+                                    proxyMode: normalizeProxyMode(data.proxyMode),
                                     qualities: qualityLabels,
                                 }
                                 if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
@@ -2313,7 +2319,7 @@ export default defineComponent({
                                 headers: mw.headers,
                                 providerName: provider,
                                 providerId: provider,
-                                proxyMode: data.proxyMode || 'inherit',
+                                proxyMode: normalizeProxyMode(data.proxyMode),
                             }
                             if (stream.url?.startsWith('/')) stream.url = HUB_BASE + stream.url
                             if (stream.proxyUrl?.startsWith('/')) stream.proxyUrl = HUB_BASE + stream.proxyUrl

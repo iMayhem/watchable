@@ -1325,6 +1325,8 @@ export default defineComponent({
         const playbackStarted = ref(false)
         const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
         let hlsInstance: any = null
+        let activeSourceEventSource: EventSource | null = null
+        let componentUnmounted = false
         let stopTracking: (() => void) | null = null
 
         // Streams visible for the currently active server — if a server is selected,
@@ -1439,6 +1441,10 @@ export default defineComponent({
             buffering.value = true
 
             await loadHlsJs()
+            if (componentUnmounted) {
+                console.debug('[MoovieFrame] mount cancelled after component unmount')
+                return
+            }
             const HlsCtor = (window as any).Hls
             // Use HLS.js if the URL looks like m3u8 OR the caller explicitly says it's HLS
             // (proxy URLs like hahaevilcraft.site/proxy?id=... carry no extension)
@@ -2192,6 +2198,7 @@ export default defineComponent({
         }
 
         async function tryPlayStream(s: HubStream) {
+            if (componentUnmounted) throw new Error('Player component was unmounted')
             if (!originalStream.value) {
                 originalStream.value = s
             }
@@ -2477,6 +2484,7 @@ export default defineComponent({
             cancelScrape()
 
             let sourceEventSource: EventSource | null = new EventSource(scrapeUrl)
+            activeSourceEventSource = sourceEventSource
             sourceEventSource.onopen = () => console.debug('[MoovieFrame][single-source] connection opened', { providerId })
             sourceEventSource.onerror = (event) => console.warn('[MoovieFrame][single-source] connection error', {
                 providerId,
@@ -2487,10 +2495,10 @@ export default defineComponent({
             let finished = false
 
             function cleanUpSSE() {
-                if (sourceEventSource) {
-                    sourceEventSource.close()
-                    sourceEventSource = null
-                }
+                const closingSource = sourceEventSource
+                if (closingSource) closingSource.close()
+                if (activeSourceEventSource === closingSource) activeSourceEventSource = null
+                sourceEventSource = null
             }
 
             return new Promise<boolean>((resolve) => {
@@ -3054,6 +3062,7 @@ resolve(false)
         let cueTimer: any = null;
 
         onMounted(async () => {
+            componentUnmounted = false
             await loadServerOverrides()
             if (props.mediaId) {
                 console.log('[MOVIEFRAME] mounted: starting selected single-source scrape')
@@ -3097,11 +3106,15 @@ resolve(false)
         })
 
         onUnmounted(() => {
+            componentUnmounted = true
             if (idleTimer) clearTimeout(idleTimer)
             if (heartbeatInterval) clearInterval(heartbeatInterval)
             if (cueTimer) clearInterval(cueTimer)
             if (smoothSeekTimer) clearInterval(smoothSeekTimer)
-            cancelScrape(); destroyPlayer()
+            cancelScrape()
+            activeSourceEventSource?.close()
+            activeSourceEventSource = null
+            destroyPlayer()
             if (stopTracking) { stopTracking(); stopTracking = null }
             document.removeEventListener('click', onClickOutside)
             document.removeEventListener('fullscreenchange', onFullscreenChange)

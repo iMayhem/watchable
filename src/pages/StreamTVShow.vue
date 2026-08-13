@@ -440,6 +440,9 @@ export default defineComponent({
         };
 
         const goToNextEpisode = () => {
+            // In embed mode (Watch Together party), the parent app drives episode
+            // navigation via the realtime channel, so don't self-advance.
+            if (isEmbed.value) return;
             if (isLastEpisode.value) return;
             const now = new Date();
             const releasedCount = seasonEpisodes.value.filter(ep => {

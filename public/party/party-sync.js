@@ -273,7 +273,7 @@
 
     RealtimeChannel.prototype._listen = function () {
         var self = this;
-        sharedListeners.push(function (msg) {
+        var listener = function (msg) {
             if (msg.type === 'ws_closed') {
                 self.subscribed = false;
                 return;
@@ -315,6 +315,10 @@
                 }
                 return;
             }
+            if (msg.type === 'host_elected' && msg.room === self.name) {
+                self._firePresence('host-elected', { key: msg.key, payload: msg.payload });
+                return;
+            }
             if (msg.type === 'rooms_changed') {
                 self.pgHandlers.forEach(function (cb) { cb({ new: {} }); });
                 return;
@@ -323,7 +327,9 @@
                 self._maybeSubscribe();
                 return;
             }
-        });
+        };
+        self._sharedListener = listener;
+        sharedListeners.push(listener);
     };
 
     RealtimeChannel.prototype._firePresence = function (event, args) {
@@ -391,6 +397,12 @@
         // Remove from active channels list
         var idx = allActiveChannels.indexOf(this);
         if (idx !== -1) allActiveChannels.splice(idx, 1);
+        // Remove the shared WS listener so it doesn't accumulate indefinitely
+        if (this._sharedListener) {
+            var si = sharedListeners.indexOf(this._sharedListener);
+            if (si !== -1) sharedListeners.splice(si, 1);
+            this._sharedListener = null;
+        }
     };
 
     // ------------------------------------------------------------------ client

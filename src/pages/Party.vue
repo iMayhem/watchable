@@ -68,6 +68,7 @@ let stopNativeDiagnostics: (() => void) | null = null;
 let nativeDiagnosticsTimer: ReturnType<typeof setTimeout> | null = null;
 let partyFooterSyncTimer: number | null = null;
 let nativeSyncTimer: ReturnType<typeof setInterval> | null = null;
+let nativeRespondingToSync = false;
 
 const preservedMediaKey = ref(String(route.query.media || ''));
 const mediaKey = computed(() => preservedMediaKey.value);
@@ -211,7 +212,7 @@ function attachNativeDiagnostics() {
         });
     };
 
-    const sendNativeSync = (event: 'play' | 'pause' | 'seek' | 'heartbeat' | 'ready') => {
+    const sendNativeSync = (event: 'play' | 'pause' | 'seek' | 'heartbeat' | 'ready' | 'complete') => {
         const partyFrame = document.querySelector('.party-shell__frame') as HTMLIFrameElement | null;
         partyFrame?.contentWindow?.postMessage({
             type: 'watchable-player-sync',
@@ -221,13 +222,15 @@ function attachNativeDiagnostics() {
         }, window.location.origin);
     };
 
-    const events = ['loadedmetadata', 'loadeddata', 'canplay', 'playing', 'pause', 'seeked', 'stalled', 'waiting', 'error'] as const;
+    const events = ['loadedmetadata', 'loadeddata', 'canplay', 'playing', 'pause', 'seeked', 'stalled', 'waiting', 'error', 'ended'] as const;
     const handlers = events.map((event) => {
         const handler = () => {
             report(event);
+            if (nativeRespondingToSync) return;
             if (event === 'playing') sendNativeSync('play');
             if (event === 'pause') sendNativeSync('pause');
             if (event === 'seeked') sendNativeSync('seek');
+            if (event === 'ended') sendNativeSync('complete');
         };
         video.addEventListener(event, handler);
         return [event, handler] as const;
@@ -264,14 +267,26 @@ function onPartyMessage(event: MessageEvent) {
     if (data.type === 'moovie-command-sync') {
         const video = document.querySelector('.party-shell__player video') as HTMLVideoElement | null;
         if (!video) return;
+        // Suppress echo reporting while we apply a remote command, otherwise the
+        // native player's seeked/playing/pause events re-broadcast the command
+        // straight back and create an infinite sync loop (the MoovieFrame iframe
+        // path already has an equivalent guard).
+        nativeRespondingToSync = true;
         if (typeof data.time === 'number' && Number.isFinite(data.time)) {
-            video.currentTime = Math.max(0, data.time);
+            const target = Math.min(Math.max(data.time, 0), Number.isFinite(video.duration) ? video.duration : data.time);
+            const diff = Math.abs(video.currentTime - target);
+            if (diff > 0.8 || data.force) {
+                video.currentTime = target;
+            }
         }
         if (data.playing === true && video.paused) {
             void video.play().catch(() => {});
         } else if (data.playing === false && !video.paused) {
             video.pause();
         }
+        setTimeout(() => {
+            nativeRespondingToSync = false;
+        }, 500);
         return;
     }
 

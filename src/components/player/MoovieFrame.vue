@@ -14,6 +14,15 @@
             <div class="moovie-frame__player">
                 <video ref="videoRef" class="moovie-frame__video" />
 
+                <!-- OpenSubtitles overlay: rendered from parsed cues, locked to
+                     video.currentTime — avoids native text-track drift. -->
+                <div
+                    v-if="osSubActive"
+                    class="moovie-frame__subtitle-overlay"
+                    aria-live="polite"
+                    v-html="activeCueTextFormatted"
+                />
+
                 <!-- SMOV-style loading/scraping surface, backed by Moovie's
                      existing provider progress state. -->
                 <Transition name="moovie-loader">
@@ -655,11 +664,62 @@ interface OpenSubtitle {
 }
 
 function srtToVtt(srt: string): string {
-    let vtt = 'WEBVTT\n\n'
-    vtt += srt
-        .replace(/\r\n/g, '\n')
-        .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
-    return vtt
+    let text = srt.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    // Already a VTT file — don't double-header it or corrupt timestamps
+    if (/^WEBVTT\b/m.test(text)) {
+        return text.endsWith('\n') ? text : text + '\n'
+    }
+    // SRT: convert `,` millisecond separators to `.` (VTT requires dots).
+    // Allow single-digit hours — some files use `1:02:03,456`.
+    text = text.replace(/(\d{1,2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+    return 'WEBVTT\n\n' + text + (text.endsWith('\n') ? '' : '\n')
+}
+
+interface ParsedCue {
+    start: number
+    end: number
+    text: string
+}
+
+/** Parse VTT/SRT text into plain {start, end, text} cues. Rendering these
+ *  ourselves (instead of native <track> elements) keeps captions exactly
+ *  locked to video.currentTime — no browser text-track latency or latch. */
+function parseSubtitleCues(vttText: string): ParsedCue[] {
+    const text = vttText.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
+    const cues: ParsedCue[] = []
+    const timeRe = /^(\d{1,2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})\.(\d{3})/
+    const toSecs = (h: string, m: string, s: string, ms: string) =>
+        Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(ms) / 1000
+    let current: { start: number; end: number; lines: string[] } | null = null
+    const lines = text.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const m = line.match(timeRe)
+        if (m) {
+            if (current) {
+                cues.push({ start: current.start, end: current.end, text: current.lines.join('\n') })
+            }
+            current = {
+                start: toSecs(m[1], m[2], m[3], m[4]),
+                end: toSecs(m[5], m[6], m[7], m[8]),
+                lines: [],
+            }
+            continue
+        }
+        // Skip SRT cue numbering ("1", "2", ...) — a bare number followed by a
+        // timestamp is an index line, not subtitle text.
+        if (/^\d{1,5}$/.test(line.trim()) && i + 1 < lines.length && timeRe.test(lines[i + 1])) {
+            continue
+        }
+        if (current && line.trim()) {
+            // strip VTT/HTML inline tags, keep plain text
+            current.lines.push(line.replace(/<[^>]*>/g, '').trim())
+        }
+    }
+    if (current) {
+        cues.push({ start: current.start, end: current.end, text: current.lines.join('\n') })
+    }
+    return cues
 }
 
 interface ProviderStatus {
@@ -731,7 +791,7 @@ export default defineComponent({
         const subtitleFontSize = ref(100)
         const subtitlePosition = ref(95)
 
-        const activeCueText = ref('This is a preview of the subtitles')
+        const activeCueText = ref('')
         const activeCueTextFormatted = computed(() => {
             return activeCueText.value.replace(/\n/g, '<br>')
         })
@@ -739,7 +799,26 @@ export default defineComponent({
         function updateActiveCueText() {
             const video = videoRef.value
             if (!video) return
-            // Find showing text track
+            const sel = selectedSubtitleTrack.value
+            // OpenSubtitles: overlay-rendered. Look up the active cue against
+            // the live playhead with the delay applied at lookup time — no
+            // native text track, no cue mutation, so captions stay exact.
+            if (sel >= OPENSUBS_TRACK_OFFSET) {
+                const cues = osSubCues.get(sel)
+                if (cues && cues.length) {
+                    const t = video.currentTime - subtitleDelay.value
+                    for (let i = 0; i < cues.length; i++) {
+                        const c = cues[i]
+                        if (t >= c.start && t < c.end) {
+                            activeCueText.value = c.text
+                            return
+                        }
+                    }
+                }
+                activeCueText.value = ''
+                return
+            }
+            // HLS-embedded subs: rendered natively by the browser/hls.js.
             let showingTrack: TextTrack | null = null
             for (let i = 0; i < video.textTracks.length; i++) {
                 const track = video.textTracks[i]
@@ -762,15 +841,7 @@ export default defineComponent({
                     return
                 }
             }
-            // If no active cue but track has cues, fall back to first cue as placeholder example
-            if (showingTrack && showingTrack.cues && showingTrack.cues.length > 0) {
-                const firstCue = showingTrack.cues[0] as VTTCue
-                if (firstCue && firstCue.text) {
-                    activeCueText.value = firstCue.text.replace(/<[^>]+>/g, '')
-                    return
-                }
-            }
-            activeCueText.value = 'This is a preview of the subtitles'
+            activeCueText.value = ''
         }
 
         async function handleCastToTV() {
@@ -944,22 +1015,43 @@ export default defineComponent({
                         (cue as any)._originalStartTime = cue.startTime;
                         (cue as any)._originalEndTime = cue.endTime;
                     }
-                    cue.startTime = (cue as any)._originalStartTime + delay;
-                    cue.endTime = (cue as any)._originalEndTime + delay;
+                    // Clamp to >= 0: Chrome silently drops cues with negative times.
+                    cue.startTime = Math.max(0, (cue as any)._originalStartTime + delay);
+                    cue.endTime = Math.max(0, (cue as any)._originalEndTime + delay);
                     cue.snapToLines = false;
                     cue.line = pos;
                 }
             }
         }
 
+        /** Force the browser to re-evaluate activeCues against the live playhead.
+         *  Without this, a track activated at append time latches its cue lookup
+         *  to the position where it was attached and captions run late. */
+        function reSyncSubtitleTracks() {
+            const video = videoRef.value;
+            if (!video) return;
+            for (let i = 0; i < video.textTracks.length; i++) {
+                const track = video.textTracks[i];
+                if (!track || track.mode !== 'showing') continue;
+                const cues = track.cues;
+                if (!cues || !cues.length) continue;
+                track.mode = 'hidden';
+                setTimeout(() => {
+                    if (track.mode === 'hidden' && videoRef.value) track.mode = 'showing';
+                }, 0);
+            }
+        }
+
         function changeSubtitleDelay(amount: number) {
             subtitleDelay.value += amount
             adjustCueStyles()
+            reSyncSubtitleTracks()
         }
 
         function resetSubtitleDelay() {
             subtitleDelay.value = 0
             adjustCueStyles()
+            reSyncSubtitleTracks()
         }
 
         function moveSubtitles(direction: 'up' | 'down') {
@@ -969,6 +1061,7 @@ export default defineComponent({
                 subtitlePosition.value = Math.min(100, subtitlePosition.value + 5)
             }
             adjustCueStyles()
+            reSyncSubtitleTracks()
         }
 
         const qualityRootRef = ref<HTMLElement | null>(null)
@@ -1039,8 +1132,11 @@ export default defineComponent({
         let langVariantFetchKey = ''
         const subtitleTracks = ref<{ id: number; name: string; lang?: string; subUrl?: string; needsProxy?: boolean }[]>([])
         const selectedSubtitleTrack = ref(-1)
-        let subBlobUrls: string[] = []
-        const subLoadedTracks = new Map<number, { el: HTMLTrackElement; blobUrl: string }>()
+        /** Parsed OpenSubtitles cues, cached per track id. Rendered through our
+         *  own overlay (see updateActiveCueText) instead of native <track>
+         *  elements — native text-track rendering drifts against the MSE
+         *  timeline, so we draw captions ourselves, locked to currentTime. */
+        const osSubCues = new Map<number, ParsedCue[]>()
         let subsLoading = false
         const hlsQualities = ref<{ id: number; label: string; height: number }[]>([])
         const selectedHlsQuality = ref(-1)
@@ -1102,30 +1198,81 @@ export default defineComponent({
         let isRespondingToSync = false;
         let pendingSyncTime: number | null = null;
         let pendingSyncPlaying: boolean | null = null;
+        let smoothSeekTimer: any = null;
 
-        function reportPlayerEvent(event: 'play' | 'pause' | 'seek' | 'heartbeat' | 'ready', time?: number) {
+        function reportPlayerEvent(event: 'play' | 'pause' | 'seek' | 'heartbeat' | 'ready' | 'complete', time?: number) {
             if (isRespondingToSync) return;
             if (typeof window === 'undefined' || window.parent === window) return;
             const video = videoRef.value;
             if (!video) return;
-            console.warn('[MoovieFrame] reportPlayerEvent:', event, 'time:', time ?? video.currentTime, 'playing:', !video.paused);
+            // Clamp reported time to the media duration so guests never seek past it.
+            let reportTime = time ?? video.currentTime;
+            if (Number.isFinite(video.duration)) {
+                reportTime = Math.min(Math.max(reportTime, 0), video.duration);
+            }
             window.parent.postMessage({
                 type: 'watchable-player-sync',
                 event,
-                time: time ?? video.currentTime,
-                playing: !video.paused
+                time: reportTime,
+                playing: !video.paused,
+                duration: Number.isFinite(video.duration) ? video.duration : 0
             }, '*');
+        }
+
+        // Gently ease currentTime toward a slightly-off target instead of snapping,
+        // so small per-heartbeat drift doesn't produce jarring jumps.
+        function smoothSeekTo(target: number, video: HTMLVideoElement) {
+            if (smoothSeekTimer) {
+                clearInterval(smoothSeekTimer);
+                smoothSeekTimer = null;
+            }
+            smoothSeekTimer = setInterval(() => {
+                if (!videoRef.value) {
+                    clearInterval(smoothSeekTimer);
+                    smoothSeekTimer = null;
+                    return;
+                }
+                if (video.paused || video.seeking) {
+                    video.currentTime = target;
+                    clearInterval(smoothSeekTimer);
+                    smoothSeekTimer = null;
+                    return;
+                }
+                const diff = target - video.currentTime;
+                if (Math.abs(diff) <= 0.2) {
+                    video.currentTime = target;
+                    clearInterval(smoothSeekTimer);
+                    smoothSeekTimer = null;
+                    return;
+                }
+                video.currentTime += diff * 0.4;
+            }, 120);
+        }
+
+        function clampToDuration(t: number, video: HTMLVideoElement) {
+            if (!Number.isFinite(t)) return t;
+            if (Number.isFinite(video.duration)) {
+                return Math.min(Math.max(t, 0), video.duration);
+            }
+            return Math.max(t, 0);
         }
 
         function handleParentMessage(e: MessageEvent) {
             const data = e.data;
             if (!data || typeof data !== 'object') return;
+
+            // Host responds to a guest sync request by reporting an immediate,
+            // fresh heartbeat so guests get an accurate position rather than the
+            // (up to 3s stale) cached heartbeat value.
+            if (data.type === 'moovie-sync-poll') {
+                reportPlayerEvent('heartbeat');
+                return;
+            }
+
             if (data.type !== 'moovie-command-sync') return;
 
             const video = videoRef.value;
             if (!video) return;
-
-            console.warn('[MoovieFrame] handleParentMessage received command:', data, 'readyState:', video.readyState);
 
             if (video.readyState < 1) {
                 if (data.time != null && Number.isFinite(data.time)) {
@@ -1141,9 +1288,13 @@ export default defineComponent({
 
             // Sync current time
             if (data.time != null && Number.isFinite(data.time)) {
-                const diff = Math.abs(video.currentTime - data.time);
-                if (diff > 3 || data.force) {
-                    video.currentTime = data.time;
+                const target = clampToDuration(data.time, video);
+                const diff = Math.abs(video.currentTime - target);
+                if (diff > 2.5 || data.force) {
+                    video.currentTime = target;
+                } else if (diff > 0.8) {
+                    // Small drift — ease toward the target instead of snapping.
+                    smoothSeekTo(target, video);
                 }
             }
 
@@ -1158,7 +1309,7 @@ export default defineComponent({
 
             setTimeout(() => {
                 isRespondingToSync = false;
-            }, 100);
+            }, 500);
         }
 
         const playing = ref(false)
@@ -1239,6 +1390,10 @@ export default defineComponent({
             return track?.name || 'Unknown'
         })
 
+        const osSubActive = computed(() => {
+            return selectedSubtitleTrack.value >= OPENSUBS_TRACK_OFFSET
+        })
+
         const firstFrameShown = ref(false)
 
         const activeProviderName = computed(() => {
@@ -1266,12 +1421,12 @@ export default defineComponent({
         function destroyPlayer() {
             if (hlsInstance) { try { hlsInstance.destroy() } catch {}; hlsInstance = null }
             if (videoRef.value) { videoRef.value.removeAttribute('src'); videoRef.value.load() }
-            for (const { el } of subLoadedTracks.values()) { el.remove() }
-            subLoadedTracks.clear()
-            for (const url of subBlobUrls) { URL.revokeObjectURL(url) }
-            subBlobUrls = []
+            osSubCues.clear()
+            activeCueText.value = ''
             audioTracks.value = audioTracks.value.filter(t => (t as any)._catalogId || (t as any)._variantId || (t as any)._isOriginal)
-            subtitleTracks.value = []
+            // Keep OpenSubtitles metadata so the selected sub survives
+            // quality/server switches — only drop the HLS-managed tracks.
+            subtitleTracks.value = subtitleTracks.value.filter(t => t.id >= OPENSUBS_TRACK_OFFSET)
         }
 
         async function mountPlayer(url: string, forceHls = false) {
@@ -1388,6 +1543,7 @@ export default defineComponent({
                 if (props.mediaType === 'tv') {
                     ctx.emit('next-episode')
                 }
+                reportPlayerEvent('complete')
             })
 
             if (isHls && HlsCtor && HlsCtor.isSupported()) {
@@ -1453,11 +1609,15 @@ export default defineComponent({
                         } else {
                             selectedHlsQuality.value = hlsInstance.currentLevel ?? -1
                         }
+                        reattachSubtitleSelection()
                         resolve()
                     })
 
                     hlsInstance.on(HlsCtor.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
                         selectedHlsQuality.value = data.level
+                        // HLS.js re-parses subtitle cues on level switches —
+                        // re-apply delay/position so embedded subs stay synced.
+                        adjustCueStyles()
                     })
 
                     hlsInstance.on(HlsCtor.Events.AUDIO_TRACKS_UPDATED, () => {
@@ -1478,6 +1638,15 @@ export default defineComponent({
                         ]
                         selectedAudioTrack.value = hlsInstance.audioTrack ?? -1
                     })
+                    hlsInstance.on(HlsCtor.Events.SUBTITLE_TRACK_LOADED, () => {
+                        // Embedded subs arrive asynchronously after the track is
+                        // selected. Apply the user's delay/position to the freshly
+                        // parsed cues. No mode-toggle re-sync here: hls.js manages
+                        // its own track mode and a hidden->showing flip restarts
+                        // the active cue display, which itself causes drift.
+                        adjustCueStyles()
+                    })
+
                     hlsInstance.on(HlsCtor.Events.SUBTITLE_TRACKS_UPDATED, () => {
                         subtitleTracks.value = [
                             ...(hlsInstance.subtitleTracks || []).map((t: any, i: number) => {
@@ -1491,7 +1660,11 @@ export default defineComponent({
                             ...subtitleTracks.value.filter(t => t.id >= OPENSUBS_TRACK_OFFSET),
                         ]
                         if (selectedSubtitleTrack.value < OPENSUBS_TRACK_OFFSET) {
-                            selectedSubtitleTrack.value = hlsInstance.subtitleTrack ?? -1
+                            // Only adopt hls.js's current selection when it has one —
+                            // a fresh instance reports -1 and would clobber the
+                            // user's saved HLS track choice on remount.
+                            const hlsSel = hlsInstance.subtitleTrack ?? -1
+                            if (hlsSel >= 0) selectedSubtitleTrack.value = hlsSel
                         }
                     })
 
@@ -1506,6 +1679,25 @@ export default defineComponent({
                 })
             } else {
                 video.src = url
+                reattachSubtitleSelection()
+            }
+        }
+
+        /** Re-attach the previously selected subtitle after a remount (quality/
+         *  server switch). Blob tracks are destroyed with the old media, so the
+         *  OpenSubtitles selection is re-created; HLS tracks re-select by index. */
+        function reattachSubtitleSelection() {
+            const sel = selectedSubtitleTrack.value
+            if (sel === -1) return
+            if (sel >= OPENSUBS_TRACK_OFFSET) {
+                if (subtitleTracks.value.some(t => t.id === sel)) {
+                    nextTick(() => { void selectSubtitleTrack(sel) })
+                }
+            } else if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
+                nextTick(() => {
+                    hlsInstance!.subtitleTrack = sel
+                    adjustCueStyles()
+                })
             }
         }
 
@@ -2028,16 +2220,13 @@ export default defineComponent({
             }
         }
 
-        async function downloadSubtitleBlob(subUrl: string, needsProxy: boolean): Promise<string | null> {
-            // Helper: fetch a URL and convert SRT→VTT blob URL, returns null on failure
+        async function downloadSubtitleText(subUrl: string, needsProxy: boolean): Promise<string | null> {
+            // Helper: fetch a URL's text content, returns null on failure
             async function tryFetch(url: string, timeout = 10000): Promise<string | null> {
                 try {
                     const resp = await fetch(url, { signal: AbortSignal.timeout(timeout) })
                     if (!resp.ok) return null
-                    const text = await resp.text()
-                    const vtt = srtToVtt(text)
-                    const blob = new Blob([vtt], { type: 'text/vtt' })
-                    return URL.createObjectURL(blob)
+                    return await resp.text()
                 } catch {
                     return null
                 }
@@ -2533,54 +2722,34 @@ resolve(false)
         async function selectSubtitleTrack(index: number) {
             selectedSubtitleTrack.value = index
             if (index === -1) {
-                for (const { el } of subLoadedTracks.values()) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
+                activeCueText.value = ''
                 return
             }
             if (index >= OPENSUBS_TRACK_OFFSET) {
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = -1
                 }
-                for (const { el } of subLoadedTracks.values()) { el.track.mode = 'disabled' }
-
-                let entry = subLoadedTracks.get(index)
-                if (!entry) {
-                    const trackMeta = subtitleTracks.value.find(t => t.id === index)
-                    if (!trackMeta?.subUrl) { console.debug('[OpenSubtitles] no subUrl for track', index); return }
-                    const video = videoRef.value
-                    if (!video) return
+                const trackMeta = subtitleTracks.value.find(t => t.id === index)
+                if (!trackMeta?.subUrl) { console.debug('[OpenSubtitles] no subUrl for track', index); return }
+                let cues = osSubCues.get(index)
+                if (!cues) {
                     console.debug('[OpenSubtitles] lazy-loading sub:', trackMeta.name)
-                    const blobUrl = await downloadSubtitleBlob(trackMeta.subUrl, !!trackMeta.needsProxy)
-                    if (!blobUrl) { console.debug('[OpenSubtitles] failed to load sub'); return }
-                    const el = document.createElement('track')
-                    el.kind = 'captions'
-                    el.label = trackMeta.name
-                    el.srclang = trackMeta.lang || 'en'
-                    el.src = blobUrl
-                    el.default = false
-                    video.appendChild(el)
-                    // With MSE/HLS attached, Chrome defers fetching the track
-                    // resource until mode is 'showing' — activating at append
-                    // time (instead of waiting for the load event) unblocks
-                    // the fetch; the load handler then refreshes cue styling.
-                    el.addEventListener('load', () => {
-                        adjustCueStyles()
-                    })
-                    if (el.track) el.track.mode = 'showing'
-                    subBlobUrls.push(blobUrl)
-                    entry = { el, blobUrl }
-                    subLoadedTracks.set(index, entry)
-                } else {
-                    entry.el.track.mode = 'showing'
+                    const text = await downloadSubtitleText(trackMeta.subUrl, !!trackMeta.needsProxy)
+                    if (!text) { console.debug('[OpenSubtitles] failed to load sub'); return }
+                    cues = parseSubtitleCues(srtToVtt(text))
+                    osSubCues.set(index, cues)
                 }
-                nextTick(() => adjustCueStyles())
+                updateActiveCueText()
             } else {
-                for (const { el } of subLoadedTracks.values()) { el.track.mode = 'disabled' }
                 if (hlsInstance && hlsInstance.subtitleTrack !== undefined) {
                     hlsInstance.subtitleTrack = index
                 }
+                nextTick(() => {
+                    adjustCueStyles()
+                })
             }
         }
 
@@ -2710,6 +2879,9 @@ resolve(false)
             console.log('[MOVIEFRAME] watcher: season', oldS, '->', newS, 'episode', oldE, '->', newE, 'mediaId:', props.mediaId)
             if (newS !== oldS || newE !== oldE) {
                 subtitleTracks.value = []
+                selectedSubtitleTrack.value = -1
+                osSubCues.clear()
+                activeCueText.value = ''
             }
             if (props.mediaId) {
                 console.log('[MOVIEFRAME] watcher calling doLoad()')
@@ -2815,6 +2987,7 @@ resolve(false)
             if (idleTimer) clearTimeout(idleTimer)
             if (heartbeatInterval) clearInterval(heartbeatInterval)
             if (cueTimer) clearInterval(cueTimer)
+            if (smoothSeekTimer) clearInterval(smoothSeekTimer)
             cancelScrape(); destroyPlayer()
             if (stopTracking) { stopTracking(); stopTracking = null }
             document.removeEventListener('click', onClickOutside)
@@ -2829,7 +3002,7 @@ resolve(false)
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
     },
 })
 </script>
@@ -4020,6 +4193,28 @@ resolve(false)
 .moovie-settings-leave-to { opacity: 0; transform: translateY(4px) scale(0.98); }
 
 
+
+/* OpenSubtitles overlay cue — custom-drawn captions locked to currentTime */
+.moovie-frame__subtitle-overlay {
+    position: absolute;
+    top: var(--sub-position, 95%);
+    left: 50%;
+    transform: translateX(-50%);
+    translate: 0 -100%;
+    z-index: 15;
+    pointer-events: none;
+    text-align: center;
+    width: 100%;
+    max-width: 85%;
+    background-color: rgba(8, 8, 8, var(--sub-bg-opacity, 0.75));
+    color: rgba(255, 255, 255, var(--sub-text-opacity, 1));
+    font-size: var(--sub-font-size, 100%);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+    padding: 0.18em 0.55em;
+    border-radius: 4px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
 
 /* Preview cue styling */
 .moovie-frame__preview-cue {

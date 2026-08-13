@@ -24,9 +24,18 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="/party/party.css?v=3">
-    <link rel="stylesheet" href="/artplayer-compact.css">
     
-    <!-- Self-hosted sync client (VPS sync server) -->
+    <!-- Anti-Ad Popup Shield -->
+    <script>
+      try {
+        window.open = function() {
+          console.warn('[WatchTogether Anti-Ad] Suppressed ad popup window');
+          return null;
+        };
+      } catch (e) {}
+    </script>
+    
+    <!-- Self-hosted sync client (REST + WebSocket) -->
     <script src="/party/party-sync.js"></script>
     <script>
       window.op=window.op||function(){var n=[];return new Proxy(function(){arguments.length&&n.push([].slice.call(arguments))},{get:function(t,r){return"q"===r?n:function(){n.push([r].concat([].slice.call(arguments)))}} ,has:function(t,r){return"q"===r}}) }();
@@ -204,12 +213,18 @@
                         </div>
                         <h2 class="party-lobby-bar__title">Active rooms</h2>
                     </div>
-                    <a href="/" class="back-btn party-lobby-bar__home" title="Back to Home" onclick="navigateParentSite('/', event)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z"/>
-                        </svg>
-                        Home
-                    </a>
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                        <button type="button" class="btn btn-primary" onclick="showCreateView()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Create Party
+                        </button>
+                        <a href="/" class="back-btn party-lobby-bar__home" title="Back to Home" onclick="navigateParentSite('/', event)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z"/>
+                            </svg>
+                            Home
+                        </a>
+                    </div>
                 </div>
 
                 <div id="rooms-container" class="rooms-grid">
@@ -249,9 +264,15 @@
                     <header class="form-card__head">
                         <p class="eyebrow form-card__eyebrow">New session</p>
                         <h2 class="form-title">Create a watch party</h2>
-                        <p class="form-card__lede meta">Set a room name, title, and embed link. Friends join via your invite URL.</p>
+                        <p class="form-card__lede meta">Search TMDB or enter custom movie/show details to launch your room.</p>
                     </header>
                     <form id="create-room-form" onsubmit="handleCreateRoom(event)">
+                        <div class="form-group" style="position: relative;">
+                            <label class="form-label" for="form-tmdb-search">Search Title (TMDB)</label>
+                            <input type="text" id="form-tmdb-search" class="form-input" placeholder="Type title (e.g. Inception, Breaking Bad)..." autocomplete="off" oninput="handleTmdbSearchInput(event)">
+                            <div id="tmdb-results-dropdown" class="tmdb-results-dropdown" hidden></div>
+                        </div>
+
                         <div class="form-group">
                             <label class="form-label" for="form-room-name">Room name</label>
                             <input type="text" id="form-room-name" class="form-input" placeholder="Late Night Movie Club" required>
@@ -263,9 +284,9 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label" for="form-embed-url">Embed URL</label>
-                            <input type="url" id="form-embed-url" class="form-input" placeholder="https://vidsrc.to/embed/movie/502356" required>
-                            <p class="form-hint meta">vidsrc, superembed, or your stream provider embed link</p>
+                            <label class="form-label" for="form-embed-url">Embed URL (Optional if using Moovie native player)</label>
+                            <input type="url" id="form-embed-url" class="form-input" placeholder="https://vidsrc.to/embed/movie/502356">
+                            <p class="form-hint meta">vidsrc, superembed, or leave blank to auto-use Moovie player</p>
                         </div>
 
                         <div class="form-buttons">
@@ -306,49 +327,38 @@
                         </div>
                     </div>
 
-                    <!-- Mobile room actions — above the player, icon-only on small screens -->
-                    <div id="party-room-toolbar" class="party-room-toolbar" hidden>
-                        <div class="party-room-toolbar__stream">
-                            <div id="party-server-dropdown" class="server-select-dropdown party-room-toolbar__dropdown">
-                                <button type="button" class="server-dropdown-trigger party-tool-btn party-tool-btn--server" onclick="toggleServerDropdown(event)" aria-label="Select stream server">
-                                    <svg class="party-tool-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <rect x="3" y="4" width="18" height="6" rx="1.5" />
-                                        <rect x="3" y="14" width="18" height="6" rx="1.5" />
-                                    </svg>
-                                    <span class="party-tool-btn__text party-tool-btn__text--desktop">SERVER: <strong id="active-server-name">Rasmalai</strong></span>
-                                    <span class="party-tool-btn__text party-tool-btn__text--mobile"><strong id="active-server-name-mobile">Rasmalai</strong></span>
-                                    <svg class="party-tool-btn__caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    <!-- Video: Moovie embed iframe -->
+                    <div id="player-stage" class="player-stage">
+                        <iframe id="video-player-iframe" class="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
+                    </div>
+
+                    <!-- Autoplay and Navigation Controls -->
+                    <div class="player-controls-bar" style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-radius: var(--r-md); border: 1px solid var(--rule); display: none;">
+                        <div class="controls-left" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; flex: 1; min-width: 0;">
+                            <button id="party-auto-next-btn" class="btn" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(139, 92, 246, 0.4); color: var(--bone-200); padding: 0.4rem 0.85rem; border-radius: var(--r-pill); font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; flex-shrink: 0;" onclick="togglePartyAutoNext()">
+                                <span class="indicator-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 6px var(--violet); display: inline-block;"></span>
+                                AutoNext
+                            </button>
+
+                            <!-- Global embed servers (TMDB party only) -->
+                            <div id="party-server-dropdown" class="server-select-dropdown" style="flex: 1; min-width: 0;">
+                                <button class="server-dropdown-trigger" onclick="toggleServerDropdown(event)">
+                                    <span>SERVER: <strong id="active-server-name">Rasmalai</strong></span>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                 </button>
-                                <div id="server-dropdown-menu" class="server-dropdown-menu"></div>
+                                <div id="server-dropdown-menu" class="server-dropdown-menu">
+                                    <!-- Populated dynamically -->
+                                </div>
                             </div>
 
-                            <div id="party-netflix-quality-wrap" class="server-select-dropdown party-room-toolbar__dropdown" style="display: none;">
-                                <button type="button" class="server-dropdown-trigger party-tool-btn party-tool-btn--quality" onclick="toggleNetflixQualityDropdown(event)" aria-label="Select video quality">
-                                    <svg class="party-tool-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M4 7h16M4 12h10M4 17h6" stroke-linecap="round" />
-                                        <path d="M18 10l3 2-3 2v-4z" fill="currentColor" stroke="none" />
-                                    </svg>
-                                    <span class="party-tool-btn__text party-tool-btn__text--desktop">QUALITY: <strong id="party-netflix-quality-label">Auto</strong></span>
-                                    <span class="party-tool-btn__text party-tool-btn__text--mobile"><strong id="party-netflix-quality-label-mobile">Auto</strong></span>
-                                    <svg class="party-tool-btn__caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                                </button>
-                                <div id="party-netflix-quality-menu" class="server-dropdown-menu"></div>
-                            </div>
                         </div>
+                        <div class="controls-right" style="display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; flex-wrap: nowrap;">
 
-                        <div class="party-room-toolbar__actions">
-                            <button
-                                type="button"
-                                id="party-bar-episodes-btn"
-                                class="party-tool-btn"
-                                hidden
-                                onclick="openPartyEpisodesPanel()"
-                            >Episodes</button>
                             <div class="make-host-wrap" style="position: relative;">
                                 <button
                                     type="button"
                                     id="make-host-btn"
-                                    class="party-tool-btn"
+                                    class="cinema-mode-btn"
                                     hidden
                                     onclick="toggleMakeHostMenu(event)"
                                 >Make Host</button>
@@ -357,56 +367,20 @@
                             <button
                                 type="button"
                                 id="room-privacy-btn"
-                                class="party-tool-btn party-tool-btn--icon room-privacy-btn"
+                                class="room-privacy-btn cinema-mode-btn"
                                 hidden
                                 aria-pressed="false"
-                                aria-label="Make private"
-                                title="Make private"
                                 onclick="toggleRoomPrivacy(event)"
-                            >
-                                <svg class="party-tool-btn__icon party-tool-btn__icon--unlock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <rect x="5" y="11" width="14" height="10" rx="2" />
-                                    <path d="M8 11V8a4 4 0 0 1 8 0" stroke-linecap="round" />
-                                </svg>
-                                <svg class="party-tool-btn__icon party-tool-btn__icon--lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <rect x="5" y="11" width="14" height="10" rx="2" />
-                                    <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke-linecap="round" />
-                                </svg>
-                                <span class="party-tool-btn__text party-tool-btn__text--desktop">Make private</span>
-                            </button>
+                            >Make private</button>
                             <button
                                 id="cinema-mode-btn"
                                 type="button"
-                                class="party-tool-btn party-tool-btn--icon cinema-mode-btn"
+                                class="cinema-mode-btn"
                                 aria-pressed="false"
-                                aria-label="Cinema mode"
-                                title="Cinema mode"
                                 onclick="toggleCinemaMode()"
-                            >
-                                <svg class="party-tool-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M4 7h16v10H4z" />
-                                    <path d="M8 21h8" stroke-linecap="round" />
-                                    <path d="M10 11l6 3-6 3z" fill="currentColor" stroke="none" />
-                                </svg>
-                                <span class="party-tool-btn__text party-tool-btn__text--desktop">Cinema mode</span>
-                            </button>
-                            <button
-                                id="share-link-btn"
-                                type="button"
-                                class="party-tool-btn party-tool-btn--icon banner-sync-btn"
-                                aria-label="Invite friends"
-                                title="Invite friends"
-                                onclick="copyShareLink()"
-                            >
-                                <svg class="party-tool-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                    <circle cx="9" cy="7" r="4" />
-                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                                </svg>
-                                <span class="party-tool-btn__text party-tool-btn__text--desktop">Invite</span>
-                            </button>
-                            <div class="party-ep-nav party-ep-nav--embed party-ep-nav--toolbar" hidden>
+                            >Cinema mode</button>
+                            <button id="share-link-btn" class="banner-sync-btn" onclick="copyShareLink()">Invite</button>
+                            <div class="party-ep-nav party-ep-nav--embed" hidden>
                                 <button type="button" class="party-ep-nav__btn party-ep-nav__btn--prev" aria-label="Previous episode">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                         <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
@@ -420,126 +394,7 @@
                                 </button>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Video: Artplayer (CineStream) or iframe embed -->
-                    <div id="player-stage" class="player-stage">
-                        <iframe id="video-player-iframe" class="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
-                        <div id="party-native-stage">
-                            <div id="party-nf-watch" class="party-nf-watch">
-                                <div class="party-nf-watch__video">
-                                    <div id="party-nf-video-area" class="party-nf-watch__content">
-                                    <div id="party-native-player" class="party-nf-watch__stage"></div>
-                                    <button type="button" id="party-nf-tap" class="party-nf-watch__tap-layer" aria-label="Play or pause"></button>
-                                    <div id="party-nf-loader" class="party-nf-watch__loader">
-                                        <span class="party-nf-watch__spinner" aria-hidden="true"></span>
-                                        <p>Loading your video…</p>
-                                    </div>
-                                    <div id="party-nf-episodes" class="party-nf-watch__episodes" hidden>
-                                        <button type="button" id="party-nf-episodes-backdrop" class="party-nf-watch__episodes-backdrop" aria-label="Close episodes"></button>
-                                        <aside class="party-nf-watch__episodes-panel" role="dialog" aria-label="Episodes">
-                                            <header class="party-nf-watch__episodes-head">
-                                                <div class="party-nf-watch__episodes-intro">
-                                                    <p id="party-nf-episodes-show" class="party-nf-watch__episodes-show"></p>
-                                                    <h2 class="party-nf-watch__episodes-label">Episodes</h2>
-                                                </div>
-                                                <button type="button" id="party-nf-episodes-close" class="party-nf-watch__episodes-close" aria-label="Close episodes">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12" stroke-linecap="round"/></svg>
-                                                </button>
-                                            </header>
-                                            <div class="party-nf-watch__episodes-season-wrap">
-                                                <label class="party-nf-watch__episodes-season-sr" for="party-nf-season-select">Season</label>
-                                                <select id="party-nf-season-select" class="party-nf-watch__episodes-season-select"></select>
-                                            </div>
-                                            <div id="party-nf-episodes-loading" class="party-nf-watch__episodes-loading" hidden>
-                                                <span class="party-nf-watch__spinner" aria-hidden="true"></span>
-                                                <span>Loading episodes…</span>
-                                            </div>
-                                            <div id="party-nf-episodes-list" class="party-nf-watch__episodes-list" role="listbox" aria-label="Episodes"></div>
-                                        </aside>
-                                    </div>
-                                    <div class="party-nf-watch__shade party-nf-watch__shade--bottom" aria-hidden="true"></div>
-                                    <div class="party-nf-watch__controls" id="party-nf-controls">
-                                        <div id="party-nf-progress" class="party-nf-watch__progress" role="slider" aria-label="Seek">
-                                            <div id="party-nf-progress-buffer" class="party-nf-watch__progress-buffer"></div>
-                                            <div id="party-nf-progress-fill" class="party-nf-watch__progress-fill"><span class="party-nf-watch__progress-knob"></span></div>
-                                        </div>
-                                        <div class="party-nf-watch__bar">
-                                            <div class="party-nf-watch__bar-left">
-                                            <button type="button" id="party-nf-play" class="party-nf-watch__icon-btn" aria-label="Play">
-                                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                                            </button>
-                                            <button type="button" id="party-nf-rewind" class="party-nf-watch__icon-btn party-nf-watch__icon-btn--label" aria-label="Rewind 10 seconds">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7" stroke-linecap="round"/><path d="M3 4v5h5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                                <span>10</span>
-                                            </button>
-                                            <div id="party-nf-volume-wrap" class="party-nf-watch__volume">
-                                                <button type="button" id="party-nf-mute" class="party-nf-watch__icon-btn" aria-label="Mute" aria-expanded="false">
-                                                    <svg id="party-nf-mute-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.74 2.5-2.26 2.5-4.03z"/></svg>
-                                                </button>
-                                                <div id="party-nf-volume-pop" class="party-nf-watch__volume-pop" hidden>
-                                                    <input type="range" id="party-nf-volume" class="party-nf-watch__volume-slider" min="0" max="1" step="0.05" value="1" aria-label="Volume" />
-                                                </div>
-                                            </div>
-                                            <span id="party-nf-time" class="party-nf-watch__time">0:00 / 0:00</span>
-                                            </div>
-                                            <div class="party-nf-watch__bar-right">
-                                            <div class="party-ep-nav party-ep-nav--nf" hidden>
-                                                <button type="button" class="party-ep-nav__btn party-ep-nav__btn--prev" aria-label="Previous episode">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                                                        <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round" />
-                                                    </svg>
-                                                </button>
-                                                <span class="party-ep-nav__label" aria-live="polite">Ep 1</span>
-                                                <button type="button" class="party-ep-nav__btn party-ep-nav__btn--next" aria-label="Next episode">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                                                        <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                            <button type="button" id="party-nf-invite-btn" class="party-nf-watch__episodes-btn party-nf-watch__invite-btn" hidden>
-                                                Invite Friends
-                                            </button>
-                                            <button type="button" id="party-nf-episodes-btn" class="party-nf-watch__episodes-btn" hidden aria-expanded="false">
-                                                Episodes
-                                            </button>
-                                            <button type="button" id="party-nf-autonext" class="party-nf-watch__pill-btn" hidden aria-pressed="true">
-                                                <span class="party-nf-watch__pill-dot" aria-hidden="true"></span>
-                                                AutoNext
-                                            </button>
-                                            <div id="party-nf-audio-wrap" class="party-nf-watch__quality party-nf-watch__audio">
-                                                <button type="button" id="party-nf-audio-btn" class="party-nf-watch__quality-btn" aria-haspopup="listbox">
-                                                    <span id="party-nf-audio-label">Audio</span>
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" stroke-linecap="round"/></svg>
-                                                </button>
-                                                <ul id="party-nf-audio-menu" class="party-nf-watch__quality-menu" role="listbox" hidden></ul>
-                                            </div>
-                                            <div id="party-nf-quality-wrap" class="party-nf-watch__quality">
-                                                <button type="button" id="party-nf-quality-btn" class="party-nf-watch__quality-btn" aria-haspopup="listbox">
-                                                    <span id="party-nf-quality-label">Quality</span>
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" stroke-linecap="round"/></svg>
-                                                </button>
-                                                <ul id="party-nf-quality-menu" class="party-nf-watch__quality-menu" role="listbox" hidden></ul>
-                                            </div>
-                                            <button type="button" id="party-nf-fullscreen" class="party-nf-watch__icon-btn" aria-label="Fullscreen">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" stroke-linecap="round"/></svg>
-                                            </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    </div>
-                                </div>
-                                <p id="party-nf-error" class="party-nf-watch__error" role="alert" hidden></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Desktop-only legacy slot (AutoNext); room actions live in party-room-toolbar -->
-                    <div class="player-controls-bar" hidden>
-                        <button id="party-auto-next-btn" class="btn" type="button" onclick="togglePartyAutoNext()">
-                            <span class="indicator-dot"></span>
-                            AutoNext
-                        </button>
                     </div>
 
                 </div>
@@ -552,7 +407,20 @@
                             <span class="chat-panel-title">Lobby Chat</span>
                         </div>
                         <div id="users-badge-container" class="chat-user-status">
-                            Joined: <strong id="chat-my-name">Guest</strong> (<span id="chat-online-count">0</span> online)
+                            Joined: <strong id="chat-my-name">Guest</strong>
+                            (<button
+                                id="chat-online-count-btn"
+                                class="online-count-btn"
+                                type="button"
+                                title="View participants"
+                                onclick="toggleParticipantsPanel()"
+                            ><span id="chat-online-count">0</span> online</button>)
+                        </div>
+                        <!-- Participants panel (host can transfer control here) -->
+                        <div id="participants-panel" class="participants-panel" hidden>
+                            <div class="participants-panel__list" id="participants-list">
+                                <!-- Populated dynamically -->
+                            </div>
                         </div>
                     </div>
 

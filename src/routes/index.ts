@@ -263,27 +263,7 @@ const routes: Array<RouteRecordRaw> = [
             title: 'Stream Anime Episode'
         }
     },
-    {
-        path: '/testing',
-        name: 'ScraperTesting',
-        component: () => import('../pages/ScraperTesting.vue'),
-        meta: {
-            showInHeader: false,
-            hidden: true,
-            title: 'Scraper Testing'
-        }
-    },
-    {
-        path: '/scrape',
-        name: 'Scrape',
-        component: () => import('../pages/Scrape.vue'),
-        meta: {
-            showInHeader: false,
-            hidden: true,
-            title: 'Scraper Lab',
-            bareLayout: true
-        }
-    },
+
     {
         path: '/party',
         name: 'Party',

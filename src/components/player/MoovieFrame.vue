@@ -1608,6 +1608,16 @@ export default defineComponent({
                     maxBufferHole: 0.5,
                     highBufferWatchdogPeriod: 2,
                     appendErrorMaxRetry: 5,
+                    // The stream proxy is cold on first hit and can take well
+                    // over the 10s hls.js default to serve the master playlist.
+                    // Give it a generous timeout and auto-retry with backoff so
+                    // the player recovers on its own instead of surfacing a
+                    // manifestLoadTimeOut error that needs a manual retry.
+                    manifestLoadTimeOut: 60000,
+                    manifestLoadingMaxRetry: 5,
+                    manifestLoadingRetryDelay: 1500,
+                    levelLoadTimeOut: 30000,
+                    fragLoadTimeOut: 30000,
                     // Purstream serves long MPEG-TS fragments progressively.
                     // Begin fetching before media attachment and append usable
                     // bytes as they arrive instead of waiting for the whole

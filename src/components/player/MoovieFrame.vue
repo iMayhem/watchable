@@ -1327,6 +1327,7 @@ export default defineComponent({
         let hlsInstance: any = null
         let activeSourceEventSource: EventSource | null = null
         let componentUnmounted = false
+        let poseidonRefreshAttempts = 0
         let stopTracking: (() => void) | null = null
 
         // Streams visible for the currently active server — if a server is selected,
@@ -1460,32 +1461,37 @@ export default defineComponent({
             video.playbackRate = playbackSpeed.value
 
             const onBufferEnd = () => { buffering.value = false; playing.value = !video.paused }
-            const invalidateCachedPoseidonLink = () => {
+            const refreshPoseidonAfterPlaybackError = async () => {
                 const source = originalStream.value as (HubStream & { providerId?: string }) | null
                 const providerId = String(source?.providerId || '').toLowerCase()
                 const providerName = String(source?.providerName || '').toLowerCase()
                 const isPoseidon = providerId === 'vaplayer' || providerId === 'poseidon' || providerName === 'poseidon'
                 if (!isPoseidon) return
-                void fetch(`${HUB_BASE}/api/scrape/cache/invalidate`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        provider: 'vaplayer',
-                        tmdbId: String(props.mediaId),
-                        type: props.mediaType,
-                        season: props.season || undefined,
-                        episode: props.episode || undefined,
+                if (poseidonRefreshAttempts >= 1 || componentUnmounted) return
+                poseidonRefreshAttempts++
+                try {
+                    const response = await fetch(`${HUB_BASE}/api/scrape/cache/invalidate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            provider: 'vaplayer',
+                            tmdbId: String(props.mediaId),
+                            type: props.mediaType,
+                            season: props.season || undefined,
+                            episode: props.episode || undefined,
+                        })
                     })
-                }).then(() => {
-                    console.info('[MoovieFrame] invalidated cached Poseidon link after media error', {
+                    if (!response.ok) throw new Error(`cache invalidation failed: HTTP ${response.status}`)
+                    console.info('[MoovieFrame] invalidated failed Poseidon link; starting one fresh scrape', {
                         mediaId: props.mediaId,
                         mediaType: props.mediaType,
                         providerId,
                         providerName,
                     })
-                }).catch((err) => {
-                    console.warn('[MoovieFrame] failed to invalidate cached Poseidon link:', err)
-                })
+                    if (!componentUnmounted) await doLoad(true)
+                } catch (err) {
+                    console.warn('[MoovieFrame] failed to refresh Poseidon after playback error:', err)
+                }
             }
             const onTimeUpdate = () => { currentTime.value = video.currentTime; duration.value = video.duration || 0; updateActiveCueText() }
             const onPlayPause = () => { 
@@ -1551,7 +1557,7 @@ export default defineComponent({
                 })
                 onBufferEnd()
             })
-            video.addEventListener('error', invalidateCachedPoseidonLink, { once: true })
+            video.addEventListener('error', () => { void refreshPoseidonAfterPlaybackError() }, { once: true })
             video.addEventListener('abort', onBufferEnd)
             video.addEventListener('timeupdate', onTimeUpdate)
 
@@ -2155,7 +2161,7 @@ export default defineComponent({
             return best
         }
 
-        async function doLoad() {
+        async function doLoad(preservePoseidonRetry = false) {
             console.warn('[MoovieFrame][load-trace] doLoad called', {
                 mediaId: props.mediaId,
                 mediaType: props.mediaType,
@@ -2165,6 +2171,8 @@ export default defineComponent({
                 currentSrc: videoRef.value?.currentSrc || videoRef.value?.src || '',
                 stack: new Error().stack,
             })
+            if (!preservePoseidonRetry) poseidonRefreshAttempts = 0
+            originalStream.value = null
             destroyPlayer(); loading.value = true; error.value = ''; playbackStarted.value = false; firstFrameShown.value = false; failedStreamUrls.value = new Set(); streams.value = []
             langVariantFetchKey = '' // reset so variant fetch fires fresh
             try {

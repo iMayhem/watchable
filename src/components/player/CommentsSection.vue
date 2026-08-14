@@ -18,9 +18,10 @@
                         v-model="guestName"
                         placeholder="Your display name..."
                         class="guest-identity__input"
+                        :class="{ 'guest-identity__input--invalid': isAdminName(guestName) }"
                         maxlength="25"
-                        required
                     />
+                    <p v-if="isAdminName(guestName)" class="guest-identity__error">You cannot use "admin" as your display name</p>
                 </div>
                 <div v-else class="user-identity">
                     <img :src="getAvatarUrl(currentUsername)" :alt="currentUsername" class="user-identity__avatar" />
@@ -247,6 +248,8 @@ export default defineComponent({
             });
         }
 
+        const isAdminName = (name: string) => name.trim().toLowerCase() === 'admin';
+
         const checkAuth = () => {
             if (typeof window !== 'undefined') {
                 const user = localStorage.getItem('movora_current_user');
@@ -361,6 +364,11 @@ export default defineComponent({
 
         const submitMainComment = async () => {
             if (!newCommentText.value.trim()) return;
+            if (isAdminName(guestName.value)) {
+                alert('You cannot use "admin" as your display name.');
+                submitting.value = false;
+                return;
+            }
             if (isToxic(newCommentText.value)) {
                 alert('Your comment has been removed for violating our community guidelines.');
                 submitting.value = false;
@@ -428,6 +436,11 @@ export default defineComponent({
 
         const submitReply = async (parentId: number) => {
             if (!replyText.value.trim()) return;
+            if (isAdminName(guestName.value)) {
+                alert('You cannot use "admin" as your display name.');
+                submittingReply.value = false;
+                return;
+            }
             if (isToxic(replyText.value)) {
                 alert('Your reply has been removed for violating our community guidelines.');
                 submittingReply.value = false;
@@ -643,6 +656,7 @@ export default defineComponent({
             replyTextarea,
             wrapText,
             getAvatarUrl,
+            isAdminName,
             submitMainComment,
             submitReply,
             toggleCollapse,
@@ -761,6 +775,21 @@ export default defineComponent({
                 border-color: var(--ember);
                 box-shadow: 0 0 8px var(--ember-glow);
             }
+
+            &--invalid {
+                border-color: #ef4444;
+
+                &:focus {
+                    border-color: #ef4444;
+                    box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
+                }
+            }
+        }
+
+        &__error {
+            color: #ef4444;
+            font-size: var(--fs-xs);
+            margin: 0;
         }
     }
 

@@ -10,8 +10,17 @@
         <!-- Write top-level comment form -->
         <form @submit.prevent="submitMainComment" class="comment-form">
             <div class="comment-form__meta-row">
-                <div v-if="!isLoggedIn" class="user-identity">
-                    <span class="user-identity__name">Anonymous</span>
+                <div v-if="!isLoggedIn" class="guest-identity">
+                    <label for="guest-name" class="eyebrow guest-identity__label">Comment as Guest</label>
+                    <input
+                        id="guest-name"
+                        type="text"
+                        v-model="guestName"
+                        placeholder="Your display name..."
+                        class="guest-identity__input"
+                        maxlength="25"
+                        required
+                    />
                 </div>
                 <div v-else class="user-identity">
                     <img :src="getAvatarUrl(currentUsername)" :alt="currentUsername" class="user-identity__avatar" />
@@ -202,6 +211,7 @@ export default defineComponent({
         const submittingReply = ref(false);
         const newCommentText = ref('');
         const replyText = ref('');
+        const guestName = ref('');
         const isLoggedIn = ref(false);
         const currentUsername = ref('');
         const activeReplyId = ref<number | null>(null);
@@ -246,6 +256,8 @@ export default defineComponent({
                 } else {
                     isLoggedIn.value = false;
                     currentUsername.value = '';
+                    const savedGuest = localStorage.getItem('movora_guest_name');
+                    guestName.value = savedGuest || 'Anonymous';
                 }
             }
         };
@@ -358,7 +370,11 @@ export default defineComponent({
 
             const nameToPost = isLoggedIn.value 
                 ? `@${currentUsername.value}` 
-                : 'Anonymous';
+                : guestName.value.trim() || 'Anonymous';
+
+            if (!isLoggedIn.value && typeof window !== 'undefined') {
+                localStorage.setItem('movora_guest_name', nameToPost);
+            }
 
             const text = newCommentText.value.trim()
             const optimistic: RenderComment = {
@@ -421,7 +437,11 @@ export default defineComponent({
 
             const nameToPost = isLoggedIn.value 
                 ? `@${currentUsername.value}` 
-                : 'Anonymous';
+                : guestName.value.trim() || 'Anonymous';
+
+            if (!isLoggedIn.value && typeof window !== 'undefined') {
+                localStorage.setItem('movora_guest_name', nameToPost);
+            }
 
             const text = replyText.value.trim()
             const prefixedContent = `[reply:${parentId}]${text}`;
@@ -614,6 +634,7 @@ export default defineComponent({
             submittingReply,
             newCommentText,
             replyText,
+            guestName,
             isLoggedIn,
             currentUsername,
             activeReplyId,
@@ -711,6 +732,36 @@ export default defineComponent({
     &__meta-row {
         display: flex;
         align-items: center;
+    }
+
+    .guest-identity {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-1);
+        width: 100%;
+        max-width: 280px;
+
+        &__label {
+            color: var(--bone-400);
+            font-size: var(--fs-xs);
+        }
+
+        &__input {
+            background: var(--ink-900);
+            border: 1px solid var(--rule-strong);
+            border-radius: var(--r-md);
+            padding: 0.5rem 0.75rem;
+            color: var(--bone-50);
+            font-family: var(--font-ui);
+            font-size: var(--fs-sm);
+            outline: none;
+            transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+
+            &:focus {
+                border-color: var(--ember);
+                box-shadow: 0 0 8px var(--ember-glow);
+            }
+        }
     }
 
     .user-identity {

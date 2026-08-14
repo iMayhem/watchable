@@ -2460,6 +2460,28 @@ export default defineComponent({
                         console.debug('[MoovieFrame] switched to server:', provider)
                         return true
                     } catch (e) {
+                        if (provider.toLowerCase() === 'poseidon' && poseidonRefreshAttempts < 1 && !componentUnmounted) {
+                            poseidonRefreshAttempts++
+                            try {
+                                const response = await fetch(`${HUB_BASE}/api/scrape/cache/invalidate`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        provider: 'vaplayer',
+                                        tmdbId: String(props.mediaId),
+                                        type: props.mediaType,
+                                        season: props.season || undefined,
+                                        episode: props.episode || undefined,
+                                    })
+                                })
+                                if (!response.ok) throw new Error(`cache invalidation failed: HTTP ${response.status}`)
+                                originalStream.value = null
+                                console.info('[MoovieFrame] Poseidon HLS failed; invalidated cache and retrying fresh Poseidon scrape')
+                                return await selectServer(provider)
+                            } catch (refreshError) {
+                                console.warn('[MoovieFrame] fresh Poseidon retry failed:', refreshError)
+                            }
+                        }
                         console.error('[MoovieFrame] failed to switch to server:', provider, e)
                         return false
                     }
@@ -2690,6 +2712,29 @@ export default defineComponent({
                         return
                     }
                 } catch (err: any) {
+                    if (provider.toLowerCase() === 'poseidon' && poseidonRefreshAttempts < 1 && !componentUnmounted) {
+                        poseidonRefreshAttempts++
+                        try {
+                            const response = await fetch(`${HUB_BASE}/api/scrape/cache/invalidate`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    provider: 'vaplayer',
+                                    tmdbId: String(props.mediaId),
+                                    type: props.mediaType,
+                                    season: props.season || undefined,
+                                    episode: props.episode || undefined,
+                                })
+                            })
+                            if (!response.ok) throw new Error(`cache invalidation failed: HTTP ${response.status}`)
+                            originalStream.value = null
+                            console.info('[MoovieFrame] Poseidon HLS failed in single-source load; retrying fresh scrape')
+                            resolve(Boolean(await selectServer(provider)))
+                            return
+                        } catch (refreshError) {
+                            console.warn('[MoovieFrame] fresh Poseidon single-source retry failed:', refreshError)
+                        }
+                    }
                     if (providerObj) {
                         providerObj.status = 'notfound'
                         providerObj.percentage = 100

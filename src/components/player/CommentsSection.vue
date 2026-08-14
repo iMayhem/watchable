@@ -21,7 +21,7 @@
                         :class="{ 'guest-identity__input--invalid': isAdminName(guestName) }"
                         maxlength="25"
                     />
-                    <p v-if="isAdminName(guestName)" class="guest-identity__error">You cannot use "admin" as your display name</p>
+                    <p v-if="isAdminName(guestName)" class="guest-identity__error">That display name is reserved. Please choose a different name.</p>
                 </div>
                 <div v-else class="user-identity">
                     <img :src="getAvatarUrl(currentUsername)" :alt="currentUsername" class="user-identity__avatar" />
@@ -248,7 +248,45 @@ export default defineComponent({
             });
         }
 
-        const isAdminName = (name: string) => name.trim().toLowerCase() === 'admin';
+        const RESERVED_NAMES = new Set([
+            'admin',
+            'administrator',
+            'owner',
+            'founder',
+            'moderator',
+            'mod',
+            'root',
+            'superuser',
+            'sysadmin',
+            'operator',
+            'manager',
+            'master',
+            'admin1',
+            'admin123',
+            'administrator1',
+            'owner1',
+            'adminmoovie',
+            'moovieadmin',
+            'moovieadmin1',
+            'moovieowner',
+            'moovieoperator',
+            'mooviemaster',
+            'mooviemoderator',
+            'mooviemanager',
+            'watchableadmin',
+            'watchableowner',
+            'watchablemoderator',
+            'watchablemanager',
+            'watchablemaster'
+        ]);
+
+        const isAdminName = (name: string) => {
+            const clean = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (RESERVED_NAMES.has(clean)) return true;
+            if (/^moovie(admin|owner|master|moderator|manager|operator|founder|mod)$/.test(clean)) return true;
+            if (/^(admin|owner|master|moderator|manager|operator|founder|mod)moovie$/.test(clean)) return true;
+            return false;
+        };
 
         const checkAuth = () => {
             if (typeof window !== 'undefined') {
@@ -365,7 +403,7 @@ export default defineComponent({
         const submitMainComment = async () => {
             if (!newCommentText.value.trim()) return;
             if (isAdminName(guestName.value)) {
-                alert('You cannot use "admin" as your display name.');
+                alert('That display name is reserved. Please choose a different name.');
                 submitting.value = false;
                 return;
             }
@@ -437,7 +475,7 @@ export default defineComponent({
         const submitReply = async (parentId: number) => {
             if (!replyText.value.trim()) return;
             if (isAdminName(guestName.value)) {
-                alert('You cannot use "admin" as your display name.');
+                alert('That display name is reserved. Please choose a different name.');
                 submittingReply.value = false;
                 return;
             }

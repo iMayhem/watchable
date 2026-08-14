@@ -721,6 +721,30 @@
                         <span>Save General Settings</span>
                     </button>
                 </form>
+
+                <div class="curation-section" style="margin-top: 2rem;">
+                    <h2 class="section-title">Send Notification</h2>
+                    <form onsubmit="handleSendNotification(event)">
+                        <div class="form-group">
+                            <label class="form-label" for="notif-title">Title</label>
+                            <input type="text" id="notif-title" class="form-input" placeholder="Notification title" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="notif-message">Message (optional)</label>
+                            <textarea id="notif-message" class="form-input" placeholder="Notification message" rows="2" style="resize: vertical; font-family: inherit;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="notif-type">Type</label>
+                            <select id="notif-type" class="form-select">
+                                <option value="info">Info</option>
+                                <option value="success">Success</option>
+                                <option value="warning">Warning</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn" id="notif-btn"><span>Send to All Users</span></button>
+                    </form>
+                </div>
             </div>
 
             <!-- TAB 2: MODERATION & WORD FILTER -->

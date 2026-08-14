@@ -106,7 +106,7 @@
                                             <path d="m8 3 4 3 4-3" />
                                         </svg>
                                     </div>
-                                    <div class="up-next__scrim" aria-hidden="true" />
+                                    <div class="up-next__still-scrim" aria-hidden="true" />
                                     <span v-if="item.season === currentSeason && item.episode === currentEpisode" class="up-next__now-playing">
                                         Now Playing
                                     </span>
@@ -577,7 +577,7 @@ export default defineComponent({
         }
     }
 
-    &__scrim {
+    &__still-scrim {
         position: absolute;
         inset: 0;
         pointer-events: none;

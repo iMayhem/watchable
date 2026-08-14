@@ -594,9 +594,8 @@ export default defineComponent({
 
         const fetchPage = async (targetPage: number) => {
             const params: Record<string, string | number> = { page: targetPage };
-            if (region.value && region.value !== 'global') {
-                params.region = region.value;
-            }
+            params.region =
+                region.value && region.value !== 'global' ? region.value : 'US';
 
             const res = await useAxios().get('movie/upcoming', { params });
             const data = res.data as MovieResponse;

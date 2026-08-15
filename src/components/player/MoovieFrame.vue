@@ -2,7 +2,7 @@
     <div
         ref="rootRef"
         class="moovie-frame"
-        :class="{ 'has-error': error, 'is-buffering': buffering, 'is-controls-hidden': controlsHidden, 'is-embedding': embedOpen }"
+        :class="{ 'has-error': error, 'is-buffering': buffering, 'is-controls-hidden': controlsHidden, 'is-embedding': embedOpen && activeEmbedId !== 'native' }"
         :style="{
             '--sub-bg-opacity': subtitleBgOpacity,
             '--sub-text-opacity': subtitleTextOpacity,
@@ -488,7 +488,7 @@
                  </Transition>
              </div>
 
-            <div class="moovie-frame__embed-overlay" :class="{ 'is-open': embedOpen }" @click.self="toggleEmbedMode">
+            <div class="moovie-frame__embed-overlay" :class="{ 'is-open': embedOpen, 'is-native': embedOpen && activeEmbedId === 'native' }" @click.self="toggleEmbedMode">
                 <div
                     v-if="embedOpen"
                     class="moovie-frame__embed-sources"
@@ -1166,7 +1166,12 @@ export default defineComponent({
                         ? `https://zxcstream.xyz/player/tv/${id}/${s}/${e}`
                         : `https://zxcstream.xyz/player/movie/${id}`,
             },
-            { id: 'embed4', label: 'Embed 4', enabled: false, build: () => '' },
+            {
+                id: 'native',
+                label: 'Moovie Player',
+                enabled: true,
+                build: () => '',
+            },
             { id: 'embed5', label: 'Embed 5', enabled: false, build: () => '' },
         ]
         function switchEmbed(sourceId: string) {
@@ -1175,9 +1180,16 @@ export default defineComponent({
             if (activeEmbedId.value === sourceId) return
             const prev = activeEmbedId.value
             activeEmbedId.value = sourceId
-            // Stop playback in the outgoing pane so it doesn't keep playing audio in the background.
+            if (prev === 'native') {
+                const video = videoRef.value
+                if (video) video.pause()
+            }
             if (paneSrc[prev]) paneSrc[prev] = ''
             if (!paneSrc[sourceId]) paneSrc[sourceId] = embedUrls.value[sourceId]
+            if (sourceId === 'native') {
+                const video = videoRef.value
+                if (video) void video.play().catch(() => {})
+            }
         }
         const embedUrl = computed(() => {
             const id = String(props.mediaId)
@@ -1189,7 +1201,8 @@ export default defineComponent({
             const id = String(props.mediaId)
             if (!id) return map
             for (const src of embedSources) {
-                if (src.enabled) map[src.id] = src.build(props.mediaType, id, props.season || 1, props.episode || 1)
+                if (!src.enabled || src.id === 'native') continue
+                map[src.id] = src.build(props.mediaType, id, props.season || 1, props.episode || 1)
             }
             return map
         })
@@ -1210,7 +1223,7 @@ export default defineComponent({
             },
             { immediate: true }
         )
-        const embedLoading = computed(() => !embedLoaded[activeEmbedId.value])
+        const embedLoading = computed(() => activeEmbedId.value !== 'native' && !embedLoaded[activeEmbedId.value])
         function onEmbedLoaded(id: string) {
             embedLoaded[id] = true
         }
@@ -1221,6 +1234,9 @@ export default defineComponent({
                 settingsOpen.value = false
                 const video = videoRef.value
                 if (video) video.pause()
+                if (activeEmbedId.value === 'native') {
+                    activeEmbedId.value = embedSources.find(s => s.enabled && s.id !== 'native')?.id || 'vidrock'
+                }
                 if (!paneSrc[activeEmbedId.value]) paneSrc[activeEmbedId.value] = embedUrls.value[activeEmbedId.value]
             } else {
                 paneSrc[activeEmbedId.value] = ''
@@ -3963,6 +3979,15 @@ resolve(false)
 .moovie-frame__embed-overlay.is-open {
     visibility: visible;
     opacity: 1;
+    pointer-events: auto;
+}
+
+.moovie-frame__embed-overlay.is-native {
+    background: transparent;
+    pointer-events: none;
+}
+
+.moovie-frame__embed-overlay.is-native .moovie-frame__embed-sources {
     pointer-events: auto;
 }
 

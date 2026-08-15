@@ -1742,20 +1742,10 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Hide circles in native mode (Vue MoovieFrame manages its own) */
-        html.party-native-mode .party-embed-sources,
-        html.party-native-mode .party-embed-loader{
-            display: none !important;
-        }
-
-
-        
-
-        /* The Vue shell owns the native MoovieFrame in native mode. Keep this
-           document responsible for the original room/chat UI only. */
-        html.party-native-mode body.room-view-active .player-iframe{
-            visibility: hidden !important;
-            pointer-events: none !important;
+        /* Clean embed player surface */
+        body.room-view-active .player-iframe{
+            visibility: visible !important;
+            pointer-events: auto !important;
         }
 
         

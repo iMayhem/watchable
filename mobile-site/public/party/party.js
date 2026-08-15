@@ -1173,20 +1173,11 @@
         }
 
         async function loadRoomEmbed() {
-            console.info('[Party iframe] loadRoomEmbed', {
-                nativeMode: document.documentElement.classList.contains('party-native-mode'),
-                mediaId, isTv, season, episode, activeProvider
-            });
-            if (document.documentElement.classList.contains('party-native-mode')) {
-                setPlayerStagePending(false);
-                console.info('[Party iframe] native mode: outer Vue MoovieFrame owns the player slot');
-                return;
-            }
             setPlayerStagePending(true);
 
             try {
                 resolveDefaultStreamProvider();
-                switchStreamProvider(activeProvider);
+                switchStreamProvider(activeProvider || 'moovie');
             } catch (err) {
                 console.error('Failed to load room embed:', err);
             } finally {
@@ -1840,67 +1831,6 @@
                         ? `Season ${season} Episode ${nextEp}`
                         : `Episode ${nextEp}`;
                     appendChatMessage('System', `The host advanced the watch party to ${epLabel}!`, 'system');
-                })
-                .on('broadcast', { event: 'moovie_playback_sync' }, (payload) => {
-                    console.warn('[Party] Received broadcast moovie_playback_sync:', payload, 'isHost:', isHost, 'activeProvider:', activeProvider);
-                    if (isHost) return;
-                    if (activeProvider !== 'moovie') return;
-                    const data = payload.payload || {};
-                    if (data.sender === currentUserName) return;
-
-                    // If host seeked, show in chat
-                    if (data.event === 'seek' && data.seekDesc) {
-                        appendChatMessage('System', `👑 ${data.sender || 'Host'} seeked ${data.seekDesc}`, 'system');
-                    }
-
-                    const iframe = document.getElementById('video-player-iframe');
-                    if (document.documentElement.classList.contains('party-native-mode')) {
-                        window.parent.postMessage({
-                            type: 'moovie-command-sync',
-                            time: data.time,
-                            playing: data.playing,
-                            event: data.event,
-                            force: data.event === 'seek' || data.event === 'play' || data.event === 'pause'
-                        }, window.location.origin);
-                    } else if (iframe && iframe.contentWindow) {
-                        console.warn('[Party] Forwarding to iframe: moovie-command-sync', data);
-                        iframe.contentWindow.postMessage({
-                            type: 'moovie-command-sync',
-                            time: data.time,
-                            playing: data.playing,
-                            event: data.event,
-                            force: data.event === 'seek' || data.event === 'play' || data.event === 'pause'
-                        }, '*');
-                    }
-                })
-                .on('broadcast', { event: 'moovie_sync_request' }, (payload) => {
-                    if (!isHost) return;
-                    if (activeProvider !== 'moovie') return;
-                    const data = payload.payload || {};
-                    if (data.sender === currentUserName) return;
-
-                    // Ask our player for a fresh position instead of relying on the
-                    // (up to 3s stale) cached heartbeat time. The player replies
-                    // with an immediate heartbeat that updates lastMooviePlayerTime.
-                    const iframe = document.getElementById('video-player-iframe');
-                    if (iframe && iframe.contentWindow) {
-                        iframe.contentWindow.postMessage({ type: 'moovie-sync-poll' }, '*');
-                    }
-                    setTimeout(() => {
-                        if (!channel) return;
-                        const syncTime = clampSyncTime(lastMooviePlayerTime ?? 0);
-                        const syncPlaying = lastMooviePlayerPlaying ?? false;
-                        channel.send({
-                            type: 'broadcast',
-                            event: 'moovie_playback_sync',
-                            payload: {
-                                event: 'seek',  // force-seek so guest always jumps to exact timestamp
-                                time: syncTime,
-                                playing: syncPlaying,
-                                sender: currentUserName
-                            }
-                        });
-                    }, 150);
                 })
                 .on('broadcast', { event: 'moovie_host_transfer' }, async (payload) => {
                     const data = payload.payload || {};

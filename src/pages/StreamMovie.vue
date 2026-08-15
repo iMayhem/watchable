@@ -25,11 +25,14 @@
         <!-- Full-screen video layer -->
         <div class="watch-stage__video-layer">
             <MoovieFrame
+                ref="frameRef"
                 :media-id="movieId"
                 media-type="movie"
+                auto-embed
                 :title="movie?.title || 'Stream'"
                 :backdrop-path="movie?.backdrop_path || ''"
                 :poster-path="movie?.poster_path || ''"
+                @embed-change="onEmbedChange"
             />
         </div>
 
@@ -48,7 +51,20 @@
                         <h1 v-if="movie" class="watch-stage__title">{{ movie.title }}</h1>
                     </div>
                 </div>
-                <div class="watch-stage__top-right">
+                <div v-if="!embedActive" class="watch-stage__top-right">
+                    <button
+                        v-if="movie"
+                        type="button"
+                        class="watch-stage__party-btn watch-stage__embed-btn"
+                        aria-label="Embed mode"
+                        title="Open Videasy embed"
+                        @click="toggleEmbed"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="watch-stage__party-icon">
+                            <rect x="2" y="4" width="20" height="16" rx="2" />
+                            <path d="M10 9l5 3-5 3V9z" />
+                        </svg>
+                    </button>
                     <button
                         v-if="movie"
                         type="button"
@@ -124,6 +140,15 @@ export default defineComponent({
         const resumeTimestamp = ref(0);
 
         const isNavigatingToParty = ref(false);
+
+        const frameRef = ref<InstanceType<typeof MoovieFrame> | null>(null);
+        const embedActive = ref(false);
+        const onEmbedChange = (active: boolean) => {
+            embedActive.value = active;
+        };
+        const toggleEmbed = () => {
+            frameRef.value?.toggleEmbedMode?.();
+        };
 
         const loadMovie = async () => {
             if (!movieId.value) {
@@ -248,6 +273,9 @@ export default defineComponent({
             scheduleHide,
             inWatchlist,
             toggleWatchlist,
+            toggleEmbed,
+            onEmbedChange,
+            embedActive,
         };
     }
 });

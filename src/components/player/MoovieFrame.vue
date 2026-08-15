@@ -2,7 +2,7 @@
     <div
         ref="rootRef"
         class="moovie-frame"
-        :class="{ 'has-error': error, 'is-buffering': buffering, 'is-controls-hidden': controlsHidden }"
+        :class="{ 'has-error': error, 'is-buffering': buffering, 'is-controls-hidden': controlsHidden, 'is-embedding': embedOpen }"
         :style="{
             '--sub-bg-opacity': subtitleBgOpacity,
             '--sub-text-opacity': subtitleTextOpacity,
@@ -227,6 +227,15 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.92-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
                             </svg>
+                        </button>
+                        <button
+                            class="moovie-frame__ctrl-btn moovie-frame__embed-btn"
+                            :class="{ 'is-active': embedOpen }"
+                            @click.stop="toggleEmbedMode"
+                            aria-label="Embed mode"
+                            title="Open Videasy embed"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
                         </button>
                         <button
                             class="moovie-frame__ctrl-btn moovie-frame__three-dot-btn"
@@ -474,9 +483,29 @@
                                     </button>
                                 </div>
                             </template>
-                        </div>
-                    </div>
-                </Transition>
+</div>
+                     </div>
+                 </Transition>
+             </div>
+
+            <div class="moovie-frame__embed-overlay" :class="{ 'is-open': embedOpen }" @click.self="toggleEmbedMode">
+                <button
+                    v-if="embedOpen"
+                    type="button"
+                    class="moovie-frame__embed-close"
+                    @click.stop="toggleEmbedMode"
+                    aria-label="Close embed mode"
+                    title="Close embed mode"
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+                <iframe
+                    class="moovie-frame__embed-frame"
+                    :src="embedIframeSrc"
+                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                    allowfullscreen
+                    referrerpolicy="no-referrer"
+                />
             </div>
         </div>
     </div>
@@ -778,11 +807,12 @@ export default defineComponent({
         mediaType: { type: String as () => 'movie' | 'tv', default: 'movie' },
         season: { type: Number, default: 0 },
         episode: { type: Number, default: 0 },
+        autoEmbed: { type: Boolean, default: false },
         title: { type: String, default: 'Stream' },
         backdropPath: { type: String, default: '' },
         posterPath: { type: String, default: '' },
     },
-    emits: ['next-episode', 'prev-episode'],
+    emits: ['next-episode', 'prev-episode', 'embed-change'],
     setup(props, ctx) {
         const rootRef = ref<HTMLElement | null>(null)
         const videoRef = ref<HTMLVideoElement | null>(null)
@@ -1078,6 +1108,46 @@ export default defineComponent({
         const settingsSection = ref<string | null>(null)
         const selectedServer = ref('')
         const activeProviderStatus = ref('')
+
+        const embedOpen = ref(false)
+        const embedHasLoaded = ref(false)
+        const embedUrl = computed(() => {
+            const id = String(props.mediaId)
+            if (props.mediaType === 'tv') {
+                const s = props.season || 1
+                const e = props.episode || 1
+                return `https://player.videasy.net/tv/${id}/${s}/${e}`
+            }
+            return `https://player.videasy.net/movie/${id}`
+        })
+        // The embed iframe stays mounted at all times (hidden) so the player
+        // loads in the background and is instant when opened. Blanked on close
+        // to stop any in-flight playback.
+        const embedIframeSrc = ref('')
+        watch(
+            embedUrl,
+            (url) => {
+                if (embedOpen.value || !url) return
+                embedIframeSrc.value = url
+            },
+            { immediate: true }
+        )
+        function toggleEmbedMode() {
+            embedOpen.value = !embedOpen.value
+            ctx.emit('embed-change', embedOpen.value)
+            if (embedOpen.value) {
+                settingsOpen.value = false
+                const video = videoRef.value
+                if (video) video.pause()
+                if (!embedIframeSrc.value) embedIframeSrc.value = embedUrl.value
+            } else {
+                embedIframeSrc.value = ''
+                if (props.autoEmbed && !embedHasLoaded.value) {
+                    embedHasLoaded.value = true
+                    void doLoad()
+                }
+            }
+        }
 
         async function loadEnabledProviderList() {
             try {
@@ -3195,9 +3265,15 @@ resolve(false)
         onMounted(async () => {
             componentUnmounted = false
             await loadServerOverrides()
-            if (props.mediaId) {
+            if (props.mediaId && !props.autoEmbed) {
                 console.log('[MOVIEFRAME] mounted: starting selected single-source scrape')
                 void doLoad()
+            }
+            if (props.autoEmbed) {
+                embedOpen.value = true
+                settingsOpen.value = false
+                ctx.emit('embed-change', true)
+                console.log('[MOVIEFRAME] mounted: auto-embed mode active')
             }
             startTrackingIfNeeded()
             if (videoRef.value) {
@@ -3259,7 +3335,7 @@ resolve(false)
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, embedIframeSrc }
     },
 })
 </script>
@@ -3785,6 +3861,59 @@ resolve(false)
         height: 1px;
         background: rgba(255, 255, 255, 0.08);
         opacity: 1;
+    }
+}
+
+.moovie-frame__embed-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.moovie-frame__embed-overlay.is-open {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.moovie-frame.is-embedding .moovie-frame__player {
+    display: none;
+}
+
+.moovie-frame__embed-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #000;
+}
+
+.moovie-frame__embed-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 5;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    cursor: pointer;
+    border-radius: 999px;
+    transition: background-color 0.1s ease, transform 0.1s ease;
+
+    &:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+        transform: scale(1.08);
     }
 }
 

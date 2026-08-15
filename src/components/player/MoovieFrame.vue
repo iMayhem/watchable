@@ -1135,7 +1135,7 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const activeEmbedId = ref('videasy')
+        const activeEmbedId = ref('vidrock')
         interface EmbedSource {
             id: string
             label: string
@@ -1144,18 +1144,18 @@ export default defineComponent({
         }
         const embedSources: EmbedSource[] = [
             {
-                id: 'videasy',
-                label: 'Videasy',
-                enabled: true,
-                build: (mediaType, id, s, e) =>
-                    mediaType === 'tv' ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
-            },
-            {
                 id: 'vidrock',
                 label: 'VidRock',
                 enabled: true,
                 build: (mediaType, id, s, e) =>
                     mediaType === 'tv' ? `https://vidrock.net/tv/${id}/${s}/${e}` : `https://vidrock.net/movie/${id}`,
+            },
+            {
+                id: 'videasy',
+                label: 'Videasy',
+                enabled: true,
+                build: (mediaType, id, s, e) =>
+                    mediaType === 'tv' ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
             },
             {
                 id: 'zxcstream',

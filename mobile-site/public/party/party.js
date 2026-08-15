@@ -1169,7 +1169,7 @@
         }
 
         async function resolveDefaultStreamProvider() {
-            activeProvider = 'moovie';
+            activeProvider = 'vidrock';
         }
 
         async function loadRoomEmbed() {
@@ -1177,7 +1177,7 @@
 
             try {
                 resolveDefaultStreamProvider();
-                switchStreamProvider(activeProvider || 'moovie');
+                switchStreamProvider(activeProvider || 'vidrock');
             } catch (err) {
                 console.error('Failed to load room embed:', err);
             } finally {

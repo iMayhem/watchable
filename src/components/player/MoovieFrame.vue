@@ -513,21 +513,29 @@
                 <div v-if="embedOpen && embedLoading" class="moovie-frame__embed-loader" aria-hidden="true">
                     <div class="moovie-frame__spinner" />
                 </div>
-                <iframe
-                    class="moovie-frame__embed-frame"
-                    :src="embedIframeSrc"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowfullscreen
-                    referrerpolicy="no-referrer"
-                    @load="onEmbedLoaded"
-                />
+                <div
+                    v-for="src in embedSources"
+                    :key="src.id"
+                    class="moovie-frame__embed-pane"
+                    :class="{ 'is-active': activeEmbedId === src.id }"
+                >
+                    <iframe
+                        v-if="src.enabled && paneSrc[src.id]"
+                        class="moovie-frame__embed-frame"
+                        :src="paneSrc[src.id]"
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        allowfullscreen
+                        referrerpolicy="no-referrer"
+                        @load="onEmbedLoaded(src.id)"
+                    />
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { startProgressTracking } from '../../composables/useProgress'
 import { usePlaybackRoute } from '../../composables/usePlaybackRoute'
 import { getSyncClient } from '../../lib/syncClient'
@@ -1161,31 +1169,46 @@ export default defineComponent({
             const src = embedSources.find(s => s.id === sourceId)
             if (!src || !src.enabled) return
             if (activeEmbedId.value === sourceId) return
+            const prev = activeEmbedId.value
             activeEmbedId.value = sourceId
+            // Stop playback in the outgoing pane so it doesn't keep playing audio in the background.
+            if (paneSrc[prev]) paneSrc[prev] = ''
+            if (!paneSrc[sourceId]) paneSrc[sourceId] = embedUrls.value[sourceId]
         }
         const embedUrl = computed(() => {
             const id = String(props.mediaId)
             const src = embedSources.find(s => s.id === activeEmbedId.value) || embedSources[0]
             return src.build(props.mediaType, id, props.season || 1, props.episode || 1)
         })
-        // The embed iframe stays mounted at all times (hidden) so the player
-        // loads in the background and is instant when opened. Blanked on close
-        // to stop any in-flight playback.
-        const embedIframeSrc = ref('')
-        const embedLoading = ref(true)
+        const embedUrls = computed<Record<string, string>>(() => {
+            const map: Record<string, string> = {}
+            const id = String(props.mediaId)
+            if (!id) return map
+            for (const src of embedSources) {
+                if (src.enabled) map[src.id] = src.build(props.mediaType, id, props.season || 1, props.episode || 1)
+            }
+            return map
+        })
+        // One hidden iframe per embed source stays mounted at all times so every
+        // embed loads in the background and switching is instant (visibility
+        // flip). Panes are blanked on close/switch-away to stop in-flight audio.
+        const paneSrc = reactive<Record<string, string>>({})
+        const embedLoaded = reactive<Record<string, boolean>>({})
         watch(
-            embedUrl,
-            (url) => {
-                if (!url) return
-                embedIframeSrc.value = url
+            embedUrls,
+            (urls) => {
+                for (const [id, url] of Object.entries(urls)) {
+                    if (paneSrc[id] !== url) {
+                        paneSrc[id] = url
+                        embedLoaded[id] = false
+                    }
+                }
             },
             { immediate: true }
         )
-        watch(embedIframeSrc, () => {
-            embedLoading.value = true
-        })
-        function onEmbedLoaded() {
-            embedLoading.value = false
+        const embedLoading = computed(() => !embedLoaded[activeEmbedId.value])
+        function onEmbedLoaded(id: string) {
+            embedLoaded[id] = true
         }
         function toggleEmbedMode() {
             embedOpen.value = !embedOpen.value
@@ -1194,9 +1217,9 @@ export default defineComponent({
                 settingsOpen.value = false
                 const video = videoRef.value
                 if (video) video.pause()
-                if (!embedIframeSrc.value) embedIframeSrc.value = embedUrl.value
+                if (!paneSrc[activeEmbedId.value]) paneSrc[activeEmbedId.value] = embedUrls.value[activeEmbedId.value]
             } else {
-                embedIframeSrc.value = ''
+                paneSrc[activeEmbedId.value] = ''
                 if (props.autoEmbed && !embedHasLoaded.value) {
                     embedHasLoaded.value = true
                     void doLoad()
@@ -3402,7 +3425,7 @@ resolve(false)
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, embedIframeSrc, embedLoading, onEmbedLoaded, embedSources, embedSourcesVisible, activeEmbedId, switchEmbed, showEmbedSources, handleMouseLeave }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, paneSrc, embedLoading, onEmbedLoaded, embedSources, embedSourcesVisible, activeEmbedId, switchEmbed, showEmbedSources, handleMouseLeave }
     },
 })
 </script>
@@ -3953,6 +3976,16 @@ resolve(false)
 
 .moovie-frame.is-embedding .moovie-frame__player {
     display: none;
+}
+
+.moovie-frame__embed-pane {
+    position: absolute;
+    inset: 0;
+    visibility: hidden;
+}
+
+.moovie-frame__embed-pane.is-active {
+    visibility: visible;
 }
 
 .moovie-frame__embed-frame {

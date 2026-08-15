@@ -30,12 +30,12 @@
             --font-ui: 'General Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
             --fs-xs: 0.75rem;
-            --fs-sm: 0.875rem;
-            --fs-base: 1rem;
+            --fs-sm: 0.8125rem;
+            --fs-base: 0.9375rem;
             --ls-micro: 0.08em;
             --container-max: 1440px;
-            --container-gutter: 2rem;
-            --site-header-height: 68px;
+            --container-gutter: clamp(1rem, 2.5vw, 2.25rem);
+            --site-header-height: 62px;
             --dur-fast: 180ms;
             --dur-base: 320ms;
             --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -901,8 +901,8 @@
 
         .rooms-grid{
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.25rem;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
         }
 
 
@@ -1188,8 +1188,8 @@
         /* Room Workspace View */
         .room-workspace{
             display: grid;
-            grid-template-columns: 1fr 380px;
-            gap: 1.5rem;
+            grid-template-columns: 1fr clamp(320px, 24vw, 400px);
+            gap: clamp(0.85rem, 1.4vw, 1.35rem);
             flex: 1;
             min-height: 0;
             align-items: stretch;
@@ -1208,7 +1208,7 @@
 
         /* Keep the two-column layout in cinema mode so chat stays visible */
         body.cinema-mode .room-workspace{
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 1fr clamp(320px, 24vw, 400px);
         }
 
 

@@ -166,11 +166,15 @@ export function usePolls() {
     }
 
     function hasDismissed(pollId: number): boolean {
-        return localStorage.getItem(POLL_DISMISSED_PREFIX + pollId) === 'true'
+        const raw = localStorage.getItem(POLL_DISMISSED_PREFIX + pollId)
+        if (!raw) return false
+        const ts = Number(raw)
+        if (!Number.isFinite(ts)) return false
+        return Date.now() - ts < 24 * 60 * 60 * 1000
     }
 
     function dismissPoll(pollId: number) {
-        localStorage.setItem(POLL_DISMISSED_PREFIX + pollId, 'true')
+        localStorage.setItem(POLL_DISMISSED_PREFIX + pollId, String(Date.now()))
     }
 
     function clearPollStorage(pollId: number) {

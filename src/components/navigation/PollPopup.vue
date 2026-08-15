@@ -30,12 +30,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { usePolls } from '../../composables/usePolls'
 
 const { activePoll, voting, fetchActivePoll, vote, hasVoted, hasDismissed, dismissPoll } = usePolls()
 
+const route = useRoute()
 const show = ref(false)
+let checkTimer: ReturnType<typeof setInterval> | null = null
 
 async function checkPoll() {
     await fetchActivePoll()
@@ -44,6 +47,10 @@ async function checkPoll() {
     const id = activePoll.value.id
     if (hasVoted(id) || hasDismissed(id)) return
     show.value = true
+}
+
+function onVisibilityChange() {
+    if (document.visibilityState === 'visible') checkPoll()
 }
 
 async function handleVote(optionIndex: number) {
@@ -61,7 +68,22 @@ function handleDismiss() {
 
 onMounted(() => {
     checkPoll()
+    checkTimer = setInterval(checkPoll, 30000)
+    document.addEventListener('visibilitychange', onVisibilityChange)
 })
+
+onUnmounted(() => {
+    if (checkTimer) clearInterval(checkTimer)
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+watch(
+    () => route.fullPath,
+    () => {
+        if (show.value) return
+        checkPoll()
+    }
+)
 </script>
 
 <style scoped>

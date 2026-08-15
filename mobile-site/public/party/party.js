@@ -1245,18 +1245,22 @@
                 newIframe.style.display = 'block';
                 newIframe.allowFullscreen = true;
                 newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
+                newIframe.setAttribute('referrerpolicy', 'no-referrer');
 
                 newIframe.src = embedUrl;
                 parent.replaceChild(newIframe, oldIframe);
+                return newIframe;
             }
+            return null;
         }
 
         function getEmbedUrlForServer(srv, mediaIdForEmbed, isTvShow, s, e) {
+            const cleanTmdbId = String(mediaIdForEmbed || '').replace(/^(movie_|tv_)/, '');
             let template = isTvShow ? srv.tv : srv.movie;
             return template
-                .replaceAll('{tmdbId}', mediaIdForEmbed)
-                .replaceAll('{season}', s)
-                .replaceAll('{episode}', e);
+                .replaceAll('{tmdbId}', cleanTmdbId)
+                .replaceAll('{season}', String(s || 1))
+                .replaceAll('{episode}', String(e || 1));
         }
 
         // Switch stream server locally
@@ -1276,14 +1280,26 @@
             if (matched) {
                 // Show loader
                 const loader = document.getElementById('party-embed-loader');
-                if (loader) loader.hidden = false;
+                if (loader) {
+                    loader.hidden = false;
+                    loader.classList.remove('is-hidden');
+                }
                 const embedUrl = getEmbedUrlForServer(matched, mediaId, isTv, season, episode);
-                showEmbedPlayer(embedUrl);
-                // Hide loader once iframe loads
-                const iframe = document.getElementById('video-player-iframe');
-                if (iframe) {
-                    const hide = () => { if (loader) loader.hidden = true; iframe.removeEventListener('load', hide); };
-                    iframe.addEventListener('load', hide, { once: true });
+                const iframe = showEmbedPlayer(embedUrl);
+                
+                // Hide loader once iframe loads or on timeout
+                if (loader) {
+                    let done = false;
+                    const hide = () => {
+                        if (done) return;
+                        done = true;
+                        loader.hidden = true;
+                        loader.classList.add('is-hidden');
+                    };
+                    if (iframe) {
+                        iframe.addEventListener('load', hide, { once: true });
+                    }
+                    setTimeout(hide, 2500);
                 }
             }
         }

@@ -1709,6 +1709,14 @@
         }
 
         /* Embed loader overlay */
+        .party-embed-loader[hidden],
+        .party-embed-loader.is-hidden{
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+
         .party-embed-loader{
             position: absolute;
             inset: 0;
@@ -1717,6 +1725,8 @@
             place-content: center;
             background: #000;
             pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
         }
 
         .party-embed-spinner{

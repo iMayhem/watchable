@@ -517,7 +517,7 @@
                     :class="{ 'is-active': activeEmbedId === src.id }"
                 >
                     <iframe
-                        v-if="src.enabled && paneSrc[src.id]"
+                        v-if="src.enabled && activeEmbedId === src.id && paneSrc[src.id]"
                         class="moovie-frame__embed-frame"
                         :src="paneSrc[src.id]"
                         allow="autoplay; encrypted-media; picture-in-picture"
@@ -1174,21 +1174,43 @@ export default defineComponent({
             },
             { id: 'embed5', label: 'Embed 5', enabled: false, build: () => '' },
         ]
+        function clearAllEmbedPanes() {
+            for (const src of embedSources) {
+                paneSrc[src.id] = ''
+                embedLoaded[src.id] = false
+            }
+        }
+
         function switchEmbed(sourceId: string) {
             const src = embedSources.find(s => s.id === sourceId)
             if (!src || !src.enabled) return
-            if (activeEmbedId.value === sourceId) return
+            if (activeEmbedId.value === sourceId && paneSrc[sourceId]) return
             const prev = activeEmbedId.value
             activeEmbedId.value = sourceId
+
             if (prev === 'native') {
                 const video = videoRef.value
                 if (video) video.pause()
             }
-            if (paneSrc[prev]) paneSrc[prev] = ''
-            if (!paneSrc[sourceId]) paneSrc[sourceId] = embedUrls.value[sourceId]
+
+            // Immediately clear ALL inactive panes to instantly terminate old iframe audio
+            for (const s of embedSources) {
+                if (s.id !== sourceId) {
+                    paneSrc[s.id] = ''
+                    embedLoaded[s.id] = false
+                }
+            }
+
             if (sourceId === 'native') {
                 const video = videoRef.value
                 if (video) void video.play().catch(() => {})
+            } else {
+                embedLoaded[sourceId] = false
+                paneSrc[sourceId] = embedUrls.value[sourceId] || ''
+                // Fallback timeout in case cross-origin iframe does not trigger @load
+                setTimeout(() => {
+                    embedLoaded[sourceId] = true
+                }, 2500)
             }
         }
         const embedUrl = computed(() => {
@@ -1206,22 +1228,15 @@ export default defineComponent({
             }
             return map
         })
-        // One hidden iframe per embed source stays mounted at all times so every
-        // embed loads in the background and switching is instant (visibility
-        // flip). Panes are blanked on close/switch-away to stop in-flight audio.
         const paneSrc = reactive<Record<string, string>>({})
         const embedLoaded = reactive<Record<string, boolean>>({})
         watch(
             embedUrls,
             (urls) => {
-                for (const [id, url] of Object.entries(urls)) {
-                    if (paneSrc[id] !== url) {
-                        paneSrc[id] = url
-                        embedLoaded[id] = false
-                    }
+                if (embedOpen.value && activeEmbedId.value !== 'native') {
+                    paneSrc[activeEmbedId.value] = urls[activeEmbedId.value] || ''
                 }
-            },
-            { immediate: true }
+            }
         )
         const embedLoading = computed(() => activeEmbedId.value !== 'native' && !embedLoaded[activeEmbedId.value])
         function onEmbedLoaded(id: string) {
@@ -1237,9 +1252,14 @@ export default defineComponent({
                 if (activeEmbedId.value === 'native') {
                     activeEmbedId.value = embedSources.find(s => s.enabled && s.id !== 'native')?.id || 'vidrock'
                 }
-                if (!paneSrc[activeEmbedId.value]) paneSrc[activeEmbedId.value] = embedUrls.value[activeEmbedId.value]
+                clearAllEmbedPanes()
+                embedLoaded[activeEmbedId.value] = false
+                paneSrc[activeEmbedId.value] = embedUrls.value[activeEmbedId.value] || ''
+                setTimeout(() => {
+                    embedLoaded[activeEmbedId.value] = true
+                }, 2500)
             } else {
-                paneSrc[activeEmbedId.value] = ''
+                clearAllEmbedPanes()
                 if (props.autoEmbed && !embedHasLoaded.value) {
                     embedHasLoaded.value = true
                     void doLoad()
@@ -3412,6 +3432,7 @@ resolve(false)
 
         onUnmounted(() => {
             componentUnmounted = true
+            clearAllEmbedPanes()
             if (idleTimer) clearTimeout(idleTimer)
             if (heartbeatInterval) clearInterval(heartbeatInterval)
             if (cueTimer) clearInterval(cueTimer)

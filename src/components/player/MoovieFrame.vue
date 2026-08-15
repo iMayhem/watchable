@@ -1131,7 +1131,7 @@ export default defineComponent({
         watch(
             embedUrl,
             (url) => {
-                if (embedOpen.value || !url) return
+                if (!url) return
                 embedIframeSrc.value = url
             },
             { immediate: true }

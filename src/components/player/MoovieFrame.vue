@@ -1230,13 +1230,34 @@ export default defineComponent({
         })
         const paneSrc = reactive<Record<string, string>>({})
         const embedLoaded = reactive<Record<string, boolean>>({})
+
+        // Pre-warm the first enabled embed in a hidden off-screen iframe so it
+        // is already loaded before the user even opens the embed panel.
+        // We defer by 800ms to not compete with the native player startup.
+        let prewarmTimer: ReturnType<typeof setTimeout> | null = null
         watch(
             embedUrls,
             (urls) => {
+                const defaultId = embedSources.find(s => s.enabled && s.id !== 'native')?.id
+                if (!defaultId || !urls[defaultId]) return
+                // If panel is already open, keep the live src in sync
                 if (embedOpen.value && activeEmbedId.value !== 'native') {
-                    paneSrc[activeEmbedId.value] = urls[activeEmbedId.value] || ''
+                    if (!paneSrc[activeEmbedId.value]) {
+                        paneSrc[activeEmbedId.value] = urls[activeEmbedId.value] || ''
+                    }
+                    return
                 }
-            }
+                // Otherwise pre-warm default embed in background
+                if (!paneSrc[defaultId]) {
+                    if (prewarmTimer) clearTimeout(prewarmTimer)
+                    prewarmTimer = setTimeout(() => {
+                        if (!embedOpen.value && !paneSrc[defaultId]) {
+                            paneSrc[defaultId] = urls[defaultId]
+                        }
+                    }, 800)
+                }
+            },
+            { immediate: true }
         )
         const embedLoading = computed(() => activeEmbedId.value !== 'native' && !embedLoaded[activeEmbedId.value])
         function onEmbedLoaded(id: string) {
@@ -1252,14 +1273,27 @@ export default defineComponent({
                 if (activeEmbedId.value === 'native') {
                     activeEmbedId.value = embedSources.find(s => s.enabled && s.id !== 'native')?.id || 'vidrock'
                 }
-                clearAllEmbedPanes()
-                embedLoaded[activeEmbedId.value] = false
-                paneSrc[activeEmbedId.value] = embedUrls.value[activeEmbedId.value] || ''
-                setTimeout(() => {
-                    embedLoaded[activeEmbedId.value] = true
-                }, 2500)
+                // Clear all EXCEPT the pre-warmed default to preserve its load state
+                for (const s of embedSources) {
+                    if (s.id !== activeEmbedId.value) {
+                        paneSrc[s.id] = ''
+                        embedLoaded[s.id] = false
+                    }
+                }
+                // If not yet pre-warmed, populate now
+                if (!paneSrc[activeEmbedId.value]) {
+                    paneSrc[activeEmbedId.value] = embedUrls.value[activeEmbedId.value] || ''
+                }
             } else {
                 clearAllEmbedPanes()
+                if (prewarmTimer) clearTimeout(prewarmTimer)
+                // Re-queue pre-warm for next open
+                prewarmTimer = setTimeout(() => {
+                    const defaultId = embedSources.find(s => s.enabled && s.id !== 'native')?.id
+                    if (defaultId && embedUrls.value[defaultId] && !paneSrc[defaultId]) {
+                        paneSrc[defaultId] = embedUrls.value[defaultId]
+                    }
+                }, 800)
                 if (props.autoEmbed && !embedHasLoaded.value) {
                     embedHasLoaded.value = true
                     void doLoad()
@@ -3433,6 +3467,7 @@ resolve(false)
         onUnmounted(() => {
             componentUnmounted = true
             clearAllEmbedPanes()
+            if (prewarmTimer) clearTimeout(prewarmTimer)
             if (idleTimer) clearTimeout(idleTimer)
             if (heartbeatInterval) clearInterval(heartbeatInterval)
             if (cueTimer) clearInterval(cueTimer)

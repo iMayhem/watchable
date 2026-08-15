@@ -852,12 +852,22 @@ function isValidItem(x: any): boolean {
     // ── Grid ─────────────────────────────────────────────────────────────
     &__grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: var(--s-6) var(--s-5);
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: var(--s-3);
 
-        @media (max-width: 720px) {
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: var(--s-5) var(--s-4);
+        @media (min-width: 640px) {
+            grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+            gap: var(--s-4);
+        }
+
+        @media (min-width: 1200px) {
+            grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+            gap: 1.25rem 1rem;
+        }
+
+        @media (min-width: 1600px) {
+            grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+            gap: 1.5rem 1.1rem;
         }
     }
 

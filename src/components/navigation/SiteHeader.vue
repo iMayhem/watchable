@@ -606,11 +606,10 @@ export default defineComponent({
     &__mark-text {
         font-family: var(--font-display);
         font-weight: 800;
-        font-size: 2.15rem;
-        letter-spacing: -0.07em;
+        font-size: 1.85rem;
+        letter-spacing: -0.06em;
         line-height: 1;
         color: var(--bone-50);
-        // The header wordmark is the single remaining orange brand mark.
         background: linear-gradient(135deg, #ff5a1f 0%, #ff8a00 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;

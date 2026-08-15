@@ -357,7 +357,7 @@ export default defineComponent({
     &.trailer-playing &__art-fallback { opacity: 0; }
 
     &--poster-art {
-        min-height: clamp(560px, 78vh, 820px);
+        min-height: clamp(480px, 62vh, 660px);
     }
 
     &--poster-art &__scrim {
@@ -443,8 +443,8 @@ export default defineComponent({
     &__content {
         position: relative;
         z-index: 1;
-        padding-block: clamp(var(--s-6), 8vh, var(--s-9));
-        max-width: 860px;
+        padding-block: clamp(var(--s-5), 5.5vh, var(--s-7));
+        max-width: 740px;
     }
 
     &__eyebrow {
@@ -456,8 +456,8 @@ export default defineComponent({
     &__title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(2.85rem, 7vw, 5.8rem);
-        line-height: 0.96;
+        font-size: clamp(2.1rem, 4.2vw, 3.65rem);
+        line-height: 1.02;
         letter-spacing: -0.02em;
         font-variation-settings: 'opsz' 144, 'SOFT' 30;
         color: var(--bone-50);
@@ -469,7 +469,7 @@ export default defineComponent({
     &__tagline {
         font-family: var(--font-display);
         font-style: italic;
-        font-size: clamp(1.125rem, 1.6vw, 1.5rem);
+        font-size: clamp(0.95rem, 1.2vw, 1.25rem);
         color: var(--bone-200);
         margin-top: var(--s-3);
         max-width: 48ch;

@@ -80,11 +80,11 @@ export default defineComponent({
         const showArrows = ref(false);
 
         const defaultColumns: Record<Density, { base: number; sm: number; md: number; lg: number; xl: number; xxl: number; huge: number }> = {
-            poster:     { base: 2.8, sm: 3.8, md: 4.8, lg: 6.8, xl: 7.8, xxl: 9.8, huge: 11.8 },
-            keyart:     { base: 1.2, sm: 1.8, md: 2.4, lg: 3.2, xl: 3.6, xxl: 4.4, huge: 5.2 },
-            episode:    { base: 1.2, sm: 1.8, md: 2.4, lg: 3.2, xl: 3.6, xxl: 4.4, huge: 5.2 },
-            person:     { base: 3.4, sm: 4.4, md: 5.4, lg: 6.4, xl: 7.4, xxl: 9.4, huge: 11.4 },
-            collection: { base: 1.4, sm: 2.2, md: 2.8, lg: 3.4, xl: 4, xxl: 5, huge: 6 },
+            poster:     { base: 2.8, sm: 3.8, md: 5.2, lg: 6.8, xl: 7.8, xxl: 8.8, huge: 10.8 },
+            keyart:     { base: 1.2, sm: 1.8, md: 2.6, lg: 3.4, xl: 3.8, xxl: 4.6, huge: 5.6 },
+            episode:    { base: 1.2, sm: 1.8, md: 2.6, lg: 3.4, xl: 3.8, xxl: 4.6, huge: 5.6 },
+            person:     { base: 3.4, sm: 4.4, md: 5.8, lg: 7.2, xl: 8.4, xxl: 9.8, huge: 11.8 },
+            collection: { base: 1.4, sm: 2.2, md: 3.0, lg: 3.8, xl: 4.4, xxl: 5.2, huge: 6.2 },
             free:       { base: 1.2, sm: 2, md: 3, lg: 4, xl: 5, xxl: 6, huge: 7 }
         };
 
@@ -187,9 +187,9 @@ export default defineComponent({
     &__title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(1.65rem, 3vw, 2.45rem);
-        line-height: 1.0;
-        letter-spacing: -0.02em;
+        font-size: clamp(1.2rem, 1.6vw, 1.7rem);
+        line-height: 1.05;
+        letter-spacing: -0.015em;
         color: var(--bone-50);
         font-variation-settings: 'opsz' 72, 'SOFT' 30;
         margin: 0;

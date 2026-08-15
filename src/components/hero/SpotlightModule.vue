@@ -289,9 +289,9 @@ export default defineComponent({
     &__title {
         font-family: var(--font-display);
         font-weight: 500;
-        line-height: 0.98;
+        line-height: 1.05;
         letter-spacing: -0.02em;
-        font-size: clamp(2.25rem, 4.8vw, 4rem);
+        font-size: clamp(1.75rem, 3vw, 2.65rem);
         font-variation-settings: 'opsz' 120, 'SOFT' 40;
         color: var(--bone-50);
         margin: 0;

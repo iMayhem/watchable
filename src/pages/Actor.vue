@@ -1012,7 +1012,7 @@ function decadeForCredit(c: { release_date?: string; first_air_date?: string }):
     &__section-title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(1.6rem, 3vw, 2.4rem);
+        font-size: clamp(1.25rem, 1.8vw, 1.8rem);
         color: var(--bone-50);
         margin: 0;
         letter-spacing: var(--ls-tight);
@@ -1141,7 +1141,7 @@ function decadeForCredit(c: { release_date?: string; first_air_date?: string }):
     &__decade-label {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(1.6rem, 4vw, 2.6rem);
+        font-size: clamp(1.25rem, 1.8vw, 1.8rem);
         color: var(--bone-50);
         line-height: 1;
         letter-spacing: var(--ls-tight);

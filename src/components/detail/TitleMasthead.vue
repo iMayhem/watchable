@@ -908,7 +908,7 @@ export default defineComponent({
 .masthead {
     position: relative;
     isolation: isolate;
-    min-height: clamp(520px, 80vh, 860px);
+    min-height: clamp(480px, 60vh, 680px);
     color: var(--bone-50);
     display: flex;
     align-items: flex-end;
@@ -1063,8 +1063,8 @@ export default defineComponent({
     &__title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(2.8rem, 8vw, 6.75rem);
-        line-height: 0.94;
+        font-size: clamp(2.2rem, 4.5vw, 4.2rem);
+        line-height: 1.0;
         letter-spacing: -0.02em;
         font-variation-settings: 'opsz' 144, 'SOFT' 30;
         color: var(--bone-50);
@@ -1076,7 +1076,7 @@ export default defineComponent({
     &__tagline {
         font-family: var(--font-display);
         font-style: italic;
-        font-size: clamp(1.125rem, 1.7vw, 1.6rem);
+        font-size: clamp(0.95rem, 1.2vw, 1.25rem);
         color: var(--bone-200);
         margin: var(--s-4) 0 0;
         max-width: 54ch;
@@ -1152,7 +1152,7 @@ export default defineComponent({
     }
 
     @media (max-width: 720px) {
-        min-height: clamp(440px, 68vh, 620px);
+        min-height: clamp(380px, 50vh, 520px);
 
         &__actions { margin-top: var(--s-5); }
     }

@@ -923,7 +923,7 @@ export default defineComponent({
     &__empty-title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(1.6rem, 3vw, 2.2rem);
+        font-size: clamp(1.2rem, 1.6vw, 1.65rem);
         color: var(--bone-50);
         margin: 0 0 var(--s-3);
         letter-spacing: -0.01em;
@@ -981,7 +981,7 @@ export default defineComponent({
     &__idle-title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+        font-size: clamp(1.3rem, 1.9vw, 1.9rem);
         color: var(--bone-50);
         margin: var(--s-1) 0 0;
         letter-spacing: -0.01em;

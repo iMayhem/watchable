@@ -185,7 +185,7 @@ export default defineComponent({
     align-items: stretch;
     overflow: visible;
     min-height: 0;
-    padding-inline-start: clamp(2.5rem, 7.5vw, 7rem);
+    padding-inline-start: clamp(2rem, 5.5vw, 5.5rem);
 
     &__numeral {
         position: absolute;
@@ -194,7 +194,7 @@ export default defineComponent({
         font-family: var(--font-display);
         font-weight: 500;
         line-height: 0.78;
-        font-size: clamp(10rem, 24vw, 20rem);
+        font-size: clamp(7rem, 14vw, 13rem);
         letter-spacing: -0.08em;
         font-variation-settings: 'opsz' 144, 'SOFT' 30;
 

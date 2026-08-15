@@ -884,7 +884,7 @@ function isValidItem(x: any): boolean {
     &__empty-title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(1.6rem, 3vw, 2.4rem);
+        font-size: clamp(1.25rem, 1.8vw, 1.8rem);
         color: var(--bone-50);
         margin: 0 0 var(--s-3);
         font-variation-settings: 'opsz' 144;

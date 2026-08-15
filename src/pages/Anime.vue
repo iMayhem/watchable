@@ -406,7 +406,7 @@ export default defineComponent({
     &__results-title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(1.4rem, 2.5vw, 2rem);
+        font-size: clamp(1.15rem, 1.5vw, 1.55rem);
         color: var(--bone-50);
         margin: 0;
         line-height: 1.1;
@@ -481,7 +481,7 @@ export default defineComponent({
     &__empty-title {
         font-family: var(--font-display);
         font-weight: 500;
-        font-size: clamp(1.6rem, 3vw, 2.2rem);
+        font-size: clamp(1.2rem, 1.6vw, 1.65rem);
         color: var(--bone-50);
         margin: 0 0 var(--s-3);
         letter-spacing: -0.01em;

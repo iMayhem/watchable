@@ -1659,7 +1659,7 @@ export default defineComponent({
 
     &__title {
         font-family: var(--font-display);
-        font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+        font-size: clamp(1.05rem, 1.4vw, 1.3rem);
         margin: 0 0 var(--s-1);
     }
 

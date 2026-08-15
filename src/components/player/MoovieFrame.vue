@@ -1157,7 +1157,15 @@ export default defineComponent({
                 build: (mediaType, id, s, e) =>
                     mediaType === 'tv' ? `https://vidrock.net/tv/${id}/${s}/${e}` : `https://vidrock.net/movie/${id}`,
             },
-            { id: 'embed3', label: 'Embed 3', enabled: false, build: () => '' },
+            {
+                id: 'zxcstream',
+                label: 'ZXC Stream',
+                enabled: true,
+                build: (mediaType, id, s, e) =>
+                    mediaType === 'tv'
+                        ? `https://zxcstream.xyz/player/tv/${id}/${s}/${e}`
+                        : `https://zxcstream.xyz/player/movie/${id}`,
+            },
             { id: 'embed4', label: 'Embed 4', enabled: false, build: () => '' },
             { id: 'embed5', label: 'Embed 5', enabled: false, build: () => '' },
         ]

@@ -288,7 +288,6 @@ export function installAntiInspect() {
     // Main detection interval
     intervalId = window.setInterval(() => {
         if (!isPlayerPage()) return;
-        try { console.clear(); } catch { /* ignore */ }
         detectDevTools();
         debuggerTrap();
         detectToString();

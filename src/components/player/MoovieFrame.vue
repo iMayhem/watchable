@@ -499,12 +499,16 @@
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
+                <div v-if="embedOpen && embedLoading" class="moovie-frame__embed-loader" aria-hidden="true">
+                    <div class="moovie-frame__spinner" />
+                </div>
                 <iframe
                     class="moovie-frame__embed-frame"
                     :src="embedIframeSrc"
                     allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                     allowfullscreen
                     referrerpolicy="no-referrer"
+                    @load="onEmbedLoaded"
                 />
             </div>
         </div>
@@ -1128,6 +1132,7 @@ export default defineComponent({
         // loads in the background and is instant when opened. Blanked on close
         // to stop any in-flight playback.
         const embedIframeSrc = ref('')
+        const embedLoading = ref(true)
         watch(
             embedUrl,
             (url) => {
@@ -1136,6 +1141,12 @@ export default defineComponent({
             },
             { immediate: true }
         )
+        watch(embedIframeSrc, () => {
+            embedLoading.value = true
+        })
+        function onEmbedLoaded() {
+            embedLoading.value = false
+        }
         function toggleEmbedMode() {
             embedOpen.value = !embedOpen.value
             ctx.emit('embed-change', embedOpen.value)
@@ -3339,7 +3350,7 @@ resolve(false)
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, embedIframeSrc }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, embedIframeSrc, embedLoading, onEmbedLoaded }
     },
 })
 </script>
@@ -3897,6 +3908,16 @@ resolve(false)
     height: 100%;
     border: 0;
     background: #000;
+}
+
+.moovie-frame__embed-loader {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: grid;
+    place-content: center;
+    background: #000;
+    pointer-events: none;
 }
 
 .moovie-frame__embed-close {

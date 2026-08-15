@@ -492,9 +492,6 @@
                 <div
                     v-if="embedOpen"
                     class="moovie-frame__embed-sources"
-                    :class="{ 'is-hidden': !embedSourcesVisible }"
-                    @mouseenter="showEmbedSources"
-                    @mouseleave="handleMouseLeave"
                 >
                     <button
                         v-for="(src, i) in embedSources"
@@ -1138,7 +1135,6 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const embedSourcesVisible = ref(false)
         const activeEmbedId = ref('videasy')
         interface EmbedSource {
             id: string
@@ -1328,18 +1324,8 @@ export default defineComponent({
             return 'moovie'
         })
         let idleTimer: ReturnType<typeof setTimeout> | null = null
-        let embedSourcesTimer: ReturnType<typeof setTimeout> | null = null
-        function showEmbedSources() {
-            if (!embedOpen.value) return
-            embedSourcesVisible.value = true
-            if (embedSourcesTimer) clearTimeout(embedSourcesTimer)
-            embedSourcesTimer = setTimeout(function() {
-                embedSourcesVisible.value = false
-            }, 3000)
-        }
         function resetIdleTimer() {
             controlsHidden.value = false
-            showEmbedSources()
             if (idleTimer) clearTimeout(idleTimer)
             idleTimer = setTimeout(function() {
                 if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value && !isHoveringControls.value) {
@@ -1349,8 +1335,6 @@ export default defineComponent({
         }
         function handleMouseLeave() {
             isHoveringControls.value = false
-            if (embedSourcesTimer) clearTimeout(embedSourcesTimer)
-            embedSourcesVisible.value = false
             if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
                 controlsHidden.value = true
                 if (idleTimer) clearTimeout(idleTimer)
@@ -3425,7 +3409,7 @@ resolve(false)
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, paneSrc, embedLoading, onEmbedLoaded, embedSources, embedSourcesVisible, activeEmbedId, switchEmbed, showEmbedSources, handleMouseLeave }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, paneSrc, embedLoading, onEmbedLoaded, embedSources, activeEmbedId, switchEmbed, handleMouseLeave }
     },
 })
 </script>
@@ -4014,13 +3998,6 @@ resolve(false)
     display: flex;
     flex-direction: column;
     gap: 12px;
-    transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-.moovie-frame__embed-sources.is-hidden {
-    opacity: 0;
-    transform: translateY(-50%) translateX(-10px);
-    pointer-events: none;
 }
 
 .moovie-frame__embed-src {

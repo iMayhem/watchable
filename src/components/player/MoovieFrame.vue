@@ -489,16 +489,27 @@
              </div>
 
             <div class="moovie-frame__embed-overlay" :class="{ 'is-open': embedOpen }" @click.self="toggleEmbedMode">
-                <button
+                <div
                     v-if="embedOpen"
-                    type="button"
-                    class="moovie-frame__embed-close"
-                    @click.stop="toggleEmbedMode"
-                    aria-label="Close embed mode"
-                    title="Close embed mode"
+                    class="moovie-frame__embed-sources"
+                    :class="{ 'is-hidden': !embedSourcesVisible }"
+                    @mouseenter="showEmbedSources"
+                    @mouseleave="handleMouseLeave"
                 >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                </button>
+                    <button
+                        v-for="(src, i) in embedSources"
+                        :key="src.id"
+                        type="button"
+                        class="moovie-frame__embed-src"
+                        :class="{ 'is-active': activeEmbedId === src.id, 'is-disabled': !src.enabled }"
+                        :title="src.label"
+                        :aria-label="src.label"
+                        :disabled="!src.enabled"
+                        @click.stop="switchEmbed(src.id)"
+                    >
+                        {{ i + 1 }}
+                    </button>
+                </div>
                 <div v-if="embedOpen && embedLoading" class="moovie-frame__embed-loader" aria-hidden="true">
                     <div class="moovie-frame__spinner" />
                 </div>
@@ -1119,14 +1130,43 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
+        const embedSourcesVisible = ref(false)
+        const activeEmbedId = ref('videasy')
+        interface EmbedSource {
+            id: string
+            label: string
+            enabled: boolean
+            build: (mediaType: 'movie' | 'tv', id: string, season: number, episode: number) => string
+        }
+        const embedSources: EmbedSource[] = [
+            {
+                id: 'videasy',
+                label: 'Videasy',
+                enabled: true,
+                build: (mediaType, id, s, e) =>
+                    mediaType === 'tv' ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
+            },
+            {
+                id: 'vidrock',
+                label: 'VidRock',
+                enabled: true,
+                build: (mediaType, id, s, e) =>
+                    mediaType === 'tv' ? `https://vidrock.net/tv/${id}/${s}/${e}` : `https://vidrock.net/movie/${id}`,
+            },
+            { id: 'embed3', label: 'Embed 3', enabled: false, build: () => '' },
+            { id: 'embed4', label: 'Embed 4', enabled: false, build: () => '' },
+            { id: 'embed5', label: 'Embed 5', enabled: false, build: () => '' },
+        ]
+        function switchEmbed(sourceId: string) {
+            const src = embedSources.find(s => s.id === sourceId)
+            if (!src || !src.enabled) return
+            if (activeEmbedId.value === sourceId) return
+            activeEmbedId.value = sourceId
+        }
         const embedUrl = computed(() => {
             const id = String(props.mediaId)
-            if (props.mediaType === 'tv') {
-                const s = props.season || 1
-                const e = props.episode || 1
-                return `https://player.videasy.net/tv/${id}/${s}/${e}`
-            }
-            return `https://player.videasy.net/movie/${id}`
+            const src = embedSources.find(s => s.id === activeEmbedId.value) || embedSources[0]
+            return src.build(props.mediaType, id, props.season || 1, props.episode || 1)
         })
         // The embed iframe stays mounted at all times (hidden) so the player
         // loads in the background and is instant when opened. Blanked on close
@@ -1265,8 +1305,18 @@ export default defineComponent({
             return 'moovie'
         })
         let idleTimer: ReturnType<typeof setTimeout> | null = null
+        let embedSourcesTimer: ReturnType<typeof setTimeout> | null = null
+        function showEmbedSources() {
+            if (!embedOpen.value) return
+            embedSourcesVisible.value = true
+            if (embedSourcesTimer) clearTimeout(embedSourcesTimer)
+            embedSourcesTimer = setTimeout(function() {
+                embedSourcesVisible.value = false
+            }, 3000)
+        }
         function resetIdleTimer() {
             controlsHidden.value = false
+            showEmbedSources()
             if (idleTimer) clearTimeout(idleTimer)
             idleTimer = setTimeout(function() {
                 if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value && !isHoveringControls.value) {
@@ -1276,6 +1326,8 @@ export default defineComponent({
         }
         function handleMouseLeave() {
             isHoveringControls.value = false
+            if (embedSourcesTimer) clearTimeout(embedSourcesTimer)
+            embedSourcesVisible.value = false
             if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
                 controlsHidden.value = true
                 if (idleTimer) clearTimeout(idleTimer)
@@ -3350,7 +3402,7 @@ resolve(false)
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, embedIframeSrc, embedLoading, onEmbedLoaded }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, embedIframeSrc, embedLoading, onEmbedLoaded, embedSources, embedSourcesVisible, activeEmbedId, switchEmbed, showEmbedSources, handleMouseLeave }
     },
 })
 </script>
@@ -3920,26 +3972,56 @@ resolve(false)
     pointer-events: none;
 }
 
-.moovie-frame__embed-close {
+.moovie-frame__embed-sources {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 5;
-    width: 36px;
-    height: 36px;
+    top: 50%;
+    left: 14px;
+    transform: translateY(-50%);
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.moovie-frame__embed-sources.is-hidden {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-10px);
+    pointer-events: none;
+}
+
+.moovie-frame__embed-src {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: #fff;
+    color: #000;
+    font-family: var(--font-ui, system-ui, sans-serif);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
     display: grid;
     place-content: center;
-    background: rgba(0, 0, 0, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    color: #fff;
     cursor: pointer;
-    border-radius: 999px;
-    transition: background-color 0.1s ease, transform 0.1s ease;
+    position: relative;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
 
-    &:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-        transform: scale(1.08);
-    }
+.moovie-frame__embed-src:hover:not(:disabled) {
+    background: #f0f0f0;
+    transform: scale(1.15);
+}
+
+.moovie-frame__embed-src.is-active {
+    border-color: #fff;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55), 0 0 14px rgba(255, 255, 255, 0.7);
+}
+
+.moovie-frame__embed-src.is-disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
 }
 
 .moovie-frame__settings-scroll {

@@ -271,6 +271,104 @@ export async function fetchAnimeMediaById(id: number) {
   return queryAniListApi(query, { id });
 }
 
+function mapKitsuToAnimeMedia(item: any): AnimeMedia {
+    const attr = item?.attributes || {};
+    const year = attr.startDate ? parseInt(attr.startDate.slice(0, 4), 10) : null;
+    return {
+        id: parseInt(item.id, 10),
+        idMal: null,
+        title: {
+            romaji: attr.titles?.en_jp || attr.canonicalTitle || '',
+            english: attr.titles?.en || attr.canonicalTitle || '',
+            native: attr.titles?.ja_jp || ''
+        },
+        coverImage: {
+            extraLarge: attr.posterImage?.original || attr.posterImage?.large || null,
+            large: attr.posterImage?.large || attr.posterImage?.original || attr.posterImage?.medium || '',
+            medium: attr.posterImage?.medium || attr.posterImage?.small || ''
+        },
+        bannerImage: attr.coverImage?.original || attr.coverImage?.large || null,
+        description: attr.synopsis || '',
+        averageScore: attr.averageRating ? Math.round(parseFloat(attr.averageRating)) : null,
+        genres: [],
+        seasonYear: year,
+        episodes: attr.episodeCount || null,
+        format: attr.showType ? attr.showType.toUpperCase() : 'TV',
+        status: attr.status ? attr.status.toUpperCase() : 'FINISHED'
+    };
+}
+
+async function fetchKitsuDiscover(options: {
+    page?: number;
+    perPage?: number;
+    genres?: string[];
+    yearStart?: number;
+    yearEnd?: number;
+    sort?: string;
+    search?: string;
+}): Promise<AnimeResponse> {
+    const page = options.page || 1;
+    const perPage = options.perPage || 20;
+    const offset = (page - 1) * perPage;
+
+    let sortParam = '-userCount';
+    if (options.sort === 'SCORE_DESC') sortParam = '-averageRating';
+    if (options.sort === 'START_DATE_DESC') sortParam = '-startDate';
+    if (options.sort === 'POPULARITY_DESC') sortParam = '-favoritesCount';
+
+    let url = `https://kitsu.io/api/edge/anime?page[limit]=${perPage}&page[offset]=${offset}&sort=${sortParam}`;
+    if (options.search) {
+        url = `https://kitsu.io/api/edge/anime?page[limit]=${perPage}&page[offset]=${offset}&filter[text]=${encodeURIComponent(options.search)}`;
+    } else if (options.genres && options.genres.length > 0) {
+        url += `&filter[categories]=${encodeURIComponent(options.genres.join(','))}`;
+    }
+    if (options.yearStart && options.yearEnd) {
+        url += `&filter[seasonYear]=${options.yearStart}..${options.yearEnd}`;
+    }
+
+    const res = await fetch(url, {
+        headers: {
+            'Accept': 'application/vnd.api+json',
+            'Content-Type': 'application/vnd.api+json'
+        }
+    });
+    if (!res.ok) {
+        throw new Error(`Kitsu API error: ${res.status}`);
+    }
+    const json = await res.json();
+    const media = (json.data || []).map(mapKitsuToAnimeMedia);
+    const count = json.meta?.count || 1000;
+    return {
+        data: {
+            Page: {
+                media,
+                pageInfo: {
+                    total: count,
+                    currentPage: page,
+                    lastPage: Math.ceil(count / perPage),
+                    hasNextPage: offset + perPage < count,
+                    perPage
+                }
+            }
+        }
+    };
+}
+
+async function fetchKitsuAnimeById(id: number) {
+    const res = await fetch(`https://kitsu.io/api/edge/anime/${id}`, {
+        headers: {
+            'Accept': 'application/vnd.api+json'
+        }
+    });
+    if (!res.ok) throw new Error(`Kitsu anime ${id} not found: ${res.status}`);
+    const json = await res.json();
+    return {
+        data: {
+            Media: mapKitsuToAnimeMedia(json.data)
+        }
+    };
+}
+
 export function useAniList() {
   const loading = ref(false);
   const error = ref<string | null>(null);
@@ -318,9 +416,15 @@ export function useAniList() {
       loading.value = false;
       return response as AnimeResponse;
     } catch (err: any) {
-      error.value = err.message;
-      loading.value = false;
-      throw err;
+      try {
+        const fallback = await fetchKitsuDiscover({ page, perPage, sort: 'TRENDING_DESC' });
+        loading.value = false;
+        return fallback;
+      } catch {
+        error.value = err.message;
+        loading.value = false;
+        throw err;
+      }
     }
   };
 
@@ -367,9 +471,15 @@ export function useAniList() {
       loading.value = false;
       return response as AnimeResponse;
     } catch (err: any) {
-      error.value = err.message;
-      loading.value = false;
-      throw err;
+      try {
+        const fallback = await fetchKitsuDiscover({ page, perPage, sort: 'POPULARITY_DESC' });
+        loading.value = false;
+        return fallback;
+      } catch {
+        error.value = err.message;
+        loading.value = false;
+        throw err;
+      }
     }
   };
 
@@ -416,9 +526,15 @@ export function useAniList() {
       loading.value = false;
       return response as AnimeResponse;
     } catch (err: any) {
-      error.value = err.message;
-      loading.value = false;
-      throw err;
+      try {
+        const fallback = await fetchKitsuDiscover({ page, perPage, search: searchTerm });
+        loading.value = false;
+        return fallback;
+      } catch {
+        error.value = err.message;
+        loading.value = false;
+        throw err;
+      }
     }
   };
 
@@ -500,9 +616,15 @@ export function useAniList() {
       loading.value = false;
       return response;
     } catch (err: any) {
-      error.value = err.message;
-      loading.value = false;
-      throw err;
+      try {
+        const fallback = await fetchKitsuAnimeById(id);
+        loading.value = false;
+        return fallback;
+      } catch {
+        error.value = err.message;
+        loading.value = false;
+        throw err;
+      }
     }
   };
 
@@ -568,12 +690,10 @@ export function useAniList() {
     }
     
     if (options.yearStart) {
-      // YYYY0000 to get anything starting in or after that year
       variables.startDateGreater = (options.yearStart - 1) * 10000 + 1231;
     }
     
     if (options.yearEnd) {
-      // YYYY1231 to get anything starting in or before that year
       variables.startDateLesser = options.yearEnd * 10000 + 1231;
     }
 
@@ -589,37 +709,19 @@ export function useAniList() {
         return response;
       }
 
-      const isDefaultBrowse =
-        (options.page || 1) === 1 &&
-        (!options.genres || options.genres.length === 0) &&
-        (options.sort || 'TRENDING_DESC') === 'TRENDING_DESC';
-
-      if (isDefaultBrowse) {
-        const fallback = await fetchTrendingAnime(options.page || 1, options.perPage || 20);
+      const fallback = await fetchKitsuDiscover(options);
+      loading.value = false;
+      return fallback;
+    } catch (err: any) {
+      try {
+        const fallback = await fetchKitsuDiscover(options);
         loading.value = false;
         return fallback;
+      } catch (fallbackErr: any) {
+        error.value = err.message || fallbackErr.message;
+        loading.value = false;
+        throw err;
       }
-
-      loading.value = false;
-      return response;
-    } catch (err: any) {
-      const isDefaultBrowse =
-        (options.page || 1) === 1 &&
-        (!options.genres || options.genres.length === 0);
-
-      if (isDefaultBrowse) {
-        try {
-          const fallback = await fetchTrendingAnime(options.page || 1, options.perPage || 20);
-          loading.value = false;
-          return fallback;
-        } catch {
-          // Fall through to the original error.
-        }
-      }
-
-      error.value = err.message;
-      loading.value = false;
-      throw err;
     }
   };
 

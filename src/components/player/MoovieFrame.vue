@@ -1628,6 +1628,7 @@ export default defineComponent({
 
                 await new Promise<void>((resolve, reject) => {
                     let mediaErrorRecoveryRetries = 0
+                    let networkErrorRecoveryRetries = 0
 
                     hlsInstance.on(HlsCtor.Events.ERROR, (_event: any, data: any) => {
                         // NetMirror's alternate audio playlists are MPEG-TS bytes
@@ -1642,6 +1643,23 @@ export default defineComponent({
                         }
                         if (data.fatal) {
                             console.error('[MoovieFrame] HLS fatal error:', data.type, data.details)
+                            if (data.type === HlsCtor.ErrorTypes.NETWORK_ERROR) {
+                                // A fragment/level/manifest fetch failed mid-playback
+                                // (proxy hiccup, segment 5xx, manifest timeout). Retry
+                                // the load instead of dropping straight into the Hub
+                                // Error overlay after playback already started.
+                                if (networkErrorRecoveryRetries < 3) {
+                                    networkErrorRecoveryRetries++
+                                    console.warn(`[MoovieFrame] Attempting network error recovery for ${data.details} (${networkErrorRecoveryRetries}/3)...`)
+                                    try {
+                                        hlsInstance.startLoad()
+                                    } catch (e) {
+                                        console.warn('[MoovieFrame] network recovery startLoad failed:', e)
+                                    }
+                                    return
+                                }
+                                console.error('[MoovieFrame] Network error recovery failed after 3 attempts')
+                            }
                             if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR) {
                                 if (mediaErrorRecoveryRetries < 3) {
                                     mediaErrorRecoveryRetries++

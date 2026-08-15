@@ -142,7 +142,7 @@ export default defineComponent({
         const isNavigatingToParty = ref(false);
 
         const frameRef = ref<InstanceType<typeof MoovieFrame> | null>(null);
-        const embedActive = ref(false);
+        const embedActive = ref(true);
         const onEmbedChange = (active: boolean) => {
             embedActive.value = active;
         };

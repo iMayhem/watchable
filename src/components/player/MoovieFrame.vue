@@ -1111,6 +1111,10 @@ export default defineComponent({
 
         const embedOpen = ref(false)
         const embedHasLoaded = ref(false)
+        if (props.autoEmbed) {
+            embedOpen.value = true
+            settingsOpen.value = false
+        }
         const embedUrl = computed(() => {
             const id = String(props.mediaId)
             if (props.mediaType === 'tv') {

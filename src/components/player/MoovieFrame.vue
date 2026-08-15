@@ -505,7 +505,7 @@
                 <iframe
                     class="moovie-frame__embed-frame"
                     :src="embedIframeSrc"
-                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                    allow="autoplay; encrypted-media; picture-in-picture"
                     allowfullscreen
                     referrerpolicy="no-referrer"
                     @load="onEmbedLoaded"

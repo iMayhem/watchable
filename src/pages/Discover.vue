@@ -289,7 +289,7 @@ interface MovieResult {
 
 // TMDB watch provider IDs (verified via /watch/providers) — not to be confused
 // with Watchmode source IDs. flatrate = subscription streaming.
-const PROVIDER_API = 'https://hahaevilcraft.site/tmdb-api/3/';
+const PROVIDER_API = 'https://api.themoviedb.org/3/';
 
 // Legacy ?category= values from the old tabbed page, mapped to the new sort keys
 const LEGACY_CATEGORY_TO_SORT: Record<string, string> = {

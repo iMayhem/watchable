@@ -28,7 +28,7 @@ function stableHash(str: string): number {
 const MOVIE_TITLE_CACHE = new Map<string, string>();
 const TV_TITLE_CACHE = new Map<string, string>();
 const ANIME_TITLE_CACHE = new Map<string, string>();
-const TMDB_API = 'https://hahaevilcraft.site/tmdb-api/3/';
+const TMDB_API = 'https://api.themoviedb.org/3/';
 const TMDB_KEY = 'dfa4c2c7c1de1005adee824dc5593672';
 
 async function resolveMediaName(mediaType: string, mediaId: string | number | null): Promise<string> {

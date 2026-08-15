@@ -8,7 +8,7 @@ import {
 import { getSettings } from './useSettings'
 
 // Always call TMDB directly — skip the /api/tmdb Cloudflare proxy.
-const BASE_URL = 'https://hahaevilcraft.site/tmdb-api/3/'
+const BASE_URL = 'https://api.themoviedb.org/3/'
 const API_KEY = import.meta.env.VITE_API_KEY || 'dfa4c2c7c1de1005adee824dc5593672'
 
 const CACHE_NAME = 'tmdb-api-cache-v3'; // v3: English-only catalog metadata
@@ -18,7 +18,7 @@ async function getCachedResponse(config: any): Promise<any | null> {
     if (config.method !== 'get' && config.method !== 'GET') return null;
     try {
         const cache = await caches.open(CACHE_NAME);
-        const url = new URL(config.url || '', config.baseURL || 'https://hahaevilcraft.site/tmdb-api/3/');
+        const url = new URL(config.url || '', config.baseURL || 'https://api.themoviedb.org/3/');
         if (config.params) {
             Object.entries(config.params).forEach(([k, v]) => {
                 url.searchParams.set(k, String(v));
@@ -54,7 +54,7 @@ async function setCachedResponse(config: any, data: any): Promise<void> {
     if (config.method !== 'get' && config.method !== 'GET') return;
     try {
         const cache = await caches.open(CACHE_NAME);
-        const url = new URL(config.url || '', config.baseURL || 'https://hahaevilcraft.site/tmdb-api/3/');
+        const url = new URL(config.url || '', config.baseURL || 'https://api.themoviedb.org/3/');
         if (config.params) {
             Object.entries(config.params).forEach(([k, v]) => {
                 url.searchParams.set(k, String(v));
@@ -95,7 +95,7 @@ const useAxios = () => {
                 return cached;
             }
             
-            const url = new URL(config.url || '', config.baseURL || 'https://hahaevilcraft.site/tmdb-api/3/');
+            const url = new URL(config.url || '', config.baseURL || 'https://api.themoviedb.org/3/');
             if (config.params) {
                 Object.entries(config.params).forEach(([k, v]) => {
                     url.searchParams.set(k, String(v));

@@ -2219,6 +2219,7 @@ export default defineComponent({
                 if (!ordered.length) throw new Error('No enabled providers are available')
                 selectedServer.value = ordered[0].name
                 await proxySettingPromise
+                let poseidonTriedInChain = false
                 for (const provider of ordered) {
                     const ok = await selectServer(provider.name)
                     if (ok) {
@@ -2226,6 +2227,17 @@ export default defineComponent({
                         return
                     }
                     console.debug('[MoovieFrame] no playable stream on', provider.name, '- trying next enabled provider')
+                    // When the current provider has no cached/playable stream,
+                    // scrape Poseidon before falling through to the next provider.
+                    if (
+                        provider.name.toLowerCase() !== 'poseidon' &&
+                        !poseidonTriedInChain &&
+                        providerList.some((p) => p.name.toLowerCase() === 'poseidon')
+                    ) {
+                        poseidonTriedInChain = true
+                        const poseidonOk = await selectServer('poseidon')
+                        if (poseidonOk) return
+                    }
                 }
                 throw new Error('No enabled provider returned a playable stream')
             } catch (e: any) {

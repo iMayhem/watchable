@@ -32,6 +32,8 @@
                 :title="show?.name || 'Stream'"
                 :backdrop-path="show?.backdrop_path || ''"
                 :poster-path="show?.poster_path || ''"
+                auto-embed
+                @embed-change="onEmbedChange"
                 @next-episode="goToNextEpisode"
                 @prev-episode="goToPreviousEpisode"
             />
@@ -80,7 +82,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="watch-stage__top-right">
+                <div v-if="!embedActive" class="watch-stage__top-right">
                     <button
                         v-if="show"
                         type="button"
@@ -201,6 +203,10 @@ export default defineComponent({
         const { fetchTvShow, fetchTvShowBySeason } = useTvShows();
 
         const showId = ref<string>(route.params.id as string);
+        const embedActive = ref(true);
+        const onEmbedChange = (active: boolean) => {
+            embedActive.value = active;
+        };
         const externalId = ref<string>('');
         const show = ref<TVShowDetails | null>(null);
         const seasons = ref<TVShowSeasonDetails[]>([]);
@@ -658,6 +664,8 @@ export default defineComponent({
             scheduleHide,
             inWatchlist,
             toggleWatchlist,
+            embedActive,
+            onEmbedChange,
         };
     }
 });

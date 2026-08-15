@@ -697,7 +697,10 @@
 
         // Available Stream Servers
         const serversList = [
-            { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}?provider=moovie', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
+            { id: 'moovie',   name: 'Moovie',      movie: '/embed/movie/{tmdbId}?provider=moovie',                               tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
+            { id: 'vidrock',  name: 'VidRock',     movie: 'https://vidrock.net/movie/{tmdbId}',                                   tv: 'https://vidrock.net/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'videasy',  name: 'Videasy',     movie: 'https://player.videasy.net/movie/{tmdbId}',                           tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'zxcstream',name: 'ZXC Stream',  movie: 'https://zxcstream.xyz/player/movie/{tmdbId}',                         tv: 'https://zxcstream.xyz/player/tv/{tmdbId}/{season}/{episode}' },
         ];
         
         let activeProvider = 'moovie';
@@ -1170,8 +1173,13 @@
         }
 
         async function loadRoomEmbed() {
+            console.info('[Party iframe] loadRoomEmbed', {
+                nativeMode: document.documentElement.classList.contains('party-native-mode'),
+                mediaId, isTv, season, episode, activeProvider
+            });
             if (document.documentElement.classList.contains('party-native-mode')) {
                 setPlayerStagePending(false);
+                console.info('[Party iframe] native mode: outer Vue MoovieFrame owns the player slot');
                 return;
             }
             setPlayerStagePending(true);
@@ -1195,7 +1203,8 @@
             document.getElementById('room-view').classList.add('active');
             
             // An explicit media key in the join URL represents the title/episode
-            // the user chose. Prefer it over stale room metadata.
+            // the user chose. Prefer it over stale room metadata (for example a
+            // room originally created for S3E1 but opened with S1E1).
             const effectiveMediaKey = catalogMediaId || room.media_id || room.embed_sources;
             parseMediaParams(effectiveMediaKey);
 
@@ -1256,15 +1265,33 @@
             updateSyncNoticeText();
 
             const matched = serversList.find(s => s.id === providerId);
-            if (matched) {
-                document.getElementById('active-server-name').textContent = matched.name;
-            }
+            const activeServerName = document.getElementById('active-server-name');
+            if (matched && activeServerName) activeServerName.textContent = matched.name;
+
+            // Update circle active state
+            document.querySelectorAll('.party-embed-src').forEach(btn => {
+                btn.classList.toggle('is-active', btn.dataset.server === providerId);
+            });
 
             if (matched) {
+                // Show loader
+                const loader = document.getElementById('party-embed-loader');
+                if (loader) loader.hidden = false;
                 const embedUrl = getEmbedUrlForServer(matched, mediaId, isTv, season, episode);
                 showEmbedPlayer(embedUrl);
+                // Hide loader once iframe loads
+                const iframe = document.getElementById('video-player-iframe');
+                if (iframe) {
+                    const hide = () => { if (loader) loader.hidden = true; iframe.removeEventListener('load', hide); };
+                    iframe.addEventListener('load', hide, { once: true });
+                }
             }
         }
+
+        // Global handler for the circle buttons in app.html
+        window.partySwitchServer = function(serverId) {
+            switchStreamProvider(serverId);
+        };
 
         // Cinema mode toggler
         function updateCinemaModeButton() {
@@ -2388,11 +2415,25 @@
             }
             if (!data) return;
 
+            if (data.type === 'watchable-player-hover') {
+                document.body.classList.toggle('party-native-player-hover', data.active === true);
+                console.info('[Party iframe] native player hover', { active: data.active === true });
+                return;
+            }
+
+            if (data.type === 'watchable-player-sync' || data.type === 'moovie-command-sync' || data.type === 'moovie-sync-poll') {
+                console.info('[Party iframe] player message', data);
+            }
+
             if (data.event === 'complete') {
                 if (isHost && (isAnime || isTv) && partyAutoNext) {
                     changePartyEpisode(episode + 1);
                 }
             } else if (data.type === 'watchable-player-sync') {
+                console.info('[Party iframe] sync state', {
+                    event: data.event, time: data.time, playing: data.playing,
+                    isHost, hasChannel: Boolean(channel)
+                });
                 if (isHost) {
                     let seekDesc = null;
                     if (data.event === 'seek') {

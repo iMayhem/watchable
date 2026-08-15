@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
-    <meta name="theme-color" content="#100c09">
+    <meta name="theme-color" content="#0b0a08">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="robots" content="noindex, nofollow">
@@ -329,6 +329,17 @@
 
                     <!-- Video: Moovie embed iframe -->
                     <div id="player-stage" class="player-stage">
+                        <!-- Vertical server-switcher circles -->
+                        <div id="party-embed-sources" class="party-embed-sources">
+                            <button type="button" class="party-embed-src is-active" data-server="moovie" title="Moovie" aria-label="Moovie" onclick="partySwitchServer('moovie')">1</button>
+                            <button type="button" class="party-embed-src" data-server="vidrock" title="VidRock" aria-label="VidRock" onclick="partySwitchServer('vidrock')">2</button>
+                            <button type="button" class="party-embed-src" data-server="videasy" title="Videasy" aria-label="Videasy" onclick="partySwitchServer('videasy')">3</button>
+                            <button type="button" class="party-embed-src" data-server="zxcstream" title="ZXC Stream" aria-label="ZXC Stream" onclick="partySwitchServer('zxcstream')">4</button>
+                        </div>
+                        <!-- Embed loading spinner -->
+                        <div id="party-embed-loader" class="party-embed-loader" aria-hidden="true" hidden>
+                            <div class="party-embed-spinner"></div>
+                        </div>
                         <iframe id="video-player-iframe" class="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
                     </div>
 

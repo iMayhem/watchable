@@ -697,7 +697,10 @@
 
         // Available Stream Servers
         const serversList = [
-            { id: 'moovie', name: 'Moovie', movie: '/embed/movie/{tmdbId}?provider=moovie', tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
+            { id: 'moovie',   name: 'Moovie',      movie: '/embed/movie/{tmdbId}?provider=moovie',                               tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
+            { id: 'vidrock',  name: 'VidRock',     movie: 'https://vidrock.net/movie/{tmdbId}',                                   tv: 'https://vidrock.net/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'videasy',  name: 'Videasy',     movie: 'https://player.videasy.net/movie/{tmdbId}',                           tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'zxcstream',name: 'ZXC Stream',  movie: 'https://zxcstream.xyz/player/movie/{tmdbId}',                         tv: 'https://zxcstream.xyz/player/tv/{tmdbId}/{season}/{episode}' },
         ];
         
         let activeProvider = 'moovie';
@@ -1265,11 +1268,30 @@
             const activeServerName = document.getElementById('active-server-name');
             if (matched && activeServerName) activeServerName.textContent = matched.name;
 
+            // Update circle active state
+            document.querySelectorAll('.party-embed-src').forEach(btn => {
+                btn.classList.toggle('is-active', btn.dataset.server === providerId);
+            });
+
             if (matched) {
+                // Show loader
+                const loader = document.getElementById('party-embed-loader');
+                if (loader) loader.hidden = false;
                 const embedUrl = getEmbedUrlForServer(matched, mediaId, isTv, season, episode);
                 showEmbedPlayer(embedUrl);
+                // Hide loader once iframe loads
+                const iframe = document.getElementById('video-player-iframe');
+                if (iframe) {
+                    const hide = () => { if (loader) loader.hidden = true; iframe.removeEventListener('load', hide); };
+                    iframe.addEventListener('load', hide, { once: true });
+                }
             }
         }
+
+        // Global handler for the circle buttons in app.html
+        window.partySwitchServer = function(serverId) {
+            switchStreamProvider(serverId);
+        };
 
         // Cinema mode toggler
         function updateCinemaModeButton() {

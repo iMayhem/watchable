@@ -1664,6 +1664,81 @@
         }
 
 
+        /* Embed server circle switcher — matches MoovieFrame vertical circles */
+        .party-embed-sources{
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            transform: translateY(-50%);
+            z-index: 6;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        .party-embed-src{
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            font-family: var(--font-ui, system-ui, sans-serif);
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1;
+            display: grid;
+            place-content: center;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s, transform 0.15s, box-shadow 0.15s;
+            backdrop-filter: blur(4px);
+        }
+
+        .party-embed-src:hover{
+            background: rgba(255,255,255,0.3);
+            border-color: #fff;
+            transform: scale(1.15);
+        }
+
+        .party-embed-src.is-active{
+            border-color: #fff;
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.55), 0 0 14px rgba(255,255,255,0.7);
+        }
+
+        /* Embed loader overlay */
+        .party-embed-loader{
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: grid;
+            place-content: center;
+            background: #000;
+            pointer-events: none;
+        }
+
+        .party-embed-spinner{
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255,255,255,0.12);
+            border-top-color: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            animation: party-spin 0.75s linear infinite;
+        }
+
+        @keyframes party-spin{
+            to { transform: rotate(360deg); }
+        }
+
+        /* Hide circles in native mode (Vue MoovieFrame manages its own) */
+        html.party-native-mode .party-embed-sources,
+        html.party-native-mode .party-embed-loader{
+            display: none !important;
+        }
+
+
         
 
         /* The Vue shell owns the native MoovieFrame in native mode. Keep this

@@ -172,12 +172,15 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Ad tag — loads on every page (whole site), excluded on party/watch-together -->
+    <!-- Ad tag — loads on every page (whole site), excluded on party/watch-together, stream/player and embed pages -->
     <script data-cfasync="false">
       (function () {
         try {
           var path = location.pathname;
           if (path.indexOf('/party') === 0) return;
+          if (path.indexOf('/stream/') === 0) return;
+          if (path.indexOf('/watch/') === 0) return;
+          if (path.indexOf('/embed/') === 0) return;
           var hidden = false;
           try { hidden = localStorage.getItem('ads_hidden') === 'true'; } catch (e) {}
           if (hidden) return;

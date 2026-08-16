@@ -1172,7 +1172,15 @@ export default defineComponent({
                 enabled: true,
                 build: () => '',
             },
-            { id: 'embed5', label: 'Embed 5', enabled: false, build: () => '' },
+            {
+                id: 'embed5',
+                label: 'Jellify',
+                enabled: true,
+                build: (mediaType, id, s, e) =>
+                    mediaType === 'tv'
+                        ? `https://jellify.live/embed/tv/${id}/${s}/${e}`
+                        : `https://jellify.live/embed/movie/${id}`,
+            },
         ]
         function clearAllEmbedPanes() {
             for (const src of embedSources) {

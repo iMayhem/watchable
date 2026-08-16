@@ -695,12 +695,13 @@
 
 
 
-        // Available Stream Servers (1: VidRock, 2: Videasy, 3: ZXC Stream, 4: Moovie)
+        // Available Stream Servers (1: VidRock, 2: Videasy, 3: ZXC Stream, 4: Moovie, 5: Jellify)
         const serversList = [
             { id: 'vidrock',  name: 'VidRock',     movie: 'https://vidrock.net/movie/{tmdbId}',                                   tv: 'https://vidrock.net/tv/{tmdbId}/{season}/{episode}' },
             { id: 'videasy',  name: 'Videasy',     movie: 'https://player.videasy.net/movie/{tmdbId}',                           tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}' },
             { id: 'zxcstream',name: 'ZXC Stream',  movie: 'https://zxcstream.xyz/player/movie/{tmdbId}',                         tv: 'https://zxcstream.xyz/player/tv/{tmdbId}/{season}/{episode}' },
             { id: 'moovie',   name: 'Moovie',      movie: '/embed/movie/{tmdbId}?provider=moovie',                               tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
+            { id: 'jellify',  name: 'Jellify',     movie: 'https://jellify.live/embed/movie/{tmdbId}',                           tv: 'https://jellify.live/embed/tv/{tmdbId}/{season}/{episode}' },
         ];
         
         let activeProvider = 'vidrock';
@@ -1298,7 +1299,42 @@
         // Global handler for the circle buttons in app.html
         window.partySwitchServer = function(serverId) {
             switchStreamProvider(serverId);
+            wakeEmbedSources();
         };
+
+        // Auto-hide the vertical server circles when the mouse stops moving
+        let embedSourcesHideTimer = null;
+        const EMBED_SOURCES_IDLE_MS = 3000;
+
+        function wakeEmbedSources() {
+            const el = document.getElementById('party-embed-sources');
+            if (!el) return;
+            el.classList.remove('is-idle');
+            clearTimeout(embedSourcesHideTimer);
+            embedSourcesHideTimer = setTimeout(() => {
+                el.classList.add('is-idle');
+            }, EMBED_SOURCES_IDLE_MS);
+        }
+
+        document.addEventListener('mousemove', () => {
+            const el = document.getElementById('party-embed-sources');
+            if (el) {
+                el.classList.remove('is-idle');
+                clearTimeout(embedSourcesHideTimer);
+                embedSourcesHideTimer = setTimeout(() => {
+                    el.classList.add('is-idle');
+                }, EMBED_SOURCES_IDLE_MS);
+            }
+        });
+
+        document.addEventListener('mouseleave', () => {
+            const el = document.getElementById('party-embed-sources');
+            if (el) el.classList.add('is-idle');
+        });
+
+        window.addEventListener('load', () => {
+            wakeEmbedSources();
+        });
 
         // Cinema mode toggler
         function updateCinemaModeButton() {

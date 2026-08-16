@@ -1675,6 +1675,15 @@
             flex-direction: column;
             gap: 12px;
             pointer-events: auto;
+            opacity: 1;
+            transition: opacity 0.45s ease, transform 0.45s ease;
+        }
+
+        /* Auto-hide when the mouse has been idle */
+        .party-embed-sources.is-idle{
+            opacity: 0;
+            transform: translateY(-50%) translateX(-12px);
+            pointer-events: none;
         }
 
         .party-embed-src{

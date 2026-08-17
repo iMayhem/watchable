@@ -1211,7 +1211,14 @@ export default defineComponent({
 
             if (sourceId === 'native') {
                 const video = videoRef.value
-                if (video) void video.play().catch(() => {})
+                // In auto-embed mode doLoad() never runs at mount (it only fires
+                // when the embed pane is closed), so switching to the native pane
+                // must start the native scrape instead of play()ing an empty element.
+                if (!streams.value.length && !loading.value && !originalStream.value) {
+                    void doLoad()
+                } else {
+                    if (video) void video.play().catch(() => {})
+                }
             } else {
                 embedLoaded[sourceId] = false
                 paneSrc[sourceId] = embedUrls.value[sourceId] || ''
@@ -3256,7 +3263,7 @@ resolve(false)
                         el.requestFullscreen().catch((e) => console.warn('[MoovieFrame] auto-fullscreen failed:', e.message))
                     }
                 }
-                video.play()
+                video.play().catch(() => {})
             } else {
                 video.pause()
             }

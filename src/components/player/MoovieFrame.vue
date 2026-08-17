@@ -1135,7 +1135,7 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const activeEmbedId = ref('vidrock')
+        const activeEmbedId = ref('embed5')
         interface EmbedSource {
             id: string
             label: string
@@ -1143,6 +1143,21 @@ export default defineComponent({
             build: (mediaType: 'movie' | 'tv', id: string, season: number, episode: number) => string
         }
         const embedSources: EmbedSource[] = [
+            {
+                id: 'embed5',
+                label: 'Jellify',
+                enabled: true,
+                build: (mediaType, id, s, e) =>
+                    mediaType === 'tv'
+                        ? `https://jellify.live/embed/tv/${id}/${s}/${e}`
+                        : `https://jellify.live/embed/movie/${id}`,
+            },
+            {
+                id: 'native',
+                label: 'Moovie Player',
+                enabled: true,
+                build: () => '',
+            },
             {
                 id: 'vidrock',
                 label: 'VidRock',
@@ -1165,21 +1180,6 @@ export default defineComponent({
                     mediaType === 'tv'
                         ? `https://zxcstream.xyz/player/tv/${id}/${s}/${e}`
                         : `https://zxcstream.xyz/player/movie/${id}`,
-            },
-            {
-                id: 'native',
-                label: 'Moovie Player',
-                enabled: true,
-                build: () => '',
-            },
-            {
-                id: 'embed5',
-                label: 'Jellify',
-                enabled: true,
-                build: (mediaType, id, s, e) =>
-                    mediaType === 'tv'
-                        ? `https://jellify.live/embed/tv/${id}/${s}/${e}`
-                        : `https://jellify.live/embed/movie/${id}`,
             },
         ]
         function clearAllEmbedPanes() {

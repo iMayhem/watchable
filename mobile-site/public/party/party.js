@@ -695,16 +695,16 @@
 
 
 
-        // Available Stream Servers (1: VidRock, 2: Videasy, 3: ZXC Stream, 4: Moovie, 5: Jellify)
+        // Available Stream Servers (1: Jellify, 2: Moovie, 3: VidRock, 4: Videasy, 5: ZXC Stream)
         const serversList = [
+            { id: 'jellify',  name: 'Jellify',     movie: 'https://jellify.live/embed/movie/{tmdbId}',                           tv: 'https://jellify.live/embed/tv/{tmdbId}/{season}/{episode}' },
+            { id: 'moovie',   name: 'Moovie',      movie: '/embed/movie/{tmdbId}?provider=moovie',                               tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
             { id: 'vidrock',  name: 'VidRock',     movie: 'https://vidrock.net/movie/{tmdbId}',                                   tv: 'https://vidrock.net/tv/{tmdbId}/{season}/{episode}' },
             { id: 'videasy',  name: 'Videasy',     movie: 'https://player.videasy.net/movie/{tmdbId}',                           tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}' },
             { id: 'zxcstream',name: 'ZXC Stream',  movie: 'https://zxcstream.xyz/player/movie/{tmdbId}',                         tv: 'https://zxcstream.xyz/player/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'moovie',   name: 'Moovie',      movie: '/embed/movie/{tmdbId}?provider=moovie',                               tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
-            { id: 'jellify',  name: 'Jellify',     movie: 'https://jellify.live/embed/movie/{tmdbId}',                           tv: 'https://jellify.live/embed/tv/{tmdbId}/{season}/{episode}' },
         ];
         
-        let activeProvider = 'vidrock';
+        let activeProvider = 'jellify';
         let partyBufferingTimer = null;
         let lastMooviePlayerTime = 0;
         let lastMooviePlayerPlaying = false;
@@ -1170,7 +1170,7 @@
         }
 
         async function resolveDefaultStreamProvider() {
-            activeProvider = 'vidrock';
+            activeProvider = 'jellify';
         }
 
         async function loadRoomEmbed() {
@@ -1178,7 +1178,7 @@
 
             try {
                 resolveDefaultStreamProvider();
-                switchStreamProvider(activeProvider || 'vidrock');
+                switchStreamProvider(activeProvider || 'jellify');
             } catch (err) {
                 console.error('Failed to load room embed:', err);
             } finally {

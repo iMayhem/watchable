@@ -229,15 +229,6 @@
                             </svg>
                         </button>
                         <button
-                            class="moovie-frame__ctrl-btn moovie-frame__embed-btn"
-                            :class="{ 'is-active': embedOpen }"
-                            @click.stop="toggleEmbedMode"
-                            aria-label="Embed mode"
-                            title="Open Videasy embed"
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
-                        </button>
-                        <button
                             class="moovie-frame__ctrl-btn moovie-frame__three-dot-btn"
                             :class="{ 'is-open': settingsOpen }"
                             @click.stop="settingsOpen ? (settingsOpen = false, settingsSection = null) : (settingsOpen = true, qualityOpen = false)"
@@ -1135,7 +1126,7 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const activeEmbedId = ref('embed5')
+        const activeEmbedId = ref('native')
         interface EmbedSource {
             id: string
             label: string
@@ -1143,15 +1134,6 @@ export default defineComponent({
             build: (mediaType: 'movie' | 'tv', id: string, season: number, episode: number) => string
         }
         const embedSources: EmbedSource[] = [
-            {
-                id: 'embed5',
-                label: 'Jellify',
-                enabled: true,
-                build: (mediaType, id, s, e) =>
-                    mediaType === 'tv'
-                        ? `https://jellify.live/embed/tv/${id}/${s}/${e}`
-                        : `https://jellify.live/embed/movie/${id}`,
-            },
             {
                 id: 'native',
                 label: 'Moovie Player',
@@ -1180,6 +1162,15 @@ export default defineComponent({
                     mediaType === 'tv'
                         ? `https://zxcstream.xyz/player/tv/${id}/${s}/${e}`
                         : `https://zxcstream.xyz/player/movie/${id}`,
+            },
+            {
+                id: 'embed5',
+                label: 'Jellify',
+                enabled: true,
+                build: (mediaType, id, s, e) =>
+                    mediaType === 'tv'
+                        ? `https://jellify.live/embed/tv/${id}/${s}/${e}`
+                        : `https://jellify.live/embed/movie/${id}`,
             },
         ]
         function clearAllEmbedPanes() {

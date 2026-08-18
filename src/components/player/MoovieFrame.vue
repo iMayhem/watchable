@@ -1126,7 +1126,7 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const activeEmbedId = ref('native')
+        const activeEmbedId = ref('filmu')
         interface EmbedSource {
             id: string
             label: string
@@ -1134,6 +1134,15 @@ export default defineComponent({
             build: (mediaType: 'movie' | 'tv', id: string, season: number, episode: number) => string
         }
         const embedSources: EmbedSource[] = [
+            {
+                id: 'filmu',
+                label: 'FilmU',
+                enabled: true,
+                build: (mediaType, id, s, e) =>
+                    mediaType === 'tv'
+                        ? `https://embed.filmu.in/embed/tv/${id}/${s}/${e}`
+                        : `https://embed.filmu.in/embed/movie/${id}`,
+            },
             {
                 id: 'native',
                 label: 'Moovie Player',

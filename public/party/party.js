@@ -695,8 +695,9 @@
 
 
 
-        // Available Stream Servers (1: Moovie, 2: VidRock, 3: Videasy, 4: ZXC Stream, 5: Jellify)
+        // Available Stream Servers (1: FilmU, 2: Moovie, 3: VidRock, 4: Videasy, 5: ZXC Stream, 6: Jellify)
         const serversList = [
+            { id: 'filmu',    name: 'FilmU',       movie: 'https://embed.filmu.in/embed/movie/{tmdbId}',                          tv: 'https://embed.filmu.in/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'moovie',   name: 'Moovie',      movie: '/embed/movie/{tmdbId}?provider=moovie',                               tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
             { id: 'vidrock',  name: 'VidRock',     movie: 'https://vidrock.net/movie/{tmdbId}',                                   tv: 'https://vidrock.net/tv/{tmdbId}/{season}/{episode}' },
             { id: 'videasy',  name: 'Videasy',     movie: 'https://player.videasy.net/movie/{tmdbId}',                           tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}' },
@@ -704,7 +705,7 @@
             { id: 'jellify',  name: 'Jellify',     movie: 'https://jellify.live/embed/movie/{tmdbId}',                           tv: 'https://jellify.live/embed/tv/{tmdbId}/{season}/{episode}' },
         ];
         
-        let activeProvider = 'moovie';
+        let activeProvider = 'filmu';
         let partyBufferingTimer = null;
         let lastMooviePlayerTime = 0;
         let lastMooviePlayerPlaying = false;
@@ -1170,7 +1171,7 @@
         }
 
         async function resolveDefaultStreamProvider() {
-            activeProvider = 'moovie';
+            activeProvider = 'filmu';
         }
 
         async function loadRoomEmbed() {
@@ -1178,7 +1179,7 @@
 
             try {
                 resolveDefaultStreamProvider();
-                switchStreamProvider(activeProvider || 'moovie');
+                switchStreamProvider(activeProvider || 'filmu');
             } catch (err) {
                 console.error('Failed to load room embed:', err);
             } finally {

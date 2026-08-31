@@ -70,7 +70,7 @@
 
                     <!-- Discord -->
                     <a
-                        href="https://discord.gg/6uAWf5Jbm"
+                        href="https://discord.gg/CYphBERWvD"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="site-footer__social-btn site-footer__social-btn--discord"

@@ -82,7 +82,7 @@
                             <!-- Default Server Selection -->
                             <div class="settings-field">
                                 <label for="setting-server" class="settings-field__label eyebrow">Default Stream Server</label>
-                                <p class="settings-field__help">Server selection is coming soon — currently set to Poseidon (Multi-Audio HD).</p>
+                                <p class="settings-field__help">Server selection is coming soon — currently set to Moovie (Default Hub).</p>
                                 <div class="settings-select-wrapper is-disabled">
                                     <select id="setting-server" v-model="defaultServerId" class="settings-select" disabled>
                                         <option value="moovie">Moovie</option>
@@ -306,7 +306,7 @@ function savePlaybackRoute() {
 const selectedRegion = ref(region.value || 'global');
 const selectedLanguage = ref(language.value || 'en-US');
 const adsHidden = ref(localStorage.getItem('ads_hidden') === 'true');
-const defaultServerId = ref(localStorage.getItem('default_server_id') || 'poseidon');
+const defaultServerId = ref(localStorage.getItem('default_server_id') || 'moovie');
 const imageQuality = ref<'low' | 'medium' | 'high'>(
     (localStorage.getItem('movora_image_quality') as any) || 'low'
 );

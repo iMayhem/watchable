@@ -66,15 +66,10 @@
                     </div>
                     <div class="m-settings__field">
                         <label class="m-settings__label">Default Stream Server</label>
-                        <p class="m-settings__field-help">Server selection is coming soon — currently set to Poseidon (Multi-Audio HD).</p>
+                        <p class="m-settings__field-help">Server selection is coming soon — currently set to Moovie (Default Hub).</p>
                         <div class="m-settings__select-wrapper is-disabled">
                             <select class="m-settings__select" disabled>
-                                <option value="sugar">Sugar (vidcodin.net)</option>
-                                <option value="spoider">Spoider (screenscape.me)</option>
-                                <option value="poseidon">Poseidon (Multi-Audio HD)</option>
-                                <option value="athena">Athena (Moovie Scraper Catalog)</option>
-                                <option value="apollo">Apollo (4K Ultra Stream)</option>
-                                <option value="hades">Hades (Backup HLS Mirror)</option>
+                                <option value="moovie">Moovie</option>
                             </select>
                             <span class="m-settings__select-arrow">▼</span>
                         </div>

@@ -1127,7 +1127,7 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const activeEmbedId = ref('filmu')
+        const activeEmbedId = ref('native')
         interface EmbedSource {
             id: string
             label: string
@@ -1136,6 +1136,12 @@ export default defineComponent({
         }
         const embedSources: EmbedSource[] = [
             {
+                id: 'native',
+                label: 'Moovie Player',
+                enabled: true,
+                build: () => '',
+            },
+            {
                 id: 'filmu',
                 label: 'FilmU',
                 enabled: true,
@@ -1143,12 +1149,6 @@ export default defineComponent({
                     mediaType === 'tv'
                         ? `https://embed.filmu.in/embed/tv/${id}/${s}/${e}`
                         : `https://embed.filmu.in/embed/movie/${id}`,
-            },
-            {
-                id: 'native',
-                label: 'Moovie Player',
-                enabled: true,
-                build: () => '',
             },
             {
                 id: 'vidrock',
@@ -3446,6 +3446,9 @@ resolve(false)
                 settingsOpen.value = false
                 ctx.emit('embed-change', true)
                 console.log('[MOVIEFRAME] mounted: auto-embed mode active')
+                if (activeEmbedId.value === 'native') {
+                    void doLoad()
+                }
             }
             startTrackingIfNeeded()
             if (videoRef.value) {

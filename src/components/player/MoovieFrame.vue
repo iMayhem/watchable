@@ -2481,6 +2481,15 @@ export default defineComponent({
                         if (poseidonOk) return
                     }
                 }
+                console.debug('[MoovieFrame] single-source scrapers yielded no stream, attempting full multi-source scrape fallback...')
+                const fallbackStreams = await fetchStreams().catch(() => [])
+                if (fallbackStreams && fallbackStreams.length > 0) {
+                    const best = pickBest(fallbackStreams)
+                    if (best) {
+                        await tryPlayStream(best)
+                        return
+                    }
+                }
                 throw new Error('No enabled provider returned a playable stream')
             } catch (e: any) {
                 console.debug('[MoovieFrame] doLoad error:', e.message)
@@ -2515,13 +2524,18 @@ export default defineComponent({
             // Provider-side proxies (emebd / workers.dev / hub / cf) already relay
             // the origin fetch — wrapping them through the hub again adds two extra
             // hops per segment request, so they always play directly.
-            const alreadyProxied = Boolean(
+            // Streamvault / stream-proxy streams work directly and have CORS enabled; never proxy them.
+            const isStreamvault = Boolean(
+                s.url?.includes('streamvault') ||
+                s.url?.includes('/stream-proxy/')
+            )
+            const alreadyProxied = isStreamvault || Boolean(
                 s.url?.startsWith(`${HUB_BASE}/proxy?`) ||
                 s.url?.includes('cf-header-hahaevilcraft.site') ||
                 /\.workers\.dev\/|\/v1\/proxy\?data=|\/proxy\?data=/.test(s.url || '')
             )
             const proxyMode = normalizeProxyMode(s.proxyMode)
-            const forceDirect = proxyMode === 'off'
+            const forceDirect = proxyMode === 'off' || isStreamvault
             const useProxy = !forceDirect && shouldUseProxy(s) && !!s.proxyUrl && !alreadyProxied
             const isHlsStream = s.type === 'm3u8' || s.type === 'hls'
             async function tryMount(url: string) {
@@ -2771,11 +2785,11 @@ export default defineComponent({
                 return false
             }
 
-            const providerObj = providers.value.find(p => p.name === provider)
-            const providerId = providerObj?.id
+            const providerObj = providers.value.find(p => (p.name || '').toLowerCase() === provider.toLowerCase() || (p.id || '').toLowerCase() === provider.toLowerCase())
+            const providerId = providerObj?.id || provider
             if (!providerId) {
                 console.warn('[MoovieFrame] selectServer: no providerId found for', provider)
-                return
+                return false
             }
 
             const video = videoRef.value
@@ -2862,7 +2876,7 @@ export default defineComponent({
 
                     try {
                         const data = JSON.parse(e.data)
-                    const rawStreams = Array.isArray(data.stream) ? data.stream : (data.stream ? [data.stream] : [])
+                    const rawStreams = Array.isArray(data.stream) ? data.stream : (data.stream ? [data.stream] : (Array.isArray(data.streams) ? data.streams : []))
 
                     // A manual server selection uses a separate SSE endpoint from the
                     // initial scraper run. Preserve that source's variants here too;
@@ -2978,9 +2992,22 @@ export default defineComponent({
                         const best = pickBest(scraperStreams)
                         if (best) {
                             loading.value = false
-                            await tryPlayStream(best)
-                            resolve(true)
-                            return
+                            try {
+                                await tryPlayStream(best)
+                                resolve(true)
+                                return
+                            } catch (streamErr) {
+                                console.warn('[MoovieFrame] Failed to play best stream, trying fallbacks:', streamErr)
+                                for (const fallback of scraperStreams.filter(s => s !== best)) {
+                                    try {
+                                        await tryPlayStream(fallback)
+                                        resolve(true)
+                                        return
+                                    } catch {}
+                                }
+                                resolve(false)
+                                return
+                            }
                         } else {
                             error.value = `No compatible stream found on ${provider}`
                             loading.value = false

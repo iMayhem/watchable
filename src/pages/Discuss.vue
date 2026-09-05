@@ -44,7 +44,7 @@
                                     class="discuss-msg"
                                     :class="{ 
                                         'discuss-msg--self': isSelf(c.username),
-                                        'discuss-msg--reported': c.isReported 
+                                        'discuss-msg--reported': c.isReported || isCommentBlockedOrReported(c)
                                     }"
                                 >
                                     <div class="discuss-msg__avatar" v-if="!isSelf(c.username)">
@@ -57,8 +57,8 @@
                                                 <span class="discuss-msg__username" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
                                                 <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
                                             </div>
-                                            <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
-                                                <em>[Comment removed due to inappropriate content]</em>
+                                            <p v-if="c.is_hidden || isCommentBlockedOrReported(c)" class="discuss-msg__text discuss-msg__text--blocked">
+                                                <em>[Comment hidden by user or moderation]</em>
                                             </p>
                                             <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                             <div class="discuss-msg__bubble-footer">
@@ -71,6 +71,15 @@
                                             </div>
                                         </div>
 
+                                        <div class="discuss-msg__actions" v-if="!isSelf(c.username)">
+                                            <button type="button" class="discuss-msg__report-btn" @click.stop="openReportModal(c)" title="Report message or block user">
+                                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                                                    <line x1="4" y1="22" x2="4" y2="15"></line>
+                                                </svg>
+                                                <span>Report</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -91,7 +100,12 @@
                                 </button>
                             </div>
                             <form @submit.prevent="handlePostComment" class="discuss-composer-form discuss-composer-form--stacked">
-
+                                <div class="discuss-composer-toolbar">
+                                    <button type="button" class="fmt-btn" title="Bold" @click="wrapText('lounge', '**')"><strong>B</strong></button>
+                                    <button type="button" class="fmt-btn" title="Italic" @click="wrapText('lounge', '*')"><em>I</em></button>
+                                    <button type="button" class="fmt-btn" title="Strikethrough" @click="wrapText('lounge', '~~')"><s>S</s></button>
+                                    <button type="button" class="fmt-btn fmt-btn--spoiler" title="Spoiler" @click="wrapText('lounge', '||')">Spoiler</button>
+                                </div>
                                 <div class="discuss-composer-input-row">
                                     <div class="discuss-composer-input-wrapper">
                                         <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis" @click.stop="toggleEmojiPicker('lounge')">
@@ -103,6 +117,7 @@
                                             </svg>
                                         </button>
                                         <input 
+                                            ref="loungeInput"
                                             type="text" 
                                             v-model="newCommentText" 
                                             placeholder="Type a message…"
@@ -179,7 +194,7 @@
                                         class="discuss-msg"
                                         :class="{ 
                                             'discuss-msg--self': isSelf(c.username),
-                                            'discuss-msg--reported': c.isReported 
+                                            'discuss-msg--reported': c.isReported || isCommentBlockedOrReported(c)
                                         }"
                                     >
                                         <div class="discuss-msg__avatar" v-if="!isSelf(c.username)">
@@ -192,8 +207,8 @@
                                                     <span class="discuss-msg__username" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
                                                     <span v-if="c.username.startsWith('@')" class="discuss-msg__badge">Member</span>
                                                 </div>
-                                                <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
-                                                    <em>[Comment removed due to inappropriate content]</em>
+                                                <p v-if="c.is_hidden || isCommentBlockedOrReported(c)" class="discuss-msg__text discuss-msg__text--blocked">
+                                                    <em>[Comment hidden by user or moderation]</em>
                                                 </p>
                                                 <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                                 <div class="discuss-msg__bubble-footer">
@@ -206,6 +221,15 @@
                                                 </div>
                                             </div>
 
+                                            <div class="discuss-msg__actions" v-if="!isSelf(c.username)">
+                                                <button type="button" class="discuss-msg__report-btn" @click.stop="openReportModal(c)" title="Report message or block user">
+                                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                                                        <line x1="4" y1="22" x2="4" y2="15"></line>
+                                                    </svg>
+                                                    <span>Report</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -226,7 +250,12 @@
                                     </button>
                                 </div>
                                 <form @submit.prevent="postSelectedMovieComment" class="discuss-composer-form discuss-composer-form--stacked">
-
+                                    <div class="discuss-composer-toolbar">
+                                        <button type="button" class="fmt-btn" title="Bold" @click="wrapText('thread', '**')"><strong>B</strong></button>
+                                        <button type="button" class="fmt-btn" title="Italic" @click="wrapText('thread', '*')"><em>I</em></button>
+                                        <button type="button" class="fmt-btn" title="Strikethrough" @click="wrapText('thread', '~~')"><s>S</s></button>
+                                        <button type="button" class="fmt-btn fmt-btn--spoiler" title="Spoiler" @click="wrapText('thread', '||')">Spoiler</button>
+                                    </div>
                                     <div class="discuss-composer-input-row">
                                         <div class="discuss-composer-input-wrapper">
                                             <button type="button" class="discuss-composer-btn discuss-composer-btn--emoji" aria-label="Emojis" @click.stop="toggleEmojiPicker('thread')">
@@ -238,6 +267,7 @@
                                                 </svg>
                                             </button>
                                             <input 
+                                                ref="threadInput"
                                                 type="text" 
                                                 v-model="newSelectedCommentText" 
                                                 placeholder="Type a message…"
@@ -299,7 +329,7 @@
                                         v-for="c in movieComments" 
                                         :key="c.id" 
                                         class="discuss-msg discuss-msg--movie-card"
-                                        :class="{ 'discuss-msg--reported': c.isReported }"
+                                        :class="{ 'discuss-msg--reported': c.isReported || isCommentBlockedOrReported(c) }"
                                     >
                                         <div class="discuss-msg__avatar">
                                             <img :src="getAvatarUrl(c.username)" :alt="c.username" class="discuss-msg__avatar-img" />
@@ -318,8 +348,8 @@
                                             </div>
 
                                             <div class="discuss-msg__bubble discuss-msg__bubble--movie">
-                                                <p v-if="c.is_hidden" class="discuss-msg__text discuss-msg__text--blocked">
-                                                    <em>[Comment removed due to inappropriate content]</em>
+                                                <p v-if="c.is_hidden || isCommentBlockedOrReported(c)" class="discuss-msg__text discuss-msg__text--blocked">
+                                                    <em>[Comment hidden by user or moderation]</em>
                                                 </p>
                                                 <p v-else class="discuss-msg__text" v-html="formatCommentContent(c.content)"></p>
                                             </div>
@@ -332,8 +362,19 @@
                                                 >
                                                     Open thread
                                                 </button>
-
-
+                                                <button
+                                                    type="button"
+                                                    class="discuss-msg__report-btn"
+                                                    v-if="!isSelf(c.username)"
+                                                    @click.stop="openReportModal(c)"
+                                                    title="Report message or block user"
+                                                >
+                                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                                                        <line x1="4" y1="22" x2="4" y2="15"></line>
+                                                    </svg>
+                                                    <span>Report</span>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -344,6 +385,51 @@
                 </div>
             </div>
         </main>
+
+        <!-- Report Modal Dialog -->
+        <div v-if="showReportModal" class="report-modal">
+            <div class="report-modal__backdrop" @click="closeReportModal"></div>
+            <div class="report-modal__content" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+                <h3 id="report-modal-title" class="report-modal__title">Report Message / Block User</h3>
+                <p class="report-modal__desc meta">Help us keep the community safe and spoiler-free.</p>
+                
+                <div v-if="reportingComment" class="report-modal__post-preview">
+                    <span class="meta font-bold">{{ reportingComment.username }}</span>
+                    <p class="meta">{{ reportingComment.content }}</p>
+                </div>
+
+                <form @submit.prevent="submitReport" class="report-form">
+                    <div class="report-form__group">
+                        <label for="report-reason" class="meta">Action / Reason</label>
+                        <select id="report-reason" v-model="reportReason" class="report-form__select" required>
+                            <option value="spoiler">Unmarked Spoiler</option>
+                            <option value="inappropriate">Inappropriate / Offensive Content</option>
+                            <option value="harassment">Harassment / Hate Speech</option>
+                            <option value="spam">Spam or Self-promotion</option>
+                            <option value="block_user">Block this user entirely</option>
+                        </select>
+                    </div>
+
+                    <div class="report-form__group" v-if="reportReason !== 'block_user'">
+                        <label for="report-details" class="meta">Additional details (optional)</label>
+                        <textarea 
+                            id="report-details" 
+                            v-model="reportDetails" 
+                            rows="2" 
+                            placeholder="Explain the issue..."
+                            class="report-form__textarea"
+                        ></textarea>
+                    </div>
+
+                    <div class="report-modal__buttons">
+                        <button type="button" class="btn btn-secondary btn-sm" @click="closeReportModal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            {{ reportReason === 'block_user' ? 'Block User' : 'Submit Report' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- Auth Modal Dialog -->
         <AuthModal :isOpen="showAuthModal" @close="showAuthModal = false; checkAuth()" />
@@ -403,6 +489,93 @@ export default defineComponent({
         const showLoungeEmojiPicker = ref(false);
         const showThreadEmojiPicker = ref(false);
         const popularEmojis = ['😀', '😂', '😍', '🔥', '❤️', '👍', '🎉', '🎬', '📺', '🍿', '😮', '👏'];
+        const loungeInput = ref<HTMLInputElement | null>(null);
+        const threadInput = ref<HTMLInputElement | null>(null);
+
+        // Reporting and Blocking State
+        const showReportModal = ref(false);
+        const reportingComment = ref<Comment | null>(null);
+        const reportReason = ref('spoiler');
+        const reportDetails = ref('');
+        const reportedComments = ref<Set<string>>(new Set());
+        const blockedUsers = ref<Set<string>>(new Set());
+
+        const loadBlockedData = () => {
+            if (typeof window === 'undefined') return;
+            try {
+                const savedReported = localStorage.getItem('movora_reported_comments');
+                if (savedReported) {
+                    reportedComments.value = new Set(JSON.parse(savedReported));
+                }
+                const savedBlocked = localStorage.getItem('movora_blocked_users');
+                if (savedBlocked) {
+                    blockedUsers.value = new Set(JSON.parse(savedBlocked));
+                }
+            } catch (e) {
+                console.error('Failed to load blocked data:', e);
+            }
+        };
+
+        const openReportModal = (comment: Comment) => {
+            reportingComment.value = comment;
+            reportReason.value = 'spoiler';
+            reportDetails.value = '';
+            showReportModal.value = true;
+        };
+
+        const closeReportModal = () => {
+            showReportModal.value = false;
+            reportingComment.value = null;
+        };
+
+        const submitReport = () => {
+            if (!reportingComment.value) return;
+            if (reportReason.value === 'block_user') {
+                blockedUsers.value.add(reportingComment.value.username);
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('movora_blocked_users', JSON.stringify(Array.from(blockedUsers.value)));
+                }
+                alert(`User ${reportingComment.value.username} has been blocked.`);
+            } else {
+                reportedComments.value.add(reportingComment.value.id);
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('movora_reported_comments', JSON.stringify(Array.from(reportedComments.value)));
+                }
+                alert('Thank you. This comment has been reported and hidden.');
+            }
+            closeReportModal();
+        };
+
+        const isCommentBlockedOrReported = (comment: Comment): boolean => {
+            if (!comment) return false;
+            return reportedComments.value.has(comment.id) || blockedUsers.value.has(comment.username);
+        };
+
+        const wrapText = (field: 'lounge' | 'thread', wrapper: string) => {
+            const el = field === 'lounge' ? loungeInput.value : threadInput.value;
+            if (!el) return;
+
+            const start = el.selectionStart ?? 0;
+            const end = el.selectionEnd ?? 0;
+            const text = field === 'lounge' ? newCommentText.value : newSelectedCommentText.value;
+            const selected = text.slice(start, end);
+            const wrapped = selected ? wrapper + selected + wrapper : wrapper + wrapper;
+            const newText = text.slice(0, start) + wrapped + text.slice(end);
+
+            if (field === 'lounge') newCommentText.value = newText;
+            else newSelectedCommentText.value = newText;
+
+            nextTick(() => {
+                el.focus();
+                const cursorPos = selected
+                    ? start + wrapper.length + selected.length + wrapper.length
+                    : start + wrapper.length;
+                el.setSelectionRange(
+                    selected ? start + wrapper.length : cursorPos,
+                    selected ? start + wrapper.length + selected.length : cursorPos
+                );
+            });
+        };
 
         const toggleEmojiPicker = (type: 'lounge' | 'thread') => {
             if (type === 'lounge') {
@@ -961,7 +1134,21 @@ export default defineComponent({
 
         checkAuth();
 
+        let lastSpoilerTouch = 0;
+        const handleSpoilerToggle = (e: Event) => {
+            const target = (e.target as HTMLElement).closest('.comment-spoiler');
+            if (!target) return;
+            if (e.type === 'touchend') {
+                lastSpoilerTouch = Date.now();
+                target.classList.toggle('is-revealed');
+            } else if (e.type === 'click') {
+                if (Date.now() - lastSpoilerTouch < 500) return;
+                target.classList.toggle('is-revealed');
+            }
+        };
+
         onMounted(() => {
+            loadBlockedData();
             // A nav hover can prefetch an older cached feed. Always refresh the
             // reviews feed when the page itself is opened.
             resetDiscussFeedCache();
@@ -973,18 +1160,16 @@ export default defineComponent({
             });
             window.addEventListener('movora_auth_change', checkAuth);
             window.addEventListener('click', handleOutsideClick);
-            window.addEventListener('click', (e: MouseEvent) => {
-                const target = (e.target as HTMLElement).closest('.comment-spoiler');
-                if (target) {
-                    target.classList.toggle('is-revealed');
-                }
-            });
+            window.addEventListener('click', handleSpoilerToggle);
+            window.addEventListener('touchend', handleSpoilerToggle, { passive: true });
         });
 
         onBeforeUnmount(async () => {
             resetDiscussFeedCache();
             window.removeEventListener('movora_auth_change', checkAuth);
             window.removeEventListener('click', handleOutsideClick);
+            window.removeEventListener('click', handleSpoilerToggle);
+            window.removeEventListener('touchend', handleSpoilerToggle);
             if (realtimeChannel) {
                 const sync = await getSyncClient();
                 sync.removeChannel(realtimeChannel);
@@ -1023,10 +1208,23 @@ export default defineComponent({
             checkAuth,
             handleReviewsScroll,
             
+            // Formatting and Inputs
+            loungeInput,
+            threadInput,
+            wrapText,
+
+            // Reporting and Blocking
+            showReportModal,
+            reportingComment,
+            reportReason,
+            reportDetails,
+            openReportModal,
+            closeReportModal,
+            submitReport,
+            isCommentBlockedOrReported,
+
             // Composer Actions
             handlePostComment,
-
-
 
             // Movie-specific Discussion
             selectedMovieId,
@@ -1881,6 +2079,52 @@ export default defineComponent({
     }
 }
 
+.discuss-composer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 4px 4px;
+}
+
+.fmt-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    color: var(--bone-400);
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    border-radius: var(--r-sm);
+    transition: background var(--dur-fast), color var(--dur-fast);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover {
+        background: var(--ink-600);
+        color: var(--bone-50);
+    }
+
+    &--spoiler {
+        width: auto;
+        padding: 0 6px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--bone-200);
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--bone-50);
+        }
+    }
+}
+
 .discuss-msg__text--blocked {
     color: var(--bone-400, #8a8270) !important;
     font-style: italic;
@@ -1900,6 +2144,8 @@ export default defineComponent({
     padding: 1px 7px;
     margin: 0 2px;
     cursor: pointer;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
     user-select: none !important;
     -webkit-user-select: none !important;
     transition: all var(--dur-fast, 0.2s) ease;

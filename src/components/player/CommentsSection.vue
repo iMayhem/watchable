@@ -106,7 +106,7 @@
                                 >
                                     {{ isDirectlyCollapsed(c.id) ? '[+]' : '[—]' }}
                                 </button>
-                                <button @click="flagComment(c)" class="comment-card__flag-btn" title="Report post">
+                                <button v-if="!isSelf(c.username)" @click="flagComment(c)" class="comment-card__flag-btn" title="Report post or block user">
                                     <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                                         <line x1="4" y1="22" x2="4" y2="15"></line>
@@ -117,8 +117,8 @@
 
                         <!-- Main comment text & actions (hidden if directly collapsed) -->
                         <template v-if="!isDirectlyCollapsed(c.id)">
-                            <p v-if="c.is_hidden" class="comment-card__body comment-card__body--blocked">
-                                <em>[Comment removed due to inappropriate content]</em>
+                            <p v-if="c.is_hidden || isCommentBlockedOrReported(c)" class="comment-card__body comment-card__body--blocked">
+                                <em>[Comment hidden by user or moderation]</em>
                             </p>
                             <p v-else class="comment-card__body" v-html="formatCommentContent(c.content)"></p>
                             
@@ -170,6 +170,51 @@
                 </transition>
             </div>
         </div>
+
+        <!-- Report Modal Dialog -->
+        <div v-if="showReportModal" class="report-modal">
+            <div class="report-modal__backdrop" @click="closeReportModal"></div>
+            <div class="report-modal__content" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+                <h3 id="report-modal-title" class="report-modal__title">Report Message / Block User</h3>
+                <p class="report-modal__desc meta">Help us keep the community safe and spoiler-free.</p>
+                
+                <div v-if="reportingComment" class="report-modal__post-preview">
+                    <span class="meta font-bold">{{ reportingComment.username }}</span>
+                    <p class="meta">{{ reportingComment.content }}</p>
+                </div>
+
+                <form @submit.prevent="submitReport" class="report-form">
+                    <div class="report-form__group">
+                        <label for="report-reason-player" class="meta">Action / Reason</label>
+                        <select id="report-reason-player" v-model="reportReason" class="report-form__select" required>
+                            <option value="spoiler">Unmarked Spoiler</option>
+                            <option value="inappropriate">Inappropriate / Offensive Content</option>
+                            <option value="harassment">Harassment / Hate Speech</option>
+                            <option value="spam">Spam or Self-promotion</option>
+                            <option value="block_user">Block this user entirely</option>
+                        </select>
+                    </div>
+
+                    <div class="report-form__group" v-if="reportReason !== 'block_user'">
+                        <label for="report-details-player" class="meta">Additional details (optional)</label>
+                        <textarea 
+                            id="report-details-player" 
+                            v-model="reportDetails" 
+                            rows="2" 
+                            placeholder="Explain the issue..."
+                            class="report-form__textarea"
+                        ></textarea>
+                    </div>
+
+                    <div class="report-modal__buttons">
+                        <button type="button" class="btn btn-secondary btn-sm" @click="closeReportModal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            {{ reportReason === 'block_user' ? 'Block User' : 'Submit Report' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </section>
 </template>
 
@@ -219,6 +264,75 @@ export default defineComponent({
         const collapsedComments = ref<Set<number>>(new Set());
         const mainTextarea = ref<HTMLTextAreaElement | null>(null);
         const replyTextarea = ref<HTMLTextAreaElement | null>(null);
+
+        // Reporting and Blocking State
+        const showReportModal = ref(false);
+        const reportingComment = ref<RenderComment | null>(null);
+        const reportReason = ref('spoiler');
+        const reportDetails = ref('');
+        const reportedComments = ref<Set<string | number>>(new Set());
+        const blockedUsers = ref<Set<string>>(new Set());
+
+        const loadBlockedData = () => {
+            if (typeof window === 'undefined') return;
+            try {
+                const savedReported = localStorage.getItem('movora_reported_comments');
+                if (savedReported) {
+                    reportedComments.value = new Set(JSON.parse(savedReported));
+                }
+                const savedBlocked = localStorage.getItem('movora_blocked_users');
+                if (savedBlocked) {
+                    blockedUsers.value = new Set(JSON.parse(savedBlocked));
+                }
+            } catch (e) {
+                console.error('Failed to load blocked data:', e);
+            }
+        };
+
+        const isSelf = (username: string) => {
+            if (isLoggedIn.value) {
+                return username === `@${currentUsername.value}` || username === currentUsername.value;
+            }
+            if (guestName.value && guestName.value.trim() !== 'Anonymous') {
+                return username === guestName.value.trim();
+            }
+            return false;
+        };
+
+        const isCommentBlockedOrReported = (c: any): boolean => {
+            if (!c) return false;
+            return reportedComments.value.has(c.id) || blockedUsers.value.has(c.username);
+        };
+
+        const flagComment = (c: RenderComment) => {
+            reportingComment.value = c;
+            reportReason.value = 'spoiler';
+            reportDetails.value = '';
+            showReportModal.value = true;
+        };
+
+        const closeReportModal = () => {
+            showReportModal.value = false;
+            reportingComment.value = null;
+        };
+
+        const submitReport = () => {
+            if (!reportingComment.value) return;
+            if (reportReason.value === 'block_user') {
+                blockedUsers.value.add(reportingComment.value.username);
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('movora_blocked_users', JSON.stringify(Array.from(blockedUsers.value)));
+                }
+                alert(`User ${reportingComment.value.username} has been blocked.`);
+            } else {
+                reportedComments.value.add(reportingComment.value.id);
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('movora_reported_comments', JSON.stringify(Array.from(reportedComments.value)));
+                }
+                alert('Thank you. This comment has been reported and hidden.');
+            }
+            closeReportModal();
+        };
 
         function wrapText(field: 'main' | 'reply', wrapper: string) {
             const el = field === 'main' ? mainTextarea.value : replyTextarea.value;
@@ -583,10 +697,6 @@ export default defineComponent({
             return count;
         };
 
-        const flagComment = (c: RenderComment) => {
-            alert(`Comment by ${c.username} has been reported for moderation.`);
-        };
-
         const visibleComments = computed(() => {
             return processedComments.value.filter(c => {
                 if (!c.parentId) return true;
@@ -624,17 +734,27 @@ export default defineComponent({
 
         const rootRef = ref<HTMLElement | null>(null);
 
+        let lastSpoilerTouch = 0;
+        const handleSpoilerToggle = (e: Event) => {
+            const target = (e.target as HTMLElement).closest('.comment-spoiler');
+            if (!target) return;
+            if (e.type === 'touchend') {
+                lastSpoilerTouch = Date.now();
+                target.classList.toggle('is-revealed');
+            } else if (e.type === 'click') {
+                if (Date.now() - lastSpoilerTouch < 500) return;
+                target.classList.toggle('is-revealed');
+            }
+        };
+
         onMounted(() => {
             checkAuth();
+            loadBlockedData();
             fetchComments();
             window.addEventListener('movora_auth_change', checkAuth);
             if (rootRef.value) {
-                rootRef.value.addEventListener('click', (e: MouseEvent) => {
-                    const target = (e.target as HTMLElement).closest('.comment-spoiler');
-                    if (target) {
-                        target.classList.toggle('is-revealed');
-                    }
-                });
+                rootRef.value.addEventListener('click', handleSpoilerToggle);
+                rootRef.value.addEventListener('touchend', handleSpoilerToggle, { passive: true });
             }
         });
 
@@ -702,6 +822,14 @@ export default defineComponent({
             getAncestorIdAtDepth,
             countReplies,
             flagComment,
+            showReportModal,
+            reportingComment,
+            reportReason,
+            reportDetails,
+            closeReportModal,
+            submitReport,
+            isCommentBlockedOrReported,
+            isSelf,
             formatTimeAgo,
             formatCommentContent
         };
@@ -1349,6 +1477,8 @@ export default defineComponent({
     padding: 1px 7px;
     margin: 0 2px;
     cursor: pointer;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
     user-select: none !important;
     -webkit-user-select: none !important;
     transition: all var(--dur-fast, 0.2s) ease;
@@ -1371,6 +1501,94 @@ export default defineComponent({
         -webkit-user-select: text !important;
         border: 1px solid rgba(255, 255, 255, 0.35);
         box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+    }
+}
+
+/* Report Modal styling */
+.report-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--s-4);
+
+    &__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(4, 6, 10, 0.85);
+        backdrop-filter: blur(10px);
+    }
+
+    &__content {
+        position: relative;
+        background: var(--ink-800);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-md);
+        padding: var(--s-6);
+        max-width: 460px;
+        width: 100%;
+        box-shadow: var(--shadow-lg);
+    }
+
+    &__title {
+        font-family: var(--font-display);
+        font-size: clamp(1.05rem, 1.4vw, 1.3rem);
+        margin: 0 0 var(--s-1);
+    }
+
+    &__desc {
+        margin: 0 0 var(--s-4);
+    }
+
+    &__post-preview {
+        background: var(--ink-950);
+        border-left: 2px solid var(--ember);
+        padding: var(--s-3);
+        margin-bottom: var(--s-4);
+        border-radius: 0 var(--r-sm) var(--r-sm) 0;
+
+        p {
+            margin: var(--s-1) 0 0;
+            font-style: italic;
+        }
+    }
+
+    &__buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--s-3);
+        margin-top: var(--s-5);
+    }
+}
+
+.report-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+
+    &__group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-2);
+    }
+
+    &__select,
+    &__textarea {
+        background: var(--ink-950);
+        border: 1px solid var(--rule);
+        color: var(--bone-50);
+        font-family: var(--font-ui);
+        font-size: var(--fs-sm);
+        padding: var(--s-3);
+        border-radius: var(--r-sm);
+        width: 100%;
+
+        &:focus {
+            border-color: var(--ember);
+            outline: none;
+        }
     }
 }
 </style>

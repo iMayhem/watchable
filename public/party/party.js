@@ -695,14 +695,9 @@
 
 
 
-        // Available Stream Servers (1: FilmU, 2: Moovie, 3: VidRock, 4: Videasy, 5: ZXC Stream, 6: Jellify)
+        // Available Stream Servers (Moovie Player only with sync)
         const serversList = [
-            { id: 'filmu',    name: 'FilmU',       movie: 'https://embed.filmu.in/embed/movie/{tmdbId}',                          tv: 'https://embed.filmu.in/embed/tv/{tmdbId}/{season}/{episode}' },
             { id: 'moovie',   name: 'Moovie',      movie: '/embed/movie/{tmdbId}?provider=moovie',                               tv: '/embed/tv-show/{tmdbId}/season/{season}/episode/{episode}?provider=moovie' },
-            { id: 'vidrock',  name: 'VidRock',     movie: 'https://vidrock.net/movie/{tmdbId}',                                   tv: 'https://vidrock.net/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'videasy',  name: 'Videasy',     movie: 'https://player.videasy.net/movie/{tmdbId}',                           tv: 'https://player.videasy.net/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'zxcstream',name: 'ZXC Stream',  movie: 'https://zxcstream.xyz/player/movie/{tmdbId}',                         tv: 'https://zxcstream.xyz/player/tv/{tmdbId}/{season}/{episode}' },
-            { id: 'jellify',  name: 'Jellify',     movie: 'https://jellify.live/embed/movie/{tmdbId}',                           tv: 'https://jellify.live/embed/tv/{tmdbId}/{season}/{episode}' },
         ];
         
         let activeProvider = 'moovie';
@@ -1898,7 +1893,55 @@
                         appendChatMessage('System', `\ud83d\udc51 You transferred host control to ${data.newHost}.`, 'system');
                     } else {
                         // Spectator — just notify
-                        appendChatMessage('System', `\ud83d\udc51 ${data.newHost} is now the host.`, 'system');
+                        appendChatMessage('System', `👑 ${data.newHost} is now the host.`, 'system');
+                    }
+                })
+                .on('broadcast', { event: 'moovie_playback_sync' }, (payload) => {
+                    const data = payload.payload || {};
+                    // If we are host or we sent this broadcast, do not apply it
+                    if (isHost || data.sender === currentUserName) return;
+
+                    const clampedTime = clampSyncTime(data.time ?? 0);
+                    lastMooviePlayerTime = clampedTime;
+                    if (data.playing != null) {
+                        lastMooviePlayerPlaying = data.playing;
+                    }
+
+                    const iframe = document.getElementById('video-player-iframe');
+                    if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.postMessage({
+                            type: 'moovie-command-sync',
+                            event: data.event,
+                            time: clampedTime,
+                            playing: data.playing,
+                            force: data.event === 'seek'
+                        }, '*');
+                    }
+
+                    if (data.seekDesc) {
+                        appendChatMessage('System', `👑 Host seeked ${data.seekDesc}`, 'system');
+                    }
+                })
+                .on('broadcast', { event: 'moovie_sync_request' }, (payload) => {
+                    const data = payload.payload || {};
+                    if (!isHost || data.sender === currentUserName) return;
+
+                    // Host responds to the guest's sync request with current state
+                    if (channel && activeProvider === 'moovie') {
+                        const iframe = document.getElementById('video-player-iframe');
+                        if (iframe && iframe.contentWindow) {
+                            iframe.contentWindow.postMessage({ type: 'moovie-sync-poll' }, '*');
+                        }
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'moovie_playback_sync',
+                            payload: {
+                                event: 'seek',
+                                time: lastMooviePlayerTime ?? 0,
+                                playing: lastMooviePlayerPlaying ?? false,
+                                sender: currentUserName
+                            }
+                        });
                     }
                 })
                 .on('presence', { event: 'sync' }, () => {

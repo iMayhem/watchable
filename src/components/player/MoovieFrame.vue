@@ -480,6 +480,29 @@
              </div>
 
             <div class="moovie-frame__embed-overlay" :class="{ 'is-open': embedOpen, 'is-native': embedOpen && activeEmbedId === 'native' }" @click.self="toggleEmbedMode">
+                <!-- Mobile top-right server selector button -->
+                <div v-if="embedOpen" class="moovie-frame__mobile-server-btn-wrap" :class="{ 'is-idle': embedSourcesIdle }">
+                    <button
+                        type="button"
+                        class="moovie-frame__mobile-server-btn"
+                        :class="{ 'is-active': mobileServersOpen }"
+                        @click.stop="toggleMobileServers"
+                        aria-label="Select Server"
+                    >
+                        <svg class="moovie-frame__mobile-server-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                            <line x1="6" y1="6" x2="6.01" y2="6"/>
+                            <line x1="6" y1="18" x2="6.01" y2="18"/>
+                        </svg>
+                        <span class="moovie-frame__mobile-server-text">{{ activeServerLabel }}</span>
+                        <svg class="moovie-frame__mobile-server-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Desktop floating circle buttons -->
                 <div
                     v-if="embedOpen"
                     class="moovie-frame__embed-sources"
@@ -499,6 +522,55 @@
                         {{ i + 1 }}
                     </button>
                 </div>
+
+                <!-- Mobile server modal sheet -->
+                <Transition name="moovie-settings">
+                    <div
+                        v-if="embedOpen && mobileServersOpen"
+                        class="moovie-frame__mobile-servers-overlay"
+                        @click.self="mobileServersOpen = false"
+                    >
+                        <div class="moovie-frame__mobile-servers-sheet" @click.stop>
+                            <div class="moovie-frame__settings-mobile-handle" />
+                            <div class="moovie-frame__mobile-servers-header">
+                                <div class="moovie-frame__mobile-servers-heading">
+                                    <span class="moovie-frame__settings-eyebrow">Streaming Servers</span>
+                                    <span class="moovie-frame__mobile-servers-title">Choose a Server</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="moovie-frame__mobile-servers-close"
+                                    @click="mobileServersOpen = false"
+                                    aria-label="Close"
+                                >
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="moovie-frame__mobile-servers-list">
+                                <button
+                                    v-for="(src, i) in embedSources"
+                                    :key="src.id"
+                                    type="button"
+                                    class="moovie-frame__mobile-server-item"
+                                    :class="{ 'is-active': activeEmbedId === src.id, 'is-disabled': !src.enabled }"
+                                    :disabled="!src.enabled"
+                                    @click="selectMobileServer(src.id)"
+                                >
+                                    <div class="moovie-frame__mobile-server-num">{{ i + 1 }}</div>
+                                    <div class="moovie-frame__mobile-server-info">
+                                        <span class="moovie-frame__mobile-server-name">{{ src.label }}</span>
+                                        <span class="moovie-frame__mobile-server-type">{{ src.id === 'native' ? 'Moovie Player (Default)' : 'Embed Server' }}</span>
+                                    </div>
+                                    <span v-if="activeEmbedId === src.id" class="moovie-frame__mobile-server-badge">Active</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
+
                 <div v-if="embedOpen && embedLoading" class="moovie-frame__embed-loader" aria-hidden="true">
                     <div class="moovie-frame__spinner" />
                 </div>
@@ -1228,6 +1300,19 @@ export default defineComponent({
                     embedLoaded[sourceId] = true
                 }, 2500)
             }
+        }
+
+        const mobileServersOpen = ref(false)
+        const activeServerLabel = computed(() => {
+            const found = embedSources.find(s => s.id === activeEmbedId.value)
+            return found ? found.label : 'Moovie Player'
+        })
+        function toggleMobileServers() {
+            mobileServersOpen.value = !mobileServersOpen.value
+        }
+        function selectMobileServer(sourceId: string) {
+            switchEmbed(sourceId)
+            mobileServersOpen.value = false
         }
         const embedUrl = computed(() => {
             const id = String(props.mediaId)
@@ -3542,7 +3627,7 @@ resolve(false)
             }
         })
 
-        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, paneSrc, embedLoading, onEmbedLoaded, embedSources, activeEmbedId, switchEmbed, handleMouseLeave, embedSourcesIdle }
+        return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, paneSrc, embedLoading, onEmbedLoaded, embedSources, activeEmbedId, switchEmbed, handleMouseLeave, embedSourcesIdle, mobileServersOpen, activeServerLabel, toggleMobileServers, selectMobileServer }
     },
 })
 </script>
@@ -4096,7 +4181,8 @@ resolve(false)
     pointer-events: none;
 }
 
-.moovie-frame__embed-overlay.is-native .moovie-frame__embed-sources {
+.moovie-frame__embed-overlay.is-native .moovie-frame__embed-sources,
+.moovie-frame__embed-overlay.is-native .moovie-frame__mobile-server-btn-wrap {
     pointer-events: auto;
 }
 
@@ -4182,6 +4268,230 @@ resolve(false)
 .moovie-frame__embed-src.is-disabled {
     opacity: 0.35;
     cursor: not-allowed;
+}
+
+/* Mobile top-right server selector pill */
+.moovie-frame__mobile-server-btn-wrap {
+    display: none;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 45;
+    pointer-events: auto;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+
+    &.is-idle {
+        opacity: 0;
+        transform: translateY(-6px);
+        pointer-events: none;
+    }
+}
+
+.moovie-frame__mobile-server-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px 0 10px;
+    border-radius: 999px;
+    background: rgba(18, 18, 24, 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font-family: var(--font-ui, system-ui, sans-serif);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+
+    &:active,
+    &.is-active {
+        background: rgba(30, 30, 40, 0.95);
+        border-color: rgba(255, 255, 255, 0.35);
+        transform: scale(0.97);
+    }
+}
+
+.moovie-frame__mobile-server-icon {
+    color: var(--player-accent, #fff);
+    flex-shrink: 0;
+}
+
+.moovie-frame__mobile-server-text {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.moovie-frame__mobile-server-arrow {
+    opacity: 0.65;
+    transition: transform 0.2s ease;
+
+    .moovie-frame__mobile-server-btn.is-active & {
+        transform: rotate(180deg);
+    }
+}
+
+/* Mobile server selection modal sheet */
+.moovie-frame__mobile-servers-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.68);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: auto;
+}
+
+.moovie-frame__mobile-servers-sheet {
+    width: 100%;
+    max-height: 85%;
+    background: rgba(18, 18, 22, 0.96);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px 18px 0 0;
+    padding: 0 0 16px 0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.8);
+}
+
+.moovie-frame__mobile-servers-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.moovie-frame__mobile-servers-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.moovie-frame__mobile-servers-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    font-family: var(--font-ui, system-ui, sans-serif);
+}
+
+.moovie-frame__mobile-servers-close {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-content: center;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    &:active {
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff;
+    }
+}
+
+.moovie-frame__mobile-servers-list {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    max-height: 55vh;
+}
+
+.moovie-frame__mobile-server-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    text-align: left;
+    cursor: pointer;
+    font-family: var(--font-ui, system-ui, sans-serif);
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:active {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    &.is-active {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: #fff;
+    }
+
+    &.is-disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+}
+
+.moovie-frame__mobile-server-num {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: grid;
+    place-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+
+    .moovie-frame__mobile-server-item.is-active & {
+        background: #fff;
+        color: #000;
+    }
+}
+
+.moovie-frame__mobile-server-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.moovie-frame__mobile-server-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.moovie-frame__mobile-server-type {
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-top: 1px;
+}
+
+.moovie-frame__mobile-server-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
 }
 
 .moovie-frame__settings-scroll {
@@ -4986,6 +5296,18 @@ resolve(false)
 @media (max-width: 768px), (pointer: coarse) {
     .moovie-frame__cast-btn {
         display: grid !important;
+    }
+
+    .moovie-frame__embed-sources {
+        display: none !important;
+    }
+
+    .moovie-frame__mobile-server-btn-wrap {
+        display: flex !important;
+    }
+
+    .moovie-frame__mobile-servers-overlay {
+        display: flex !important;
     }
 }
 </style>

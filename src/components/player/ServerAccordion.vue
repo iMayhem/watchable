@@ -311,20 +311,25 @@ export default defineComponent({
             top: calc(100% + var(--s-2));
             right: 0;
             z-index: calc(var(--z-header) + 1);
-            width: min(360px, calc(100vw - var(--s-4)));
+            width: min(280px, calc(100vw - var(--s-4)));
             max-height: min(62vh, 520px);
             overflow-y: auto;
-            padding: var(--s-3);
+            padding: var(--s-2);
             border: 1px solid var(--rule);
-            border-radius: var(--r-lg);
+            border-radius: var(--r-md);
             background: rgba(19, 17, 14, 0.98);
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
             backdrop-filter: blur(16px);
 
             @media (max-width: 640px) {
+                position: absolute;
+                top: calc(100% + 6px);
                 right: 0;
-                width: min(320px, calc(100vw - 1.5rem));
-                max-width: 320px;
+                left: auto;
+                width: min(220px, calc(100vw - 1rem));
+                max-width: 220px;
+                padding: 6px;
+                border-radius: 10px;
             }
         }
 
@@ -332,10 +337,51 @@ export default defineComponent({
             grid-template-columns: 1fr;
             gap: var(--s-2);
             margin-top: 0;
+
+            @media (max-width: 640px) {
+                gap: 4px;
+            }
+        }
+
+        .server-card {
+            padding: 0.45rem 0.65rem;
+
+            .server-card__name {
+                font-size: 0.85rem;
+            }
+
+            .server-card__hint {
+                font-size: 0.7rem;
+            }
+
+            @media (max-width: 640px) {
+                padding: 5px 8px;
+                border-radius: 6px;
+                gap: 4px;
+
+                .server-card__name {
+                    font-size: 0.78rem !important;
+                }
+
+                .server-card__hint {
+                    font-size: 0.64rem !important;
+                }
+
+                .server-card__active {
+                    font-size: 0.62rem !important;
+                }
+            }
         }
 
         .server-accordion__tip {
-            margin-top: var(--s-3);
+            margin-top: var(--s-2);
+
+            @media (max-width: 640px) {
+                font-size: 0.65rem !important;
+                margin-top: 4px;
+                padding: 0 2px;
+                line-height: 1.3;
+            }
         }
 
         @media (max-width: 640px) {
@@ -375,7 +421,7 @@ export default defineComponent({
 .server-card {
     all: unset;
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 1fr auto;
     gap: var(--s-3);
     align-items: center;
     width: 100%;
@@ -424,6 +470,7 @@ export default defineComponent({
         display: grid;
         gap: 0.15rem;
         min-width: 0;
+        overflow: hidden;
     }
 
     &__name {
@@ -434,6 +481,9 @@ export default defineComponent({
         align-items: center;
         gap: var(--s-2);
         font-size: var(--fs-base);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     &__wp {
@@ -444,12 +494,17 @@ export default defineComponent({
 
     &__hint {
         color: var(--bone-400);
+        font-size: var(--fs-xs);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     &__state {
         display: inline-flex;
         align-items: center;
         gap: var(--s-2);
+        flex-shrink: 0;
     }
 
     &__active {

@@ -1284,20 +1284,23 @@ export default defineComponent({
             ctx.emit('embed-change', embedOpen.value)
             if (embedOpen.value) {
                 settingsOpen.value = false
-                const video = videoRef.value
-                if (video) video.pause()
                 if (activeEmbedId.value === 'native') {
-                    activeEmbedId.value = embedSources.find(s => s.enabled && s.id !== 'native')?.id || 'vidrock'
+                    if (!streams.value.length && !loading.value && !originalStream.value) {
+                        void doLoad()
+                    }
+                } else {
+                    const video = videoRef.value
+                    if (video) video.pause()
                 }
-                // Clear all EXCEPT the pre-warmed default to preserve its load state
+                // Clear all EXCEPT the active pane
                 for (const s of embedSources) {
                     if (s.id !== activeEmbedId.value) {
                         paneSrc[s.id] = ''
                         embedLoaded[s.id] = false
                     }
                 }
-                // If not yet pre-warmed, populate now
-                if (!paneSrc[activeEmbedId.value]) {
+                // If active is an iframe and not yet populated, populate now
+                if (activeEmbedId.value !== 'native' && !paneSrc[activeEmbedId.value]) {
                     paneSrc[activeEmbedId.value] = embedUrls.value[activeEmbedId.value] || ''
                 }
             } else {

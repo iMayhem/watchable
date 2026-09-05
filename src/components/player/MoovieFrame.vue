@@ -1512,7 +1512,8 @@ export default defineComponent({
             embedSourcesIdle.value = false
             if (idleTimer) clearTimeout(idleTimer)
             idleTimer = setTimeout(function() {
-                if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value && !isHoveringControls.value) {
+                const isMediaActive = playing.value || activeEmbedId.value !== 'native'
+                if (isMediaActive && !seeking.value && !settingsOpen.value && !qualityOpen.value && !isHoveringControls.value) {
                     controlsHidden.value = true
                     embedSourcesIdle.value = true
                 }
@@ -1520,7 +1521,8 @@ export default defineComponent({
         }
         function handleMouseLeave() {
             isHoveringControls.value = false
-            if (playing.value && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
+            const isMediaActive = playing.value || activeEmbedId.value !== 'native'
+            if (isMediaActive && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
                 controlsHidden.value = true
                 embedSourcesIdle.value = true
                 if (idleTimer) clearTimeout(idleTimer)

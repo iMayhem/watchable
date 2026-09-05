@@ -1,5 +1,5 @@
 import useAxios from './useAxios';
-import { buildAnimeplayAnilistEmbedUrl } from './useAnimeplay';
+import { buildAnimeplayAnilistEmbedUrl, buildMegaplayAnilistEmbedUrl } from './useAnimeplay';
 import { queryAniListApi } from './useAniList';
 
 export interface AnimeTmdbEpisode {
@@ -512,7 +512,14 @@ export function buildAnimeEmbedUrl(
         return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}?color=${VIDEASY_COLOR}&autoplayNextEpisode=true&overlay=true&nextEpisode=true`;
     }
 
-    if (serverName === 'AnimePlay' || serverName === 'Shrikhand' || serverName === 'Rabri') {
+    if (serverName === 'Sugar' || serverName === 'Rabri') {
+        const tab = seasonTabs.find((s) => s.seasonNumber === season);
+        const targetAnilistId = tab?.anilistId || anilistId;
+        const targetEpisode = (tab && tab.anilistId && tab.anilistId !== anilistId) ? episode : absoluteEpisode;
+        return buildMegaplayAnilistEmbedUrl(targetAnilistId, targetEpisode, lang);
+    }
+
+    if (serverName === 'AnimePlay' || serverName === 'Shrikhand') {
         const tab = seasonTabs.find((s) => s.seasonNumber === season);
         const targetAnilistId = tab?.anilistId || anilistId;
         const targetEpisode = (tab && tab.anilistId && tab.anilistId !== anilistId) ? episode : absoluteEpisode;

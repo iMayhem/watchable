@@ -370,14 +370,14 @@ export default defineComponent({
         const animeTitle = computed(() => tmdbShow.value?.name || '');
 
         const availableServers: Server[] = [
-            { name: 'Barfi', urlTemplate: 'https://player.videasy.net/anime/{id}/{episode}?color=E05A47&autoplayNextEpisode=true&overlay=true' },
+            { name: 'Sugar', urlTemplate: 'https://megaplay.buzz/stream/ani/{id}/{episode}/{lang}' },
             { name: 'Shrikhand', urlTemplate: 'https://animeplay.cfd/stream/ani/{id}/{episode}/{lang}' },
-            { name: 'Rabri', urlTemplate: 'https://megaplay.buzz/stream/ani/{id}/{episode}/{lang}' }
+            { name: 'Barfi', urlTemplate: 'https://player.videasy.net/anime/{id}/{episode}?color=E05A47&autoplayNextEpisode=true&overlay=true' }
         ];
 
         const isAnimeplayServer = computed(() => {
             const server = availableServers[activeServerIndex.value];
-            return server?.name === 'Shrikhand' || server?.name === 'Rabri';
+            return server?.name === 'Sugar' || server?.name === 'Shrikhand' || server?.name === 'Rabri';
         });
 
         const globalMaxEpisode = computed(() =>

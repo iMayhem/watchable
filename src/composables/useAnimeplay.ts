@@ -1,5 +1,6 @@
 /** AnimePlay embed API — AniList route only. */
 export const ANIMEPLAY_EMBED_ORIGIN = 'https://animeplay.cfd';
+export const MEGAPLAY_EMBED_ORIGIN = 'https://megaplay.buzz';
 
 export type AnimeplayLanguage = 'sub' | 'dub';
 
@@ -11,6 +12,16 @@ export function buildAnimeplayAnilistEmbedUrl(
 ): string {
     if (!anilistId || !episode) return '';
     return `${ANIMEPLAY_EMBED_ORIGIN}/stream/ani/${anilistId}/${episode}/${lang}`;
+}
+
+/** https://megaplay.buzz/stream/ani/{anilist-id}/{ep-num}/{language} */
+export function buildMegaplayAnilistEmbedUrl(
+    anilistId: number,
+    episode: number,
+    lang: AnimeplayLanguage = 'sub'
+): string {
+    if (!anilistId || !episode) return '';
+    return `${MEGAPLAY_EMBED_ORIGIN}/stream/ani/${anilistId}/${episode}/${lang}`;
 }
 
 export function isAnimeplayEmbedUrl(url: string): boolean {

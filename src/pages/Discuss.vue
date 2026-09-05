@@ -1103,6 +1103,14 @@ export default defineComponent({
     @media (max-width: 900px) {
         grid-template-columns: 1fr;
         grid-template-rows: repeat(2, minmax(0, 1fr));
+
+        .discuss-chat--reviews {
+            order: 1;
+        }
+
+        .discuss-chat--lounge {
+            order: 2;
+        }
     }
 }
 

@@ -705,7 +705,7 @@
             { id: 'jellify',  name: 'Jellify',     movie: 'https://jellify.live/embed/movie/{tmdbId}',                           tv: 'https://jellify.live/embed/tv/{tmdbId}/{season}/{episode}' },
         ];
         
-        let activeProvider = 'filmu';
+        let activeProvider = 'moovie';
         let partyBufferingTimer = null;
         let lastMooviePlayerTime = 0;
         let lastMooviePlayerPlaying = false;
@@ -1171,7 +1171,7 @@
         }
 
         async function resolveDefaultStreamProvider() {
-            activeProvider = 'filmu';
+            activeProvider = 'moovie';
         }
 
         async function loadRoomEmbed() {
@@ -1179,7 +1179,7 @@
 
             try {
                 resolveDefaultStreamProvider();
-                switchStreamProvider(activeProvider || 'filmu');
+                switchStreamProvider(activeProvider || 'moovie');
             } catch (err) {
                 console.error('Failed to load room embed:', err);
             } finally {

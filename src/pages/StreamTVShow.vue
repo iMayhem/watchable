@@ -32,7 +32,6 @@
                 :title="show?.name || 'Stream'"
                 :backdrop-path="show?.backdrop_path || ''"
                 :poster-path="show?.poster_path || ''"
-                auto-embed
                 @embed-change="onEmbedChange"
                 @next-episode="goToNextEpisode"
                 @prev-episode="goToPreviousEpisode"
@@ -696,7 +695,30 @@ export default defineComponent({
         .watch-stage__video-layer {
             position: absolute !important;
             inset: 0;
-            height: 100%;
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        :deep(.moovie-frame),
+        :deep(.moovie-frame__stage),
+        :deep(.moovie-frame__player),
+        :deep(.moovie-frame__video) {
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 0 !important;
+            min-height: 1px !important;
+        }
+
+        :deep(.moovie-frame__video) {
+            position: absolute !important;
+            inset: 0 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            object-fit: contain !important;
+            z-index: 1 !important;
         }
     }
 

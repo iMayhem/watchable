@@ -479,7 +479,7 @@
                  </Transition>
              </div>
 
-            <div class="moovie-frame__embed-overlay" :class="{ 'is-open': embedOpen, 'is-native': embedOpen && activeEmbedId === 'native' }" @click.self="toggleEmbedMode">
+            <div v-if="embedOpen && activeEmbedId !== 'native'" class="moovie-frame__embed-overlay is-open" @click.self="toggleEmbedMode">
                 <!-- Mobile top-right server selector button -->
                 <div v-if="embedOpen" class="moovie-frame__mobile-server-btn-wrap" :class="{ 'is-idle': embedSourcesIdle }">
                     <button

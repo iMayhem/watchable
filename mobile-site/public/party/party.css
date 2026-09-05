@@ -1755,6 +1755,8 @@
         body.room-view-active .player-iframe{
             visibility: visible !important;
             pointer-events: auto !important;
+            opacity: 1 !important;
+            display: block !important;
         }
 
         

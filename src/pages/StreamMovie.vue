@@ -28,7 +28,6 @@
                 ref="frameRef"
                 :media-id="movieId"
                 media-type="movie"
-                auto-embed
                 :title="movie?.title || 'Stream'"
                 :backdrop-path="movie?.backdrop_path || ''"
                 :poster-path="movie?.poster_path || ''"

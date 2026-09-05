@@ -712,12 +712,18 @@ export default defineComponent({
     }
 
     // ── Mouse-capture layer (re-shows controls when iframe has focus) ────────
+    // ── Mouse-capture layer (re-shows controls when iframe has focus) ────────
     &__capture {
         position: fixed;
         inset: 0;
         z-index: 10; // above iframe, below top-overlay (z-index: 50)
         cursor: none;
         background: transparent;
+
+        @media (max-width: 768px), (pointer: coarse) {
+            display: none !important;
+            pointer-events: none !important;
+        }
     }
 
     // ── Video layer ──────────────────────────────────────────────────────────
@@ -794,6 +800,7 @@ export default defineComponent({
         justify-content: space-between;
         gap: 1rem;
         padding: 1.25rem calc(2rem + env(safe-area-inset-left, 0px)) 1rem calc(2rem + env(safe-area-inset-right, 0px));
+        pointer-events: none;
 
         @media (max-width: 640px) {
             padding: 0.75rem 1rem;
@@ -806,6 +813,11 @@ export default defineComponent({
         gap: 0.75rem;
         min-width: 0;
         flex: 1;
+        pointer-events: none;
+
+        @media (max-width: 768px) {
+            margin-left: 48px;
+        }
     }
 
     &__top-right {
@@ -813,6 +825,7 @@ export default defineComponent({
         align-items: center;
         gap: 0.75rem;
         flex-shrink: 0;
+        pointer-events: auto;
     }
 
     &__back {
@@ -827,6 +840,7 @@ export default defineComponent({
         background-color: transparent !important;
         border: 0 !important;
         box-shadow: none !important;
+        pointer-events: auto;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         cursor: pointer;

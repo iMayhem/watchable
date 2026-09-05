@@ -702,7 +702,12 @@ export default defineComponent({
     &.controls-visible {
         cursor: default;
 
-        .watch-stage__top-overlay,
+        .watch-stage__top-overlay {
+            opacity: 1;
+            pointer-events: none !important;
+            transform: translateY(0);
+        }
+
         .watch-stage__back,
         .watch-stage__top-right {
             opacity: 1;

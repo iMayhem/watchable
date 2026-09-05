@@ -4184,8 +4184,12 @@ resolve(false)
 }
 
 .moovie-frame__embed-overlay.is-native .moovie-frame__embed-sources,
-.moovie-frame__embed-overlay.is-native .moovie-frame__mobile-server-btn-wrap {
-    pointer-events: auto;
+.moovie-frame__embed-overlay.is-native .moovie-frame__mobile-server-btn-wrap,
+.moovie-frame__embed-overlay.is-native .moovie-frame__mobile-servers-overlay,
+.moovie-frame__embed-overlay.is-native .moovie-frame__mobile-servers-sheet,
+.moovie-frame__embed-overlay.is-native .moovie-frame__mobile-server-item,
+.moovie-frame__embed-overlay.is-native .moovie-frame__mobile-servers-close {
+    pointer-events: auto !important;
 }
 
 .moovie-frame.is-embedding .moovie-frame__player {
@@ -4278,14 +4282,14 @@ resolve(false)
     position: absolute;
     top: 14px;
     right: 14px;
-    z-index: 45;
-    pointer-events: auto;
+    z-index: 60;
+    pointer-events: auto !important;
     transition: opacity 0.35s ease, transform 0.35s ease;
 
     &.is-idle {
         opacity: 0;
         transform: translateY(-6px);
-        pointer-events: none;
+        pointer-events: none !important;
     }
 }
 
@@ -4306,6 +4310,8 @@ resolve(false)
     font-weight: 600;
     cursor: pointer;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    pointer-events: auto !important;
+    touch-action: manipulation;
     transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 
     &:active,
@@ -4343,13 +4349,13 @@ resolve(false)
     display: none;
     position: absolute;
     inset: 0;
-    z-index: 50;
+    z-index: 100;
     background: rgba(0, 0, 0, 0.68);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     align-items: flex-end;
     justify-content: center;
-    pointer-events: auto;
+    pointer-events: auto !important;
 }
 
 .moovie-frame__mobile-servers-sheet {

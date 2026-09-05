@@ -1314,6 +1314,18 @@ export default defineComponent({
             switchEmbed(sourceId)
             mobileServersOpen.value = false
         }
+
+        watch([settingsOpen, mobileServersOpen], ([settings, servers]) => {
+            if (typeof document !== 'undefined') {
+                if (settings || servers) {
+                    document.documentElement.style.overflow = 'hidden'
+                    document.body.style.overflow = 'hidden'
+                } else {
+                    document.documentElement.style.overflow = ''
+                    document.body.style.overflow = ''
+                }
+            }
+        })
         const embedUrl = computed(() => {
             const id = String(props.mediaId)
             const src = embedSources.find(s => s.id === activeEmbedId.value) || embedSources[0]
@@ -3627,6 +3639,10 @@ resolve(false)
                 root.removeEventListener('touchstart', resetIdleTimer)
                 root.removeEventListener('mouseleave', handleMouseLeave)
             }
+            if (typeof document !== 'undefined') {
+                document.documentElement.style.overflow = ''
+                document.body.style.overflow = ''
+            }
         })
 
         return { rootRef, videoRef, qualityRootRef, loading, error, activeProviderName, activeProviderStatus, providers, streams, uniqueQualities, selectedQualityIndex, activeQualityLabel, hlsQualities, hlsQualityLabel, selectedHlsQuality, qualityOpen, buffering, seeking, retry, selectQuality, settingsOpen, settingsSection, selectedServer, availableServers, audioTracks, selectedAudioTrack, currentAudioLabel, subtitleTracks, selectedSubtitleTrack, currentSubtitleLabel, osSubActive, selectServer, selectAudioTrack, selectSubtitleTrack, toggleSubtitles, selectHlsQuality, playing, currentTime, duration, muted, playbackSpeed, isPiP, isFullscreen, playbackStarted, PLAYBACK_SPEEDS, togglePlay, toggleMute, toggleFullscreen, formatTime, seek, seekBy, setPlaybackSpeed, togglePiP, handleCastToTV, handleDownloadMedia, loadOpenSubtitles, controlsHidden, isHoveringControls, resetIdleTimer, subtitleDelay, subtitleBgOpacity, subtitleTextOpacity, subtitleFontSize, subtitlePosition, changeSubtitleDelay, resetSubtitleDelay, brandText, moveSubtitles, volumeSliderOpen, volume, onVolumeChange, handleVolumeButtonClick, activeCueText, activeCueTextFormatted, embedOpen, embedUrl, toggleEmbedMode, paneSrc, embedLoading, onEmbedLoaded, embedSources, activeEmbedId, switchEmbed, handleMouseLeave, embedSourcesIdle, mobileServersOpen, activeServerLabel, toggleMobileServers, selectMobileServer }
@@ -4135,6 +4151,9 @@ resolve(false)
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 
     &::before {
         content: '';
@@ -4506,6 +4525,9 @@ resolve(false)
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     padding: 6px;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.08) transparent;

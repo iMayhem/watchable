@@ -295,6 +295,7 @@ export default defineComponent({
     background: #000;
     color: #fff;
     overflow-x: hidden;
+    overscroll-behavior-y: contain;
     cursor: none;
 
     &.is-embed {

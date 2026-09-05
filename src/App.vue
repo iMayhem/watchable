@@ -1,5 +1,7 @@
 <template>
-    <router-view v-if="isBareLayout" />
+    <div v-if="isBareLayout" class="bare-stage">
+        <router-view />
+    </div>
 
     <div v-else class="app-stage" :class="{ 'app-stage--party-embed': isPartyEmbed }">
         <a v-if="!isPartyEmbed" class="app-skip" href="#main">Skip to content</a>
@@ -46,6 +48,12 @@ import SuggestionPopup from './components/navigation/SuggestionPopup.vue';
 
 const route = useRoute();
 const isBareLayout = computed(() => Boolean(route.meta.bareLayout));
+watch(isBareLayout, (bare) => {
+    if (typeof document !== 'undefined') {
+        document.documentElement.classList.toggle('is-bare-layout', Boolean(bare));
+        document.body.classList.toggle('is-bare-layout', Boolean(bare));
+    }
+}, { immediate: true });
 const isPartyEmbed = computed(
     () => Boolean(route.meta.partyEmbed) || route.query.embed === 'party'
 );
@@ -251,5 +259,26 @@ img {
     user-drag: none;
 }
 
+.bare-stage {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background: #000;
+}
+
+:global(html.is-bare-layout),
+:global(body.is-bare-layout),
+:global(#app:has(.bare-stage)) {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #000 !important;
+}
 
 </style>

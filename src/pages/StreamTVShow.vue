@@ -688,32 +688,45 @@ export default defineComponent({
     cursor: none;
 
     &.is-embed {
-        min-height: 100% !important;
-        height: 100% !important;
-        overflow: hidden;
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+        max-width: 100vw !important;
+        max-height: 100dvh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
 
         .watch-stage__video-layer {
             position: absolute !important;
-            inset: 0;
+            inset: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            min-width: 0;
-            min-height: 0;
+            min-width: 100% !important;
+            min-height: 100% !important;
         }
 
         :deep(.moovie-frame),
         :deep(.moovie-frame__stage),
-        :deep(.moovie-frame__player),
-        :deep(.moovie-frame__video) {
+        :deep(.moovie-frame__player) {
+            position: absolute !important;
+            inset: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            min-width: 0 !important;
-            min-height: 1px !important;
+            min-width: 100% !important;
+            min-height: 100% !important;
         }
 
         :deep(.moovie-frame__video) {
             position: absolute !important;
             inset: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-width: 100% !important;
+            min-height: 100% !important;
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;

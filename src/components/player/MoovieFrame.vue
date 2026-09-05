@@ -1804,7 +1804,13 @@ export default defineComponent({
             video.autoplay = true
             video.playbackRate = playbackSpeed.value
 
-            const onBufferEnd = () => { buffering.value = false; playing.value = !video.paused }
+            const onBufferEnd = () => {
+                buffering.value = false
+                playing.value = !video.paused
+                if (playing.value || (video.currentTime > 0 && !video.paused)) {
+                    loading.value = false
+                }
+            }
             const refreshPoseidonAfterPlaybackError = async () => {
                 const source = originalStream.value as (HubStream & { providerId?: string }) | null
                 const providerId = String(source?.providerId || '').toLowerCase()
@@ -1885,9 +1891,19 @@ export default defineComponent({
                 }
             }, 250);
             video.addEventListener('waiting', () => { buffering.value = true })
-            video.addEventListener('playing', () => { playbackStarted.value = true; firstFrameShown.value = true; onBufferEnd() })
-            video.addEventListener('canplay', onBufferEnd)
-            video.addEventListener('loadeddata', onBufferEnd)
+            video.addEventListener('playing', () => {
+                loading.value = false
+                buffering.value = false
+                playbackStarted.value = true
+                firstFrameShown.value = true
+                onBufferEnd()
+            })
+            video.addEventListener('canplay', () => {
+                onBufferEnd()
+            })
+            video.addEventListener('loadeddata', () => {
+                onBufferEnd()
+            })
             video.addEventListener('seeked', onSeeked)
             video.addEventListener('error', () => {
                 console.error('[MoovieFrame][seek-trace] video error', {
@@ -1903,7 +1919,12 @@ export default defineComponent({
             })
             video.addEventListener('error', () => { void refreshPoseidonAfterPlaybackError() }, { once: true })
             video.addEventListener('abort', onBufferEnd)
-            video.addEventListener('timeupdate', onTimeUpdate)
+            video.addEventListener('timeupdate', () => {
+                if (loading.value && video.currentTime > 0) {
+                    loading.value = false
+                }
+                onTimeUpdate()
+            })
 
             // Autoplay: the `autoplay` attribute alone is ignored by browsers when
             // sound is enabled and there's no user gesture, so force an explicit

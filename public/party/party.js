@@ -1231,6 +1231,11 @@
                 newIframe.id = 'video-player-iframe';
                 newIframe.className = oldIframe.className;
                 newIframe.style.display = 'block';
+                newIframe.style.width = '100%';
+                newIframe.style.height = '100%';
+                newIframe.style.border = 'none';
+                newIframe.style.visibility = 'visible';
+                newIframe.style.opacity = '1';
                 newIframe.allowFullscreen = true;
                 newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
                 newIframe.setAttribute('referrerpolicy', 'no-referrer');
@@ -1266,17 +1271,22 @@
             });
 
             if (matched) {
-                // Show loader
+                // Show loader for third-party embeds, but not for native moovie embed
                 const loader = document.getElementById('party-embed-loader');
                 if (loader) {
-                    loader.hidden = false;
-                    loader.classList.remove('is-hidden');
+                    if (providerId === 'moovie') {
+                        loader.hidden = true;
+                        loader.classList.add('is-hidden');
+                    } else {
+                        loader.hidden = false;
+                        loader.classList.remove('is-hidden');
+                    }
                 }
                 const embedUrl = getEmbedUrlForServer(matched, mediaId, isTv, season, episode);
                 const iframe = showEmbedPlayer(embedUrl);
                 
                 // Hide loader once iframe loads or on timeout
-                if (loader) {
+                if (loader && providerId !== 'moovie') {
                     let done = false;
                     const hide = () => {
                         if (done) return;

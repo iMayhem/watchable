@@ -322,9 +322,9 @@ export default defineComponent({
             backdrop-filter: blur(16px);
 
             @media (max-width: 640px) {
-                right: var(--s-3);
-                width: calc(100vw - var(--s-6));
-                max-width: 340px;
+                right: 0;
+                width: min(320px, calc(100vw - 1.5rem));
+                max-width: 320px;
             }
         }
 
@@ -339,12 +339,14 @@ export default defineComponent({
         }
 
         @media (max-width: 640px) {
-            position: static;
+            position: relative;
             min-width: 0;
+            flex-shrink: 0;
 
             .server-accordion__head {
-                min-height: 36px;
-                padding: 0.35rem 0.65rem 0.35rem 0.75rem;
+                min-height: 30px;
+                padding: 0.2rem 0.45rem 0.2rem 0.55rem;
+                gap: 4px;
             }
 
             .server-accordion__title {
@@ -352,18 +354,18 @@ export default defineComponent({
             }
 
             :deep(.lm-pill) {
-                font-size: var(--fs-xs) !important;
-                padding: 0.15rem 0.45rem !important;
-                min-height: 22px !important;
+                font-size: 0.72rem !important;
+                padding: 0.12rem 0.4rem !important;
+                min-height: 20px !important;
             }
 
             .server-accordion__chev {
-                width: 16px;
-                height: 16px;
+                width: 14px;
+                height: 14px;
 
                 svg {
-                    width: 14px;
-                    height: 14px;
+                    width: 12px;
+                    height: 12px;
                 }
             }
         }

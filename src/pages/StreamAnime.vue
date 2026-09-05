@@ -41,6 +41,18 @@
         <div v-if="!isEmbed" class="watch-stage__top-overlay">
             <div class="watch-stage__top-bar">
                 <div class="watch-stage__top-left">
+                    <button
+                        type="button"
+                        class="watch-stage__back"
+                        aria-label="Back to anime"
+                        title="Back to anime"
+                        @click="goBack"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 12H5" />
+                            <path d="m12 19-7-7 7-7" />
+                        </svg>
+                    </button>
                     <div class="watch-stage__breadcrumb">
                         <span class="watch-stage__breadcrumb-sep">·</span>
                         <h1 v-if="tmdbShow" class="watch-stage__title">{{ animeTitle }}</h1>
@@ -60,7 +72,8 @@
                             </svg>
                         </button>
                         <span class="watch-stage__ep-code" @click="openEpisodePicker">
-                            Episode {{ getEpisodeInSeasonNumber(currentEpisode) }}
+                            <span class="watch-stage__ep-code-full">Episode {{ getEpisodeInSeasonNumber(currentEpisode) }}</span>
+                            <span class="watch-stage__ep-code-short">Ep {{ getEpisodeInSeasonNumber(currentEpisode) }}</span>
                         </span>
                         <button
                             type="button"
@@ -1372,7 +1385,8 @@ export default defineComponent({
         padding: 1.25rem calc(2rem + env(safe-area-inset-left, 0px)) 1rem calc(2rem + env(safe-area-inset-right, 0px));
 
         @media (max-width: 640px) {
-            padding: 0.75rem 1rem;
+            padding: 0.6rem 0.75rem;
+            gap: 0.35rem;
         }
     }
 
@@ -1382,6 +1396,11 @@ export default defineComponent({
         gap: 0.75rem;
         min-width: 0;
         flex: 1;
+
+        @media (max-width: 640px) {
+            flex: 0 1 auto;
+            gap: 0.35rem;
+        }
     }
 
     &__top-right {
@@ -1389,6 +1408,11 @@ export default defineComponent({
         align-items: center;
         gap: 0.75rem;
         flex-shrink: 0;
+
+        @media (max-width: 640px) {
+            gap: 0.35rem;
+            margin-left: auto;
+        }
     }
 
     &__back {
@@ -1417,7 +1441,11 @@ export default defineComponent({
 
         :deep(svg) { width: 18px; height: 18px; }
 
-        @media (max-width: 640px) { width: 36px; height: 36px; }
+        @media (max-width: 640px) {
+            width: 32px;
+            height: 32px;
+            :deep(svg) { width: 16px; height: 16px; }
+        }
     }
 
     &__breadcrumb {
@@ -1468,6 +1496,11 @@ export default defineComponent({
         border-radius: 999px;
         padding: 0.3rem 0.5rem;
         flex-shrink: 0;
+
+        @media (max-width: 640px) {
+            padding: 0.18rem 0.35rem;
+            gap: 0.15rem;
+        }
     }
 
     &__nav-btn {
@@ -1490,6 +1523,16 @@ export default defineComponent({
             opacity: 0.3;
             cursor: not-allowed;
         }
+
+        @media (max-width: 640px) {
+            width: 20px;
+            height: 20px;
+
+            svg {
+                width: 11px;
+                height: 11px;
+            }
+        }
     }
 
     &__ep-code {
@@ -1501,8 +1544,27 @@ export default defineComponent({
         padding: 0 0.35rem;
         cursor: pointer;
         user-select: none;
+        white-space: nowrap;
 
         &:hover { color: rgba(255, 255, 255, 0.7); }
+
+        @media (max-width: 640px) {
+            font-size: 0.72rem;
+            padding: 0 0.2rem;
+        }
+    }
+
+    &__ep-code-full {
+        @media (max-width: 640px) {
+            display: none;
+        }
+    }
+
+    &__ep-code-short {
+        display: none;
+        @media (max-width: 640px) {
+            display: inline;
+        }
     }
 
     // Language pill (inline sub/dub toggle)
@@ -1725,7 +1787,9 @@ export default defineComponent({
         }
 
         @media (max-width: 640px) {
-            width: 36px;
+            width: 32px;
+            height: 32px;
+            min-height: 32px;
             padding: 0;
             justify-content: center;
         }

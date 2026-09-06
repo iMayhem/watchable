@@ -88,14 +88,31 @@ function makeStreamUrlsAbsolute(mwStream, host) {
   }
 }
 
-// Stream store auto-cleanup every 5 minutes
+// Stream store auto-cleanup every 60s + LRU cap to prevent OOM (fixes VPS hang requiring restart)
 const STREAM_TTL = 5 * 60 * 1000;
-setInterval(function() {
+const STREAM_MAX_ENTRIES = 2000;
+function pruneStreamStore() {
   const now = Date.now();
   for (const [key, entry] of streamStore) {
     if (now - entry.ts > STREAM_TTL) streamStore.delete(key);
   }
-}, 60 * 1000);
+  // LRU cap: delete oldest entries if over limit (prevents unbounded growth under load)
+  if (streamStore.size > STREAM_MAX_ENTRIES) {
+    const sorted = [...streamStore.entries()].sort((a, b) => a[1].ts - b[1].ts);
+    const toDelete = streamStore.size - STREAM_MAX_ENTRIES;
+    for (let i = 0; i < toDelete; i++) streamStore.delete(sorted[i][0]);
+  }
+}
+setInterval(pruneStreamStore, 60 * 1000);
+
+// Helper: wrap provider getStreams with timeout so one hung scraper doesn't block the hub
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 function loadConfig() {
   let cfg;
@@ -587,7 +604,7 @@ app.get('/scrape', async (req, res) => {
       }, 400);
 
       const mod = providers[id];
-      const streams = await mod.getStreams(tmdbId, mediaType, sNum, eNum);
+      const streams = await withTimeout(mod.getStreams(tmdbId, mediaType, sNum, eNum), config.globalTimeout || 12000, `provider:${id}`);
       clearInterval(progressTimer);
       progressTimer = null;
       if (sse.cancelled()) return;
@@ -686,7 +703,7 @@ app.get('/scrape/source', async (req, res) => {
         sse.emit('update', { id: currentId, percentage: progress, status: 'pending' });
       }, 400);
 
-      const streams = await mod.getStreams(tmdbId, mediaType, sNum, eNum);
+      const streams = await withTimeout(mod.getStreams(tmdbId, mediaType, sNum, eNum), config.globalTimeout || 12000, `provider:${currentId}`);
       clearInterval(progressTimer);
       if (sse.cancelled()) break;
 
@@ -1678,6 +1695,30 @@ app.get('/api/analytics/stats', analytics.handleStats);
 app.get('/api/analytics/events', analytics.handleEventsList);
 app.get('/api/analytics/realtime', analytics.handleRealtime);
 
+// Health endpoint - for uptime monitoring & prevents false Hub Error from marking healthy hub as down
+app.get('/health', (req, res) => {
+  const mem = process.memoryUsage();
+  res.json({
+    status: 'ok',
+    uptime: Math.round(process.uptime()),
+    memory: { rss: Math.round(mem.rss / 1024 / 1024) + 'MB', heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB' },
+    providers: Object.keys(providers).length,
+    streamStoreSize: streamStore.size,
+    timestamp: Date.now(),
+  });
+});
+app.get('/api/health', (req, res) => {
+  const mem = process.memoryUsage();
+  res.json({
+    status: 'ok',
+    uptime: Math.round(process.uptime()),
+    memory: { rss: Math.round(mem.rss / 1024 / 1024) + 'MB', heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB' },
+    providers: Object.keys(providers).length,
+    streamStoreSize: streamStore.size,
+    timestamp: Date.now(),
+  });
+});
+
 // Documentation page
 app.get('/docs', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'docs.html'));
@@ -1685,8 +1726,16 @@ app.get('/docs', (req, res) => {
 
 // SPA fallback - serve index.html for non-matching routes
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/') || req.path.startsWith('/proxy') || req.path.startsWith('/docs') || req.path.startsWith('/css/') || req.path.startsWith('/js/') || req.path.startsWith('/metadata') || req.path.startsWith('/scrape')) return next();
+  if (req.path.startsWith('/api/') || req.path.startsWith('/proxy') || req.path.startsWith('/docs') || req.path.startsWith('/css/') || req.path.startsWith('/js/') || req.path.startsWith('/metadata') || req.path.startsWith('/scrape') || req.path.startsWith('/health')) return next();
   res.sendFile(path.join(__dirname, 'public', 'index.html'), err => { if (err) next(); });
+});
+
+// Prevent unhandled rejections from crashing hub (common cause of Hub Error requiring restart)
+process.on('unhandledRejection', (reason) => {
+  console.error('[hub] unhandledRejection:', reason instanceof Error ? reason.message : reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[hub] uncaughtException:', err.message, err.stack);
 });
 
 async function start() {

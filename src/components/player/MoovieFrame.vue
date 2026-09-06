@@ -2194,12 +2194,39 @@ export default defineComponent({
                     }
                 }
 
+                let sseInitReceived = false
+                let sseErrorCount = 0
+                // Fail fast if hub is unreachable - prevents infinite loading that looks like Hub Error
+                const sseInitTimeout = setTimeout(() => {
+                    if (!sseInitReceived && !resolved) {
+                        console.warn('[MoovieFrame][SSE] init timeout after 12s - falling back to REST')
+                        if (eventSource) { eventSource.close(); eventSource = null }
+                        // Let outer catch trigger REST fallback instead of hard reject
+                        if (!resolved) { resolved = true; reject(new Error('Hub SSE timeout - trying fallback')) }
+                    }
+                }, 12000)
+
                 eventSource = new EventSource(url)
                 eventSource.onopen = () => console.debug('[MoovieFrame][SSE] connection opened')
-                eventSource.onerror = (error) => console.warn('[MoovieFrame][SSE] connection error', {
-                    readyState: eventSource?.readyState,
-                    error,
-                })
+                eventSource.onerror = (error) => {
+                    sseErrorCount++
+                    console.warn('[MoovieFrame][SSE] connection error', {
+                        readyState: eventSource?.readyState,
+                        error,
+                        count: sseErrorCount,
+                    })
+                    // After 2 consecutive errors and no output, close and fallback to REST
+                    if (sseErrorCount >= 2 && !hasAnyOutput && !sseInitReceived) {
+                        clearTimeout(sseInitTimeout)
+                        if (eventSource) { eventSource.close(); eventSource = null }
+                        if (!resolved) { resolved = true; reject(new Error('Hub connection failed')) }
+                    }
+                    // If we already have streams, don't treat error as fatal - wait for done
+                    if (hasAnyOutput && eventSource?.readyState === EventSource.CLOSED) {
+                        clearTimeout(sseInitTimeout)
+                        finish()
+                    }
+                }
 
                 const SCRAPER_NAMES: Record<string, string> = {
                     vaplayer: 'Poseidon',
@@ -2213,6 +2240,9 @@ export default defineComponent({
                 }
 
                 eventSource.addEventListener('init', (e: MessageEvent) => {
+                    sseInitReceived = true
+                    sseErrorCount = 0
+                    clearTimeout(sseInitTimeout)
                     try {
                         const data = JSON.parse(e.data)
                         console.debug('[MoovieFrame] init sourceIds:', data.sourceIds)
@@ -2446,6 +2476,7 @@ export default defineComponent({
                 })
 
                 eventSource.addEventListener('done', () => {
+                    clearTimeout(sseInitTimeout)
                     console.log('[MOVIEFRAME] SSE done event - playbackStarted:', playbackStarted.value, 'streams:', allStreams.length)
                     if (!playbackStarted.value && allStreams.length) {
                         playbackStarted.value = true
@@ -2462,7 +2493,7 @@ export default defineComponent({
                     }
                     finish()
                 })
-                eventSource.addEventListener('noOutput', () => { if (!hasAnyOutput) finish() })
+                eventSource.addEventListener('noOutput', () => { clearTimeout(sseInitTimeout); if (!hasAnyOutput) finish() })
                 eventSource.addEventListener('error', () => { /* keep waiting — reconnect is automatic */ })
             })
         }
@@ -2954,11 +2985,6 @@ export default defineComponent({
             let sourceEventSource: EventSource | null = new EventSource(scrapeUrl)
             activeSourceEventSource = sourceEventSource
             sourceEventSource.onopen = () => console.debug('[MoovieFrame][single-source] connection opened', { providerId })
-            sourceEventSource.onerror = (event) => console.warn('[MoovieFrame][single-source] connection error', {
-                providerId,
-                readyState: sourceEventSource?.readyState,
-                event,
-            })
             const scraperStreams: HubStream[] = []
             let finished = false
 
@@ -2970,6 +2996,30 @@ export default defineComponent({
             }
 
             return new Promise<boolean>((resolve) => {
+                let singleSseErrorCount = 0
+                const singleSseTimeout = setTimeout(() => {
+                    if (!finished && sourceEventSource) {
+                        console.warn('[MoovieFrame][single-source] timeout after 12s', providerId)
+                        cleanUpSSE()
+                        loading.value = false
+                        resolve(false)
+                    }
+                }, 12000)
+                sourceEventSource!.onerror = (event) => {
+                    singleSseErrorCount++
+                    console.warn('[MoovieFrame][single-source] connection error', {
+                        providerId,
+                        readyState: sourceEventSource?.readyState,
+                        event,
+                        count: singleSseErrorCount,
+                    })
+                    if (singleSseErrorCount >= 2 && !finished) {
+                        clearTimeout(singleSseTimeout)
+                        cleanUpSSE()
+                        loading.value = false
+                        resolve(false)
+                    }
+                }
                 sourceEventSource!.addEventListener('update', (e: MessageEvent) => {
                     try {
                         const data = JSON.parse(e.data)
@@ -2995,6 +3045,7 @@ export default defineComponent({
                 sourceEventSource!.addEventListener('completed', async (e: MessageEvent) => {
                     if (finished) return
                     finished = true
+                    clearTimeout(singleSseTimeout)
                     cleanUpSSE()
 
                     try {
@@ -3180,6 +3231,7 @@ export default defineComponent({
             sourceEventSource!.addEventListener('noOutput', () => {
                 if (finished) return
                 finished = true
+                clearTimeout(singleSseTimeout)
                 cleanUpSSE()
 
                 if (providerObj) {
@@ -3194,15 +3246,16 @@ export default defineComponent({
             sourceEventSource!.addEventListener('error', () => {
                 if (finished) return
                 finished = true
+                clearTimeout(singleSseTimeout)
                 cleanUpSSE()
 
                 if (providerObj) {
                     providerObj.status = 'failure'
                     providerObj.percentage = 100
                 }
-error.value = `Failed to connect to ${provider}`
-                    loading.value = false
-resolve(false)
+                error.value = `Failed to connect to ${provider}`
+                loading.value = false
+                resolve(false)
             })
         })
         }

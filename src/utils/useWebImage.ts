@@ -160,10 +160,11 @@ export function buildProxiedImageUrl(tmdbPath: string): string {
     if (!tmdbPath) return '';
     const path = normalizeTmdbPath(tmdbPath);
     const clean = path.startsWith('/') ? path.slice(1) : path;
-    // Use direct TMDB CDN for now - Pages Function at /tmdb-image/* requires `wrangler deploy`
-    // After deploy, switch to `/tmdb-image/${clean}` for pure Cloudflare edge (no VPS hop)
-    // VPS Nginx at hahaevilcraft.site/tmdb-image/* already proxies with 30d cache as fallback
-    return `${TMDB_BASE}${clean}`;
+    // Dev: direct TMDB to avoid needing Pages Functions locally
+    if (import.meta.env.DEV) return `${TMDB_BASE}${clean}`;
+    // Prod: Cloudflare Pages Function at /tmdb-image/* — 30d edge cache, no VPS hop
+    // Falls back to VPS Nginx proxy if served from hahaevilcraft.site
+    return `/tmdb-image/${clean}`;
 }
 
 /** Catalogue CDN posters — direct OSS resize (NetMirror parity). */

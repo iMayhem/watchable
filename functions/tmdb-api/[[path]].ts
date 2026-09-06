@@ -1,4 +1,10 @@
-export async function onRequest(context: { request: Request; params: { path?: string[] } }) {
+interface Ctx {
+  request: Request;
+  params: { path?: string[] };
+  waitUntil(promise: Promise<unknown>): void;
+}
+
+export async function onRequest(context: Ctx) {
   const url = new URL(context.request.url);
   const pathParts = context.params.path || [];
   const apiPath = pathParts.join('/');
@@ -8,8 +14,6 @@ export async function onRequest(context: { request: Request; params: { path?: st
   }
 
   const qs = url.search;
-  const apiKey = url.searchParams.get('api_key');
-  // Use env TMDB key if not provided - fallback to public key used in VPS
   const targetUrl = `https://api.themoviedb.org/${apiPath}${qs}`;
 
   const cacheKey = new Request(`https://tmdb-api-cache/${apiPath}${qs}`, { method: 'GET' });
@@ -40,7 +44,7 @@ export async function onRequest(context: { request: Request; params: { path?: st
     const response = new Response(body, { status: upstream.status, headers });
 
     if (upstream.ok) {
-      (context as any).waitUntil?.(cache.put(cacheKey, response.clone()));
+      context.waitUntil(cache.put(cacheKey, response.clone()));
     }
 
     return response;

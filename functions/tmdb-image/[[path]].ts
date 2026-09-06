@@ -1,4 +1,10 @@
-export async function onRequest(context: { request: Request; params: { path?: string[] } }) {
+interface Ctx {
+  request: Request;
+  params: { path?: string[] };
+  waitUntil(promise: Promise<unknown>): void;
+}
+
+export async function onRequest(context: Ctx) {
   const url = new URL(context.request.url);
   // Catch-all path: /tmdb-image/w500/abc.jpg -> ["w500","abc.jpg"]
   const pathParts = context.params.path || [];
@@ -65,9 +71,7 @@ export async function onRequest(context: { request: Request; params: { path?: st
     });
 
     // Store in edge cache (non-blocking)
-    context as any;
-    // @ts-ignore waitUntil available on Pages
-    (context as any).waitUntil?.(cache.put(cacheKey, response.clone()));
+    context.waitUntil(cache.put(cacheKey, response.clone()));
 
     return response;
   } catch (e: any) {

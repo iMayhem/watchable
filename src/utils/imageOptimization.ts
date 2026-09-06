@@ -48,8 +48,8 @@ export function getOptimizedImageUrl(
     return `${TMDB_BASE}${tmdbPath}`;
   }
 
-  // Production: Cloudflare edge proxy at /tmdb-image/* (30d cache, no VPS hop)
-  return `/tmdb-image/${tmdbPath}`;
+  // Use direct TMDB for now - see useWebImage.ts. After `wrangler deploy`, use `/tmdb-image/${tmdbPath}`
+  return `${TMDB_BASE}${tmdbPath}`;
 }
 
 /**

@@ -153,14 +153,17 @@ function normalizeTmdbPath(path: string): string {
 }
 
 /**
- * TMDB image URL (direct CDN). Path must include size token, e.g. w342/abc.jpg
- * Uses VPS proxy when configured, falls back to hahaevilcraft.site.
+ * TMDB image URL via Cloudflare edge (no VPS hop) - Pages Function at /tmdb-image/*
+ * Falls back to direct TMDB in dev. Global 30d edge cache via Cloudflare.
  */
 export function buildProxiedImageUrl(tmdbPath: string): string {
     if (!tmdbPath) return '';
     const path = normalizeTmdbPath(tmdbPath);
     const clean = path.startsWith('/') ? path.slice(1) : path;
-    return `${TMDB_BASE}${clean}`;
+    // In dev, hit TMDB directly to avoid needing Pages Functions locally
+    if (import.meta.env.DEV) return `${TMDB_BASE}${clean}`;
+    // Production: Cloudflare Pages Function at same origin - no VPS hop, global edge cache
+    return `/tmdb-image/${clean}`;
 }
 
 /** Catalogue CDN posters — direct OSS resize (NetMirror parity). */

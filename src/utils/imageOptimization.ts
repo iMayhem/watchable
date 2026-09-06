@@ -48,11 +48,8 @@ export function getOptimizedImageUrl(
     return `${TMDB_BASE}${tmdbPath}`;
   }
 
-  return buildWsrvImageUrl(`${TMDB_BASE}${tmdbPath}`, {
-    width: options.width,
-    quality: options.quality,
-    blur: options.blur
-  });
+  // Production: Cloudflare edge proxy at /tmdb-image/* (30d cache, no VPS hop)
+  return `/tmdb-image/${tmdbPath}`;
 }
 
 /**

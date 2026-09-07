@@ -2617,7 +2617,7 @@ export default defineComponent({
                 await proxySettingPromise
                 let poseidonTriedInChain = false
                 for (const provider of ordered) {
-                    const ok = await selectServer(provider.name)
+                    const ok = await selectServer(provider.name, { suppressErrors: true })
                     if (ok) {
                         console.debug('[MoovieFrame] initial single-source scrape started:', provider.name)
                         return
@@ -2631,7 +2631,7 @@ export default defineComponent({
                         providerList.some((p) => p.name.toLowerCase() === 'poseidon')
                     ) {
                         poseidonTriedInChain = true
-                        const poseidonOk = await selectServer('poseidon')
+                        const poseidonOk = await selectServer('poseidon', { suppressErrors: true })
                         if (poseidonOk) return
                     }
                 }
@@ -2900,11 +2900,17 @@ export default defineComponent({
             await tryPlayStream(stream)
         }
 
-        async function selectServer(provider: string) {
+        async function selectServer(provider: string, opts?: { suppressErrors?: boolean }) {
             selectedServer.value = provider
             settingsOpen.value = false
             settingsSection.value = null
             console.debug('[MoovieFrame] selectServer:', provider)
+            // While the automatic provider chain in doLoad() walks through
+            // sources, a single failed provider must not flash its error
+            // overlay (e.g. "Failed to connect to poseidon") for a frame
+            // before the next provider starts. Errors are only surfaced when
+            // the whole chain has failed (set by doLoad's catch).
+            const suppressErrors = opts?.suppressErrors === true
 
             const group = streams.value.filter(s => (s.providerName || '').toLowerCase() === provider.toLowerCase())
             if (group.length > 0) {
@@ -2932,7 +2938,7 @@ export default defineComponent({
                                 if (!response.ok) throw new Error(`cache invalidation failed: HTTP ${response.status}`)
                                 originalStream.value = null
                                 console.info('[MoovieFrame] Poseidon HLS failed; invalidated cache and retrying fresh Poseidon scrape')
-                                return await selectServer(provider)
+                                return await selectServer(provider, opts)
                             } catch (refreshError) {
                                 console.warn('[MoovieFrame] fresh Poseidon retry failed:', refreshError)
                             }
@@ -3188,13 +3194,13 @@ export default defineComponent({
                                 return
                             }
                         } else {
-                            error.value = `No compatible stream found on ${provider}`
+                            if (!suppressErrors) { error.value = `No compatible stream found on ${provider}` }
                             loading.value = false
                             resolve(false)
                             return
                         }
                     } else {
-                        error.value = `No streams returned on ${provider}`
+                        if (!suppressErrors) { error.value = `No streams returned on ${provider}` }
                         loading.value = false
                         resolve(false)
                         return
@@ -3217,7 +3223,7 @@ export default defineComponent({
                             if (!response.ok) throw new Error(`cache invalidation failed: HTTP ${response.status}`)
                             originalStream.value = null
                             console.info('[MoovieFrame] Poseidon HLS failed in single-source load; retrying fresh scrape')
-                            resolve(Boolean(await selectServer(provider)))
+                            resolve(Boolean(await selectServer(provider, opts)))
                             return
                         } catch (refreshError) {
                             console.warn('[MoovieFrame] fresh Poseidon single-source retry failed:', refreshError)
@@ -3227,7 +3233,7 @@ export default defineComponent({
                         providerObj.status = 'notfound'
                         providerObj.percentage = 100
                     }
-                    error.value = `No streams found on ${provider}`
+                    if (!suppressErrors) { error.value = `No streams found on ${provider}` }
                     loading.value = false
                     resolve(false)
                 }
@@ -3243,7 +3249,7 @@ export default defineComponent({
                     providerObj.status = 'notfound'
                     providerObj.percentage = 100
                 }
-                error.value = `No streams found on ${provider}`
+                if (!suppressErrors) { error.value = `No streams found on ${provider}` }
                 loading.value = false
                 resolve(false)
             })
@@ -3258,7 +3264,7 @@ export default defineComponent({
                     providerObj.status = 'failure'
                     providerObj.percentage = 100
                 }
-                error.value = `Failed to connect to ${provider}`
+                if (!suppressErrors) { error.value = `Failed to connect to ${provider}` }
                 loading.value = false
                 resolve(false)
             })

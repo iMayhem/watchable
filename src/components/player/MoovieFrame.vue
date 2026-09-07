@@ -73,7 +73,7 @@
                     </button>
                 </div>
 
-                <div v-if="error && !loading" class="moovie-frame__overlay moovie-frame__overlay--error">
+                <div v-if="error && !loading && !playbackStarted" class="moovie-frame__overlay moovie-frame__overlay--error">
                     <p class="eyebrow">Hub Error</p>
                     <h3>{{ error }}</h3>
                     <button type="button" class="moovie-frame__retry" @click="retry">Retry</button>
@@ -2748,6 +2748,11 @@ export default defineComponent({
                     }
                 }
             }
+            // Mount succeeded: clear any stale per-provider error (e.g. an
+            // earlier "Failed to connect to Poseidon") so the error overlay
+            // can't cover a playing video. Later playback errors re-set it.
+            error.value = ''
+            loading.value = false
         }
 
         const failedStreamUrls = ref<Set<string>>(new Set())

@@ -1309,6 +1309,7 @@ export default defineComponent({
         })
         function toggleMobileServers() {
             mobileServersOpen.value = !mobileServersOpen.value
+            if (mobileServersOpen.value) resetIdleTimer()
         }
         function selectMobileServer(sourceId: string) {
             switchEmbed(sourceId)
@@ -1317,7 +1318,9 @@ export default defineComponent({
 
         watch([settingsOpen, mobileServersOpen], ([settings, servers]) => {
             if (typeof document !== 'undefined') {
-                if (settings || servers) {
+                const isMobile = typeof window !== 'undefined' && (window.matchMedia('(max-width: 768px), (pointer: coarse)').matches)
+                const lock = (settings || servers) && (isMobile || settings)
+                if (lock) {
                     document.documentElement.style.overflow = 'hidden'
                     document.body.style.overflow = 'hidden'
                 } else {
@@ -1528,6 +1531,7 @@ export default defineComponent({
                 if (isMediaActive && !seeking.value && !settingsOpen.value && !qualityOpen.value && !isHoveringControls.value) {
                     controlsHidden.value = true
                     embedSourcesIdle.value = true
+                    mobileServersOpen.value = false
                 }
             }, 3000)
         }
@@ -1537,6 +1541,7 @@ export default defineComponent({
             if (isMediaActive && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
                 controlsHidden.value = true
                 embedSourcesIdle.value = true
+                mobileServersOpen.value = false
                 if (idleTimer) clearTimeout(idleTimer)
             }
         }
@@ -4328,12 +4333,12 @@ export default defineComponent({
 }
 
 .moovie-frame__embed-sources {
+    display: none;
     position: absolute;
     top: 50%;
     left: 14px;
     transform: translateY(-50%);
     z-index: 6;
-    display: flex;
     flex-direction: column;
     gap: 12px;
     opacity: 1;
@@ -4382,11 +4387,11 @@ export default defineComponent({
 
 /* Mobile top-right server selector pill */
 .moovie-frame__mobile-server-btn-wrap {
-    display: none;
+    display: flex;
     position: absolute;
     top: 14px;
     right: 14px;
-    z-index: 60;
+    z-index: 110;
     pointer-events: auto !important;
     transition: opacity 0.35s ease, transform 0.35s ease;
 
@@ -4448,32 +4453,32 @@ export default defineComponent({
     }
 }
 
-/* Mobile server selection modal sheet */
+/* Server selection menu (top-right dropdown on desktop, bottom sheet on mobile) */
 .moovie-frame__mobile-servers-overlay {
-    display: none;
+    display: flex;
     position: absolute;
     inset: 0;
     z-index: 100;
-    background: rgba(0, 0, 0, 0.68);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    align-items: flex-end;
-    justify-content: center;
+    background: transparent;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 52px 14px 0 0;
     pointer-events: auto !important;
 }
 
 .moovie-frame__mobile-servers-sheet {
-    width: 100%;
-    max-height: 85%;
-    background: rgba(18, 18, 22, 0.96);
+    width: 260px;
+    max-height: calc(100% - 66px);
+    background: rgba(20, 20, 26, 0.97);
     backdrop-filter: blur(28px);
     -webkit-backdrop-filter: blur(28px);
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 18px 18px 0 0;
-    padding: 0 0 16px 0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 0 0 12px 0;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 18px 56px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
 }
 
 .moovie-frame__mobile-servers-header {
@@ -5423,6 +5428,26 @@ export default defineComponent({
 
     .moovie-frame__mobile-servers-overlay {
         display: flex !important;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 0;
+        background: rgba(0, 0, 0, 0.68);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    .moovie-frame__mobile-servers-sheet {
+        width: 100%;
+        max-height: 85%;
+        border-radius: 18px 18px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        padding: 0 0 16px 0;
     }
 }
 </style>

@@ -479,98 +479,77 @@
                  </Transition>
              </div>
 
-            <div v-if="embedOpen && activeEmbedId !== 'native'" class="moovie-frame__embed-overlay is-open" @click.self="toggleEmbedMode">
-                <!-- Mobile top-right server selector button -->
-                <div v-if="embedOpen" class="moovie-frame__mobile-server-btn-wrap" :class="{ 'is-idle': embedSourcesIdle }">
-                    <button
-                        type="button"
-                        class="moovie-frame__mobile-server-btn"
-                        :class="{ 'is-active': mobileServersOpen }"
-                        @click.stop="toggleMobileServers"
-                        aria-label="Select Server"
-                    >
-                        <svg class="moovie-frame__mobile-server-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-                            <line x1="6" y1="6" x2="6.01" y2="6"/>
-                            <line x1="6" y1="18" x2="6.01" y2="18"/>
-                        </svg>
-                        <span class="moovie-frame__mobile-server-text">{{ activeServerLabel }}</span>
-                        <svg class="moovie-frame__mobile-server-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Desktop floating circle buttons -->
-                <div
-                    v-if="embedOpen"
-                    class="moovie-frame__embed-sources"
-                    :class="{ 'is-idle': embedSourcesIdle }"
+            <!-- Server selector pill (top-right, all modes) -->
+            <div v-if="!loading && !error" class="moovie-frame__mobile-server-btn-wrap" :class="{ 'is-idle': embedSourcesIdle }">
+                <button
+                    type="button"
+                    class="moovie-frame__mobile-server-btn"
+                    :class="{ 'is-active': mobileServersOpen }"
+                    @click.stop="toggleMobileServers"
+                    aria-label="Select Server"
                 >
-                    <button
-                        v-for="(src, i) in embedSources"
-                        :key="src.id"
-                        type="button"
-                        class="moovie-frame__embed-src"
-                        :class="{ 'is-active': activeEmbedId === src.id, 'is-disabled': !src.enabled }"
-                        :title="src.label"
-                        :aria-label="src.label"
-                        :disabled="!src.enabled"
-                        @click.stop="switchEmbed(src.id)"
-                    >
-                        {{ i + 1 }}
-                    </button>
-                </div>
+                    <svg class="moovie-frame__mobile-server-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                        <line x1="6" y1="6" x2="6.01" y2="6"/>
+                        <line x1="6" y1="18" x2="6.01" y2="18"/>
+                    </svg>
+                    <span class="moovie-frame__mobile-server-text">{{ activeServerLabel }}</span>
+                    <svg class="moovie-frame__mobile-server-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+            </div>
 
-                <!-- Mobile server modal sheet -->
-                <Transition name="moovie-settings">
-                    <div
-                        v-if="embedOpen && mobileServersOpen"
-                        class="moovie-frame__mobile-servers-overlay"
-                        @click.self="mobileServersOpen = false"
-                    >
-                        <div class="moovie-frame__mobile-servers-sheet" @click.stop>
-                            <div class="moovie-frame__settings-mobile-handle" />
-                            <div class="moovie-frame__mobile-servers-header">
-                                <div class="moovie-frame__mobile-servers-heading">
-                                    <span class="moovie-frame__settings-eyebrow">Streaming Servers</span>
-                                    <span class="moovie-frame__mobile-servers-title">Choose a Server</span>
+            <!-- Server selection dropdown / sheet -->
+            <Transition name="moovie-settings">
+                <div
+                    v-if="!loading && !error && mobileServersOpen"
+                    class="moovie-frame__mobile-servers-overlay"
+                    @click.self="mobileServersOpen = false"
+                >
+                    <div class="moovie-frame__mobile-servers-sheet" @click.stop>
+                        <div class="moovie-frame__settings-mobile-handle" />
+                        <div class="moovie-frame__mobile-servers-header">
+                            <div class="moovie-frame__mobile-servers-heading">
+                                <span class="moovie-frame__settings-eyebrow">Streaming Servers</span>
+                                <span class="moovie-frame__mobile-servers-title">Choose a Server</span>
+                            </div>
+                            <button
+                                type="button"
+                                class="moovie-frame__mobile-servers-close"
+                                @click="mobileServersOpen = false"
+                                aria-label="Close"
+                            >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="moovie-frame__mobile-servers-list">
+                            <button
+                                v-for="(src, i) in embedSources"
+                                :key="src.id"
+                                type="button"
+                                class="moovie-frame__mobile-server-item"
+                                :class="{ 'is-active': activeEmbedId === src.id, 'is-disabled': !src.enabled }"
+                                :disabled="!src.enabled"
+                                @click="selectMobileServer(src.id)"
+                            >
+                                <div class="moovie-frame__mobile-server-num">{{ i + 1 }}</div>
+                                <div class="moovie-frame__mobile-server-info">
+                                    <span class="moovie-frame__mobile-server-name">{{ src.label }}</span>
+                                    <span class="moovie-frame__mobile-server-type">{{ src.id === 'native' ? 'Moovie Player (Default)' : 'Embed Server' }}</span>
                                 </div>
-                                <button
-                                    type="button"
-                                    class="moovie-frame__mobile-servers-close"
-                                    @click="mobileServersOpen = false"
-                                    aria-label="Close"
-                                >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <line x1="18" y1="6" x2="6" y2="18" />
-                                        <line x1="6" y1="6" x2="18" y2="18" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="moovie-frame__mobile-servers-list">
-                                <button
-                                    v-for="(src, i) in embedSources"
-                                    :key="src.id"
-                                    type="button"
-                                    class="moovie-frame__mobile-server-item"
-                                    :class="{ 'is-active': activeEmbedId === src.id, 'is-disabled': !src.enabled }"
-                                    :disabled="!src.enabled"
-                                    @click="selectMobileServer(src.id)"
-                                >
-                                    <div class="moovie-frame__mobile-server-num">{{ i + 1 }}</div>
-                                    <div class="moovie-frame__mobile-server-info">
-                                        <span class="moovie-frame__mobile-server-name">{{ src.label }}</span>
-                                        <span class="moovie-frame__mobile-server-type">{{ src.id === 'native' ? 'Moovie Player (Default)' : 'Embed Server' }}</span>
-                                    </div>
-                                    <span v-if="activeEmbedId === src.id" class="moovie-frame__mobile-server-badge">Active</span>
-                                </button>
-                            </div>
+                                <span v-if="activeEmbedId === src.id" class="moovie-frame__mobile-server-badge">Active</span>
+                            </button>
                         </div>
                     </div>
-                </Transition>
+                </div>
+            </Transition>
 
+            <div v-if="embedOpen && activeEmbedId !== 'native'" class="moovie-frame__embed-overlay is-open" @click.self="toggleEmbedMode">
                 <div v-if="embedOpen && embedLoading" class="moovie-frame__embed-loader" aria-hidden="true">
                     <div class="moovie-frame__spinner" />
                 </div>
@@ -1268,6 +1247,12 @@ export default defineComponent({
             if (activeEmbedId.value === sourceId && paneSrc[sourceId]) return
             const prev = activeEmbedId.value
             activeEmbedId.value = sourceId
+
+            // Selecting an embed from the native player must open the embed overlay.
+            if (sourceId !== 'native' && !embedOpen.value) {
+                embedOpen.value = true
+                ctx.emit('embed-change', true)
+            }
 
             if (prev === 'native') {
                 const video = videoRef.value

@@ -540,7 +540,7 @@
                                 <div class="moovie-frame__mobile-server-num">{{ i + 1 }}</div>
                                 <div class="moovie-frame__mobile-server-info">
                                     <span class="moovie-frame__mobile-server-name">{{ src.label }}</span>
-                                    <span class="moovie-frame__mobile-server-type">{{ src.id === 'native' ? 'Moovie Player (Default)' : 'Embed Server' }}</span>
+                                    <span class="moovie-frame__mobile-server-type">{{ src.id === 'filmu' ? 'FilmU (Default)' : src.id === 'native' ? 'Moovie Player' : 'Embed Server' }}</span>
                                 </div>
                                 <span v-if="activeEmbedId === src.id" class="moovie-frame__mobile-server-badge">Active</span>
                             </button>
@@ -1178,7 +1178,7 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const activeEmbedId = ref('native')
+        const activeEmbedId = ref('filmu')
         interface EmbedSource {
             id: string
             label: string
@@ -1187,12 +1187,6 @@ export default defineComponent({
         }
         const embedSources: EmbedSource[] = [
             {
-                id: 'native',
-                label: 'Moovie Player',
-                enabled: true,
-                build: () => '',
-            },
-            {
                 id: 'filmu',
                 label: 'FilmU',
                 enabled: true,
@@ -1200,6 +1194,12 @@ export default defineComponent({
                     mediaType === 'tv'
                         ? `https://embed.filmu.in/embed/tv/${id}/${s}/${e}`
                         : `https://embed.filmu.in/embed/movie/${id}`,
+            },
+            {
+                id: 'native',
+                label: 'Moovie Player',
+                enabled: true,
+                build: () => '',
             },
             {
                 id: 'vidrock',
@@ -1252,6 +1252,8 @@ export default defineComponent({
             if (sourceId !== 'native' && !embedOpen.value) {
                 embedOpen.value = true
                 ctx.emit('embed-change', true)
+                const video = videoRef.value
+                if (video) video.pause()
             }
 
             if (prev === 'native') {
@@ -3642,8 +3644,19 @@ export default defineComponent({
             componentUnmounted = false
             await loadServerOverrides()
             if (props.mediaId && !props.autoEmbed) {
-                console.log('[MOVIEFRAME] mounted: starting selected single-source scrape')
-                void doLoad()
+                if (activeEmbedId.value === 'native') {
+                    console.log('[MOVIEFRAME] mounted: starting selected single-source scrape')
+                    void doLoad()
+                } else {
+                    // Default server is an embed (e.g. FilmU): open it directly.
+                    console.log('[MOVIEFRAME] mounted: opening default embed', activeEmbedId.value)
+                    embedOpen.value = true
+                    settingsOpen.value = false
+                    ctx.emit('embed-change', true)
+                    if (!paneSrc[activeEmbedId.value]) {
+                        paneSrc[activeEmbedId.value] = embedUrls.value[activeEmbedId.value] || ''
+                    }
+                }
             }
             if (props.autoEmbed) {
                 embedOpen.value = true

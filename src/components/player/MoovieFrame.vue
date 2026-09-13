@@ -479,76 +479,6 @@
                  </Transition>
              </div>
 
-            <!-- Server selector pill (top-right, all modes) -->
-            <div v-if="!loading && !error" class="moovie-frame__mobile-server-btn-wrap" :class="{ 'is-idle': embedSourcesIdle }">
-                <button
-                    type="button"
-                    class="moovie-frame__mobile-server-btn"
-                    :class="{ 'is-active': mobileServersOpen }"
-                    @click.stop="toggleMobileServers"
-                    aria-label="Select Server"
-                >
-                    <svg class="moovie-frame__mobile-server-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-                        <line x1="6" y1="6" x2="6.01" y2="6"/>
-                        <line x1="6" y1="18" x2="6.01" y2="18"/>
-                    </svg>
-                    <span class="moovie-frame__mobile-server-text">{{ activeServerLabel }}</span>
-                    <svg class="moovie-frame__mobile-server-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Server selection dropdown / sheet -->
-            <Transition name="moovie-settings">
-                <div
-                    v-if="!loading && !error && mobileServersOpen"
-                    class="moovie-frame__mobile-servers-overlay"
-                    @click.self="mobileServersOpen = false"
-                >
-                    <div class="moovie-frame__mobile-servers-sheet" @click.stop>
-                        <div class="moovie-frame__settings-mobile-handle" />
-                        <div class="moovie-frame__mobile-servers-header">
-                            <div class="moovie-frame__mobile-servers-heading">
-                                <span class="moovie-frame__settings-eyebrow">Streaming Servers</span>
-                                <span class="moovie-frame__mobile-servers-title">Choose a Server</span>
-                            </div>
-                            <button
-                                type="button"
-                                class="moovie-frame__mobile-servers-close"
-                                @click="mobileServersOpen = false"
-                                aria-label="Close"
-                            >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="moovie-frame__mobile-servers-list">
-                            <button
-                                v-for="(src, i) in embedSources"
-                                :key="src.id"
-                                type="button"
-                                class="moovie-frame__mobile-server-item"
-                                :class="{ 'is-active': activeEmbedId === src.id, 'is-disabled': !src.enabled }"
-                                :disabled="!src.enabled"
-                                @click="selectMobileServer(src.id)"
-                            >
-                                <div class="moovie-frame__mobile-server-num">{{ i + 1 }}</div>
-                                <div class="moovie-frame__mobile-server-info">
-                                    <span class="moovie-frame__mobile-server-name">{{ src.label }}</span>
-                                    <span class="moovie-frame__mobile-server-type">{{ src.id === 'filmu' ? 'FilmU (Default)' : src.id === 'native' ? 'Moovie Player' : 'Embed Server' }}</span>
-                                </div>
-                                <span v-if="activeEmbedId === src.id" class="moovie-frame__mobile-server-badge">Active</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </Transition>
-
             <div v-if="embedOpen && activeEmbedId !== 'native'" class="moovie-frame__embed-overlay is-open" @click.self="toggleEmbedMode">
                 <div v-if="embedOpen && embedLoading" class="moovie-frame__embed-loader" aria-hidden="true">
                     <div class="moovie-frame__spinner" />
@@ -569,6 +499,52 @@
                         @load="onEmbedLoaded(src.id)"
                     />
                 </div>
+            </div>
+
+            <!-- Server selector pill — rendered ABOVE embed overlay so iframe cannot intercept it -->
+            <div v-if="!loading && !error" class="moovie-frame__mobile-server-btn-wrap" :class="{ 'is-idle': embedSourcesIdle }">
+                <button
+                    type="button"
+                    class="moovie-frame__mobile-server-btn"
+                    :class="{ 'is-active': mobileServersOpen }"
+                    @click.stop="toggleMobileServers"
+                    aria-label="Select Server"
+                >
+                    <svg class="moovie-frame__mobile-server-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                        <line x1="6" y1="6" x2="6.01" y2="6"/>
+                        <line x1="6" y1="18" x2="6.01" y2="18"/>
+                    </svg>
+                    <span class="moovie-frame__mobile-server-text">{{ activeServerLabel }}</span>
+                    <svg class="moovie-frame__mobile-server-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+
+                <!-- Compact server menu — anchored to pill, slides down, never under any iframe -->
+                <Transition name="moovie-server-menu">
+                    <div
+                        v-if="mobileServersOpen"
+                        class="moovie-frame__server-menu"
+                        @click.stop
+                    >
+                        <button
+                            v-for="src in embedSources"
+                            :key="src.id"
+                            type="button"
+                            class="moovie-frame__server-menu-item"
+                            :class="{ 'is-active': activeEmbedId === src.id, 'is-disabled': !src.enabled }"
+                            :disabled="!src.enabled"
+                            @click="selectMobileServer(src.id)"
+                        >
+                            <span class="moovie-frame__server-menu-name">{{ src.label }}</span>
+                            <svg v-if="activeEmbedId === src.id" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.9">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </Transition>
             </div>
         </div>
     </div>
@@ -2874,6 +2850,12 @@ export default defineComponent({
                     settingsSection.value = null
                 }
             }
+            if (mobileServersOpen.value) {
+                const wrap = rootRef.value?.querySelector('.moovie-frame__mobile-server-btn-wrap')
+                if (wrap && !wrap.contains(target)) {
+                    mobileServersOpen.value = false
+                }
+            }
         }
 
         async function selectQuality(index: number) {
@@ -3681,6 +3663,8 @@ export default defineComponent({
                 root.addEventListener('touchstart', resetIdleTimer)
                 root.addEventListener('mouseleave', handleMouseLeave)
             }
+            // Fallback: catch pointer movement even when iframe swallows events inside the player
+            document.addEventListener('pointermove', resetIdleTimer, { passive: true })
             resetIdleTimer()
  
             // Heartbeat sync timer (every 3 seconds)
@@ -3720,6 +3704,7 @@ export default defineComponent({
             document.removeEventListener('click', onClickOutside)
             document.removeEventListener('fullscreenchange', onFullscreenChange)
             document.removeEventListener('keydown', onKeydown)
+            document.removeEventListener('pointermove', resetIdleTimer)
             window.removeEventListener('message', handleParentMessage)
             const root = rootRef.value
             if (root) {
@@ -4383,13 +4368,13 @@ export default defineComponent({
     cursor: not-allowed;
 }
 
-/* Mobile top-right server selector pill */
+/* Server selector pill — always above iframes */
 .moovie-frame__mobile-server-btn-wrap {
     display: flex;
     position: absolute;
     top: 14px;
     right: 14px;
-    z-index: 110;
+    z-index: 500;
     pointer-events: auto !important;
     transition: opacity 0.35s ease, transform 0.35s ease;
 
@@ -4451,162 +4436,100 @@ export default defineComponent({
     }
 }
 
-/* Server selection menu (top-right dropdown on desktop, bottom sheet on mobile) */
-.moovie-frame__mobile-servers-overlay {
-    display: flex;
+/* Compact server dropdown menu — anchored to pill button */
+.moovie-frame__server-menu {
     position: absolute;
-    inset: 0;
-    z-index: 100;
-    background: transparent;
-    align-items: flex-start;
-    justify-content: flex-end;
-    padding: 52px 14px 0 0;
-    pointer-events: auto !important;
-}
-
-.moovie-frame__mobile-servers-sheet {
-    width: 260px;
-    max-height: calc(100% - 66px);
-    background: rgba(20, 20, 26, 0.97);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 14px;
-    padding: 0 0 12px 0;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 18px 56px rgba(0, 0, 0, 0.7);
-    overflow: hidden;
-}
-
-.moovie-frame__mobile-servers-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.moovie-frame__mobile-servers-heading {
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 180px;
+    background: rgba(18, 18, 24, 0.97);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 12px;
+    padding: 6px;
     display: flex;
     flex-direction: column;
     gap: 2px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.4);
+    pointer-events: auto !important;
+    transform-origin: top right;
+    z-index: 501;
 }
 
-.moovie-frame__mobile-servers-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #fff;
-    font-family: var(--font-ui, system-ui, sans-serif);
-}
-
-.moovie-frame__mobile-servers-close {
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-content: center;
-    background: rgba(255, 255, 255, 0.08);
-    border: none;
-    border-radius: 50%;
-    color: rgba(255, 255, 255, 0.7);
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-
-    &:active {
-        background: rgba(255, 255, 255, 0.18);
-        color: #fff;
-    }
-}
-
-.moovie-frame__mobile-servers-list {
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    overflow-y: auto;
-    max-height: 55vh;
-}
-
-.moovie-frame__mobile-server-item {
+.moovie-frame__server-menu-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.035);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.85);
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.72);
+    font-family: var(--font-ui, system-ui, sans-serif);
+    font-size: 13px;
+    font-weight: 500;
     text-align: left;
     cursor: pointer;
-    font-family: var(--font-ui, system-ui, sans-serif);
-    transition: background 0.15s ease, border-color 0.15s ease;
+    width: 100%;
+    transition: background 0.12s ease, color 0.12s ease;
 
-    &:active {
+    &:hover:not(:disabled) {
         background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+    }
+
+    &:active:not(:disabled) {
+        background: rgba(255, 255, 255, 0.12);
     }
 
     &.is-active {
-        background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(255, 255, 255, 0.25);
         color: #fff;
+        font-weight: 600;
     }
 
     &.is-disabled {
-        opacity: 0.35;
+        opacity: 0.3;
         cursor: not-allowed;
     }
 }
 
-.moovie-frame__mobile-server-num {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    display: grid;
-    place-content: center;
-    font-size: 11px;
-    font-weight: 800;
-    color: #fff;
-    flex-shrink: 0;
-
-    .moovie-frame__mobile-server-item.is-active & {
-        background: #fff;
-        color: #000;
-    }
-}
-
-.moovie-frame__mobile-server-info {
+.moovie-frame__server-menu-name {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.moovie-frame__mobile-server-name {
-    font-size: 13.5px;
-    font-weight: 600;
-    color: inherit;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.moovie-frame__mobile-server-type {
-    font-size: 10.5px;
-    color: rgba(255, 255, 255, 0.45);
-    margin-top: 1px;
+/* Slide-in animation for compact server menu */
+.moovie-server-menu-enter-active {
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.moovie-server-menu-leave-active {
+    transition: opacity 0.1s ease, transform 0.1s ease;
+}
+.moovie-server-menu-enter-from,
+.moovie-server-menu-leave-to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
 }
 
+/* Keep old classes inert — they're no longer in the DOM */
+.moovie-frame__mobile-servers-overlay,
+.moovie-frame__mobile-servers-sheet,
+.moovie-frame__mobile-servers-header,
+.moovie-frame__mobile-servers-heading,
+.moovie-frame__mobile-servers-title,
+.moovie-frame__mobile-servers-close,
+.moovie-frame__mobile-servers-list,
+.moovie-frame__mobile-server-item,
+.moovie-frame__mobile-server-num,
+.moovie-frame__mobile-server-info,
+.moovie-frame__mobile-server-name,
+.moovie-frame__mobile-server-type,
 .moovie-frame__mobile-server-badge {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: rgba(255, 255, 255, 0.16);
-    color: #fff;
-    padding: 2px 8px;
-    border-radius: 6px;
-    flex-shrink: 0;
+    display: none !important;
 }
 
 .moovie-frame__settings-scroll {
@@ -5424,28 +5347,10 @@ export default defineComponent({
         display: flex !important;
     }
 
-    .moovie-frame__mobile-servers-overlay {
-        display: flex !important;
-        top: 0;
+    /* On small screens, widen the menu to fill nicely */
+    .moovie-frame__server-menu {
+        min-width: 160px;
         right: 0;
-        bottom: 0;
-        left: 0;
-        padding: 0;
-        background: rgba(0, 0, 0, 0.68);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        align-items: flex-end;
-        justify-content: center;
-    }
-
-    .moovie-frame__mobile-servers-sheet {
-        width: 100%;
-        max-height: 85%;
-        border-radius: 18px 18px 0 0;
-        border-left: none;
-        border-right: none;
-        border-bottom: none;
-        padding: 0 0 16px 0;
     }
 }
 </style>

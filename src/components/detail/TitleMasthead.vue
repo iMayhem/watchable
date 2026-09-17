@@ -586,18 +586,15 @@ export default defineComponent({
                 }
             };
 
-            // Trigger default scrapers concurrently with abort signal
-            const pNew = fetchProviderStream('4khdhubnew', id, type, seasonNum, episodeNum, signal)
-                .then(res => updateUIWithOptionBatch(res));
-
-            const pOld = fetchProviderStream('4khdhub', id, type, seasonNum, episodeNum, signal)
+            // 4KHDHub downloads are served by the dedicated download server.
+            const pDownload = fetchProviderStream('4khdhub', id, type, seasonNum, episodeNum, signal)
                 .then(res => updateUIWithOptionBatch(res));
 
             const maxWait = new Promise((resolve) => setTimeout(resolve, 25000));
 
             try {
                 await Promise.race([
-                    Promise.allSettled([pNew, pOld]),
+                    pDownload,
                     maxWait
                 ]);
             } catch (e) {
@@ -669,7 +666,8 @@ export default defineComponent({
 
                 const isTv = typeStr === 'tv' || typeStr === 'show' || typeStr === 'tv-show' || typeStr === 'tvshow' || isTvShow.value;
                 const normType = isTv ? 'tv' : 'movie';
-                let url = `https://hahaevilcraft.site/scrape/source?id=${providerId}&tmdbId=${tmdbId}&type=${normType}&title=${encodeURIComponent(props.title || '')}&_cb=${Date.now()}`;
+                // Downloads go through the dedicated download server (4KHDHub only).
+                let url = `https://hahaevilcraft.site/download-api/scrape/source?id=${providerId}&tmdbId=${tmdbId}&type=${normType}&title=${encodeURIComponent(props.title || '')}&_cb=${Date.now()}`;
                 if (isTv) {
                     url += `&s=${season}&e=${episode}&season=${season}&episode=${episode}&ep=${episode}`;
                 }
@@ -753,14 +751,24 @@ export default defineComponent({
                             url: extractDirectDownloadUrl(item.url),
                             provider: item.provider || 'CineStream',
                             filename: rawName,
-                            size: extractedSize
+                            size: extractedSize || (item.size ? String(item.size).toUpperCase() : undefined),
+                            server: item.server || ''
                         });
                     }
                 };
 
                 es.onmessage = (evt) => {
+                    if (evt.data === '[DONE]') {
+                        finish();
+                        return;
+                    }
                     try {
                         const data = JSON.parse(evt.data);
+                        // Download server streams one flat option object per message.
+                        if (data && data.url && !data.stream && !data.streams) {
+                            parseStreamItem(data);
+                            return;
+                        }
                         const streamList = data.stream || data.streams || [];
                         for (const item of (Array.isArray(streamList) ? streamList : [streamList])) {
                             parseStreamItem(item);

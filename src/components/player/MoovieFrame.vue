@@ -1787,29 +1787,13 @@ export default defineComponent({
                 if (!isPoseidon) return
                 if (poseidonRefreshAttempts >= 1 || componentUnmounted) return
                 poseidonRefreshAttempts++
-                try {
-                    const response = await fetch(`${HUB_BASE}/api/scrape/cache/invalidate`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            provider: 'vaplayer',
-                            tmdbId: String(props.mediaId),
-                            type: props.mediaType,
-                            season: props.season || undefined,
-                            episode: props.episode || undefined,
-                        })
-                    })
-                    if (!response.ok) throw new Error(`cache invalidation failed: HTTP ${response.status}`)
-                    console.info('[MoovieFrame] invalidated failed Poseidon link; starting one fresh scrape', {
-                        mediaId: props.mediaId,
-                        mediaType: props.mediaType,
-                        providerId,
-                        providerName,
-                    })
-                    if (!componentUnmounted) await doLoad(true)
-                } catch (err) {
-                    console.warn('[MoovieFrame] failed to refresh Poseidon after playback error:', err)
-                }
+                console.info('[MoovieFrame] Poseidon playback error; starting one fresh scrape', {
+                    mediaId: props.mediaId,
+                    mediaType: props.mediaType,
+                    providerId,
+                    providerName,
+                })
+                if (!componentUnmounted) await doLoad(true)
             }
             const onTimeUpdate = () => { currentTime.value = video.currentTime; duration.value = video.duration || 0; updateActiveCueText() }
             const onPlayPause = () => { 
@@ -2225,10 +2209,6 @@ export default defineComponent({
                             const name = providerNames.get(id) || SCRAPER_NAMES[id] || friendlyProviderName(id)
                             providerMap.set(id, { id, name, status: 'waiting', percentage: 0 })
                         }
-                        if (ids.includes('vaplayer')) {
-                            activeProviderStatus.value = 'Checking Poseidon cache…'
-                            console.debug('[MoovieFrame][loader] initial Poseidon cache status set', activeProviderStatus.value)
-                        }
                         providers.value = [...providerMap.values()]
                     } catch { /* ignore */ }
                 })
@@ -2244,15 +2224,7 @@ export default defineComponent({
                     if (ps) {
                         ps.status = 'pending'
                         ps.percentage = 0
-                        ps.cacheStatus = undefined
-                        // Keep the cache status visible while the remaining providers
-                        // start. Otherwise a later provider's start event immediately
-                        // replaces the useful Poseidon cache message.
-                        if (id !== 'vaplayer' && !activeProviderStatus.value.includes('Poseidon')) {
-                            activeProviderStatus.value = `Searching ${ps.name}…`
-                        } else if (id === 'vaplayer' && !activeProviderStatus.value.includes('Poseidon')) {
-                            activeProviderStatus.value = `Searching ${ps.name}…`
-                        }
+                        activeProviderStatus.value = `Searching ${ps.name}…`
                         console.debug('[MoovieFrame][loader] after start', {
                             id,
                             provider: ps.name,
@@ -2270,23 +2242,12 @@ export default defineComponent({
                             id: data.id,
                             status: data.status,
                             percentage: data.percentage,
-                            cacheStatus: data.cacheStatus,
                             providerKnown: Boolean(ps),
                             loaderStatusBefore: activeProviderStatus.value,
                         })
-                        // Cache updates can arrive before the provider list has
-                        // finished initializing. The player-level status must not
-                        // depend on finding a matching provider row.
-                        if (data.cacheStatus) {
-                            activeProviderStatus.value = data.cacheStatus
-                            console.debug('[MoovieFrame][loader] cache status applied', activeProviderStatus.value)
-                        }
                         if (ps) {
                             ps.percentage = data.percentage || 0
                             if (data.status) ps.status = data.status
-                            if (data.cacheStatus) {
-                                ps.cacheStatus = data.cacheStatus
-                            }
                             if (data.error) ps.error = data.error
                         providers.value = [...providerMap.values()]
                         console.debug('[MoovieFrame][loader] update complete', {
@@ -2895,28 +2856,6 @@ export default defineComponent({
                         console.debug('[MoovieFrame] switched to server:', provider)
                         return true
                     } catch (e) {
-                        if (provider.toLowerCase() === 'poseidon' && poseidonRefreshAttempts < 1 && !componentUnmounted) {
-                            poseidonRefreshAttempts++
-                            try {
-                                const response = await fetch(`${HUB_BASE}/api/scrape/cache/invalidate`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        provider: 'vaplayer',
-                                        tmdbId: String(props.mediaId),
-                                        type: props.mediaType,
-                                        season: props.season || undefined,
-                                        episode: props.episode || undefined,
-                                    })
-                                })
-                                if (!response.ok) throw new Error(`cache invalidation failed: HTTP ${response.status}`)
-                                originalStream.value = null
-                                console.info('[MoovieFrame] Poseidon HLS failed; invalidated cache and retrying fresh Poseidon scrape')
-                                return await selectServer(provider, opts)
-                            } catch (refreshError) {
-                                console.warn('[MoovieFrame] fresh Poseidon retry failed:', refreshError)
-                            }
-                        }
                         console.error('[MoovieFrame] failed to switch to server:', provider, e)
                         return false
                     }
@@ -2937,9 +2876,7 @@ export default defineComponent({
             loading.value = true
             error.value = ''
             firstFrameShown.value = false
-            activeProviderStatus.value = providerId === 'vaplayer'
-                ? 'Checking Poseidon cache…'
-                : `Searching ${provider}…`
+            activeProviderStatus.value = `Searching ${provider}…`
             console.debug('[MoovieFrame][single-source] loader status initialized', {
                 provider,
                 providerId,
@@ -2982,14 +2919,23 @@ export default defineComponent({
 
             return new Promise<boolean>((resolve) => {
                 let singleSseErrorCount = 0
-                const singleSseTimeout = setTimeout(() => {
-                    if (!finished && sourceEventSource) {
-                        console.warn('[MoovieFrame][single-source] timeout after 12s', providerId)
-                        cleanUpSSE()
-                        loading.value = false
-                        resolve(false)
-                    }
-                }, 12000)
+                const SINGLE_SSE_MAX_MS = 90000
+                const singleSseStartedAt = Date.now()
+                let singleSseTimeout: ReturnType<typeof setTimeout> | null = null
+                const armSingleSseTimeout = (idleMs = 20000) => {
+                    if (singleSseTimeout) clearTimeout(singleSseTimeout)
+                    const remaining = SINGLE_SSE_MAX_MS - (Date.now() - singleSseStartedAt)
+                    const delay = Math.max(1000, Math.min(idleMs, remaining))
+                    singleSseTimeout = setTimeout(() => {
+                        if (!finished && sourceEventSource) {
+                            console.warn('[MoovieFrame][single-source] idle timeout', providerId)
+                            cleanUpSSE()
+                            loading.value = false
+                            resolve(false)
+                        }
+                    }, delay)
+                }
+                armSingleSseTimeout()
                 sourceEventSource!.onerror = (event) => {
                     singleSseErrorCount++
                     console.warn('[MoovieFrame][single-source] connection error', {
@@ -2999,7 +2945,7 @@ export default defineComponent({
                         count: singleSseErrorCount,
                     })
                     if (singleSseErrorCount >= 2 && !finished) {
-                        clearTimeout(singleSseTimeout)
+                        if (singleSseTimeout) clearTimeout(singleSseTimeout)
                         cleanUpSSE()
                         loading.value = false
                         resolve(false)
@@ -3008,18 +2954,14 @@ export default defineComponent({
                 sourceEventSource!.addEventListener('update', (e: MessageEvent) => {
                     try {
                         const data = JSON.parse(e.data)
+                        armSingleSseTimeout()
                         console.debug('[MoovieFrame][single-source] update received', {
                             providerId,
                             id: data.id,
                             status: data.status,
                             percentage: data.percentage,
-                            cacheStatus: data.cacheStatus,
                             loaderStatusBefore: activeProviderStatus.value,
                         })
-                        if (data.cacheStatus) {
-                            activeProviderStatus.value = data.cacheStatus
-                            console.debug('[MoovieFrame][single-source] cache status applied', activeProviderStatus.value)
-                        }
                         if (providerObj && data.id === providerId) {
                             providerObj.status = data.status || 'pending'
                             providerObj.percentage = typeof data.percentage === 'number' ? data.percentage : 0
@@ -3030,7 +2972,7 @@ export default defineComponent({
                 sourceEventSource!.addEventListener('completed', async (e: MessageEvent) => {
                     if (finished) return
                     finished = true
-                    clearTimeout(singleSseTimeout)
+                    if (singleSseTimeout) clearTimeout(singleSseTimeout)
                     cleanUpSSE()
 
                     try {
@@ -3180,29 +3122,6 @@ export default defineComponent({
                         return
                     }
                 } catch (err: any) {
-                    if (provider.toLowerCase() === 'poseidon' && poseidonRefreshAttempts < 1 && !componentUnmounted) {
-                        poseidonRefreshAttempts++
-                        try {
-                            const response = await fetch(`${HUB_BASE}/api/scrape/cache/invalidate`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    provider: 'vaplayer',
-                                    tmdbId: String(props.mediaId),
-                                    type: props.mediaType,
-                                    season: props.season || undefined,
-                                    episode: props.episode || undefined,
-                                })
-                            })
-                            if (!response.ok) throw new Error(`cache invalidation failed: HTTP ${response.status}`)
-                            originalStream.value = null
-                            console.info('[MoovieFrame] Poseidon HLS failed in single-source load; retrying fresh scrape')
-                            resolve(Boolean(await selectServer(provider, opts)))
-                            return
-                        } catch (refreshError) {
-                            console.warn('[MoovieFrame] fresh Poseidon single-source retry failed:', refreshError)
-                        }
-                    }
                     if (providerObj) {
                         providerObj.status = 'notfound'
                         providerObj.percentage = 100
@@ -3216,7 +3135,7 @@ export default defineComponent({
             sourceEventSource!.addEventListener('noOutput', () => {
                 if (finished) return
                 finished = true
-                clearTimeout(singleSseTimeout)
+                if (singleSseTimeout) clearTimeout(singleSseTimeout)
                 cleanUpSSE()
 
                 if (providerObj) {
@@ -3231,7 +3150,7 @@ export default defineComponent({
             sourceEventSource!.addEventListener('error', () => {
                 if (finished) return
                 finished = true
-                clearTimeout(singleSseTimeout)
+                if (singleSseTimeout) clearTimeout(singleSseTimeout)
                 cleanUpSSE()
 
                 if (providerObj) {

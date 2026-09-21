@@ -53,7 +53,10 @@
                                 <div class="m-discuss__bubble-header" v-if="!isSelf(c.username)">
                                     <span class="m-discuss__user" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
                                 </div>
-                                <p class="m-discuss__text">{{ c.content }}</p>
+                                <p v-if="c.is_hidden || isCommentBlockedOrReported(c)" class="m-discuss__text m-discuss__text--blocked">
+                                    <em>[Comment hidden by user or moderation]</em>
+                                </p>
+                                <p v-else class="m-discuss__text">{{ c.content }}</p>
                                 <div class="m-discuss__bubble-footer">
                                     <span class="m-discuss__time">{{ formatTimeAgo(c.created_at) }}</span>
                                     <span v-if="isSelf(c.username)" class="m-discuss__status">
@@ -142,7 +145,10 @@
                                     {{ getCategoryIcon(c.media_type || 'movie') }}
                                     {{ getMediaName(c.media_type || 'movie', c.media_id || '') }}
                                 </router-link>
-                                <p class="m-discuss__text">{{ c.content }}</p>
+                                <p v-if="c.is_hidden || isCommentBlockedOrReported(c)" class="m-discuss__text m-discuss__text--blocked">
+                                    <em>[Comment hidden by user or moderation]</em>
+                                </p>
+                                <p v-else class="m-discuss__text">{{ c.content }}</p>
                                 <div class="m-discuss__review-actions">
                                     <button
                                         type="button"
@@ -191,7 +197,10 @@
                                 <div class="m-discuss__bubble-header" v-if="!isSelf(c.username)">
                                     <span class="m-discuss__user" :style="{ color: getUsernameColor(c.username) }">{{ c.username }}</span>
                                 </div>
-                                <p class="m-discuss__text">{{ c.content }}</p>
+                                <p v-if="c.is_hidden || isCommentBlockedOrReported(c)" class="m-discuss__text m-discuss__text--blocked">
+                                    <em>[Comment hidden by user or moderation]</em>
+                                </p>
+                                <p v-else class="m-discuss__text">{{ c.content }}</p>
                                 <div class="m-discuss__bubble-footer">
                                     <span class="m-discuss__time">{{ formatTimeAgo(c.created_at) }}</span>
                                     <span v-if="isSelf(c.username)" class="m-discuss__status">
@@ -313,6 +322,20 @@ const {
 } = useDiscussPage();
 
 const { updateSeo } = useSeo();
+
+const reportedComments = ref<Set<string>>(new Set());
+const blockedUsers = ref<Set<string>>(new Set());
+try {
+    const savedReported = localStorage.getItem('movora_reported_comments');
+    if (savedReported) reportedComments.value = new Set(JSON.parse(savedReported));
+    const savedBlocked = localStorage.getItem('movora_blocked_users');
+    if (savedBlocked) blockedUsers.value = new Set(JSON.parse(savedBlocked));
+} catch (e) {}
+
+const isCommentBlockedOrReported = (comment: any): boolean => {
+    if (!comment) return false;
+    return reportedComments.value.has(comment.id) || blockedUsers.value.has(comment.username);
+};
 
 onMounted(() => {
     updateSeo({
@@ -547,6 +570,12 @@ onMounted(() => {
         font-weight: 400;
         line-height: 1.4;
         color: #e9edef;
+
+        &--blocked {
+            opacity: 0.72;
+            font-style: italic;
+            color: rgba(233, 237, 239, 0.7);
+        }
     }
 
     &__bubble-footer {

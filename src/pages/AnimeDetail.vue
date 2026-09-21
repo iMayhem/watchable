@@ -133,7 +133,7 @@
             </section>
         </main>
 
-        <div v-if="!tmdbShow && !loading" class="anime-detail__loading">
+        <div v-if="!tmdbShow && !loading && loadFailed" class="anime-detail__loading">
             <span class="meta">Could not load anime details.</span>
         </div>
 
@@ -190,6 +190,7 @@ export default defineComponent({
         const tmdbShow = ref<TmdbAnimeShowDetails | null>(null);
         const anilistIdRef = ref<number | null>(null);
         const loading = ref(true);
+        const loadFailed = ref(false);
         const tmdbPoster = ref<string | null>(null);
         const tmdbBackdrop = ref<string | null>(null);
         const tmdbEpisodes = ref<any[]>([]);
@@ -511,6 +512,7 @@ export default defineComponent({
 
         const loadAnime = async (routeId: number) => {
             const generation = ++loadGeneration;
+            loadFailed.value = false;
             loading.value = true;
             isLoadingEpisodes.value = true;
             currentPage.value = 1;
@@ -553,7 +555,37 @@ export default defineComponent({
                     }
                 }
 
-                if (!show) return;
+                if (!show && generation === loadGeneration) {
+                    // Retry once after a short pause: the first pass can miss
+                    // while AniList/TMDB resolve, which used to flash
+                    // "Could not load anime details".
+                    await new Promise((resolve) => setTimeout(resolve, 800));
+                    if (generation !== loadGeneration) return;
+                    const retry = await resolveAnimeRouteIds(routeId, async (id) => {
+                        try {
+                            const res = await fetchAnimeById(id);
+                            return res?.data?.Media ?? null;
+                        } catch {
+                            return null;
+                        }
+                    });
+                    if (generation !== loadGeneration) return;
+                    if (retry.tmdbId && retry.tmdbId !== tmdbId) {
+                        tmdbId = retry.tmdbId;
+                        tmdbIdRef.value = tmdbId;
+                        if (tmdbId !== routeId) {
+                            suppressRouteReload.value = true;
+                            await router.replace(`/anime/${tmdbId}`);
+                        }
+                    }
+                    show = await fetchTmdbAnimeShowDetails(tmdbId);
+                    if (generation !== loadGeneration) return;
+                }
+
+                if (!show) {
+                    loadFailed.value = true;
+                    return;
+                }
 
                 tmdbShow.value = show;
                 tmdbPoster.value = show.poster_path ?? tmdbPoster.value;
@@ -612,6 +644,7 @@ export default defineComponent({
             releaseYear,
             tmdbGenreNames,
             loading,
+            loadFailed,
             isLoadingEpisodes,
             isLoadingTmdb,
             usesTmdbSeasonTabs,

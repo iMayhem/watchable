@@ -94,7 +94,7 @@
                     </template>
                 </MobileSection>
             </template>
-            <p v-else class="m-anime-hero__desc">Could not load anime details.</p>
+            <p v-else-if="loadFailed" class="m-anime-hero__desc">Could not load anime details.</p>
         </div>
     </MobileShell>
 </template>
@@ -131,6 +131,7 @@ const { updateSeo } = useSeo();
 const tmdbShow = ref<TmdbAnimeShowDetails | null>(null);
 const anilistIdRef = ref<number | null>(null);
 const loading = ref(true);
+const loadFailed = ref(false);
 const tmdbPoster = ref<string | null>(null);
 const tmdbBackdrop = ref<string | null>(null);
 const tmdbEpisodes = ref<AnimeTmdbArtwork['episodes']>([]);
@@ -339,6 +340,7 @@ const publishAnimePage = (tmdbId: number) => {
 
 const loadAnime = async (routeId: number) => {
     const generation = ++loadGeneration;
+    loadFailed.value = false;
     loading.value = true;
     isLoadingEpisodes.value = true;
     currentPage.value = 1;
@@ -381,7 +383,36 @@ const loadAnime = async (routeId: number) => {
             }
         }
 
-        if (!show) return;
+        if (!show && generation === loadGeneration) {
+            // Retry once after a short pause: the first pass can miss while
+            // AniList/TMDB resolve, which used to flash "Could not load".
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            if (generation !== loadGeneration) return;
+            const retry = await resolveAnimeRouteIds(routeId, async (id) => {
+                try {
+                    const res = await fetchAnimeById(id);
+                    return res?.data?.Media ?? null;
+                } catch {
+                    return null;
+                }
+            });
+            if (generation !== loadGeneration) return;
+            if (retry.tmdbId && retry.tmdbId !== tmdbId) {
+                tmdbId = retry.tmdbId;
+                tmdbIdRef.value = tmdbId;
+                if (tmdbId !== routeId) {
+                    suppressRouteReload.value = true;
+                    await router.replace(paths.anime(tmdbId));
+                }
+            }
+            show = await fetchTmdbAnimeShowDetails(tmdbId);
+            if (generation !== loadGeneration) return;
+        }
+
+        if (!show) {
+            loadFailed.value = true;
+            return;
+        }
 
         tmdbShow.value = show;
         tmdbPoster.value = show.poster_path ?? tmdbPoster.value;

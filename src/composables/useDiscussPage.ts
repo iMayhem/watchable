@@ -115,10 +115,10 @@ export function useDiscussPage() {
             const client = await getSyncClient();
             const { data } = await client
                 .from('movora_comments')
-                .select('*')
+                .select('id, username, content, created_at, media_type, media_id, is_hidden')
                 .eq('media_type', 'lounge')
                 .order('created_at', { ascending: false })
-                .limit(200);
+                .limit(100);
             return data || [];
         } catch {
             return [];
@@ -130,9 +130,9 @@ export function useDiscussPage() {
             const client = await getSyncClient();
             const { data } = await client
                 .from('movora_comments')
-                .select('*')
+                .select('id, username, content, created_at, media_type, media_id, is_hidden')
                 .order('created_at', { ascending: false })
-                .limit(200);
+                .limit(100);
             return (data || []).filter((comment: DiscussComment) =>
                 ['movie', 'tv', 'anime'].includes(String(comment.media_type)) && comment.media_id !== 'lounge'
             );
@@ -147,11 +147,11 @@ export function useDiscussPage() {
             const client = await getSyncClient();
             const { data } = await client
                 .from('movora_comments')
-                .select('*')
+                .select('id, username, content, created_at, media_type, media_id, is_hidden')
                 .eq('media_type', mediaType)
                 .eq('media_id', String(mediaId))
                 .order('created_at', { ascending: false })
-                .limit(200);
+                .limit(100);
             return data || [];
         } catch {
             return [];

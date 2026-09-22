@@ -502,7 +502,7 @@
             </div>
 
             <!-- Server selector pill — rendered ABOVE embed overlay so iframe cannot intercept it -->
-            <div v-if="!loading && !error" class="moovie-frame__mobile-server-btn-wrap" :class="{ 'is-idle': embedSourcesIdle }">
+            <div v-if="!loading && !error && !isFullscreen" class="moovie-frame__mobile-server-btn-wrap">
                 <button
                     type="button"
                     class="moovie-frame__mobile-server-btn"
@@ -1493,7 +1493,6 @@ export default defineComponent({
                 const isMediaActive = playing.value || activeEmbedId.value !== 'native'
                 if (isMediaActive && !seeking.value && !settingsOpen.value && !qualityOpen.value && !isHoveringControls.value) {
                     controlsHidden.value = true
-                    embedSourcesIdle.value = true
                     mobileServersOpen.value = false
                 }
             }, 3000)
@@ -1503,7 +1502,6 @@ export default defineComponent({
             const isMediaActive = playing.value || activeEmbedId.value !== 'native'
             if (isMediaActive && !seeking.value && !settingsOpen.value && !qualityOpen.value) {
                 controlsHidden.value = true
-                embedSourcesIdle.value = true
                 mobileServersOpen.value = false
                 if (idleTimer) clearTimeout(idleTimer)
             }

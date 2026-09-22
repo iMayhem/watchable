@@ -114,8 +114,9 @@ export function useDiscussPage() {
         try {
             const client = await getSyncClient();
             const { data } = await client
-                .from('movora_chat')
-                .select('id, username, content, created_at')
+                .from('movora_comments')
+                .select('*')
+                .eq('media_type', 'lounge')
                 .order('created_at', { ascending: false })
                 .limit(200);
             return data || [];

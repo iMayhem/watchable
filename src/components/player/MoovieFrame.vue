@@ -1154,7 +1154,7 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const activeEmbedId = ref('filmu')
+        const activeEmbedId = ref('zxcstream')
         interface EmbedSource {
             id: string
             label: string

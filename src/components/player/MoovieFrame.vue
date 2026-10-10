@@ -1154,7 +1154,7 @@ export default defineComponent({
             embedOpen.value = true
             settingsOpen.value = false
         }
-        const activeEmbedId = ref('zxcstream')
+        const activeEmbedId = ref('native')
         interface EmbedSource {
             id: string
             label: string
@@ -1163,51 +1163,10 @@ export default defineComponent({
         }
         const embedSources: EmbedSource[] = [
             {
-                id: 'filmu',
-                label: 'FilmU',
-                enabled: true,
-                build: (mediaType, id, s, e) =>
-                    mediaType === 'tv'
-                        ? `https://embed.filmu.in/embed/tv/${id}/${s}/${e}`
-                        : `https://embed.filmu.in/embed/movie/${id}`,
-            },
-            {
                 id: 'native',
                 label: 'Moovie Player',
                 enabled: true,
                 build: () => '',
-            },
-            {
-                id: 'vidrock',
-                label: 'VidRock',
-                enabled: true,
-                build: (mediaType, id, s, e) =>
-                    mediaType === 'tv' ? `https://vidrock.net/tv/${id}/${s}/${e}` : `https://vidrock.net/movie/${id}`,
-            },
-            {
-                id: 'videasy',
-                label: 'Videasy',
-                enabled: true,
-                build: (mediaType, id, s, e) =>
-                    mediaType === 'tv' ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
-            },
-            {
-                id: 'zxcstream',
-                label: 'ZXC Stream',
-                enabled: true,
-                build: (mediaType, id, s, e) =>
-                    mediaType === 'tv'
-                        ? `https://zxcstream.xyz/player/tv/${id}/${s}/${e}`
-                        : `https://zxcstream.xyz/player/movie/${id}`,
-            },
-            {
-                id: 'embed5',
-                label: 'Jellify',
-                enabled: true,
-                build: (mediaType, id, s, e) =>
-                    mediaType === 'tv'
-                        ? `https://jellify.live/embed/tv/${id}/${s}/${e}`
-                        : `https://jellify.live/embed/movie/${id}`,
             },
         ]
         function clearAllEmbedPanes() {

@@ -12,6 +12,7 @@
 
         <PollPopup v-if="!isPartyEmbed" />
         <SuggestionPopup v-if="!isPartyEmbed" />
+        <AndroidAppModal v-if="!isPartyEmbed" :is-open="isAppModalOpen" @close="closeAppModal" />
 
         <router-view v-slot="{ Component, route }">
             <Transition
@@ -45,6 +46,10 @@ import { triggerAd } from './components/ads/triggerAd';
 import BannerBar from './components/navigation/BannerBar.vue';
 import PollPopup from './components/navigation/PollPopup.vue';
 import SuggestionPopup from './components/navigation/SuggestionPopup.vue';
+import AndroidAppModal from './components/navigation/AndroidAppModal.vue';
+import { useAndroidApp } from './composables/useAndroidApp';
+
+const { isAppModalOpen, closeAppModal, initAutoPrompt } = useAndroidApp();
 
 const route = useRoute();
 const isBareLayout = computed(() => Boolean(route.meta.bareLayout));
@@ -142,6 +147,10 @@ onMounted(async () => {
         requestIdleCallback(() => initIdle());
     } else {
         setTimeout(() => initIdle(), 100);
+    }
+
+    if (!isPartyEmbed.value) {
+        initAutoPrompt(10000);
     }
 });
 

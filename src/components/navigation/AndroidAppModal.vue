@@ -96,18 +96,20 @@ export default defineComponent({
     },
     emits: ['close'],
     setup(props, { emit }) {
-        const { config, hasDownloadUrl, triggerApkDownload } = useAndroidApp();
+        const { config, hasDownloadUrl, triggerApkDownload, closeAppModal } = useAndroidApp();
 
         const displayFeatures = computed(() => {
             return config.features.slice(0, 4);
         });
 
         const close = () => {
+            closeAppModal();
             emit('close');
         };
 
         const handleDownloadClick = () => {
             triggerApkDownload();
+            close();
         };
 
         const handleKeydown = (e: KeyboardEvent) => {

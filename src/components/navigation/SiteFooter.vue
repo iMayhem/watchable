@@ -108,14 +108,11 @@
             </div>
         </div>
 
-        <!-- Android App Download Modal -->
-        <AndroidAppModal :is-open="isAppModalOpen" @close="isAppModalOpen = false" />
     </footer>
 </template>
 
 <script lang="ts">
 import { computed, defineComponent } from 'vue';
-import AndroidAppModal from './AndroidAppModal.vue';
 import AndroidIcon from '../svg/logo/android.vue';
 import { useAndroidApp } from '../../composables/useAndroidApp';
 
@@ -167,7 +164,6 @@ const columns: FooterCol[] = [
 export default defineComponent({
     name: 'SiteFooter',
     components: {
-        AndroidAppModal,
         AndroidIcon
     },
     setup() {

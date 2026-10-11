@@ -93,7 +93,7 @@
                     class="site-header__icon-btn site-header__android-btn"
                     aria-label="Download Android App"
                     title="Get Android App"
-                    @click="isAppModalOpen = true"
+                    @click="openAppModal"
                 >
                     <AndroidIcon :size="18" />
                 </button>
@@ -202,7 +202,7 @@
                 <button
                     type="button"
                     class="site-header__drawer-link"
-                    @click="isAppModalOpen = true; drawerOpen = false"
+                    @click="openAppModal(); drawerOpen = false"
                 >
                     <span class="eyebrow site-header__drawer-num">
                         <AndroidIcon :size="16" />
@@ -240,9 +240,6 @@
         <!-- Regional Settings Modal -->
         <SettingsModal :is-open="isSettingsModalOpen" @close="isSettingsModalOpen = false" />
 
-        <!-- Android App Download Modal -->
-        <AndroidAppModal :is-open="isAppModalOpen" @close="isAppModalOpen = false" />
-
     </header>
 </template>
 
@@ -259,7 +256,6 @@ import LmDrawer from '../primitives/Drawer.vue';
 import AuthModal from './AuthModal.vue';
 import SettingsModal from './SettingsModal.vue';
 import NotificationBell from './NotificationBell.vue';
-import AndroidAppModal from './AndroidAppModal.vue';
 import AndroidIcon from '../svg/logo/android.vue';
 
 import { useAndroidApp } from '../../composables/useAndroidApp';
@@ -321,10 +317,10 @@ const primaryNav: NavItem[] = [
 
 export default defineComponent({
     name: 'SiteHeader',
-    components: { LmDrawer, AuthModal, SettingsModal, NotificationBell, AndroidAppModal, AndroidIcon },
+    components: { LmDrawer, AuthModal, SettingsModal, NotificationBell, AndroidIcon },
     setup() {
         const route = useRoute();
-        const { isAppModalOpen } = useAndroidApp();
+        const { isAppModalOpen, openAppModal } = useAndroidApp();
         const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
         const scrolled = ref(false);
 
@@ -513,6 +509,7 @@ export default defineComponent({
             isAuthModalOpen,
             isSettingsModalOpen,
             isAppModalOpen,
+            openAppModal,
 
             currentUser,
             handleLogout,

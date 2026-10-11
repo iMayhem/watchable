@@ -23,7 +23,17 @@
                     <h3 class="eyebrow site-footer__col-title">{{ col.title }}</h3>
                     <ul class="site-footer__list">
                         <li v-for="link in col.links" :key="link.label">
+                            <button
+                                v-if="link.action === 'appModal'"
+                                type="button"
+                                class="site-footer__link site-footer__link--btn"
+                                @click="openAppModal"
+                            >
+                                <AndroidIcon :size="15" style="margin-right: 6px; color: #3ddc84;" />
+                                {{ link.label }}
+                            </button>
                             <component
+                                v-else
                                 :is="link.external ? 'a' : 'router-link'"
                                 :to="!link.external ? link.href : undefined"
                                 :href="link.external ? link.href : undefined"
@@ -97,16 +107,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Android App Download Modal -->
+        <AndroidAppModal :is-open="isAppModalOpen" @close="isAppModalOpen = false" />
     </footer>
 </template>
 
 <script lang="ts">
 import { computed, defineComponent } from 'vue';
+import AndroidAppModal from './AndroidAppModal.vue';
+import AndroidIcon from '../svg/logo/android.vue';
+import { useAndroidApp } from '../../composables/useAndroidApp';
 
 interface FooterLink {
     label: string;
     href: string;
     external?: boolean;
+    action?: string;
 }
 
 interface FooterCol {
@@ -129,6 +146,11 @@ const columns: FooterCol[] = [
         title: 'About',
         links: [
             {
+                label: 'Android App',
+                href: '#android-app',
+                action: 'appModal'
+            },
+            {
                 label: 'Settings',
                 href: '/settings',
                 external: false
@@ -144,7 +166,12 @@ const columns: FooterCol[] = [
 
 export default defineComponent({
     name: 'SiteFooter',
+    components: {
+        AndroidAppModal,
+        AndroidIcon
+    },
     setup() {
+        const { isAppModalOpen, openAppModal } = useAndroidApp();
         const now = new Date();
         const year = now.getFullYear();
         const month = now.toLocaleString('en-US', { month: 'long' });
@@ -162,7 +189,7 @@ export default defineComponent({
         };
         const issue = String(getWeek(now)).padStart(2, '0');
 
-        return { year, month, volume, issue, columns };
+        return { year, month, volume, issue, columns, isAppModalOpen, openAppModal };
     }
 });
 </script>
@@ -327,6 +354,17 @@ export default defineComponent({
         }
     }
 
+    &__link--btn {
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+        display: inline-flex;
+        align-items: center;
+    }
+
     &__new-badge {
         background: var(--ember);
         color: var(--ink-950) !important;
@@ -339,6 +377,13 @@ export default defineComponent({
         letter-spacing: 0.05em;
         display: inline-block;
         line-height: 1;
+
+        &--apk {
+            background: rgba(61, 220, 132, 0.25) !important;
+            color: #3ddc84 !important;
+            border: 1px solid rgba(61, 220, 132, 0.4) !important;
+            font-weight: 800;
+        }
     }
 
     &__colophon {

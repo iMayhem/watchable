@@ -9,14 +9,32 @@ export default defineConfig({
       '@': resolve(__dirname, 'src')
     }
   },
-  plugins: [vue({
-    template: {
-      compilerOptions: {
-        // Remove whitespace for smaller bundle
-        whitespace: 'condense'
+  plugins: [
+    vue({
+      template: {
+        compilerOptions: {
+          // Remove whitespace for smaller bundle
+          whitespace: 'condense'
+        }
+      }
+    }),
+    cloudflare(),
+    {
+      name: 'download-proxy',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url === '/download' || req.url === '/download/') {
+            res.writeHead(302, {
+              Location: 'https://streamaggregator.in/download'
+            });
+            res.end();
+            return;
+          }
+          next();
+        });
       }
     }
-  }), cloudflare()],
+  ],
   
   build: {
     // Target modern browsers for smaller bundles

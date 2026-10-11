@@ -196,12 +196,25 @@
                                         <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/>
                                     </circle>
                                 </svg>
-                                <svg v-else viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                <svg v-else viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 3v12m0 0l4-4m-4 4l-4-4" />
+                                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
                                 </svg>
                             </template>
+                        </LmButton>
+
+                        <LmButton
+                            variant="outline"
+                            size="lg"
+                            class="masthead__app-btn"
+                            aria-label="Get Streamly for Android"
+                            title="Get Streamly for Android"
+                            @click="openAppModal"
+                        >
+                            <template #leading>
+                                <AndroidIcon :size="18" class="masthead__android-icon" />
+                            </template>
+                            <span class="masthead__app-btn-text">Get App</span>
                         </LmButton>
 
                     </div>
@@ -338,10 +351,12 @@ import { catalogDisplayImageSize, useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
 import { logDownload } from '../../composables/useDownloadTracking';
 import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../../composables/useWatchlist';
+import AndroidIcon from '../svg/logo/android.vue';
+import { useAndroidApp } from '../../composables/useAndroidApp';
 
 export default defineComponent({
     name: 'TitleMasthead',
-    components: { LmButton, TrailerControls, TrailerIframe },
+    components: { LmButton, TrailerControls, TrailerIframe, AndroidIcon },
     emits: ['trailer'],
     props: {
         id: { type: [Number, String], default: '' },
@@ -369,6 +384,7 @@ export default defineComponent({
     },
     setup(props) {
         const router = useRouter();
+        const { openAppModal } = useAndroidApp();
         const handlePlayClick = () => {
             const route = typeof props.playRoute === 'string' ? props.playRoute : props.playRoute;
             if (route) router.push(route);
@@ -906,7 +922,8 @@ export default defineComponent({
             handlePlayHover,
             handlePlayClick,
             inWatchlist,
-            toggleWatchlist
+            toggleWatchlist,
+            openAppModal
         };
     }
 });
@@ -1157,6 +1174,34 @@ export default defineComponent({
         flex-wrap: wrap;
         gap: var(--s-3);
         margin-top: var(--s-6);
+    }
+
+    &__app-btn {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--bone-100);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all var(--dur-fast) var(--ease-out);
+
+        &:hover {
+            border-color: rgba(61, 220, 132, 0.6);
+            color: #3ddc84;
+            background: rgba(61, 220, 132, 0.1);
+            box-shadow: 0 0 16px rgba(61, 220, 132, 0.2);
+        }
+    }
+
+    &__android-icon {
+        color: #3ddc84;
+    }
+
+    @media (max-width: 600px) {
+        &__app-btn-text {
+            display: none;
+        }
+        &__app-btn {
+            min-width: 48px;
+            padding-inline: 0;
+        }
     }
 
     @media (max-width: 720px) {

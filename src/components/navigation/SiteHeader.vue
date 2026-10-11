@@ -88,6 +88,16 @@
                     <span class="site-header__party-label">Together</span>
                 </router-link>
 
+                <button
+                    type="button"
+                    class="site-header__icon-btn site-header__android-btn"
+                    aria-label="Download Android App"
+                    title="Get Android App"
+                    @click="isAppModalOpen = true"
+                >
+                    <AndroidIcon :size="18" />
+                </button>
+
                 <button v-if="currentUser" class="site-header__user-badge" @click="handleLogout" title="Sign Out">
                     <span class="site-header__username">{{ currentUser }}</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="site-header__logout-icon">
@@ -189,6 +199,17 @@
                     <span class="site-header__drawer-label">Together</span>
                 </router-link>
 
+                <button
+                    type="button"
+                    class="site-header__drawer-link"
+                    @click="isAppModalOpen = true; drawerOpen = false"
+                >
+                    <span class="eyebrow site-header__drawer-num">
+                        <AndroidIcon :size="16" />
+                    </span>
+                    <span class="site-header__drawer-label">Get Android App</span>
+                </button>
+
                 <button class="site-header__drawer-link" @click="isSettingsModalOpen = true; drawerOpen = false">
                     <span class="eyebrow site-header__drawer-num">🌐</span>
                     <span class="site-header__drawer-label">Regional Settings</span>
@@ -219,6 +240,9 @@
         <!-- Regional Settings Modal -->
         <SettingsModal :is-open="isSettingsModalOpen" @close="isSettingsModalOpen = false" />
 
+        <!-- Android App Download Modal -->
+        <AndroidAppModal :is-open="isAppModalOpen" @close="isAppModalOpen = false" />
+
     </header>
 </template>
 
@@ -235,7 +259,10 @@ import LmDrawer from '../primitives/Drawer.vue';
 import AuthModal from './AuthModal.vue';
 import SettingsModal from './SettingsModal.vue';
 import NotificationBell from './NotificationBell.vue';
+import AndroidAppModal from './AndroidAppModal.vue';
+import AndroidIcon from '../svg/logo/android.vue';
 
+import { useAndroidApp } from '../../composables/useAndroidApp';
 import { openPalette } from '../../composables/useCommandPalette';
 import { getCurrentUser, logoutUser } from '../../lib/auth';
 import { getSettings, REGIONS } from '../../composables/useSettings';
@@ -294,9 +321,10 @@ const primaryNav: NavItem[] = [
 
 export default defineComponent({
     name: 'SiteHeader',
-    components: { LmDrawer, AuthModal, SettingsModal, NotificationBell },
+    components: { LmDrawer, AuthModal, SettingsModal, NotificationBell, AndroidAppModal, AndroidIcon },
     setup() {
         const route = useRoute();
+        const { isAppModalOpen } = useAndroidApp();
         const isPartyRoute = computed(() => route.path === '/party' || route.path.startsWith('/party/'));
         const scrolled = ref(false);
 
@@ -484,6 +512,7 @@ export default defineComponent({
             openFromDrawer,
             isAuthModalOpen,
             isSettingsModalOpen,
+            isAppModalOpen,
 
             currentUser,
             handleLogout,
@@ -947,6 +976,14 @@ export default defineComponent({
 
         &.is-active {
             color: var(--bone-50);
+        }
+    }
+
+    &__android-btn {
+        color: var(--bone-300);
+
+        &:hover {
+            color: #3ddc84;
         }
     }
 

@@ -136,6 +136,40 @@
                         </div>
                     </section>
 
+                    <!-- Section: Android Mobile App -->
+                    <section class="settings-card">
+                        <div class="settings-card__header">
+                            <div class="settings-card__icon-box" style="background: rgba(61, 220, 132, 0.15); color: #3ddc84; border-color: rgba(61, 220, 132, 0.3);">
+                                <AndroidIcon :size="24" />
+                            </div>
+                            <div>
+                                <h2 class="settings-card__title">Streamly (Moovie) for Android</h2>
+                                <p class="settings-card__desc">Download the native Android app for hardware-accelerated playback, ad-blocking, and PiP multitasking.</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-card__body">
+                            <div class="settings-action-box">
+                                <div>
+                                    <span class="settings-action-title">
+                                        Version {{ appConfig.version }} <span style="font-size: 0.75rem; color: #3ddc84; font-weight: 600; margin-left: 6px;">(Official Release)</span>
+                                    </span>
+                                    <span class="settings-action-desc">
+                                        {{ appConfig.minAndroid }} • Optimized for mobile & TV
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="settings-btn settings-btn--save"
+                                    style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-color: #10b981; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);"
+                                    @click="openAppModal"
+                                >
+                                    Get Streamly
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- Section 3: FebBox Cloud Integration -->
                     <section class="settings-card">
                         <div class="settings-card__header">
@@ -281,11 +315,14 @@ import { usePlaybackRoute, type PlaybackRoute } from '../composables/usePlayback
 import { getCurrentUser, logoutUser } from '../lib/auth';
 import { useSeo } from '../composables/useSeo';
 import { useToast } from '../composables/useToast';
+import AndroidIcon from '../components/svg/logo/android.vue';
+import { useAndroidApp } from '../composables/useAndroidApp';
 
 const { updateSeo } = useSeo();
 const { region, language, updateSettings } = getSettings();
 const { addToast } = useToast();
 const { savedRoute, draftRoute, saveRoute } = usePlaybackRoute();
+const { openAppModal, config: appConfig } = useAndroidApp();
 
 const routeLabel = computed(() => {
     const map: Record<PlaybackRoute, string> = {

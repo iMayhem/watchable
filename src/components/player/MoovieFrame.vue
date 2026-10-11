@@ -1411,6 +1411,12 @@ export default defineComponent({
         const volumeSliderOpen = ref(false)
         const volume = ref(0.8)
         const originalStream = ref<HubStream | null>(null)
+        // Provider-chain state so playback failures can advance to the next
+        // provider even after doLoad's loop has already returned.
+        const chainOrdered = ref<{ id: string; name: string }[]>([])
+        const triedProviders = ref<Set<string>>(new Set())
+        const lastTriedStream = ref<HubStream | null>(null)
+        let hlsManifestParsed = false
 
         function onVolumeChange(e: Event) {
             const video = videoRef.value
@@ -1695,6 +1701,7 @@ export default defineComponent({
 
         function destroyPlayer() {
             if (hlsInstance) { try { hlsInstance.destroy() } catch {}; hlsInstance = null }
+            hlsManifestParsed = false
             if (videoRef.value) { videoRef.value.removeAttribute('src'); videoRef.value.load() }
             osSubCues.clear()
             activeCueText.value = ''
@@ -1944,12 +1951,26 @@ export default defineComponent({
                                 console.error('[MoovieFrame] Media error recovery failed after 3 attempts')
                             }
                             buffering.value = false
+                            if (!firstFrameShown.value && hlsManifestParsed && !componentUnmounted) {
+                                // Manifest parsed but no frame ever rendered (e.g. a
+                                // poisoned level playlist). Drive the fallback chain
+                                // instead of dead-ending on the error overlay.
+                                console.warn('[MoovieFrame] HLS attached but never rendered, advancing chain')
+                                const failed = lastTriedStream.value
+                                error.value = ''
+                                loading.value = true
+                                destroyPlayer()
+                                try { reject(new Error(`HLS fatal: ${data.details}`)) } catch {}
+                                if (failed?.url) { void tryFallbackStream(failed) } else { void advanceProviderChain() }
+                                return
+                            }
                             error.value = `HLS error: ${data.details}`
                             reject(new Error(`HLS fatal: ${data.details}`))
                         }
                     })
 
                     hlsInstance.on(HlsCtor.Events.MANIFEST_PARSED, () => {
+                        hlsManifestParsed = true
                         const levels: { id: number; label: string; height: number }[] = []
                         if (hlsInstance.levels) {
                             for (let i = 0; i < hlsInstance.levels.length; i++) {
@@ -2500,9 +2521,12 @@ export default defineComponent({
                     : providerList
                 if (!ordered.length) throw new Error('No enabled providers are available')
                 selectedServer.value = ordered[0].name
+                chainOrdered.value = ordered
+                triedProviders.value = new Set<string>()
                 await proxySettingPromise
                 let poseidonTriedInChain = false
                 for (const provider of ordered) {
+                    triedProviders.value.add(provider.name.toLowerCase())
                     const ok = await selectServer(provider.name, { suppressErrors: true })
                     if (ok) {
                         console.debug('[MoovieFrame] initial single-source scrape started:', provider.name)
@@ -2526,7 +2550,11 @@ export default defineComponent({
                 if (fallbackStreams && fallbackStreams.length > 0) {
                     const best = pickBest(fallbackStreams)
                     if (best) {
-                        await tryPlayStream(best)
+                        try {
+                            await tryPlayStream(best)
+                        } catch {
+                            await tryFallbackStream(best)
+                        }
                         return
                     }
                 }
@@ -2560,6 +2588,7 @@ export default defineComponent({
             if (!originalStream.value) {
                 originalStream.value = s
             }
+            lastTriedStream.value = s
             selectedServer.value = s.providerName || ''
             // Provider-side proxies (emebd / workers.dev / hub / cf) already relay
             // the origin fetch — wrapping them through the hub again adds two extra
@@ -2642,10 +2671,40 @@ export default defineComponent({
         }
 
         const failedStreamUrls = ref<Set<string>>(new Set())
+        async function advanceProviderChain() {
+            // Continue past the current provider when its streams all failed
+            // after playback already started (doLoad's loop has returned).
+            const list = chainOrdered.value
+            if (!list.length) {
+                error.value = 'No enabled provider returned a playable stream'
+                loading.value = false
+                return
+            }
+            const cur = (selectedServer.value || '').toLowerCase()
+            const startIdx = list.findIndex(p => (p.name || '').toLowerCase() === cur)
+            for (let i = startIdx + 1; i < list.length; i++) {
+                const name = list[i]?.name
+                if (!name || triedProviders.value.has(name.toLowerCase())) continue
+                triedProviders.value.add(name.toLowerCase())
+                console.log('[MoovieFrame] advancing provider chain to:', name)
+                error.value = ''
+                loading.value = true
+                try {
+                    const ok = await selectServer(name, { suppressErrors: true })
+                    if (ok) return
+                } catch { /* try next */ }
+            }
+            error.value = 'No enabled provider returned a playable stream'
+            loading.value = false
+        }
+
         async function tryFallbackStream(failed: HubStream) {
             failedStreamUrls.value.add(failed.url)
             const remaining = streams.value.filter(s => !failedStreamUrls.value.has(s.url))
-            if (!remaining.length) return
+            if (!remaining.length) {
+                await advanceProviderChain()
+                return
+            }
             console.log('[MOVIEFRAME] fallback: trying next stream from', remaining.length, 'remaining')
             const next = pickBest(remaining)
             if (next) {
@@ -2794,6 +2853,9 @@ export default defineComponent({
 
         async function selectServer(provider: string, opts?: { suppressErrors?: boolean }) {
             selectedServer.value = provider
+            // Manual server picks (no suppressErrors) reset chain tracking so a
+            // later fallback starts fresh; chain calls manage the set themselves.
+            if (!opts?.suppressErrors) triedProviders.value.clear()
             settingsOpen.value = false
             settingsSection.value = null
             console.debug('[MoovieFrame] selectServer:', provider)

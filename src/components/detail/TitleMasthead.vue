@@ -641,7 +641,6 @@ export default defineComponent({
             const a = document.createElement('a');
             a.href = finalUrl;
             a.download = fileName;
-            a.target = '_blank';
             a.rel = 'noopener noreferrer';
             document.body.appendChild(a);
             a.click();

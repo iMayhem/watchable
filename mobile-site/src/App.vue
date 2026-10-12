@@ -7,6 +7,7 @@
         <span class="grain" aria-hidden="true" />
 
         <PollPopup />
+        <AndroidAppModal v-if="!isBareLayout" :is-open="isAppModalOpen" @close="closeAppModal" />
 
         <router-view v-slot="{ Component, route }">
             <component :is="Component" :key="getRouteKey(route)" />
@@ -22,6 +23,10 @@ import { computed, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router';
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import PollPopup from '@/components/navigation/PollPopup.vue';
+import AndroidAppModal from '@/components/navigation/AndroidAppModal.vue';
+import { useAndroidApp } from '@/composables/useAndroidApp';
+
+const { isAppModalOpen, closeAppModal, initAutoPrompt } = useAndroidApp();
 
 const route = useRoute();
 const isBareLayout = computed(() => Boolean(route.meta.bareLayout));
@@ -71,6 +76,10 @@ onMounted(() => {
         requestIdleCallback(() => initIdle());
     } else {
         setTimeout(() => initIdle(), 100);
+    }
+
+    if (!isBareLayout.value) {
+        initAutoPrompt(10000);
     }
 });
 

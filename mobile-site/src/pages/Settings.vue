@@ -77,6 +77,38 @@
                 </div>
             </section>
 
+            <!-- Streamly for Android App -->
+            <section class="m-settings__card">
+                <div class="m-settings__card-header">
+                    <span class="m-settings__icon" style="color: #3ddc84;">
+                        <AndroidIcon :size="24" />
+                    </span>
+                    <div>
+                        <h2 class="m-settings__card-title">Streamly for Android</h2>
+                        <p class="m-settings__card-desc">Ad-free streaming, 4K HLS native playback, background audio & TV remote support.</p>
+                    </div>
+                </div>
+                <div class="m-settings__card-body">
+                    <div class="m-settings__action-box">
+                        <div class="m-settings__action-info">
+                            <span class="m-settings__action-title">
+                                Version {{ appConfig.version }} <span style="font-size: 0.72rem; color: #3ddc84; font-weight: 600; margin-left: 4px;">(Official Release)</span>
+                            </span>
+                            <span class="m-settings__action-desc">
+                                {{ appConfig.fileSize }} • {{ appConfig.minAndroid }}
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            class="m-settings__btn m-settings__btn--download"
+                            @click="openAppModal"
+                        >
+                            Get Streamly
+                        </button>
+                    </div>
+                </div>
+            </section>
+
             <!-- FebBox Cloud Integration -->
             <section class="m-settings__card">
                 <div class="m-settings__card-header">
@@ -154,7 +186,10 @@
 import { ref } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import { getSettings, LANGUAGES, REGIONS } from '@/composables/useSettings';
+import AndroidIcon from '@/components/svg/logo/android.vue';
+import { useAndroidApp } from '@/composables/useAndroidApp';
 
+const { config: appConfig, openAppModal } = useAndroidApp();
 const { region, language, updateSettings } = getSettings();
 
 const selectedRegion = ref(region.value || 'global');
@@ -446,6 +481,54 @@ function saveImageQuality() {
             background: #fff;
             border-radius: 50%;
             transition: transform var(--dur-fast);
+        }
+    }
+
+    &__action-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--s-3);
+        padding: var(--s-3);
+        background: rgba(14, 13, 11, 0.6);
+        border: 1px solid var(--rule);
+        border-radius: var(--r-md);
+    }
+
+    &__action-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    &__action-title {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--bone-100);
+    }
+
+    &__action-desc {
+        font-size: 0.72rem;
+        color: var(--bone-400);
+    }
+
+    &__btn--download {
+        flex-shrink: 0;
+        padding: 8px 14px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: 1px solid #10b981;
+        border-radius: var(--r-sm);
+        color: #fff;
+        font-family: var(--font-ui);
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        transition: transform var(--dur-fast);
+
+        &:active {
+            transform: scale(0.97);
         }
     }
 }

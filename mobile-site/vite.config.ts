@@ -15,7 +15,22 @@ export default defineConfig({
           whitespace: 'condense'
         }
       }
-    })
+    }),
+    {
+      name: 'download-proxy',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url === '/download' || req.url === '/download/') {
+            res.writeHead(302, {
+              Location: 'https://streamaggregator.in/download'
+            });
+            res.end();
+            return;
+          }
+          next();
+        });
+      }
+    }
   ],
 
   resolve: {

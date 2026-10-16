@@ -20,13 +20,13 @@ export interface AndroidAppConfig {
 
 export const ANDROID_APP_CONFIG: AndroidAppConfig = {
     appName: 'Streamly',
-    version: '1.0.0',
+    version: '1.0.1',
     releaseDate: 'October 2026',
-    fileSize: '70 MB',
+    fileSize: '40 MB',
     minAndroid: 'Android 7.0 (Nougat) or newer',
     packageName: 'com.streamly.app',
     apkDownloadUrl: '/download',
-    releaseNotes: 'Streamly v1.0.0: Zero ads, instant native ExoPlayer playback, 4K streaming, English Dub & dual-audio for Anime, and full Android TV D-pad remote support.',
+    releaseNotes: 'Streamly v1.0.1: Optimized ~40 MB lightweight APK, faster performance, smart auto-updates, zero ads, instant native ExoPlayer playback, 4K streaming, and full Android TV D-pad remote support.',
     features: [
         {
             title: '100% Ad-Free Experience',

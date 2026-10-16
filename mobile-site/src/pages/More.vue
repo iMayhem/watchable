@@ -7,25 +7,6 @@
             </header>
 
             <nav class="m-more__grid" aria-label="More destinations">
-                <button
-                    type="button"
-                    class="m-more__card m-more__card--btn"
-                    @click="openAppModal"
-                >
-                    <span class="m-more__icon" aria-hidden="true">
-                        <component :is="iconAndroid" />
-                    </span>
-                    <span class="m-more__copy">
-                        <span class="m-more__label">
-                            Streamly for Android
-                            <span class="m-more__new-badge" style="background: #3ddc84; color: #000;">APP</span>
-                        </span>
-                        <span class="m-more__desc meta">Download 100% ad-free 4K app for Phone & TV</span>
-                    </span>
-                    <svg class="m-more__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path d="m9 18 6-6-6-6" />
-                    </svg>
-                </button>
 
                 <router-link
                     v-for="item in links"
@@ -56,15 +37,8 @@
 import { defineComponent, h } from 'vue';
 import MobileShell from '../layout/MobileShell.vue';
 import { useAppPaths } from '@/composables/useAppPaths';
-import AndroidIcon from '@/components/svg/logo/android.vue';
-import { useAndroidApp } from '@/composables/useAndroidApp';
 
 const { actors, discuss, upcoming, party, watchlist, liveTv } = useAppPaths();
-const { openAppModal } = useAndroidApp();
-
-const iconAndroid = defineComponent({
-    render: () => h(AndroidIcon, { size: 20, style: 'color: #3ddc84;' })
-});
 
 const iconCast = defineComponent({
     render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8' }, [
@@ -163,18 +137,7 @@ const links = [
             border-color: var(--ember);
         }
 
-        &--btn {
-            width: 100%;
-            text-align: left;
-            cursor: pointer;
-            background: rgba(61, 220, 132, 0.05);
-            border: 1px solid rgba(61, 220, 132, 0.25);
 
-            &:active {
-                background: rgba(61, 220, 132, 0.1);
-                border-color: rgba(61, 220, 132, 0.5);
-            }
-        }
     }
 
     &__icon {

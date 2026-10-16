@@ -202,21 +202,6 @@
                                 </svg>
                             </template>
                         </LmButton>
-
-                        <LmButton
-                            variant="outline"
-                            size="lg"
-                            class="masthead__app-btn"
-                            aria-label="Get Streamly for Android"
-                            title="Get Streamly for Android"
-                            @click="openAppModal"
-                        >
-                            <template #leading>
-                                <AndroidIcon :size="18" class="masthead__android-icon" />
-                            </template>
-                            <span class="masthead__app-btn-text">Get App</span>
-                        </LmButton>
-
                     </div>
                 </div>
             </div>
@@ -351,12 +336,10 @@ import { catalogDisplayImageSize, useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
 import { logDownload } from '../../composables/useDownloadTracking';
 import { isInWatchlist, toggleWatchlistItem, type WatchlistItem } from '../../composables/useWatchlist';
-import AndroidIcon from '../svg/logo/android.vue';
-import { useAndroidApp } from '../../composables/useAndroidApp';
 
 export default defineComponent({
     name: 'TitleMasthead',
-    components: { LmButton, TrailerControls, TrailerIframe, AndroidIcon },
+    components: { LmButton, TrailerControls, TrailerIframe },
     emits: ['trailer'],
     props: {
         id: { type: [Number, String], default: '' },
@@ -384,7 +367,6 @@ export default defineComponent({
     },
     setup(props) {
         const router = useRouter();
-        const { openAppModal } = useAndroidApp();
         const handlePlayClick = () => {
             const route = typeof props.playRoute === 'string' ? props.playRoute : props.playRoute;
             if (route) router.push(route);
@@ -921,8 +903,7 @@ export default defineComponent({
             handlePlayHover,
             handlePlayClick,
             inWatchlist,
-            toggleWatchlist,
-            openAppModal
+            toggleWatchlist
         };
     }
 });
@@ -1175,33 +1156,6 @@ export default defineComponent({
         margin-top: var(--s-6);
     }
 
-    &__app-btn {
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--bone-100);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        transition: all var(--dur-fast) var(--ease-out);
-
-        &:hover {
-            border-color: rgba(61, 220, 132, 0.6);
-            color: #3ddc84;
-            background: rgba(61, 220, 132, 0.1);
-            box-shadow: 0 0 16px rgba(61, 220, 132, 0.2);
-        }
-    }
-
-    &__android-icon {
-        color: #3ddc84;
-    }
-
-    @media (max-width: 600px) {
-        &__app-btn-text {
-            display: none;
-        }
-        &__app-btn {
-            min-width: 48px;
-            padding-inline: 0;
-        }
-    }
 
     @media (max-width: 720px) {
         min-height: clamp(380px, 50vh, 520px);

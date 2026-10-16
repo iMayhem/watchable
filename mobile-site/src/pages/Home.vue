@@ -22,34 +22,10 @@
                             </svg>
                             Watch now
                         </span>
-                        <span
-                            class="m-home__hero-app-btn"
-                            role="button"
-                            @click.prevent.stop="openAppModal"
-                            aria-label="Get Android App"
-                        >
-                            <AndroidIcon :size="14" />
-                            Get App
-                        </span>
                     </div>
                 </div>
             </router-link>
         </section>
-
-        <!-- Quick Android App Callout Strip -->
-        <div class="m-home__app-strip">
-            <button type="button" class="m-home__app-pill" @click="openAppModal">
-                <div class="m-home__app-pill-left">
-                    <span class="m-home__app-icon-wrap">
-                        <AndroidIcon :size="16" />
-                    </span>
-                    <span class="m-home__app-text">
-                        <strong>Streamly for Android</strong> — 100% Ad-Free 4K Streaming
-                    </span>
-                </div>
-                <span class="m-home__app-badge">Install</span>
-            </button>
-        </div>
 
         <!-- Download Quality Panel -->
         <Teleport to="body">
@@ -155,12 +131,8 @@ import { useWebImage } from '@/utils/useWebImage';
 import SpotlightModule from '@/components/hero/SpotlightModule.vue';
 import MobileSection from '../components/MobileSection.vue';
 import MobileMediaRail from '../components/MobileMediaRail.vue';
-import AndroidIcon from '@/components/svg/logo/android.vue';
-import { useAndroidApp } from '@/composables/useAndroidApp';
-
 const { movie } = useAppPaths();
 const { fetchAllHighlights } = useHighlights();
-const { openAppModal } = useAndroidApp();
 
 const pantheonItems = computed(() =>
     (highLightOptions.popular.data ?? []).slice(10, 28).map(m => ({
@@ -401,99 +373,6 @@ onBeforeUnmount(() => {
         &:hover {
             background: rgba(255, 255, 255, 0.22);
         }
-    }
-
-    &__hero-app-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.45rem 0.85rem;
-        border-radius: var(--r-pill);
-        background: rgba(61, 220, 132, 0.15);
-        border: 1px solid rgba(61, 220, 132, 0.4);
-        backdrop-filter: blur(4px);
-        color: #3ddc84;
-        font-family: var(--font-ui);
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        cursor: pointer;
-        transition: background 0.15s, transform 0.15s;
-
-        &:active {
-            transform: scale(0.97);
-            background: rgba(61, 220, 132, 0.25);
-        }
-    }
-
-    &__app-strip {
-        padding: var(--s-3) var(--s-4) 0;
-    }
-
-    &__app-pill {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--s-3);
-        padding: 10px 14px;
-        background: rgba(61, 220, 132, 0.06);
-        border: 1px solid rgba(61, 220, 132, 0.22);
-        border-radius: var(--r-md);
-        color: var(--bone-100);
-        cursor: pointer;
-        transition: background var(--dur-fast), border-color var(--dur-fast);
-
-        &:active {
-            background: rgba(61, 220, 132, 0.12);
-            border-color: rgba(61, 220, 132, 0.45);
-        }
-    }
-
-    &__app-pill-left {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-    }
-
-    &__app-icon-wrap {
-        display: grid;
-        place-items: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: rgba(61, 220, 132, 0.15);
-        color: #3ddc84;
-        flex-shrink: 0;
-    }
-
-    &__app-text {
-        font-family: var(--font-ui);
-        font-size: 0.76rem;
-        color: var(--bone-200);
-        text-align: left;
-        line-height: 1.3;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-
-        strong {
-            color: var(--bone-50);
-        }
-    }
-
-    &__app-badge {
-        flex-shrink: 0;
-        font-family: var(--font-ui);
-        font-size: 0.65rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding: 4px 10px;
-        border-radius: var(--r-pill);
-        background: #3ddc84;
-        color: #0b0a08;
     }
 
     &__continue {

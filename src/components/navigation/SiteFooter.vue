@@ -23,17 +23,7 @@
                     <h3 class="eyebrow site-footer__col-title">{{ col.title }}</h3>
                     <ul class="site-footer__list">
                         <li v-for="link in col.links" :key="link.label">
-                            <button
-                                v-if="link.action === 'appModal'"
-                                type="button"
-                                class="site-footer__link site-footer__link--btn"
-                                @click="openAppModal"
-                            >
-                                <AndroidIcon :size="15" style="margin-right: 6px; color: #3ddc84;" />
-                                {{ link.label }}
-                            </button>
                             <component
-                                v-else
                                 :is="link.external ? 'a' : 'router-link'"
                                 :to="!link.external ? link.href : undefined"
                                 :href="link.external ? link.href : undefined"
@@ -113,8 +103,6 @@
 
 <script lang="ts">
 import { computed, defineComponent } from 'vue';
-import AndroidIcon from '../svg/logo/android.vue';
-import { useAndroidApp } from '../../composables/useAndroidApp';
 
 interface FooterLink {
     label: string;
@@ -143,11 +131,6 @@ const columns: FooterCol[] = [
         title: 'About',
         links: [
             {
-                label: 'Android App',
-                href: '#android-app',
-                action: 'appModal'
-            },
-            {
                 label: 'Settings',
                 href: '/settings',
                 external: false
@@ -163,11 +146,7 @@ const columns: FooterCol[] = [
 
 export default defineComponent({
     name: 'SiteFooter',
-    components: {
-        AndroidIcon
-    },
     setup() {
-        const { isAppModalOpen, openAppModal } = useAndroidApp();
         const now = new Date();
         const year = now.getFullYear();
         const month = now.toLocaleString('en-US', { month: 'long' });
@@ -185,7 +164,7 @@ export default defineComponent({
         };
         const issue = String(getWeek(now)).padStart(2, '0');
 
-        return { year, month, volume, issue, columns, isAppModalOpen, openAppModal };
+        return { year, month, volume, issue, columns };
     }
 });
 </script>

@@ -147,19 +147,6 @@
                             </svg>
                         </template>
                     </LmButton>
-
-                    <LmButton
-                        variant="outline"
-                        size="lg"
-                        class="billboard__app-btn"
-                        aria-label="Get Streamly on Android"
-                        @click="openAppModal"
-                    >
-                        <template #leading>
-                            <AndroidIcon :size="18" class="billboard__android-icon" />
-                        </template>
-                        Get App
-                    </LmButton>
                 </div>
             </div>
 </template>
@@ -182,12 +169,10 @@ import { useTrailerEmbed } from '../../composables/useTrailerEmbed';
 import { useAppPaths } from '../../composables/useAppPaths';
 import { useWebImage } from '../../utils/useWebImage';
 import { buildPartyHref } from '../../utils/partyRoom';
-import AndroidIcon from '../svg/logo/android.vue';
-import { useAndroidApp } from '../../composables/useAndroidApp';
 
 export default defineComponent({
     name: 'BillboardHero',
-    components: { LmButton, TrailerControls, TrailerIframe, AndroidIcon },
+    components: { LmButton, TrailerControls, TrailerIframe },
     props: {
         id: { type: [Number, String], default: '' },
         partyId: { type: [Number, String], default: null },
@@ -210,7 +195,6 @@ export default defineComponent({
     },
     setup(props) {
         const router = useRouter();
-        const { openAppModal } = useAndroidApp();
         const rootRef = ref<HTMLElement | null>(null);
         const artPath = computed(() => {
             return props.strictBackdrop
@@ -332,8 +316,7 @@ export default defineComponent({
             onIframeLoad,
             togglePause,
             toggleMute,
-            handlePlayClick,
-            openAppModal
+            handlePlayClick
         };
     }
 });
@@ -563,22 +546,6 @@ export default defineComponent({
         border-color: var(--bone-400);
     }
 
-    &__app-btn {
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--bone-100);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-
-        &:hover {
-            border-color: rgba(61, 220, 132, 0.6);
-            color: #3ddc84;
-            background: rgba(61, 220, 132, 0.1);
-            box-shadow: 0 0 16px rgba(61, 220, 132, 0.2);
-        }
-    }
-
-    &__android-icon {
-        color: #3ddc84;
-    }
 
     @media (max-width: 720px) {
         min-height: clamp(460px, 70vh, 680px);

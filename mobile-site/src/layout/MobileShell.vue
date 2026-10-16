@@ -345,7 +345,7 @@ onBeforeUnmount(() => {
     &__header-actions {
         display: flex;
         align-items: center;
-        gap: var(--s-1);
+        gap: 6px;
         flex-shrink: 0;
         transition: gap 0.25s ease;
     }
@@ -355,8 +355,8 @@ onBeforeUnmount(() => {
     }
 
     &__header-actions.is-compact &__icon-btn {
-        width: 2.25rem;
-        height: 2.25rem;
+        width: 2.15rem;
+        height: 2.15rem;
     }
 
     &__header-actions.is-compact &__more-dropdown {
@@ -367,23 +367,49 @@ onBeforeUnmount(() => {
     &__header-actions.is-compact &__signin-btn,
     &__header-actions.is-compact &__support-btn {
         padding: 0 var(--s-2);
-        min-height: 2.25rem;
+        min-height: 2.15rem;
         font-size: 0.65rem;
     }
 
     &__icon-btn {
         display: grid;
         place-items: center;
-        width: 2.75rem;
-        height: 2.75rem;
+        width: 2.35rem;
+        height: 2.35rem;
         border-radius: var(--r-pill);
         color: var(--bone-200);
         background: var(--ink-800);
         border: 1px solid var(--rule);
+        flex-shrink: 0;
 
         svg {
-            width: 1.05rem;
-            height: 1.05rem;
+            width: 1rem;
+            height: 1rem;
+        }
+    }
+
+    @media (max-width: 360px) {
+        &__header {
+            padding: max(env(safe-area-inset-top, 0px), var(--s-2)) var(--s-2) var(--s-2);
+            gap: 6px;
+        }
+
+        &__mark {
+            font-size: 1.15rem;
+        }
+
+        &__header-actions {
+            gap: 3px;
+        }
+
+        &__icon-btn {
+            width: 2.1rem;
+            height: 2.1rem;
+
+            svg {
+                width: 0.9rem;
+                height: 0.9rem;
+            }
         }
     }
 
